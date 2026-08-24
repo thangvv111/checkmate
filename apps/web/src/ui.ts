@@ -7,7 +7,11 @@ const CSS = `
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.6 "Segoe UI",system-ui,sans-serif; }
   .top { background:#132b30; color:#fff; padding:14px 0; }
-  .top .wrap { display:flex; align-items:baseline; gap:14px; }
+  .top .wrap { display:flex; align-items:center; gap:14px; }
+  .gear { margin-left:auto; color:#9db8b3; font-size:21px; line-height:1; text-decoration:none;
+    padding:4px 8px; border-radius:7px; }
+  .gear:hover { color:#fff; background:rgba(255,255,255,.08); }
+  .gear:focus-visible { outline:2px solid #5FC7B4; outline-offset:2px; }
   .logo { font-size:19px; font-weight:700; letter-spacing:.02em; }
   .logo .mate { color:#5FC7B4; }
   .tag { font-size:12.5px; color:#9db8b3; }
@@ -67,7 +71,8 @@ export function khung(tieuDe: string, than: string, js = ''): string {
   return `<!doctype html><html lang="vi"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>${tieuDe}</title><style>${CSS}</style></head>
 <body><div class="top"><div class="wrap"><span class="logo">Check<span class="mate">Mate</span> ♞</span>
-<span class="tag">maker–checker cho code và tài liệu — checker không tin ai, chỉ tin bằng chứng</span></div></div>
+<span class="tag">maker–checker cho code và tài liệu — checker không tin ai, chỉ tin bằng chứng</span>
+<a class="gear" href="/settings" title="Cài đặt" aria-label="Cài đặt">⚙</a></div></div>
 <main class="wrap">${than}</main>${js ? `<script>${js}</script>` : ''}</body></html>`;
 }
 
@@ -87,7 +92,7 @@ export function khoiPrList(repoGithub: string, baseBranch: string, prs: PrHienTh
     )
     .join('');
   return `<h2>PR chờ review — <span class="mono">${repoGithub}</span> → <span class="mono">${baseBranch}</span></h2>
-<p class="sub">Tự nạp từ GitHub. Router quyết theo nội dung diff: PR code → skill A · PR chỉ tài liệu (.md) → skill B trên bản tài liệu của PR. <a href="/">↻ làm mới</a> · <a href="/settings">⚙ cấu hình</a></p>
+<p class="sub">Tự nạp từ GitHub. Router quyết theo nội dung diff: PR code → skill A · PR chỉ tài liệu (.md) → skill B trên bản tài liệu của PR. <a href="/">↻ làm mới</a></p>
 ${loiPr ? `<div class="err" style="display:block">Không nạp được PR: ${loiPr}</div>` : ''}
 ${prs && prs.length ? `<table class="runs"><tr><th>#</th><th>Tiêu đề</th><th>Tác giả</th><th>Nhánh</th><th></th></tr>${rows}</table>` : prs ? '<p class="sub">Không có PR mở nào nhắm vào nhánh đích.</p>' : ''}`;
 }
