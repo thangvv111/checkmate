@@ -1,0 +1,69 @@
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+
+// Chế độ vận hành (spec §9): demo = deploy public, khoá repo demo, Settings chỉ-đọc (fail-closed);
+// org = self-host trong tổ chức, mở toàn bộ cấu hình. Bật org bằng --org hoặc CHECKMATE_MODE=org.
+export const MODE: 'demo' | 'org' =
+  process.argv.includes('--org') || process.env.CHECKMATE_MODE === 'org' ? 'org' : 'demo';
+
+export interface AgentConfig {
+  provider: 'cli' | 'api';
+  model: string;
+  max_probe: number;
+  skeptic: boolean;
+}
+
+export interface RepoConfig {
+  github: string; // owner/repo
+  base_branch: string;
+  local_path: string; // clone local mà harness chạy trên đó
+}
+
+export interface CheckmateConfig {
+  repo: RepoConfig;
+  github_token: string; // rỗng = thử dùng gh CLI của máy
+  agent: AgentConfig;
+}
+
+const GOC = resolve('.');
+const FILE = join(GOC, 'config.json');
+
+const MAC_DINH: CheckmateConfig = {
+  repo: {
+    github: 'thangvv111/demo-credit-approval',
+    base_branch: 'main',
+    local_path: process.env.CHECKMATE_DEMO_REPO ?? resolve(GOC, '../demo-credit-approval'),
+  },
+  github_token: '',
+  agent: { provider: 'cli', model: 'claude-sonnet-5', max_probe: 6, skeptic: true },
+};
+
+export function docConfig(): CheckmateConfig {
+  if (!existsSync(FILE)) return structuredClone(MAC_DINH);
+  const luu = JSON.parse(readFileSync(FILE, 'utf8')) as Partial<CheckmateConfig>;
+  return {
+    repo: { ...MAC_DINH.repo, ...luu.repo },
+    github_token: luu.github_token ?? '',
+    agent: { ...MAC_DINH.agent, ...luu.agent },
+  };
+}
+
+export function ghiConfig(c: CheckmateConfig): void {
+  if (MODE === 'demo') throw new Error('Chế độ demo không cho sửa cấu hình');
+  writeFileSync(FILE, JSON.stringify(c, null, 2) + '\n', 'utf8');
+}
+
+export function cheToken(token: string): string {
+  if (!token) return '(chưa đặt — dùng đăng nhập gh của máy nếu có)';
+  return token.slice(0, 7) + '****' + token.slice(-4);
+}
+
+// Env truyền xuống harness CLI theo cấu hình agent
+export function envAgent(c: CheckmateConfig): NodeJS.ProcessEnv {
+  return {
+    CHECKER_PROVIDER: c.agent.provider,
+    CHECKER_MODEL: c.agent.model,
+    CHECKER_MAX_PROBE: String(c.agent.max_probe),
+    CHECKER_SKEPTIC: c.agent.skeptic ? '1' : '0',
+  };
+}

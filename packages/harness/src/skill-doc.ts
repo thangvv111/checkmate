@@ -141,7 +141,9 @@ export async function chaySkillDoc(model: ModelProvider, file: string, phat: Pha
   if (biLoaiNeo > 0) phat({ type: 'log', msg: `Loại ${biLoaiNeo} finding vì trích dẫn không có trong tài liệu (lưới máy)` });
 
   let ketQuaCuoi = neoOk;
-  if (neoOk.length > 0) {
+  const batSkeptic = process.env.CHECKER_SKEPTIC !== '0';
+  if (!batSkeptic) phat({ type: 'log', msg: 'Vòng phản biện TẮT theo cấu hình agent (độ sâu review)' });
+  if (batSkeptic && neoOk.length > 0) {
     const skeptic = bocJson<{
       giu: string[];
       sua?: Array<{ id: string; quotes: Array<{ quote: string; vi_tri: string }> }>;

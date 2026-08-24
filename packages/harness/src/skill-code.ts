@@ -20,6 +20,8 @@ interface KetQuaSkillCode {
 
 type PhatEvent = (e: RunEvent) => void;
 
+const MAX_PROBE = Math.min(12, Math.max(2, Number(process.env.CHECKER_MAX_PROBE ?? 6)));
+
 function promptPhanTich(t: TargetInfo): string {
   const specs = t.specs.map((s) => `--- ${s.file} ---\n${s.noiDung}`).join('\n\n');
   return `Bạn là CHECKER ĐỐI KHÁNG trong quy trình maker–checker cho code. Nhiệm vụ của bạn là BÁC BỎ một pull request: tìm chỗ nó vi phạm spec, rồi đề xuất các phép thử (probe) chạy được để chứng minh.
@@ -36,7 +38,7 @@ ${t.diff}
 \`\`\`
 
 # YÊU CẦU
-Đề xuất TỐI ĐA 6 probe độc lập, mỗi probe kiểm MỘT hành vi mà spec khai. Ưu tiên các khuôn lỗi kinh điển:
+Đề xuất TỐI ĐA ${MAX_PROBE} probe độc lập, mỗi probe kiểm MỘT hành vi mà spec khai. Ưu tiên các khuôn lỗi kinh điển:
 - điều kiện KÉP bị gộp sai: thử TỪNG VẾ riêng (vế này đúng + vế kia sai, và ngược lại);
 - giá trị BIÊN đúng ngưỡng của hằng số trong spec (biên đóng/mở);
 - tính đúng tuyệt đối về TIỀN: tổng các phần phải bằng đúng tổng gốc, thử số CHIA KHÔNG HẾT;
@@ -117,7 +119,7 @@ export async function chaySkillCode(
   phat({ type: 'log', msg: `${t.specs.length} file spec: ${t.specs.map((s) => s.file).join(', ')}` });
 
   phat({ type: 'stage', stage: 3, ten: 'Sinh probe đối kháng' });
-  const keHoach = bocJson<{ probes: KeHoachProbe[] }>(await model.complete(promptPhanTich(t))).probes.slice(0, 6);
+  const keHoach = bocJson<{ probes: KeHoachProbe[] }>(await model.complete(promptPhanTich(t))).probes.slice(0, MAX_PROBE);
   phat({ type: 'log', msg: `${keHoach.length} probe: ${keHoach.map((p) => `${p.id} (${p.spec_rule})`).join(' · ')}` });
 
   let code = bocCode(await model.complete(promptSinhCode(t, keHoach)));

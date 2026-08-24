@@ -35,7 +35,7 @@ export class RunManager {
     return [...this.runs.values()].filter((r) => r.meta.trangThai === 'dang_chay').length;
   }
 
-  batDau(tieuDe: string, skill: 'code' | 'doc', args: string[]): string {
+  batDau(tieuDe: string, skill: 'code' | 'doc', args: string[], envThem: NodeJS.ProcessEnv = {}): string {
     const id = `w${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
     const meta: RunMeta = { id, tieuDe, skill, trangThai: 'dang_chay', batDau: new Date().toISOString() };
     const state: RunState = { meta, events: [], subs: new Set() };
@@ -52,6 +52,7 @@ export class RunManager {
       cwd: GOC,
       shell: true,
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, ...envThem },
     });
     const rl = createInterface({ input: child.stdout });
     rl.on('line', (line) => {
@@ -67,7 +68,7 @@ export class RunManager {
     const rlErr = createInterface({ input: child.stderr });
     rlErr.on('line', (line) => {
       // chỉ chuyển tiếp thông báo hữu ích (retry model...), bỏ noise npm/npx
-      if (/model call/.test(line)) ghi({ type: 'log', msg: line.trim() });
+      if (/model/i.test(line)) ghi({ type: 'log', msg: line.trim() });
     });
     child.on('close', (code) => {
       if (meta.verdict) meta.trangThai = 'xong';

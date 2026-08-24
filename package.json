@@ -6,7 +6,8 @@
   "description": "AI Checker — maker–checker cho code và tài liệu (MSB AI Hackathon 2026). Tên sản phẩm chốt sau.",
   "scripts": {
     "checker": "tsx packages/harness/src/cli.ts",
-    "web": "tsx apps/web/src/server.ts"
+    "web": "tsx apps/web/src/server.ts",
+    "web:org": "tsx apps/web/src/server.ts --org"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",

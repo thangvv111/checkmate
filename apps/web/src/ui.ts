@@ -71,7 +71,28 @@ export function khung(tieuDe: string, than: string, js = ''): string {
 <main class="wrap">${than}</main>${js ? `<script>${js}</script>` : ''}</body></html>`;
 }
 
-export function trangChu(presets: Preset[], runs: RunMeta[]): string {
+export interface PrHienThi {
+  so: number;
+  tieuDe: string;
+  tacGia: string;
+  nhanh: string;
+}
+
+export function khoiPrList(repoGithub: string, baseBranch: string, prs: PrHienThi[] | null, loiPr: string): string {
+  const rows = (prs ?? [])
+    .map(
+      (p) => `<tr><td class="mono">#${p.so}</td><td>${p.tieuDe}</td><td>${p.tacGia}</td><td class="mono">${p.nhanh}</td>
+<td><form method="post" action="/api/runs" style="margin:0"><input type="hidden" name="kieu" value="pr"><input type="hidden" name="so" value="${p.so}">
+<button>Chạy kiểm</button></form></td></tr>`,
+    )
+    .join('');
+  return `<h2>PR chờ review — <span class="mono">${repoGithub}</span> → <span class="mono">${baseBranch}</span></h2>
+<p class="sub">Tự nạp từ GitHub. Router quyết theo nội dung diff: PR code → skill A · PR chỉ tài liệu (.md) → skill B trên bản tài liệu của PR. <a href="/">↻ làm mới</a> · <a href="/settings">⚙ cấu hình</a></p>
+${loiPr ? `<div class="err" style="display:block">Không nạp được PR: ${loiPr}</div>` : ''}
+${prs && prs.length ? `<table class="runs"><tr><th>#</th><th>Tiêu đề</th><th>Tác giả</th><th>Nhánh</th><th></th></tr>${rows}</table>` : prs ? '<p class="sub">Không có PR mở nào nhắm vào nhánh đích.</p>' : ''}`;
+}
+
+export function trangChu(presets: Preset[], runs: RunMeta[], prBlock = ''): string {
   const cards = presets
     .map(
       (p) => `<div class="card"><span class="badge b-${p.skill}">${p.skill === 'code' ? 'Code-PR · skill A' : 'Tài liệu · skill B'}</span>
@@ -90,7 +111,8 @@ export function trangChu(presets: Preset[], runs: RunMeta[]): string {
   return khung(
     'CheckMate',
     `<h1>Đưa artifact vào cổng kiểm</h1>
-<p class="sub">Chọn một PR / tài liệu mẫu, hoặc dán tài liệu của bạn. CheckMate đọc spec, tự sinh phép thử, chạy bằng chứng thật rồi mới phán.</p>
+<p class="sub">Chọn PR từ repo đã kết nối, chạy bộ mẫu, hoặc dán tài liệu. CheckMate đọc spec, tự sinh phép thử, chạy bằng chứng thật rồi mới phán.</p>
+${prBlock}
 <h2>Bộ mẫu demo</h2><div class="grid">${cards}</div>
 <h2>Hoặc dán tài liệu yêu cầu của bạn (PRD / BA doc / spec)</h2>
 <form method="post" action="/api/runs"><input type="hidden" name="kieu" value="doc">
@@ -104,6 +126,60 @@ ta.addEventListener('input',()=>{const v=ta.value;
 if(/^diff --git|^@@|^index [0-9a-f]+\\.\\./m.test(v)) gy.textContent='Router: nội dung giống DIFF CODE — bản public chỉ kiểm tài liệu; PR code hãy dùng bộ mẫu.';
 else if(v.trim()) gy.textContent='Router: nhận diện TÀI LIỆU YÊU CẦU → skill B (rubric 4 loại lỗi khách quan).';
 else gy.textContent='Router: dán vào để nhận diện loại artifact.';});`,
+  );
+}
+
+export interface SettingsView {
+  mode: 'demo' | 'org';
+  repoGithub: string;
+  baseBranch: string;
+  localPath: string;
+  tokenChe: string;
+  provider: string;
+  model: string;
+  maxProbe: number;
+  skeptic: boolean;
+  daLuu?: boolean;
+}
+
+export function trangSettings(v: SettingsView): string {
+  const ro = v.mode === 'demo' ? 'disabled' : '';
+  return khung(
+    'Cấu hình — CheckMate',
+    `<h1>Cấu hình</h1>
+<p class="sub">Chế độ: <b>${v.mode === 'demo' ? 'DEMO (chỉ đọc — bản public khoá vào repo demo)' : 'ORG (self-host, chỉnh được)'}</b> · <a href="/">← về trang chính</a></p>
+${v.daLuu ? '<div class="card" style="border-color:var(--teal);margin-bottom:14px">✓ Đã lưu cấu hình.</div>' : ''}
+<form method="post" action="/settings">
+<div class="card" style="max-width:640px;margin-bottom:14px">
+  <h3>Kết nối repo GitHub</h3>
+  <p style="font-size:12.5px;color:var(--muted)">Tool review PR nhắm vào nhánh đích của repo này. Token dạng PAT chỉ cần quyền đọc repo + pull request.</p>
+  <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Repo (owner/tên)</label>
+  <input name="repo_github" value="${v.repoGithub}" ${ro} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
+  <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Nhánh đích (PR merge vào đây thì cần review)</label>
+  <input name="base_branch" value="${v.baseBranch}" ${ro} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
+  <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Đường dẫn clone local (harness chạy trên đây)</label>
+  <input name="local_path" value="${v.localPath}" ${ro} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
+  <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">GitHub token — hiện tại: <span class="mono">${v.tokenChe}</span></label>
+  <input name="github_token" type="password" placeholder="dán token mới để thay, bỏ trống để giữ nguyên" ${ro} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
+</div>
+<div class="card" style="max-width:640px;margin-bottom:14px">
+  <h3>Agent review</h3>
+  <p style="font-size:12.5px;color:var(--muted)">Trước mắt hỗ trợ Claude Code (CLI của máy) và Anthropic API. Độ sâu review là proxy cho effort — effort nội bộ của agent sẽ cắm thêm khi CLI/API mở tham số.</p>
+  <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Provider</label>
+  <select name="provider" ${ro} style="padding:7px 10px;border:1px solid var(--line);border-radius:7px">
+    <option value="cli" ${v.provider === 'cli' ? 'selected' : ''}>Claude Code CLI (đăng nhập của máy)</option>
+    <option value="api" ${v.provider === 'api' ? 'selected' : ''}>Anthropic API (cần ANTHROPIC_API_KEY)</option>
+  </select>
+  <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Model</label>
+  <select name="model" ${ro} style="padding:7px 10px;border:1px solid var(--line);border-radius:7px">
+    ${['claude-sonnet-5', 'claude-opus-5', 'claude-haiku-4-5-20251001'].map((m) => `<option value="${m}" ${v.model === m ? 'selected' : ''}>${m}</option>`).join('')}
+  </select>
+  <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Độ sâu review — số phép thử tối đa mỗi lượt (2–12)</label>
+  <input name="max_probe" type="number" min="2" max="12" value="${v.maxProbe}" ${ro} style="width:90px;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
+  <label style="display:block;font-size:12.5px;margin:10px 0 4px"><input type="checkbox" name="skeptic" value="1" ${v.skeptic ? 'checked' : ''} ${ro}> Bật vòng phản biện (skeptic) cho review tài liệu</label>
+</div>
+${v.mode === 'org' ? '<button>Lưu cấu hình</button>' : '<p class="goiy">Bản demo public không cho sửa — self-host với cờ <code>--org</code> để mở cấu hình.</p>'}
+</form>`,
   );
 }
 

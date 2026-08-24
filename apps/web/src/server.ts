@@ -3,7 +3,9 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { GOC, PRESETS } from './presets.js';
 import { RunManager } from './runs.js';
-import { khung, trangChu, trangRun } from './ui.js';
+import { khung, khoiPrList, trangChu, trangRun, trangSettings } from './ui.js';
+import { MODE, cheToken, docConfig, envAgent, ghiConfig } from './config.js';
+import { danhSachPr, fetchVaRouter } from './github.js';
 
 const app = express();
 app.use(express.urlencoded({ extended: false, limit: '300kb' }));
@@ -13,8 +15,57 @@ const rm = new RunManager();
 const TMP_DOC = join(GOC, 'web-runs', 'tmp');
 mkdirSync(TMP_DOC, { recursive: true });
 
-app.get('/', (_req, res) => {
-  res.send(trangChu(PRESETS, rm.danhSach()));
+app.get('/', async (_req, res) => {
+  const cfg = docConfig();
+  let prBlock: string;
+  try {
+    const prs = await danhSachPr(cfg);
+    prBlock = khoiPrList(cfg.repo.github, cfg.repo.base_branch, prs, '');
+  } catch (e) {
+    prBlock = khoiPrList(cfg.repo.github, cfg.repo.base_branch, null, (e as Error).message.slice(0, 200));
+  }
+  res.send(trangChu(PRESETS, rm.danhSach(), prBlock));
+});
+
+app.get('/settings', (req, res) => {
+  const c = docConfig();
+  res.send(
+    trangSettings({
+      mode: MODE,
+      repoGithub: c.repo.github,
+      baseBranch: c.repo.base_branch,
+      localPath: c.repo.local_path,
+      tokenChe: cheToken(c.github_token),
+      provider: c.agent.provider,
+      model: c.agent.model,
+      maxProbe: c.agent.max_probe,
+      skeptic: c.agent.skeptic,
+      daLuu: req.query.luu === '1',
+    }),
+  );
+});
+
+app.post('/settings', (req, res) => {
+  if (MODE === 'demo') return res.status(403).send(khung('CheckMate', '<h1>403</h1><p class="sub">Chế độ demo không cho sửa cấu hình. <a href="/settings">← quay lại</a></p>'));
+  const b = req.body as Record<string, string>;
+  const c = docConfig();
+  const moi = {
+    repo: {
+      github: (b.repo_github ?? c.repo.github).trim(),
+      base_branch: (b.base_branch ?? c.repo.base_branch).trim(),
+      local_path: (b.local_path ?? c.repo.local_path).trim(),
+    },
+    github_token: b.github_token?.trim() ? b.github_token.trim() : c.github_token,
+    agent: {
+      provider: (b.provider === 'api' ? 'api' : 'cli') as 'cli' | 'api',
+      model: (b.model ?? c.agent.model).trim(),
+      max_probe: Math.min(12, Math.max(2, Number(b.max_probe) || 6)),
+      skeptic: b.skeptic === '1',
+    },
+  };
+  if (!/^[\w.-]+\/[\w.-]+$/.test(moi.repo.github)) return res.status(422).send('Repo phải dạng owner/tên');
+  ghiConfig(moi);
+  res.redirect(303, '/settings?luu=1');
 });
 
 app.post('/api/runs', (req, res) => {
@@ -23,12 +74,36 @@ app.post('/api/runs', (req, res) => {
       .status(429)
       .send(khung('CheckMate — đang bận', '<h1>Đang có run chạy</h1><p class="sub">Checker đang bận kiểm 2 artifact — chờ xong rồi thử lại. <a href="/">← quay lại</a></p>'));
   }
-  const { kieu, preset, noi_dung } = req.body as { kieu?: string; preset?: string; noi_dung?: string };
+  const { kieu, preset, noi_dung, so } = req.body as { kieu?: string; preset?: string; noi_dung?: string; so?: string };
+  const cfg = docConfig();
   let id: string;
-  if (kieu === 'preset') {
+  if (kieu === 'pr') {
+    const soPr = Number(so);
+    if (!Number.isInteger(soPr) || soPr <= 0) return res.status(422).send('Số PR không hợp lệ');
+    try {
+      const pr = fetchVaRouter(cfg, soPr);
+      if (pr.loai === 'doc') {
+        id = rm.batDau(
+          `PR #${pr.so} · tài liệu ${pr.fileDoc}`,
+          'doc',
+          ['--skill', 'doc', '--repo', cfg.repo.local_path, '--branch', pr.headSha, '--file', pr.fileDoc!],
+          envAgent(cfg),
+        );
+      } else {
+        id = rm.batDau(
+          `PR #${pr.so} · code (${pr.filesDoi.length} file đổi)`,
+          'code',
+          ['--skill', 'code', '--repo', cfg.repo.local_path, '--branch', pr.headRef, '--base', pr.baseRef],
+          envAgent(cfg),
+        );
+      }
+    } catch (e) {
+      return res.status(500).send(khung('CheckMate', `<h1>Không chạy được PR #${so}</h1><p class="sub">${(e as Error).message.slice(0, 300)} · <a href="/">← quay lại</a></p>`));
+    }
+  } else if (kieu === 'preset') {
     const p = PRESETS.find((x) => x.id === preset);
     if (!p) return res.status(422).send('Preset không tồn tại');
-    id = rm.batDau(p.tieuDe, p.skill, p.args);
+    id = rm.batDau(p.tieuDe, p.skill, p.args, envAgent(cfg));
   } else if (kieu === 'doc') {
     const nd = (noi_dung ?? '').trim();
     if (nd.length < 200) return res.status(422).send(khung('CheckMate', '<h1>Tài liệu quá ngắn</h1><p class="sub">Cần tối thiểu 200 ký tự để kiểm có nghĩa. <a href="/">← quay lại</a></p>'));

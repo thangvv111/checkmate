@@ -84,6 +84,19 @@ async function main(): Promise<void> {
       const kq = await chaySkillCode(model, repo!, branch!, base, ghiPhat);
       findings = kq.findings;
       artifactRef = { type: 'pr', name: branch!, sha_or_hash: kq.target.branchSha };
+    } else if (repo && branch) {
+      // docs-as-code: đọc file ở đúng bản của nhánh/PR qua worktree
+      const { execFileSync } = await import('node:child_process');
+      const { Sandbox } = await import('./sandbox.js');
+      const sha = execFileSync('git', ['rev-parse', branch], { cwd: repo, encoding: 'utf8' }).trim();
+      const sb = new Sandbox(repo, sha);
+      try {
+        const kq = await chaySkillDoc(model, join(sb.dir, file!), ghiPhat);
+        findings = kq.findings;
+        artifactRef = { type: 'doc', name: file!, sha_or_hash: sha };
+      } finally {
+        sb.huy();
+      }
     } else {
       const kq = await chaySkillDoc(model, file!, ghiPhat);
       findings = kq.findings;

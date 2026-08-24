@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { tmpdir } from 'node:os';
 
 export interface ModelProvider {
   ten: string;
@@ -15,16 +16,19 @@ export class ClaudeCliProvider implements ModelProvider {
     try {
       return await this.goiMotLan(prompt);
     } catch (e) {
-      // CLI thi thoảng treo/chết transient — thử lại đúng một lần
-      console.error(`   (model call lỗi "${(e as Error).message.slice(0, 80)}" — thử lại lần 2)`);
+      // transient (mạng/CLI) — thử lại đúng một lần, thông báo thân thiện cho người xem run
+      console.error(`   Lượt gọi model gặp trục trặc (${(e as Error).message.slice(0, 60)}) — hệ thống tự thử lại, lần 2/2…`);
       return this.goiMotLan(prompt);
     }
   }
 
   private goiMotLan(prompt: string): Promise<string> {
     return new Promise((resolve, reject) => {
-      const child = spawn('claude', ['-p', '--model', MODEL_MAC_DINH], {
+      // --tools "": tắt toàn bộ tool — call là pure completion, model không tự đi đọc file
+      // cwd = temp: kể cả có tool cũng không có gì để đọc; --no-session-persistence: không tích session rác
+      const child = spawn('claude', ['-p', '--model', MODEL_MAC_DINH, '--tools', '""', '--no-session-persistence'], {
         shell: true,
+        cwd: tmpdir(),
         stdio: ['pipe', 'pipe', 'pipe'],
         env: { ...process.env, CLAUDECODE: '' },
       });
@@ -37,8 +41,8 @@ export class ClaudeCliProvider implements ModelProvider {
         } else {
           child.kill('SIGKILL');
         }
-        reject(new Error('Model call quá 240s'));
-      }, 240_000);
+        reject(new Error('model không phản hồi sau 300 giây'));
+      }, 300_000);
       child.stdout.on('data', (d) => (out += d));
       child.stderr.on('data', (d) => (err += d));
       child.on('error', reject);
