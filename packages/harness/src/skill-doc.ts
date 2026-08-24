@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import type { Evidence, Finding, RunEvent, Severity } from '../../shared/src/types.js';
 import type { ModelProvider } from './model.js';
-import { bocJson } from './jsonx.js';
+import { goiJson } from './jsonx.js';
 
 export interface KetQuaSkillDoc {
   findings: Finding[];
@@ -123,7 +123,7 @@ export async function chaySkillDoc(model: ModelProvider, file: string, phat: Pha
     .split(/\r?\n/)
     .map((l, i) => `${i + 1}| ${l}`)
     .join('\n');
-  let ungVien = bocJson<{ findings: UngVien[] }>(await model.complete(promptTim(docCoSoDong))).findings.slice(0, 6);
+  let ungVien = (await goiJson<{ findings: UngVien[] }>(model, promptTim(docCoSoDong))).findings.slice(0, 6);
   phat({ type: 'log', msg: `${ungVien.length} ứng viên: ${ungVien.map((u) => `${u.id} (${NHAN_RUBRIC[u.rubric]})`).join(' · ')}` });
 
   phat({ type: 'stage', stage: 4, ten: 'Đối chiếu trích dẫn nguyên văn (máy kiểm) + vòng phản biện' });
@@ -133,7 +133,7 @@ export async function chaySkillDoc(model: ModelProvider, file: string, phat: Pha
   if (hong.length > 0) {
     phat({ type: 'log', msg: `${hong.length} finding có trích dẫn không neo được — cho model sửa trích dẫn một lần` });
     const moTa = hong.map((x) => `${x.u.id}: ${x.quotes.filter((q) => !q.tim).map((q) => JSON.stringify(q.quote)).join(' · ')}`).join('\n');
-    ungVien = bocJson<{ findings: UngVien[] }>(await model.complete(promptTim(docCoSoDong, moTa))).findings.slice(0, 6);
+    ungVien = (await goiJson<{ findings: UngVien[] }>(model, promptTim(docCoSoDong, moTa))).findings.slice(0, 6);
     daNeo = ungVien.map((u) => ({ u, quotes: neo(u) }));
   }
   const neoOk = daNeo.filter((x) => x.quotes.every((q) => q.tim) && x.quotes.length >= (x.u.rubric === 'mau_thuan' || x.u.rubric === 'lech_cheo' ? 2 : 1));
@@ -144,11 +144,11 @@ export async function chaySkillDoc(model: ModelProvider, file: string, phat: Pha
   const batSkeptic = process.env.CHECKER_SKEPTIC !== '0';
   if (!batSkeptic) phat({ type: 'log', msg: 'Vòng phản biện TẮT theo cấu hình agent (độ sâu review)' });
   if (batSkeptic && neoOk.length > 0) {
-    const skeptic = bocJson<{
+    const skeptic = await goiJson<{
       giu: string[];
       sua?: Array<{ id: string; quotes: Array<{ quote: string; vi_tri: string }> }>;
       loai: Array<{ id: string; ly_do: string }>;
-    }>(await model.complete(promptSkeptic(neoOk.map((x) => x.u), docCoSoDong)));
+    }>(model, promptSkeptic(neoOk.map((x) => x.u), docCoSoDong));
     for (const l of skeptic.loai ?? []) phat({ type: 'log', msg: `Phản biện loại ${l.id}: ${l.ly_do.slice(0, 200)}` });
 
     const giuIds = new Set((skeptic.giu ?? []).filter((id) => neoOk.some((x) => x.u.id === id)));

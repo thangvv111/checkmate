@@ -7,6 +7,7 @@ export interface KetQuaProbe {
   title: string;
   status: 'passed' | 'failed' | 'skipped';
   message: string;
+  file: string; // basename file probe — nhiều bộ probe (mới + thư viện) chạy chung một lượt
 }
 
 export interface KetQuaVitest {
@@ -33,19 +34,20 @@ export class Sandbox {
     symlinkSync(join(repo, 'node_modules'), join(this.dir, 'node_modules'), 'junction');
   }
 
-  ghiProbe(code: string): string {
-    const rel = join('test', 'checker.probe.test.ts');
+  ghiProbe(code: string, ten = 'checker.probe.test.ts'): string {
+    const rel = join('test', ten);
     writeFileSync(join(this.dir, rel), code, 'utf8');
     return rel;
   }
 
-  chayVitest(testFileRel: string): KetQuaVitest {
+  chayVitest(testFilesRel: string | string[]): KetQuaVitest {
+    const files = (Array.isArray(testFilesRel) ? testFilesRel : [testFilesRel]).map((f) => f.replace(/\\/g, '/'));
     const outFile = join(this.dir, 'vitest-out.json');
-    const kq = spawnSync('npx', ['vitest', 'run', testFileRel.replace(/\\/g, '/'), '--reporter=json', `--outputFile=${outFile}`], {
+    const kq = spawnSync('npx', ['vitest', 'run', ...files, '--reporter=json', `--outputFile=${outFile}`], {
       cwd: this.dir,
       shell: true,
       encoding: 'utf8',
-      timeout: 180_000,
+      timeout: 300_000,
       env: { ...process.env, CI: 'true' },
     });
     if (!existsSync(outFile)) {
@@ -54,17 +56,20 @@ export class Sandbox {
     const data = JSON.parse(readFileSync(outFile, 'utf8')) as {
       numTotalTests: number;
       testResults: Array<{
+        name?: string;
         message?: string;
         assertionResults: Array<{ title: string; status: string; failureMessages: string[] }>;
       }>;
     };
-    const probes: KetQuaProbe[] = data.testResults.flatMap((tr) =>
-      tr.assertionResults.map((a) => ({
+    const probes: KetQuaProbe[] = data.testResults.flatMap((tr) => {
+      const file = (tr.name ?? '').replace(/\\/g, '/').split('/').pop() ?? '';
+      return tr.assertionResults.map((a) => ({
         title: a.title,
         status: (a.status as KetQuaProbe['status']) ?? 'failed',
         message: (a.failureMessages ?? []).join('\n').slice(0, 1500),
-      })),
-    );
+        file,
+      }));
+    });
     const loiThu = data.numTotalTests === 0 ? (data.testResults.map((t) => t.message ?? '').join('\n') || 'Không thu thập được test nào').slice(0, 2000) : '';
     return { ok: data.numTotalTests > 0, tongTest: data.numTotalTests, probes, loiThu };
   }

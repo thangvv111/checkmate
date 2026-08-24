@@ -28,3 +28,17 @@ thật; PR fail + gốc pass = hồi quy). FAIL ⟺ có ≥1 finding mức chặ
 - Mặc định dev local: **Claude Code CLI** (`claude -p`, dùng đăng nhập sẵn của máy).
 - Deploy: **Anthropic API** — đặt `ANTHROPIC_API_KEY` (tự chuyển) hoặc ép bằng `CHECKER_PROVIDER=api|cli`.
 - Đổi model: `CHECKER_MODEL` (mặc định `claude-sonnet-5`). Kiến trúc adapter chừa chỗ cắm provider khác.
+
+## Chạy ở hai môi trường
+
+**Local (máy dev):** như trên — model đi qua Claude Code CLI đăng nhập sẵn, GitHub đi qua `gh` của máy
+nếu chưa đặt token. Chế độ `org` bật bằng `--org`.
+
+**Cloud (deploy online):** code thuần Node + git, không phụ thuộc Windows. Yêu cầu môi trường:
+- `ANTHROPIC_API_KEY` — bắt buộc (cloud không có Claude Code CLI; provider tự chuyển sang API).
+- `github_token` trong cấu hình — bắt buộc (cloud không có `gh`); PAT quyền đọc repo + pull request,
+  thêm quyền ghi nếu dùng cổng Merge/Reject.
+- `git` có trong image; repo đích clone sẵn vào `local_path` (hoặc mount volume).
+- Volume bền cho `web-runs/` (lịch sử run + sổ review-log) và `probes-lib/` (thư viện probe tích luỹ)
+  — mất volume là mất tài sản regression. `CHECKER_LIB_DIR` đổi được chỗ chứa thư viện.
+- `CHECKMATE_MODE=demo` cho bản public (khoá cấu hình), `org` cho bản nội bộ sau xác thực của tổ chức.
