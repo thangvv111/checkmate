@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { DINH_DANG_NHAN, trichText } from './extract.js';
 import { GOC } from './paths.js';
 import { RunManager } from './runs.js';
-import { khung, khoiPrList, trangChu, trangRun, trangSettings } from './ui.js';
+import { khung, khoiDaTraVe, khoiPrList, trangChu, trangRun, trangSettings } from './ui.js';
 import { MODE, cheToken, docConfig, envAgent, ghiConfig } from './config.js';
 import { danhSachPr, dongPr, fetchVaRouter, layPrHienTai, mergePr, binhLuanPr, traVeDev } from './github.js';
 import { banPhanQuyet, banReceipt, demMuc, ghiSo, nguoiThaoTac } from './cong.js';
@@ -25,11 +25,20 @@ app.get('/', async (_req, res) => {
   let prBlock: string;
   try {
     const prs = await danhSachPr(cfg);
-    prBlock = khoiPrList(cfg.repo.github, cfg.repo.base_branch, prs, '');
+    const kem = prs.map((p) => {
+      const daCham = rm.timTheoPr(p.so, p.headSha);
+      return {
+        ...p,
+        daCham: daCham?.verdict
+          ? { runId: daCham.id, ketQua: daCham.verdict.result, soFinding: daCham.verdict.findings.length }
+          : undefined,
+      };
+    });
+    prBlock = khoiPrList(cfg.repo.github, cfg.repo.base_branch, kem, '');
   } catch (e) {
     prBlock = khoiPrList(cfg.repo.github, cfg.repo.base_branch, null, (e as Error).message.slice(0, 200));
   }
-  res.send(trangChu(rm.danhSach(), prBlock));
+  res.send(trangChu(rm.danhSach(), prBlock, khoiDaTraVe(rm.daTraVe(), cfg.repo.github)));
 });
 
 app.get('/settings', (req, res) => {
@@ -87,6 +96,20 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
     if (!Number.isInteger(soPr) || soPr <= 0) return res.status(422).send('Số PR không hợp lệ');
     try {
       const pr = fetchVaRouter(cfg, soPr);
+      const daCham = rm.timTheoPr(pr.so, pr.headSha);
+      if (daCham && (req.body as Record<string, string>).ep !== '1') {
+        return res.status(409).send(
+          khung(
+            'CheckMate — đã có verdict',
+            `<h1>Commit này đã được chấm rồi</h1>
+<p class="sub">PR #${pr.so} @ <code>${pr.headSha.slice(0, 7)}</code> đã có verdict <b>${daCham.verdict?.result}</b> (${daCham.verdict?.findings.length} finding). Chạy lại trên cùng commit gần như chắc chắn ra kết quả cũ mà vẫn tốn vài phút.</p>
+<p><a class="btn" href="/runs/${daCham.id}">Xem verdict đã có →</a></p>
+<form method="post" action="/api/runs" style="margin-top:14px"><input type="hidden" name="kieu" value="pr"><input type="hidden" name="so" value="${pr.so}"><input type="hidden" name="ep" value="1">
+<button class="phu-nho">Vẫn chạy lại</button></form>
+<p class="goiy" style="margin-top:14px"><a href="/">← về trang chính</a></p>`,
+          ),
+        );
+      }
       if (pr.loai === 'doc') {
         id = rm.batDau(
           `PR #${pr.so} · tài liệu ${pr.fileDoc}`,
@@ -182,11 +205,11 @@ app.post('/api/runs/:id/reject', async (req, res) => {
   const b = req.body as Record<string, string>;
   try {
     const nguoi = nguoiThaoTac();
-    const kenh = await traVeDev(cfg, st.meta.pr.so, banPhanQuyet(st.meta.verdict, (b.ghi_chu ?? '').trim(), b.dong_pr === '1'));
-    if (b.dong_pr === '1') await dongPr(cfg, st.meta.pr.so);
-    const kq = { hanhDong: 'reject' as const, luc: new Date().toISOString(), nguoi, chiTiet: `trả về dev qua ${kenh}${b.dong_pr === '1' ? ' + đóng PR' : ''}` };
+    const kenh = await traVeDev(cfg, st.meta.pr.so, banPhanQuyet(st.meta.verdict, (b.ghi_chu ?? '').trim(), true));
+    await dongPr(cfg, st.meta.pr.so);
+    const kq = { hanhDong: 'reject' as const, luc: new Date().toISOString(), nguoi, chiTiet: `trả về dev qua ${kenh} + đã đóng PR (chờ dev vá & reopen)` };
     rm.ghiKetQuaCong(st.meta.id, kq);
-    ghiSo({ hanhDong: 'reject', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.verdict.run_id, verdict: st.meta.verdict.result, nguoi, kenh, dong_pr: b.dong_pr === '1' });
+    ghiSo({ hanhDong: 'reject', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.verdict.run_id, verdict: st.meta.verdict.result, nguoi, kenh, dong_pr: true });
     res.redirect(303, `/runs/${st.meta.id}`);
   } catch (e) {
     loiCong(res, 500, `GitHub từ chối: ${(e as Error).message.slice(0, 300)}`);

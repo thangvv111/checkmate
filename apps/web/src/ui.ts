@@ -74,6 +74,8 @@ const CSS = `
     padding:9px 13px; background:#e9eeec; }
   table.runs td { padding:9px 13px; border-top:1px solid var(--line); }
   .vd-pill { font-weight:700; } .vd-PASS { color:var(--teal); } .vd-FAIL { color:var(--fail); }
+  button.phu-nho { background:transparent; color:var(--muted); border:1px solid var(--line); font-weight:500; }
+  button.phu-nho:hover { color:var(--ink); border-color:var(--muted); }
   .err { background:var(--fail-soft); border-left:4px solid var(--fail); padding:11px 15px; border-radius:0 8px 8px 0; margin:14px 0; display:none; }
 `;
 
@@ -91,23 +93,48 @@ export interface PrHienThi {
   tieuDe: string;
   tacGia: string;
   nhanh: string;
+  headSha: string;
+  // trạng thái review của ĐÚNG commit đang là head PR (nếu đã chấm)
+  daCham?: { runId: string; ketQua: 'PASS' | 'FAIL'; soFinding: number };
 }
 
 export function khoiPrList(repoGithub: string, baseBranch: string, prs: PrHienThi[] | null, loiPr: string): string {
   const rows = (prs ?? [])
     .map(
-      (p) => `<tr><td class="mono">#${p.so}</td><td>${p.tieuDe}</td><td>${p.tacGia}</td><td class="mono">${p.nhanh}</td>
-<td><form method="post" action="/api/runs" style="margin:0"><input type="hidden" name="kieu" value="pr"><input type="hidden" name="so" value="${p.so}">
-<button>Chạy kiểm</button></form></td></tr>`,
+      (p) => {
+        const nutChay = `<form method="post" action="/api/runs" style="margin:0"><input type="hidden" name="kieu" value="pr"><input type="hidden" name="so" value="${p.so}">
+<button${p.daCham ? ' class="phu-nho"' : ''}>${p.daCham ? 'Chạy lại' : 'Chạy kiểm'}</button></form>`;
+        const trangThai = p.daCham
+          ? `<span class="vd-pill vd-${p.daCham.ketQua}">${p.daCham.ketQua}</span> · ${p.daCham.soFinding} finding<br><a href="/runs/${p.daCham.runId}" style="font-size:12px">xem verdict &amp; cổng merge →</a>`
+          : `<span style="color:var(--muted)">chưa kiểm</span>`;
+        return `<tr><td class="mono">#${p.so}</td><td>${p.tieuDe}<br><span class="mono" style="font-size:11.5px;color:var(--muted)">${p.nhanh} @ ${p.headSha.slice(0, 7)}</span></td><td>${p.tacGia}</td>
+<td>${trangThai}</td><td>${nutChay}</td></tr>`;
+      },
     )
     .join('');
   return `<h2>PR chờ review — <span class="mono">${repoGithub}</span> → <span class="mono">${baseBranch}</span></h2>
 <p class="sub">Tự nạp từ GitHub. Router quyết theo nội dung diff: PR code → skill A · PR chỉ tài liệu (.md) → skill B trên bản tài liệu của PR. <a href="/">↻ làm mới</a></p>
 ${loiPr ? `<div class="err" style="display:block">Không nạp được PR: ${loiPr}</div>` : ''}
-${prs && prs.length ? `<table class="runs"><tr><th>#</th><th>Tiêu đề</th><th>Tác giả</th><th>Nhánh</th><th></th></tr>${rows}</table>` : prs ? '<p class="sub">Không có PR mở nào nhắm vào nhánh đích.</p>' : ''}`;
+${prs && prs.length ? `<table class="runs"><tr><th>#</th><th>Tiêu đề · nhánh</th><th>Tác giả</th><th>Trạng thái review</th><th></th></tr>${rows}</table>` : prs ? '<p class="sub">Không có PR mở nào nhắm vào nhánh đích.</p>' : ''}`;
 }
 
-export function trangChu(runs: RunMeta[], prBlock = ''): string {
+export function khoiDaTraVe(runs: RunMeta[], repoGithub: string): string {
+  if (!runs.length) return '';
+  const rows = runs
+    .slice(0, 10)
+    .map(
+      (m) => `<tr><td class="mono">#${m.pr!.so}</td><td>${m.tieuDe}</td>
+<td class="mono" style="font-size:12px">${m.pr!.headSha.slice(0, 7)}</td>
+<td style="font-size:12.5px">${m.ketQuaCong!.nguoi} · ${m.ketQuaCong!.luc.slice(0, 16).replace('T', ' ')}<br>
+<a href="/runs/${m.id}" style="font-size:12px">xem phán quyết →</a> · <a href="https://github.com/${repoGithub}/pull/${m.pr!.so}" style="font-size:12px" target="_blank" rel="noopener">mở PR trên GitHub →</a></td></tr>`,
+    )
+    .join('');
+  return `<h2>Đã trả về dev — chờ vá &amp; reopen</h2>
+<p class="sub">PR đã đóng nên không còn trong hàng đợi chờ duyệt. Dev vá xong, push lên nhánh cũ rồi Reopen chính PR đó là nó quay lại hàng đợi.</p>
+<table class="runs"><tr><th>#</th><th>Artifact</th><th>Commit đã chấm</th><th>Trả về bởi</th></tr>${rows}</table>`;
+}
+
+export function trangChu(runs: RunMeta[], prBlock = '', daTraVeBlock = ''): string {
   const rows = runs
     .map(
       (r) => `<tr><td><a href="/runs/${r.id}">${r.tieuDe}</a></td><td>${r.skill}</td>
@@ -120,6 +147,7 @@ export function trangChu(runs: RunMeta[], prBlock = ''): string {
     `<h1>Đưa artifact vào cổng kiểm</h1>
 <p class="sub">Chọn PR từ repo đã kết nối, hoặc kiểm nhanh một tài liệu rời. CheckMate đọc spec, tự sinh phép thử, chạy bằng chứng thật rồi mới phán.</p>
 ${prBlock}
+${daTraVeBlock}
 <h2>Kiểm nhanh một tài liệu rời (PRD / BA doc / spec)</h2>
 <p class="sub">Đường phụ quick-check — tài liệu sống trong repo thì đi qua PR (bên trên) để có ngữ cảnh đầy đủ hơn.</p>
 <form method="post" action="/api/runs" enctype="multipart/form-data" style="margin-bottom:14px">
@@ -220,10 +248,9 @@ ${vua.map((f, i) => `<label class="canhbao"><input type="checkbox" class="tick-m
 ${nutMerge}
 <form class="inline" method="post" action="/api/runs/${meta.id}/reject">
   <input type="text" name="ghi_chu" placeholder="Ghi chú thêm cho dev (tuỳ chọn)">
-  <label style="font-size:12.5px;margin:0 6px" title="Chỉ dùng khi muốn dừng hẳn hướng đi này. Dev sẽ phải Reopen PR để tiếp tục."><input type="checkbox" name="dong_pr" value="1"> đóng PR <span style="color:var(--muted)">(dừng hướng này — dev cần Reopen để tiếp tục)</span></label>
-  <button class="phu" style="background:var(--fail)">↩ Trả về dev</button>
+  <button class="phu" style="background:var(--fail)">↩ Trả về dev &amp; đóng PR</button>
 </form>
-<p class="goiy" style="margin-top:8px">Trả về dev = post phán quyết đầy đủ (Request changes) lên PR để dev vá rồi push lại nhánh này — verdict cũ tự hết hiệu lực, chấm lại là xong. Mặc định <b>giữ PR mở</b>.</p></div>`;
+<p class="goiy" style="margin-top:8px">Trả về dev = post phán quyết đầy đủ lên PR <b>và đóng PR</b> để nó rời hàng đợi chờ duyệt (khỏi bị chạy kiểm lại vô ích). Dev vá xong push lên nhánh cũ rồi <b>Reopen</b> chính PR này — lịch sử review giữ nguyên.</p></div>`;
 }
 
 export function trangRun(meta: RunMeta, replay: boolean): string {

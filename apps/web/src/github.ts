@@ -7,6 +7,7 @@ export interface PrTomTat {
   tacGia: string;
   nhanh: string;
   capNhat: string;
+  headSha: string;
 }
 
 export interface PrDaFetch {
@@ -110,13 +111,14 @@ export async function danhSachPr(cfg: CheckmateConfig): Promise<PrTomTat[]> {
   const data = (await goiApi(
     cfg,
     `/repos/${cfg.repo.github}/pulls?state=open&base=${encodeURIComponent(cfg.repo.base_branch)}&per_page=30`,
-  )) as Array<{ number: number; title: string; user: { login: string }; head: { ref: string }; updated_at: string }>;
+  )) as Array<{ number: number; title: string; user: { login: string }; head: { ref: string; sha: string }; updated_at: string }>;
   return data.map((p) => ({
     so: p.number,
     tieuDe: p.title,
     tacGia: p.user.login,
     nhanh: p.head.ref,
     capNhat: p.updated_at,
+    headSha: p.head.sha,
   }));
 }
 

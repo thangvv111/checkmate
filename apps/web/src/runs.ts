@@ -109,6 +109,16 @@ export class RunManager {
       .slice(0, 30);
   }
 
+  // Verdict đã chấm cho đúng cặp (PR, commit) — nền tảng cho idempotent theo SHA
+  timTheoPr(so: number, sha: string): RunMeta | undefined {
+    return this.danhSach().find((m) => m.pr?.so === so && m.pr.headSha === sha && m.trangThai === 'xong');
+  }
+
+  // Các PR đã bị trả về dev (đọc từ meta đã lưu) — để hàng đợi không đánh mất việc
+  daTraVe(): RunMeta[] {
+    return this.danhSach().filter((m) => m.ketQuaCong?.hanhDong === 'reject');
+  }
+
   ghiKetQuaCong(id: string, kq: RunMeta['ketQuaCong']): void {
     const st = this.lay(id);
     if (!st) return;
