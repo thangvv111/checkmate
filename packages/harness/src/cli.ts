@@ -1,8 +1,9 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { RunEvent, Verdict } from '../../shared/src/types.js';
+import type { ArtifactRef, Finding, RunEvent, Verdict } from '../../shared/src/types.js';
 import { chonProvider } from './model.js';
 import { chaySkillCode } from './skill-code.js';
+import { chaySkillDoc } from './skill-doc.js';
 
 function layArg(ten: string, macDinh?: string): string | undefined {
   const i = process.argv.indexOf(`--${ten}`);
@@ -27,6 +28,11 @@ function phat(e: RunEvent): void {
       console.log(`     Bằng chứng:  ${f.evidence.probe_name}`);
       console.log(`       kỳ vọng:  ${f.evidence.expected}`);
       console.log(`       thực tế:  ${f.evidence.actual.split('\n')[0]}`);
+    } else if (f.evidence.type === 'quote_pair') {
+      console.log(`     Bằng chứng:  ${f.evidence.loc_a}: «${f.evidence.quote_a}»`);
+      console.log(`         đối lại  ${f.evidence.loc_b}: «${f.evidence.quote_b}»`);
+    } else if (f.evidence.type === 'quote') {
+      console.log(`     Bằng chứng (${f.evidence.rule}): ${f.evidence.loc}: «${f.evidence.quote}»`);
     }
   } else if (e.type === 'verdict') {
     const v = e.verdict;
@@ -47,12 +53,17 @@ async function main(): Promise<void> {
   const repo = layArg('repo');
   const branch = layArg('branch');
   const base = layArg('base', 'main')!;
-  if (!repo || !branch) {
-    console.error('Thiếu --repo hoặc --branch');
+  const file = layArg('file');
+  if (skill === 'code' && (!repo || !branch)) {
+    console.error('Skill code cần --repo và --branch');
     process.exit(2);
   }
-  if (skill !== 'code') {
-    console.error(`Skill "${skill}" chưa hỗ trợ ở CLI này (skill doc: bước B1.4)`);
+  if (skill === 'doc' && !file) {
+    console.error('Skill doc cần --file <đường dẫn tài liệu>');
+    process.exit(2);
+  }
+  if (skill !== 'code' && skill !== 'doc') {
+    console.error(`Skill "${skill}" không tồn tại (code | doc)`);
     process.exit(2);
   }
 
@@ -63,16 +74,27 @@ async function main(): Promise<void> {
     phat(e);
   };
 
-  const runId = `run-${new Date().toISOString().replace(/[:.]/g, '-')}-${branch.replace(/[^\w-]/g, '_')}`;
+  const nhan = skill === 'code' ? branch! : file!;
+  const runId = `run-${new Date().toISOString().replace(/[:.]/g, '-')}-${nhan.replace(/[^\w-]/g, '_').slice(-40)}`;
   const batDau = new Date().toISOString();
   try {
-    const kq = await chaySkillCode(model, repo, branch, base, ghiPhat);
+    let findings: Finding[];
+    let artifactRef: ArtifactRef;
+    if (skill === 'code') {
+      const kq = await chaySkillCode(model, repo!, branch!, base, ghiPhat);
+      findings = kq.findings;
+      artifactRef = { type: 'pr', name: branch!, sha_or_hash: kq.target.branchSha };
+    } else {
+      const kq = await chaySkillDoc(model, file!, ghiPhat);
+      findings = kq.findings;
+      artifactRef = { type: 'doc', name: kq.tenFile, sha_or_hash: kq.hash };
+    }
     const verdict: Verdict = {
       run_id: runId,
-      skill: 'code',
-      artifact_ref: { type: 'pr', name: branch, sha_or_hash: kq.target.branchSha },
-      result: kq.findings.some((f) => f.severity === 'blocking') ? 'FAIL' : 'PASS',
-      findings: kq.findings,
+      skill,
+      artifact_ref: artifactRef,
+      result: findings.some((f) => f.severity === 'blocking') ? 'FAIL' : 'PASS',
+      findings,
       model: model.ten,
       mode: 'live',
       started_at: batDau,

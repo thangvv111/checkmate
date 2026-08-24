@@ -11,7 +11,17 @@ const MODEL_MAC_DINH = process.env.CHECKER_MODEL ?? 'claude-sonnet-5';
 export class ClaudeCliProvider implements ModelProvider {
   ten = `claude-cli/${MODEL_MAC_DINH}`;
 
-  complete(prompt: string): Promise<string> {
+  async complete(prompt: string): Promise<string> {
+    try {
+      return await this.goiMotLan(prompt);
+    } catch (e) {
+      // CLI thi thoảng treo/chết transient — thử lại đúng một lần
+      console.error(`   (model call lỗi "${(e as Error).message.slice(0, 80)}" — thử lại lần 2)`);
+      return this.goiMotLan(prompt);
+    }
+  }
+
+  private goiMotLan(prompt: string): Promise<string> {
     return new Promise((resolve, reject) => {
       const child = spawn('claude', ['-p', '--model', MODEL_MAC_DINH], {
         shell: true,
