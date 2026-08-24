@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { ArtifactRef, Finding, RunEvent, Verdict } from '../../shared/src/types.js';
+import { chuanMuc, type ArtifactRef, type Finding, type RunEvent, type Verdict } from '../../shared/src/types.js';
 import { chonProvider } from './model.js';
 import { chaySkillCode } from './skill-code.js';
 import { chaySkillDoc } from './skill-doc.js';
@@ -108,7 +108,7 @@ async function main(): Promise<void> {
       run_id: runId,
       skill,
       artifact_ref: artifactRef,
-      result: findings.some((f) => f.severity === 'high') ? 'FAIL' : 'PASS',
+      result: findings.some((f) => chuanMuc(f.severity) === 'high') ? 'FAIL' : 'PASS',
       findings,
       model: model.ten,
       mode: 'live',

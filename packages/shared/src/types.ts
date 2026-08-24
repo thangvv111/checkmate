@@ -6,8 +6,9 @@ export type Severity = 'high' | 'medium' | 'low';
 
 // Run cũ còn lưu 'blocking'/'non_blocking' — mọi chỗ đọc phải qua hàm này.
 export function chuanMuc(s: string): Severity {
-  if (s === 'high' || s === 'medium' || s === 'low') return s;
-  if (s === 'non_blocking') return 'medium';
+  const t = (s ?? '').toLowerCase().trim();
+  if (t === 'high' || t === 'medium' || t === 'low') return t;
+  if (t === 'non_blocking') return 'medium';
   return 'high'; // blocking + mọi giá trị lạ → fail-closed
 }
 export type SkillId = 'code' | 'doc';

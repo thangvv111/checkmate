@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import type { RunEvent, Verdict } from '../../../packages/shared/src/types.js';
 import { GOC } from './paths.js';
+import { ghiSoCai, mucTuMeta } from './ledger.js';
 
 export interface StoredEvent {
   t: number; // ms từ lúc bắt đầu run
@@ -17,7 +18,7 @@ export interface RunMeta {
   trangThai: 'dang_chay' | 'xong' | 'loi';
   batDau: string;
   verdict?: Verdict;
-  pr?: { so: number; headSha: string };
+  pr?: { so: number; headSha: string; tacGia?: string };
   ketQuaCong?: { hanhDong: 'merge' | 'reject'; luc: string; nguoi: string; chiTiet: string };
 }
 
@@ -37,7 +38,7 @@ export class RunManager {
     return [...this.runs.values()].filter((r) => r.meta.trangThai === 'dang_chay').length;
   }
 
-  batDau(tieuDe: string, skill: 'code' | 'doc', args: string[], envThem: NodeJS.ProcessEnv = {}, pr?: { so: number; headSha: string }): string {
+  batDau(tieuDe: string, skill: 'code' | 'doc', args: string[], envThem: NodeJS.ProcessEnv = {}, pr?: { so: number; headSha: string; tacGia?: string }): string {
     const id = `w${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
     const meta: RunMeta = { id, tieuDe, skill, trangThai: 'dang_chay', batDau: new Date().toISOString(), pr };
     const state: RunState = { meta, events: [], subs: new Set() };
@@ -73,7 +74,11 @@ export class RunManager {
       if (/model/i.test(line)) ghi({ type: 'log', msg: line.trim() });
     });
     child.on('close', (code) => {
-      if (meta.verdict) meta.trangThai = 'xong';
+      if (meta.verdict) {
+        meta.trangThai = 'xong';
+        const muc = mucTuMeta(meta);
+        if (muc) ghiSoCai(muc); // sổ cái verdict (B4.1) — append-only mọi kết luận chấm
+      }
       else {
         meta.trangThai = 'loi';
         ghi({ type: 'error', msg: `Run kết thúc không có verdict (exit ${code})` });

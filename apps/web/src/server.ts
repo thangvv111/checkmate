@@ -9,6 +9,8 @@ import { khung, khoiDaTraVe, khoiPrList, trangChu, trangRun, trangSettings } fro
 import { MODE, cheToken, docConfig, envAgent, ghiConfig } from './config.js';
 import { danhSachPr, dongPr, fetchVaRouter, layPrHienTai, mergePr, binhLuanPr, traVeDev } from './github.js';
 import { banPhanQuyet, banReceipt, demMuc, ghiSo, nguoiThaoTac } from './cong.js';
+import { backfillSoCai, docSoCai } from './ledger.js';
+import { trangLedger } from './ui-ledger.js';
 import { chuanMuc } from '../../../packages/shared/src/types.js';
 
 const app = express();
@@ -19,6 +21,10 @@ const rm = new RunManager();
 const TMP_DOC = join(GOC, 'web-runs', 'tmp');
 mkdirSync(TMP_DOC, { recursive: true });
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+{
+  const them = backfillSoCai(rm.danhSach());
+  if (them > 0) console.log(`Sổ cái verdict: backfill ${them} run cũ vào sổ`);
+}
 
 app.get('/', async (_req, res) => {
   const cfg = docConfig();
@@ -39,6 +45,14 @@ app.get('/', async (_req, res) => {
     prBlock = khoiPrList(cfg.repo.github, cfg.repo.base_branch, null, (e as Error).message.slice(0, 200));
   }
   res.send(trangChu(rm.danhSach(), prBlock, khoiDaTraVe(rm.daTraVe(), cfg.repo.github)));
+});
+
+app.get('/ledger', (_req, res) => {
+  const congTheoRun = new Map<string, string>();
+  for (const m of rm.danhSach()) {
+    if (m.ketQuaCong) congTheoRun.set(m.id, `${m.ketQuaCong.hanhDong === 'merge' ? 'đã merge' : 'trả về dev'} · ${m.ketQuaCong.nguoi}`);
+  }
+  res.send(trangLedger(docSoCai(), congTheoRun));
 });
 
 app.get('/settings', (req, res) => {
@@ -96,6 +110,8 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
     if (!Number.isInteger(soPr) || soPr <= 0) return res.status(422).send('Số PR không hợp lệ');
     try {
       const pr = fetchVaRouter(cfg, soPr);
+      let tacGia: string | undefined;
+      try { tacGia = (await layPrHienTai(cfg, pr.so)).tacGia; } catch { /* thiếu tác giả không chặn run */ }
       const daCham = rm.timTheoPr(pr.so, pr.headSha);
       if (daCham && (req.body as Record<string, string>).ep !== '1') {
         return res.status(409).send(
@@ -116,7 +132,7 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
           'doc',
           ['--skill', 'doc', '--repo', cfg.repo.local_path, '--branch', pr.headSha, '--file', pr.fileDoc!],
           envAgent(cfg),
-          { so: pr.so, headSha: pr.headSha },
+          { so: pr.so, headSha: pr.headSha, tacGia },
         );
       } else {
         id = rm.batDau(
@@ -124,7 +140,7 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
           'code',
           ['--skill', 'code', '--repo', cfg.repo.local_path, '--branch', pr.headRef, '--base', pr.baseRef],
           envAgent(cfg),
-          { so: pr.so, headSha: pr.headSha },
+          { so: pr.so, headSha: pr.headSha, tacGia },
         );
       }
     } catch (e) {

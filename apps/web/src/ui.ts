@@ -84,7 +84,8 @@ export function khung(tieuDe: string, than: string, js = ''): string {
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>${tieuDe}</title><style>${CSS}</style></head>
 <body><div class="top"><div class="wrap"><span class="logo">Check<span class="mate">Mate</span> ♞</span>
 <span class="tag">maker–checker cho code và tài liệu — checker không tin ai, chỉ tin bằng chứng</span>
-<a class="gear" href="/settings" title="Cài đặt" aria-label="Cài đặt">⚙</a></div></div>
+<a class="gear" href="/ledger" title="Sổ cái verdict" aria-label="Sổ cái verdict" style="margin-left:auto">📒</a>
+<a class="gear" href="/settings" title="Cài đặt" aria-label="Cài đặt" style="margin-left:0">⚙</a></div></div>
 <main class="wrap">${than}</main>${js ? `<script>${js}</script>` : ''}</body></html>`;
 }
 

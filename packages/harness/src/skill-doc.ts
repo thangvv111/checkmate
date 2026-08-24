@@ -4,6 +4,7 @@ import { basename } from 'node:path';
 import type { Evidence, Finding, RunEvent, Severity } from '../../shared/src/types.js';
 import type { ModelProvider } from './model.js';
 import { goiJson } from './jsonx.js';
+import { chuanMuc } from '../../shared/src/types.js';
 
 export interface KetQuaSkillDoc {
   findings: Finding[];
@@ -78,6 +79,11 @@ Ví dụ/kịch bản minh hoạ trong tài liệu cũng là một "chỗ khẳn
 - Đề xuất "nên bổ sung thêm" nội dung ngoài 4 loại trên.
 - Finding không kèm trích dẫn nguyên văn.
 
+# MỨC FINDING (severity)
+- "high": mâu thuẫn quy tắc/số liệu làm build sai hành vi TIỀN hoặc QUYỀN, hoặc ví dụ minh hoạ dạy sai hành vi tiền-quyền.
+- "medium": thiếu tiêu chí nghiệm thu, tiêu chí không đo được, lệch chéo không đụng tiền-quyền.
+- "low": lỗi khách quan nhỏ còn lại.
+
 # LUẬT BẰNG CHỨNG
 Mỗi finding kèm 1–2 trích dẫn NGUYÊN VĂN — copy ĐÚNG TỪNG KÝ TỰ một đoạn liền mạch từ tài liệu (≥ 8 từ hoặc trọn một ô bảng/một câu). Loại \`mau_thuan\` và \`lech_cheo\` bắt buộc 2 trích dẫn (hai vế). Máy sẽ đối chiếu từng trích dẫn vào tài liệu — trích sai một ký tự cũng bị loại finding.
 QUAN TRỌNG: chọn đúng CÂU QUYẾT ĐỊNH — câu chứa hành vi/số liệu vi phạm (ai LÀM hành động gì, số BAO NHIÊU), không phải câu mở đầu hay câu bối cảnh đứng gần. Với mâu thuẫn: hai trích dẫn đặt cạnh nhau phải tự thấy không thể cùng đúng mà KHÔNG cần suy diễn thêm; nếu hành vi vi phạm nằm ở câu sau thì trích câu sau.
@@ -86,7 +92,7 @@ ${loiNeoLanTruoc ? `\n# LẦN TRƯỚC CÁC TRÍCH DẪN SAU KHÔNG NEO ĐƯỢC
 ${docCoSoDong}
 
 Tối đa 6 finding, chỉ lấy những cái chắc chắn nhất. Trả lời CHỈ MỘT khối JSON trong fence \`\`\`json:
-{"findings":[{"id":"D1","rubric":"mau_thuan|khong_do_duoc|thieu_ac|lech_cheo","severity":"blocking|non_blocking","title_vi":"≤80 ký tự","what_vi":"điều gì sai, 1–2 câu","consequence_vi":"hậu quả khi đem tài liệu này đi xây, 1 câu","quotes":[{"quote":"nguyên văn...","vi_tri":"mục/bảng nào"}]}]}`;
+{"findings":[{"id":"D1","rubric":"mau_thuan|khong_do_duoc|thieu_ac|lech_cheo","severity":"high|medium|low","title_vi":"≤80 ký tự","what_vi":"điều gì sai, 1–2 câu","consequence_vi":"hậu quả khi đem tài liệu này đi xây, 1 câu","quotes":[{"quote":"nguyên văn...","vi_tri":"mục/bảng nào"}]}]}`;
 }
 
 function promptSkeptic(ungVien: UngVien[], docCoSoDong: string): string {
@@ -193,7 +199,7 @@ export async function chaySkillDoc(model: ModelProvider, file: string, phat: Pha
       return {
         id: `F${i + 1}`,
         skill: 'doc' as const,
-        severity: x.u.severity,
+        severity: chuanMuc(x.u.severity),
         title_vi: x.u.title_vi,
         what_vi: x.u.what_vi,
         consequence_vi: x.u.consequence_vi,

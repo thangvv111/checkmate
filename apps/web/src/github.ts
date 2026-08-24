@@ -48,6 +48,7 @@ export interface PrHienTai {
   headSha: string;
   state: string;
   merged: boolean;
+  tacGia?: string;
 }
 
 export async function layPrHienTai(cfg: CheckmateConfig, so: number): Promise<PrHienTai> {
@@ -55,8 +56,9 @@ export async function layPrHienTai(cfg: CheckmateConfig, so: number): Promise<Pr
     head: { sha: string };
     state: string;
     merged: boolean;
+    user?: { login: string };
   };
-  return { headSha: p.head.sha, state: p.state, merged: p.merged };
+  return { headSha: p.head.sha, state: p.state, merged: p.merged, tacGia: p.user?.login };
 }
 
 export async function binhLuanPr(cfg: CheckmateConfig, so: number, body: string): Promise<void> {
