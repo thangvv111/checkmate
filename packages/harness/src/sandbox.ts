@@ -30,8 +30,9 @@ export class Sandbox {
   ) {
     this.dir = mkdtempSync(join(tmpdir(), 'checker-sb-'));
     git(repo, ['worktree', 'add', '--detach', this.dir, sha]);
-    // dùng chung node_modules của repo đích qua junction — các PR demo không đổi dependency
-    symlinkSync(join(repo, 'node_modules'), join(this.dir, 'node_modules'), 'junction');
+    // dùng chung node_modules của repo đích qua junction (repo không phải Node thì bỏ qua)
+    const nm = join(repo, 'node_modules');
+    if (existsSync(nm)) symlinkSync(nm, join(this.dir, 'node_modules'), 'junction');
   }
 
   ghiProbe(code: string, ten = 'checker.probe.test.ts'): string {
@@ -72,6 +73,42 @@ export class Sandbox {
     });
     const loiThu = data.numTotalTests === 0 ? (data.testResults.map((t) => t.message ?? '').join('\n') || 'Không thu thập được test nào').slice(0, 2000) : '';
     return { ok: data.numTotalTests > 0, tongTest: data.numTotalTests, probes, loiThu };
+  }
+
+  // Runner cấu hình được (B4.5): chạy TỪNG file probe một lệnh riêng theo template của repo đích,
+  // đọc kết quả qua hợp đồng JUnit XML — file attribution chắc chắn, không phụ thuộc framework.
+  chayTheoRunner(
+    testFilesRel: string[],
+    cfg: { test_cmd: string; timeout_s: number },
+    parseJUnit: (xml: string, file: string) => KetQuaProbe[],
+  ): KetQuaVitest {
+    const probes: KetQuaProbe[] = [];
+    let tong = 0;
+    for (const rel of testFilesRel) {
+      const relSach = rel.replace(/\\/g, '/');
+      const out = join(this.dir, `junit-${probes.length}-${Date.now()}.xml`);
+      const lenh = cfg.test_cmd.replaceAll('{files}', relSach).replaceAll('{out}', out);
+      const kq = spawnSync(lenh, {
+        cwd: this.dir,
+        shell: true,
+        encoding: 'utf8',
+        timeout: cfg.timeout_s * 1000,
+        env: { ...process.env, CI: 'true' },
+      });
+      if (!existsSync(out)) {
+        return {
+          ok: false,
+          tongTest: tong,
+          probes,
+          loiThu: `Runner không xuất JUnit XML cho ${relSach}: ${(kq.stderr || kq.stdout || 'không có output').slice(0, 1800)}`,
+        };
+      }
+      const cua = parseJUnit(readFileSync(out, 'utf8'), relSach.split('/').pop() ?? relSach);
+      try { unlinkSync(out); } catch { /* không sao */ }
+      probes.push(...cua);
+      tong += cua.length;
+    }
+    return { ok: tong > 0, tongTest: tong, probes, loiThu: tong > 0 ? '' : 'Không thu thập được test nào từ JUnit XML' };
   }
 
   huy(): void {

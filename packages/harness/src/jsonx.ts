@@ -15,8 +15,7 @@ NHẮC LẠI: bạn KHÔNG có tool hay quyền đọc file nào — làm việc
   }
 }
 
-// Bóc JSON / code khỏi trả lời model (chấp nhận có hoặc không có code fence).
-
+// Bóc JSON khỏi trả lời model (chấp nhận có hoặc không có code fence).
 export function bocJson<T>(raw: string): T {
   const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
   const ung = fence ? fence[1] : raw;
@@ -26,10 +25,12 @@ export function bocJson<T>(raw: string): T {
   return JSON.parse(ung.slice(dau, cuoi + 1)) as T;
 }
 
+// Bóc code khỏi trả lời model — nhận MỌI language tag (```ts, ```python, ```java...),
+// tag phải bị BỎ, tuyệt đối không được lọt vào dòng đầu file code.
 export function bocCode(raw: string): string {
-  const fence = raw.match(/```(?:ts|typescript)?\s*([\s\S]*?)```/);
+  const fence = raw.match(/```[a-zA-Z0-9_+-]*[ \t]*\r?\n([\s\S]*?)```/);
   if (fence) return fence[1].trim();
-  // không fence: coi toàn bộ là code nếu có import
-  if (/^\s*import\s/m.test(raw)) return raw.trim();
+  // không fence: coi toàn bộ là code nếu có dấu hiệu mã nguồn
+  if (/^\s*(import|from|def |package |public )/m.test(raw)) return raw.trim();
   throw new Error(`Không tìm thấy code trong trả lời model: ${raw.slice(0, 200)}`);
 }

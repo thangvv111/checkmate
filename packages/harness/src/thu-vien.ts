@@ -53,12 +53,13 @@ export function docThuVien(slug: string): BoProbeThuVien[] {
 }
 
 // Nhận file probe mới vào thư viện. Trả về tên file nếu nhận, null nếu trùng nội dung đã có.
-export function nhanVaoThuVien(slug: string, code: string, plan: KeHoachProbe[], shaSinh: string): string | null {
+export function nhanVaoThuVien(slug: string, code: string, plan: KeHoachProbe[], shaSinh: string, ext = '.probe.test.ts'): string | null {
   const hash = createHash('sha256').update(code).digest('hex');
   const meta = docMeta(slug);
   if (meta.files.some((m) => m.hash === hash)) return null;
 
-  const ten = `lib-${shaSinh.slice(0, 7)}-${meta.files.length + 1}.probe.test.ts`;
+  // underscore + không dấu chấm thừa: tên phải là module hợp lệ với MỌI stack (bài học pytest)
+  const ten = `lib_${shaSinh.slice(0, 7)}_${meta.files.length + 1}${ext}`;
   mkdirSync(join(GOC_LIB, slug), { recursive: true });
   writeFileSync(join(GOC_LIB, slug, ten), code, 'utf8');
   meta.files.push({ ten, sha_sinh: shaSinh, luc: new Date().toISOString(), hash, plan });

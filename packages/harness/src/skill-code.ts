@@ -4,6 +4,7 @@ import { bocCode, goiJson } from './jsonx.js';
 import { docTarget, type TargetInfo } from './target.js';
 import { Sandbox, type KetQuaProbe } from './sandbox.js';
 import { docThuVien, nhanVaoThuVien, slugRepo } from './thu-vien.js';
+import { docRunnerCfg, parseJUnit, type RunnerCfg } from './runner.js';
 
 export interface KeHoachProbe {
   id: string;
@@ -59,6 +60,14 @@ interface UngVien {
   bs?: KetQuaProbe;
 }
 
+function trichCode(nguon: string, probeId: string): string {
+  const it = nguon.match(new RegExp(`it\\(['"\`]${probeId}:[\\s\\S]*?\\n  \\}\\);`))?.[0];
+  if (it) return it;
+  const dong = nguon.split('\n');
+  const i = dong.findIndex((l) => l.includes(probeId));
+  return i >= 0 ? dong.slice(i, i + 25).join('\n') : '';
+}
+
 // ---------- Prompts ----------
 
 function promptPhanTich(t: TargetInfo): string {
@@ -88,15 +97,21 @@ ${t.diff}
 - tính đúng tuyệt đối về TIỀN: tổng các phần phải bằng đúng tổng gốc, thử số CHIA KHÔNG HẾT;
 - đường SAI phải trả lỗi nghiệp vụ 4xx kèm thông báo (trùng khoá, tham chiếu không tồn tại) — app-guard, không được vỡ thành 500;
 - hành vi cũ không bị PR phá (probe kỳ vọng qua, để chứng minh PASS xứng đáng khi PR sạch).
-Probe phải kiểm được qua HTTP (app.inject), KHÔNG import hàm nội bộ — để cùng một probe chạy được trên cả nhánh PR lẫn nhánh gốc.
+Probe chỉ dùng API công khai ĐÚNG NHƯ file test mẫu của repo (không đào vào hàm nội bộ khác) — để cùng một probe chạy được trên cả nhánh PR lẫn nhánh gốc.
 QUAN TRỌNG: chỉ assert những gì API THẬT SỰ trả (đối chiếu tài liệu API + file test mẫu) — đừng bịa thêm trường response; probe sai contract sẽ bị máy loại và phí một suất probe.
 
 Trả lời CHỈ MỘT khối JSON trong fence \`\`\`json:
 {"probes": [{"id": "P1", "ten": "...", "muc_dich": "...", "spec_rule": "R?", "ky_vong": "mô tả kỳ vọng theo spec (status/giá trị)"}]}`;
 }
 
-function promptSinhCode(t: TargetInfo, keHoach: KeHoachProbe[], loiLanTruoc?: string): string {
-  return `Bạn là CHECKER ĐỐI KHÁNG. Hãy viết MỘT file test vitest (TypeScript) hiện thực đúng các probe sau, chạy trên repo có sẵn.
+function promptSinhCode(t: TargetInfo, keHoach: KeHoachProbe[], loiLanTruoc?: string, runner?: RunnerCfg | null): string {
+  const luatRieng = runner
+    ? `- Viết cho framework: ${runner.framework} — đúng cú pháp chạy được bằng lệnh test của repo.
+- Chỉ dùng API công khai ĐÚNG NHƯ file test mẫu (cách import, cách dựng đối tượng); không import hàm/module nội bộ ngoài những gì file mẫu dùng.
+${runner.huong_dan_probe ? `- Hướng dẫn riêng của repo:\n${runner.huong_dan_probe}` : ''}`
+    : `- Chỉ dùng HTTP qua app.inject; không import từ src/services; mỗi it tự dựng app với moDb(':memory:') hoặc dùng beforeEach như file mẫu.
+- Dữ liệu tự tạo trong từng it (mã hồ sơ dùng dải HM-2026-8xxx để không đụng dữ liệu khác).`;
+  return `Bạn là CHECKER ĐỐI KHÁNG. Hãy viết MỘT file test ${runner ? runner.framework : 'vitest (TypeScript)'} hiện thực đúng các probe sau, chạy trên repo có sẵn.
 
 # KẾ HOẠCH PROBE
 ${JSON.stringify(keHoach, null, 2)}
@@ -107,14 +122,13 @@ ${t.testMau}
 \`\`\`
 
 # LUẬT VIẾT
-- Mỗi probe = một \`it('<id>: <tên>', ...)\` — title BẮT BUỘC bắt đầu bằng đúng id probe (P1, P2...).
+- Mỗi probe = MỘT test case, TÊN test BẮT BUỘC bắt đầu bằng đúng id probe (P1, P2... — vd it('P1: ...') / def test_P1_...).
 - Assert KỲ VỌNG THEO SPEC (không phải hành vi hiện tại của code). Probe fail nghĩa là code sai spec.
-- CHỈ assert trường/response mà API thật trả (theo file mẫu + tài liệu) — assert vào trường không tồn tại là probe hỏng, máy sẽ loại.
-- Chỉ dùng HTTP qua app.inject; không import từ src/services; mỗi it tự dựng app với moDb(':memory:') hoặc dùng beforeEach như file mẫu.
-- Dữ liệu tự tạo trong từng it (mã hồ sơ dùng dải HM-2026-8xxx để không đụng dữ liệu khác).
-- Không dùng network, không setTimeout.
+- CHỈ assert giá trị/trường mà API thật trả (theo file mẫu + tài liệu) — assert vào thứ không tồn tại là probe hỏng, máy sẽ loại.
+${luatRieng}
+- Không dùng network, không sleep/setTimeout.
 ${loiLanTruoc ? `\n# LẦN TRƯỚC FILE CỦA BẠN CÓ VẤN ĐỀ — SỬA CHO ĐÚNG\n${loiLanTruoc}\n` : ''}
-Trả lời CHỈ MỘT khối code trong fence \`\`\`ts (không giải thích gì thêm).`;
+Trả lời CHỈ MỘT khối code trong MỘT fence code duy nhất (không giải thích gì thêm).`;
 }
 
 function promptVietFinding(ungVien: UngVien[], t: TargetInfo): string {
@@ -161,6 +175,9 @@ export async function chaySkillCode(
 
   const slug = slugRepo(repo);
   const thuVien = docThuVien(slug);
+  const runner = docRunnerCfg(repo);
+  const fileProbeMoi = runner ? (runner.probe_file ?? `checker_probe${runner.probe_ext}`) : FILE_PROBE_MOI;
+  if (runner) phat({ type: 'log', msg: `Runner cấu hình từ checkmate.yml: ${runner.framework} · lệnh test của repo · hợp đồng JUnit XML` });
 
   phat({ type: 'stage', stage: 3, ten: 'Sinh probe đối kháng' });
   const keHoach = (await goiJson<{ probes: KeHoachProbe[] }>(model, promptPhanTich(t))).probes.slice(0, MAX_PROBE);
@@ -169,7 +186,7 @@ export async function chaySkillCode(
     phat({ type: 'log', msg: `+ ${thuVien.reduce((s, f) => s + f.plan.length, 0)} probe THƯ VIỆN từ ${thuVien.length} lượt trước (regression, không tốn model)` });
   }
 
-  let code = bocCode(await model.complete(promptSinhCode(t, keHoach)));
+  let code = bocCode(await model.complete(promptSinhCode(t, keHoach, undefined, runner)));
 
   phat({ type: 'stage', stage: 4, ten: 'Chạy probe trong sandbox — nhánh PR và nhánh gốc đối chứng + cổng sanity' });
 
@@ -177,8 +194,8 @@ export async function chaySkillCode(
     const chay = (sha: string): { probes: KetQuaProbe[]; ok: boolean; loiThu: string } => {
       const sb = new Sandbox(repo, sha);
       try {
-        const files = [sb.ghiProbe(codeMoi, FILE_PROBE_MOI), ...thuVien.map((f) => sb.ghiProbe(f.code, f.ten))];
-        const kq = sb.chayVitest(files);
+        const files = [sb.ghiProbe(codeMoi, fileProbeMoi), ...thuVien.map((f) => sb.ghiProbe(f.code, f.ten))];
+        const kq = runner ? sb.chayTheoRunner(files, runner, parseJUnit) : sb.chayVitest(files);
         return { probes: kq.probes, ok: kq.ok, loiThu: kq.loiThu };
       } finally {
         sb.huy();
@@ -196,15 +213,23 @@ export async function chaySkillCode(
     if (loiThu !== undefined) {
       if (lan === 2) throw new Error(`Probe không thu thập được sau 2 lần sinh: ${loiThu}`);
       phat({ type: 'log', msg: 'File probe lỗi thu thập — sinh lại lần 2 kèm thông báo lỗi' });
-      code = bocCode(await model.complete(promptSinhCode(t, keHoach, loiThu)));
+      code = bocCode(await model.complete(promptSinhCode(t, keHoach, loiThu, runner)));
       continue;
     }
 
+    // khớp id probe đa framework: 'P1: ...' (vitest) lẫn 'test_P1_...' (pytest/junit)
+    const khopId = (title: string, id: string) => {
+      const t = title.startsWith('test_') ? title.slice(5) : title;
+      return t.startsWith(id);
+    };
+    const tomTatKq = (kq: KetQuaProbe[]) => kq.map((p) => `${p.title.split(':')[0].slice(0, 24)}=${p.status[0]}`).join(' ') || '(rỗng)';
+    phat({ type: 'log', msg: `Nhánh PR:  ${tomTatKq(branchKq)}` });
+    phat({ type: 'log', msg: `Nhánh gốc: ${tomTatKq(baseKq)}` });
     const timKq = (kq: KetQuaProbe[], file: string, id: string) =>
-      kq.find((r) => r.file === file && r.title.startsWith(id));
+      kq.find((r) => r.file === file && khopId(r.title, id));
 
     const bo: Array<{ file: string; nguon: 'moi' | 'thu_vien'; plan: KeHoachProbe[] }> = [
-      { file: FILE_PROBE_MOI, nguon: 'moi', plan: keHoach },
+      { file: fileProbeMoi, nguon: 'moi', plan: keHoach },
       ...thuVien.map((f) => ({ file: f.ten, nguon: 'thu_vien' as const, plan: f.plan })),
     ];
     let dem = 0;
@@ -224,6 +249,14 @@ export async function chaySkillCode(
       msg: `Phân loại máy: ${tomTat('pass').length} pass · ${tomTat('hoi_quy').length} hồi quy · ${tomTat('hong').length} hỏng · ${tomTat('nghi_van').length} nghi vấn · ${tomTat('cai_thien').length} cải thiện`,
     });
 
+    const soMoiGhiNhan = ungVienTatCa.filter((u) => u.nguon === 'moi').length;
+    if (soMoiGhiNhan === 0) {
+      const mau = branchKq.slice(0, 4).map((p) => p.title).join(' · ') || 'không có testcase nào';
+      if (lan === 2) throw new Error(`Không ghi nhận được probe mới nào sau 2 lần sinh (tên test không khớp id hoặc lỗi thu thập). Testcase thấy được: ${mau}`);
+      phat({ type: 'log', msg: `Lưới PASS-rỗng: 0/${keHoach.length} probe mới được ghi nhận (testcase: ${mau}) — sinh lại file probe` });
+      code = bocCode(await model.complete(promptSinhCode(t, keHoach, `File trước không collect được test nào khớp id probe (P1, P2...). Testcase thấy được: ${mau}. Đặt tên test ĐÚNG bắt đầu bằng id probe và sửa lỗi import/cú pháp nếu có.`, runner)));
+      continue;
+    }
     const hongMoi = ungVienTatCa.filter((u) => u.nguon === 'moi' && u.trangThai === 'hong');
     if (hongMoi.length > 0) {
       phat({
@@ -234,7 +267,7 @@ export async function chaySkillCode(
     if (lan === 1 && hongMoi.length * 2 > keHoach.length) {
       phat({ type: 'log', msg: `Quá nửa probe mới hỏng (${hongMoi.length}/${keHoach.length}) — sinh lại file probe kèm lỗi từng probe` });
       const moTaLoi = hongMoi.map((u) => `${u.probe.id}: ${u.br.message.split('\n')[0]}`).join('\n');
-      code = bocCode(await model.complete(promptSinhCode(t, keHoach, `Các probe sau fail trên CẢ nhánh gốc lẫn PR — tức probe viết sai contract API, hãy sửa cách assert:\n${moTaLoi}`)));
+      code = bocCode(await model.complete(promptSinhCode(t, keHoach, `Các probe sau fail trên CẢ nhánh gốc lẫn PR — tức probe viết sai contract API, hãy sửa cách assert:\n${moTaLoi}`, runner)));
       continue;
     }
     break;
@@ -254,10 +287,7 @@ export async function chaySkillCode(
     const lamEvidence = (u: UngVien) => ({
       type: 'test_run' as const,
       probe_name: `${u.br.title}${u.nguon === 'thu_vien' ? ` [thư viện: ${u.file}]` : ''}`,
-      probe_code: (u.nguon === 'moi'
-        ? (code.match(new RegExp(`it\\(['"\`]${u.probe.id}:[\\s\\S]*?\\n  \\}\\);`))?.[0] ?? '')
-        : (thuVien.find((f) => f.ten === u.file)?.code.match(new RegExp(`it\\(['"\`]${u.probe.id}:[\\s\\S]*?\\n  \\}\\);`))?.[0] ?? '')
-      ).slice(0, 2000),
+      probe_code: trichCode(u.nguon === 'moi' ? code : (thuVien.find((f) => f.ten === u.file)?.code ?? ''), u.probe.id).slice(0, 2000),
       command: `vitest run test/${u.file} (nhánh ${branch} @ ${t.branchSha.slice(0, 7)})`,
       expected: u.probe.ky_vong,
       actual: u.br.message.slice(0, 1200),
@@ -304,7 +334,10 @@ export async function chaySkillCode(
   const failGoc = probeMoi.filter((u) => u.bs?.status !== 'passed');
   let codeNhan = code;
   let planNhan = keHoach;
-  if (failGoc.length > 0) {
+  if (failGoc.length > 0 && runner) {
+    // strip từng test-case chỉ tin cậy với cú pháp vitest — repo runner ngoài thì fail-safe: không nhận
+    planNhan = [];
+  } else if (failGoc.length > 0) {
     const boIds = new Set(failGoc.map((u) => u.probe.id));
     planNhan = keHoach.filter((p) => !boIds.has(p.id));
     for (const u of failGoc) {
@@ -317,14 +350,15 @@ export async function chaySkillCode(
       // verify bản cắt trên nhánh gốc — deterministic, không tốn model
       const sb = new Sandbox(repo, t.baseSha);
       try {
-        const kq = sb.chayVitest([sb.ghiProbe(codeNhan, FILE_PROBE_MOI)]);
+        const filesV = [sb.ghiProbe(codeNhan, fileProbeMoi)];
+        const kq = runner ? sb.chayTheoRunner(filesV, runner, parseJUnit) : sb.chayVitest(filesV);
         sach = kq.ok && kq.probes.length === planNhan.length && kq.probes.every((p) => p.status === 'passed');
       } finally {
         sb.huy();
       }
     }
     if (sach) {
-      const ten = nhanVaoThuVien(slug, codeNhan, planNhan, t.branchSha);
+      const ten = nhanVaoThuVien(slug, codeNhan, planNhan, t.branchSha, runner ? runner.probe_ext : '.probe.test.ts');
       phat({
         type: 'log',
         msg: ten

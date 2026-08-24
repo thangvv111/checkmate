@@ -37,7 +37,9 @@ export function docTarget(repo: string, branch: string, base = 'main'): TargetIn
   const testDir = join(repo, 'test');
   let testMau = '';
   if (existsSync(testDir)) {
-    const f = readdirSync(testDir).find((x) => x.endsWith('.test.ts'));
+    // file test mẫu: ưu tiên .test.ts (đường mặc định), rồi mọi file test khác — repo đa stack (B4.5)
+    const ds = readdirSync(testDir).sort();
+    const f = ds.find((x) => x.endsWith('.test.ts')) ?? ds.find((x) => /test/i.test(x) && !x.startsWith('checker.probe'));
     if (f) testMau = readFileSync(join(testDir, f), 'utf8');
   }
 
