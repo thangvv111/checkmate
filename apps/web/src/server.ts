@@ -7,9 +7,11 @@ import { GOC } from './paths.js';
 import { RunManager } from './runs.js';
 import { khung, khoiDaTraVe, khoiPrList, trangChu, trangRun, trangSettings } from './ui.js';
 import { MODE, cheToken, docConfig, envAgent, ghiConfig } from './config.js';
-import { danhSachPr, dongPr, fetchVaRouter, layPrHienTai, mergePr, binhLuanPr, traVeDev } from './github.js';
-import { banPhanQuyet, banReceipt, demMuc, ghiSo, nguoiThaoTac } from './cong.js';
+import { danhSachPr, dongPr, fetchVaRouter, ganTrangThaiCommit, layPrHienTai, mergePr, binhLuanPr, traVeDev } from './github.js';
+import { banPhanQuyet, banReceipt, banVerdictTuDong, demMuc, ghiSo, nguoiThaoTac } from './cong.js';
 import { backfillSoCai, docSoCai } from './ledger.js';
+import { tinhHoSo } from './tincay.js';
+import { trangHoSoTacGia, trangTinCay } from './ui-tincay.js';
 import { trangLedger } from './ui-ledger.js';
 import { chuanMuc } from '../../../packages/shared/src/types.js';
 
@@ -25,6 +27,65 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 *
   const them = backfillSoCai(rm.danhSach());
   if (them > 0) console.log(`Sổ cái verdict: backfill ${them} run cũ vào sổ`);
 }
+
+// ---- Chế độ trực (B4.3): hook run-xong + poller ----
+rm.onXong = (meta) => {
+  const cfg = docConfig();
+  if (!meta.pr || !meta.verdict || !cfg.truc.bat || !cfg.truc.tu_dong_comment) return;
+  const v = meta.verdict;
+  const pr = meta.pr;
+  void (async () => {
+    try {
+      await binhLuanPr(cfg, pr.so, banVerdictTuDong(v));
+      await ganTrangThaiCommit(cfg, pr.headSha, v.result === 'PASS' ? 'success' : 'failure',
+        v.result === 'PASS' ? 'CheckMate: PASS' : `CheckMate: FAIL — ${v.findings.length} finding`);
+      console.log(`Chế độ trực: đã báo verdict ${v.result} lên PR #${pr.so}`);
+    } catch (e) {
+      console.error('Chế độ trực (báo verdict):', (e as Error).message);
+    }
+  })();
+};
+
+// Chấm một PR — dùng chung cho nút bấm lẫn poller
+async function chamPr(cfg: ReturnType<typeof docConfig>, soPr: number): Promise<{ id: string } | { daChamRunId: string }> {
+  const pr = fetchVaRouter(cfg, soPr);
+  const daCham = rm.timTheoPr(pr.so, pr.headSha);
+  if (daCham) return { daChamRunId: daCham.id };
+  let tacGia: string | undefined;
+  try { tacGia = (await layPrHienTai(cfg, pr.so)).tacGia; } catch { /* thiếu tác giả không chặn run */ }
+  const meta = { so: pr.so, headSha: pr.headSha, tacGia };
+  if (pr.loai === 'doc') {
+    return { id: rm.batDau(`PR #${pr.so} · tài liệu ${pr.fileDoc}`, 'doc',
+      ['--skill', 'doc', '--repo', cfg.repo.local_path, '--branch', pr.headSha, '--file', pr.fileDoc!], envAgent(cfg), meta) };
+  }
+  return { id: rm.batDau(`PR #${pr.so} · code (${pr.filesDoi.length} file đổi)`, 'code',
+    ['--skill', 'code', '--repo', cfg.repo.local_path, '--branch', pr.headRef, '--base', pr.baseRef], envAgent(cfg), meta) };
+}
+
+let dangQuet = false;
+let lanQuetCuoi = 0;
+setInterval(() => {
+  void (async () => {
+    const cfg = docConfig();
+    if (!cfg.truc.bat || dangQuet) return;
+    if (Date.now() - lanQuetCuoi < cfg.truc.chu_ky_giay * 1000) return;
+    dangQuet = true;
+    lanQuetCuoi = Date.now();
+    try {
+      const prs = await danhSachPr(cfg);
+      for (const p of prs) {
+        if (rm.soDangChay() >= 2) break;
+        if (rm.timTheoPr(p.so, p.headSha) || rm.dangChayPr(p.so)) continue;
+        const kq = await chamPr(cfg, p.so);
+        if ('id' in kq) console.log(`Chế độ trực: tự chấm PR #${p.so} @ ${p.headSha.slice(0, 7)} (run ${kq.id})`);
+      }
+    } catch (e) {
+      console.error('Chế độ trực (poller):', (e as Error).message);
+    } finally {
+      dangQuet = false;
+    }
+  })();
+}, 30_000);
 
 app.get('/', async (_req, res) => {
   const cfg = docConfig();
@@ -55,6 +116,17 @@ app.get('/ledger', (_req, res) => {
   res.send(trangLedger(docSoCai(), congTheoRun));
 });
 
+app.get('/tin-cay', (_req, res) => {
+  res.send(trangTinCay(tinhHoSo(docSoCai())));
+});
+
+app.get('/tin-cay/:tacGia', (req, res) => {
+  const soCai = docSoCai();
+  const tacGia = req.params.tacGia;
+  const hoSo = tinhHoSo(soCai).find((h) => h.tacGia === tacGia);
+  res.send(trangHoSoTacGia(tacGia, hoSo, soCai.filter((m) => m.tac_gia === tacGia && m.pr)));
+});
+
 app.get('/settings', (req, res) => {
   const c = docConfig();
   res.send(
@@ -68,6 +140,9 @@ app.get('/settings', (req, res) => {
       model: c.agent.model,
       maxProbe: c.agent.max_probe,
       skeptic: c.agent.skeptic,
+      trucBat: c.truc.bat,
+      trucChuKy: c.truc.chu_ky_giay,
+      trucComment: c.truc.tu_dong_comment,
       daLuu: req.query.luu === '1',
     }),
   );
@@ -90,6 +165,11 @@ app.post('/settings', (req, res) => {
       max_probe: Math.min(12, Math.max(2, Number(b.max_probe) || 6)),
       skeptic: b.skeptic === '1',
     },
+    truc: {
+      bat: b.truc_bat === '1',
+      chu_ky_giay: Math.min(3600, Math.max(60, Number(b.truc_chu_ky) || 300)),
+      tu_dong_comment: b.truc_comment === '1',
+    },
   };
   if (!/^[\w.-]+\/[\w.-]+$/.test(moi.repo.github)) return res.status(422).send('Repo phải dạng owner/tên');
   ghiConfig(moi);
@@ -105,6 +185,7 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
   const { kieu, preset, noi_dung, so } = req.body as { kieu?: string; preset?: string; noi_dung?: string; so?: string };
   const cfg = docConfig();
   let id: string;
+  const muonJson = (req.headers.accept ?? '').includes('application/json');
   if (kieu === 'pr') {
     const soPr = Number(so);
     if (!Number.isInteger(soPr) || soPr <= 0) return res.status(422).send('Số PR không hợp lệ');
@@ -113,6 +194,9 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
       let tacGia: string | undefined;
       try { tacGia = (await layPrHienTai(cfg, pr.so)).tacGia; } catch { /* thiếu tác giả không chặn run */ }
       const daCham = rm.timTheoPr(pr.so, pr.headSha);
+      if (daCham && muonJson && (req.body as Record<string, string>).ep !== '1') {
+        return res.status(409).json({ da_cham_run_id: daCham.id, verdict: daCham.verdict?.result });
+      }
       if (daCham && (req.body as Record<string, string>).ep !== '1') {
         return res.status(409).send(
           khung(
@@ -169,7 +253,28 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
   } else {
     return res.status(422).send('Thiếu loại artifact');
   }
+  if (muonJson) return res.json({ run_id: id });
   res.redirect(303, `/runs/${id}`);
+});
+
+// JSON API (phục vụ MCP B4.4 + tích hợp ngoài)
+app.get('/api/prs', async (_req, res) => {
+  const cfg = docConfig();
+  try {
+    const prs = await danhSachPr(cfg);
+    res.json(prs.map((p) => {
+      const daCham = rm.timTheoPr(p.so, p.headSha);
+      return { ...p, da_cham: daCham?.verdict ? { run_id: daCham.id, verdict: daCham.verdict.result, so_finding: daCham.verdict.findings.length } : null };
+    }));
+  } catch (e) {
+    res.status(500).json({ loi: (e as Error).message });
+  }
+});
+
+app.get('/api/runs/:id/info', (req, res) => {
+  const st = rm.lay(req.params.id);
+  if (!st) return res.status(404).json({ loi: 'Không tìm thấy run' });
+  res.json(st.meta);
 });
 
 app.get('/runs/:id', (req, res) => {

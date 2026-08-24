@@ -84,7 +84,8 @@ export function khung(tieuDe: string, than: string, js = ''): string {
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>${tieuDe}</title><style>${CSS}</style></head>
 <body><div class="top"><div class="wrap"><span class="logo">Check<span class="mate">Mate</span> ♞</span>
 <span class="tag">maker–checker cho code và tài liệu — checker không tin ai, chỉ tin bằng chứng</span>
-<a class="gear" href="/ledger" title="Sổ cái verdict" aria-label="Sổ cái verdict" style="margin-left:auto">📒</a>
+<a class="gear" href="/tin-cay" title="Thang tin cậy tác giả" aria-label="Thang tin cậy tác giả" style="margin-left:auto">👤</a>
+<a class="gear" href="/ledger" title="Sổ cái verdict" aria-label="Sổ cái verdict" style="margin-left:0">📒</a>
 <a class="gear" href="/settings" title="Cài đặt" aria-label="Cài đặt" style="margin-left:0">⚙</a></div></div>
 <main class="wrap">${than}</main>${js ? `<script>${js}</script>` : ''}</body></html>`;
 }
@@ -181,6 +182,9 @@ export interface SettingsView {
   model: string;
   maxProbe: number;
   skeptic: boolean;
+  trucBat: boolean;
+  trucChuKy: number;
+  trucComment: boolean;
   daLuu?: boolean;
 }
 
@@ -219,6 +223,14 @@ ${v.daLuu ? '<div class="card" style="border-color:var(--teal);margin-bottom:14p
   <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Độ sâu review — số phép thử tối đa mỗi lượt (2–12)</label>
   <input name="max_probe" type="number" min="2" max="12" value="${v.maxProbe}" ${ro} style="width:90px;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
   <label style="display:block;font-size:12.5px;margin:10px 0 4px"><input type="checkbox" name="skeptic" value="1" ${v.skeptic ? 'checked' : ''} ${ro}> Bật vòng phản biện (skeptic) cho review tài liệu</label>
+</div>
+<div class="card" style="max-width:640px;margin-bottom:14px">
+  <h3>Chế độ trực (PR-bot)</h3>
+  <p style="font-size:12.5px;color:var(--muted)">Bật thì CheckMate tự quét hàng đợi theo chu kỳ: PR mới / commit mới được chấm tự động, verdict post lên PR kèm check status. Tắt = chỉ chấm khi bấm tay.</p>
+  <label style="display:block;font-size:12.5px;margin:8px 0"><input type="checkbox" name="truc_bat" value="1" ${v.trucBat ? 'checked' : ''} ${ro}> Bật chế độ trực</label>
+  <label style="display:block;font-size:12.5px;font-weight:600;margin:8px 0 4px">Chu kỳ quét (giây, 60–3600)</label>
+  <input name="truc_chu_ky" type="number" min="60" max="3600" value="${v.trucChuKy}" ${ro} style="width:110px;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
+  <label style="display:block;font-size:12.5px;margin:10px 0 4px"><input type="checkbox" name="truc_comment" value="1" ${v.trucComment ? 'checked' : ''} ${ro}> Tự post verdict comment + check status lên GitHub khi chấm xong</label>
 </div>
 ${v.mode === 'org' ? '<button>Lưu cấu hình</button>' : '<p class="goiy">Bản demo public không cho sửa — self-host với cờ <code>--org</code> để mở cấu hình.</p>'}
 </form>`,

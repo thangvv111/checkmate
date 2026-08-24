@@ -87,6 +87,20 @@ export async function traVeDev(cfg: CheckmateConfig, so: number, body: string): 
   }
 }
 
+// Chế độ trực (B4.3): gắn check status lên commit — PR hiện dấu xanh/đỏ của CheckMate
+export async function ganTrangThaiCommit(
+  cfg: CheckmateConfig,
+  sha: string,
+  state: 'success' | 'failure' | 'pending',
+  moTa: string,
+): Promise<void> {
+  await goiApiGhi(cfg, 'POST', `/repos/${cfg.repo.github}/statuses/${sha}`, {
+    state,
+    context: 'checkmate',
+    description: moTa.slice(0, 138),
+  });
+}
+
 export async function dongPr(cfg: CheckmateConfig, so: number): Promise<void> {
   await goiApiGhi(cfg, 'PATCH', `/repos/${cfg.repo.github}/pulls/${so}`, { state: 'closed' });
 }

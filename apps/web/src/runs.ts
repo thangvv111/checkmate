@@ -33,6 +33,8 @@ mkdirSync(KHO, { recursive: true });
 
 export class RunManager {
   private runs = new Map<string, RunState>();
+  // hook chế độ trực: gọi khi một run kết thúc CÓ verdict (sau khi đã ghi sổ cái)
+  onXong?: (meta: RunMeta) => void;
 
   soDangChay(): number {
     return [...this.runs.values()].filter((r) => r.meta.trangThai === 'dang_chay').length;
@@ -78,6 +80,11 @@ export class RunManager {
         meta.trangThai = 'xong';
         const muc = mucTuMeta(meta);
         if (muc) ghiSoCai(muc); // sổ cái verdict (B4.1) — append-only mọi kết luận chấm
+        try {
+          this.onXong?.(meta);
+        } catch (e) {
+          console.error('onXong:', (e as Error).message);
+        }
       }
       else {
         meta.trangThai = 'loi';
@@ -122,6 +129,10 @@ export class RunManager {
   // Các PR đã bị trả về dev (đọc từ meta đã lưu) — để hàng đợi không đánh mất việc
   daTraVe(): RunMeta[] {
     return this.danhSach().filter((m) => m.ketQuaCong?.hanhDong === 'reject');
+  }
+
+  dangChayPr(so: number): boolean {
+    return [...this.runs.values()].some((r) => r.meta.pr?.so === so && r.meta.trangThai === 'dang_chay');
   }
 
   ghiKetQuaCong(id: string, kq: RunMeta['ketQuaCong']): void {

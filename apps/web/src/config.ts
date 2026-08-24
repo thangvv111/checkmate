@@ -19,10 +19,17 @@ export interface RepoConfig {
   local_path: string; // clone local mà harness chạy trên đó
 }
 
+export interface TrucConfig {
+  bat: boolean; // chế độ trực: poller tự chấm PR mới — mặc định TẮT (không tự đốt model khi chưa ai bật)
+  chu_ky_giay: number;
+  tu_dong_comment: boolean; // post verdict comment + commit status lên GitHub khi run xong
+}
+
 export interface CheckmateConfig {
   repo: RepoConfig;
   github_token: string; // rỗng = thử dùng gh CLI của máy
   agent: AgentConfig;
+  truc: TrucConfig;
 }
 
 const GOC = resolve('.');
@@ -36,6 +43,7 @@ const MAC_DINH: CheckmateConfig = {
   },
   github_token: '',
   agent: { provider: 'cli', model: 'claude-sonnet-5', max_probe: 6, skeptic: true },
+  truc: { bat: false, chu_ky_giay: 300, tu_dong_comment: true },
 };
 
 export function docConfig(): CheckmateConfig {
@@ -45,6 +53,7 @@ export function docConfig(): CheckmateConfig {
     repo: { ...MAC_DINH.repo, ...luu.repo },
     github_token: luu.github_token ?? '',
     agent: { ...MAC_DINH.agent, ...luu.agent },
+    truc: { ...MAC_DINH.truc, ...luu.truc },
   };
 }
 

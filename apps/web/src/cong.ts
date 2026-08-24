@@ -54,6 +54,21 @@ ${dsFinding}
 _Verdict ghim đúng commit trên — push mới là verdict hết hiệu lực._`;
 }
 
+// Chế độ trực: comment verdict tự động khi run xong (không phải receipt merge)
+export function banVerdictTuDong(v: Verdict): string {
+  const d = demMuc(v.findings);
+  const dsFinding = v.findings.length
+    ? v.findings.map(dongFinding).join('\n')
+    : '_Không có finding — hành vi khớp spec trên mọi probe đã chạy._';
+  return `## ♞ CheckMate — Verdict tự động (chế độ trực)
+
+**${v.result}** · \`${v.artifact_ref.name}\` @ \`${v.artifact_ref.sha_or_hash.slice(0, 10)}\` · ${v.findings.length} finding (${d.high} high · ${d.medium} medium · ${d.low} low) · run \`${v.run_id}\`
+
+${dsFinding}
+
+_Verdict ghim đúng commit trên — push mới sẽ được chấm lại tự động. Thao tác cổng (Merge / Trả về dev) thực hiện trong CheckMate._`;
+}
+
 export function banPhanQuyet(v: Verdict, ghiChu: string, dongPr = false): string {
   const d = demMuc(v.findings);
   return `## ♞ CheckMate — Trả về dev
