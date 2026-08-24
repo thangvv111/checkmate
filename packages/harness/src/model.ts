@@ -31,7 +31,12 @@ export class ClaudeCliProvider implements ModelProvider {
       let out = '';
       let err = '';
       const timer = setTimeout(() => {
-        child.kill();
+        // Windows + shell:true: kill() chỉ giết cmd vỏ — phải giết cả cây kẻo claude mồ côi
+        if (process.platform === 'win32' && child.pid) {
+          spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { shell: true });
+        } else {
+          child.kill('SIGKILL');
+        }
         reject(new Error('Model call quá 240s'));
       }, 240_000);
       child.stdout.on('data', (d) => (out += d));

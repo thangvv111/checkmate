@@ -1,15 +1,20 @@
 {
-  "name": "checker",
+  "name": "checkmate",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "AI Checker — maker–checker cho code và tài liệu (MSB AI Hackathon 2026). Tên sản phẩm chốt sau.",
   "scripts": {
-    "checker": "tsx packages/harness/src/cli.ts"
+    "checker": "tsx packages/harness/src/cli.ts",
+    "web": "tsx apps/web/src/server.ts"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "@types/express": "^5.0.6",
+    "express": "^5.2.1"
   }
 }

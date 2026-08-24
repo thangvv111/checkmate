@@ -1,10 +1,9 @@
-# checker
+# CheckMate
 
-AI Checker — **maker–checker cho code và tài liệu** (MSB AI Hackathon 2026, track AI FOR MY TEAM).
+CheckMate — **maker–checker cho code và tài liệu** (MSB AI Hackathon 2026, track AI FOR MY TEAM).
 Cổng review đối kháng: không gợi ý cải thiện — nó được thiết kế để **bác bỏ**. Verdict PASS/FAIL
 ghim commit SHA; mọi finding kèm bằng chứng chạy-thật hoặc trích dẫn nguyên văn.
 
-> Tên sản phẩm chính thức sẽ chốt sau — repo tạm dùng tên `checker`.
 
 ## Cấu trúc
 
