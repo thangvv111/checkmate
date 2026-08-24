@@ -1,4 +1,4 @@
-import type { Finding, RunEvent, Severity } from '../../shared/src/types.js';
+import { chuanMuc, type Finding, type RunEvent, type Severity } from '../../shared/src/types.js';
 import type { ModelProvider } from './model.js';
 import { bocCode, bocJson } from './jsonx.js';
 import { docTarget, type TargetInfo } from './target.js';
@@ -89,10 +89,10 @@ function promptKetLuan(
   return `Bạn là CHECKER ĐỐI KHÁNG. Dưới đây là kết quả chạy CÙNG MỘT bộ probe trên nhánh PR và nhánh gốc (đối chứng). Phân loại từng probe FAIL thành finding hoặc bỏ.
 
 # LUẬT PHÂN LOẠI
-- PR fail + gốc pass → lỗi DO PR gây ra (hồi quy) → finding, mặc định blocking.
+- PR fail + gốc pass → lỗi DO PR gây ra (hồi quy) → finding.
 - Fail CẢ HAI: nếu nhánh gốc fail vì TÍNH NĂNG CHƯA TỒN TẠI (404 route, trường chưa có) còn nhánh PR fail vì SAI NGHIỆP VỤ → vẫn là finding trên code mới; nếu cả hai fail CÙNG một lý do → KHÔNG kết luận, bỏ probe đó.
 - PR pass → không finding. Gốc fail + PR pass → PR cải thiện, không finding.
-- severity: blocking cho sai phân quyền / sai tiền / 500-thay-4xx / mất dữ liệu; non_blocking cho sai thuần thông báo.
+- severity 3 mức: "high" = sai phân quyền / sai tiền / mất dữ liệu / lỗi 5xx thay vì 4xx nghiệp vụ / hành vi trái điều spec khai PHẢI; "medium" = lệch nhẹ không đụng tiền-quyền (thông báo sai, chặn oan ca phụ, thiếu chặn phụ); "low" = lỗi khách quan nhỏ không đổi hành vi.
 
 # DỮ LIỆU
 ${JSON.stringify(ghep, null, 2)}
@@ -101,7 +101,7 @@ ${JSON.stringify(ghep, null, 2)}
 ${t.specs.map((s) => s.file).join(', ')} — dùng đúng mã luật probe đã neo.
 
 Trả lời CHỈ MỘT khối JSON trong fence \`\`\`json, mỗi finding viết tiếng Việt cho người đọc nghiệp vụ:
-{"findings": [{"probe_id": "P?", "severity": "blocking|non_blocking", "title_vi": "≤80 ký tự", "what_vi": "điều gì sai, 1–2 câu", "consequence_vi": "hậu quả nghiệp vụ, 1 câu"}], "ghi_chu": "probe nào bị bỏ vì không kết luận, vì sao"}`;
+{"findings": [{"probe_id": "P?", "severity": "high|medium|low", "title_vi": "≤80 ký tự", "what_vi": "điều gì sai, 1–2 câu", "consequence_vi": "hậu quả nghiệp vụ, 1 câu"}], "ghi_chu": "probe nào bị bỏ vì không kết luận, vì sao"}`;
 }
 
 export async function chaySkillCode(
@@ -176,7 +176,7 @@ export async function chaySkillCode(
       return {
         id: `F${i + 1}`,
         skill: 'code' as const,
-        severity: f.severity,
+        severity: chuanMuc(f.severity),
         title_vi: f.title_vi,
         what_vi: f.what_vi,
         consequence_vi: f.consequence_vi,

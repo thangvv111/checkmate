@@ -1,3 +1,4 @@
+import { chuanMuc } from '../../../packages/shared/src/types.js';
 import type { RunMeta } from './runs.js';
 
 const CSS = `
@@ -43,9 +44,19 @@ const CSS = `
   .finding { border-left:4px solid var(--fail); background:var(--surface); border-radius:0 10px 10px 0;
     border-top:1px solid var(--line); border-right:1px solid var(--line); border-bottom:1px solid var(--line);
     padding:13px 16px; margin:12px 0; }
-  .finding.nb { border-left-color:var(--amber); }
+  .finding.sev-medium { border-left-color:var(--amber); }
+  .finding.sev-low { border-left-color:#8a97a0; }
   .finding .sev { font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--fail); }
-  .finding.nb .sev { color:var(--amber); }
+  .finding.sev-medium .sev { color:var(--amber); }
+  .finding.sev-low .sev { color:#5C6E74; }
+  .cong { border:1px solid var(--line); border-radius:12px; background:var(--surface); padding:18px 22px; margin:18px 0; }
+  .cong h3 { margin:0 0 8px; font-size:16px; }
+  .cong .canhbao { border:1px solid var(--line); border-left:4px solid var(--amber); border-radius:0 8px 8px 0;
+    padding:8px 12px; margin:8px 0; font-size:13px; display:flex; gap:9px; align-items:flex-start; }
+  .cong button:disabled { background:#9fb4b0; }
+  .cong .khoa { color:var(--fail); font-size:13px; font-weight:600; }
+  .cong form.inline { display:inline-block; margin:8px 12px 0 0; vertical-align:top; }
+  .cong input[type=text] { padding:7px 10px; border:1px solid var(--line); border-radius:7px; width:280px; font-size:13px; }
   .finding h3 { margin:3px 0 6px; font-size:14.5px; }
   .finding .row { font-size:13px; margin:3px 0; } .finding .row b { color:var(--muted); font-weight:600; }
   .ev { background:#f6f8f7; border:1px solid var(--line); border-radius:7px; padding:9px 12px; margin-top:8px;
@@ -185,6 +196,36 @@ ${v.mode === 'org' ? '<button>Lưu cấu hình</button>' : '<p class="goiy">Bả
   );
 }
 
+function khoiCong(meta: RunMeta): string {
+  if (!meta.pr || meta.trangThai !== 'xong' || !meta.verdict) return '';
+  const so = meta.pr.so;
+  if (meta.ketQuaCong) {
+    const k = meta.ketQuaCong;
+    return `<div class="cong" style="border-color:var(--teal)"><h3>Cổng merge — PR #${so}</h3>
+<p style="font-size:13.5px;margin:0">${k.hanhDong === 'merge' ? '✓ <b>ĐÃ MERGE</b>' : '↩ <b>ĐÃ TRẢ VỀ DEV</b>'} · ${k.chiTiet} · bởi <b>${k.nguoi}</b> lúc ${k.luc.slice(0, 16).replace('T', ' ')} · đã ghi receipt lên PR + sổ review-log</p></div>`;
+  }
+  const v = meta.verdict;
+  const cao = v.findings.filter((f) => chuanMuc(f.severity) === 'high').length;
+  const vua = v.findings.filter((f) => chuanMuc(f.severity) === 'medium');
+  const nutMerge =
+    cao > 0
+      ? `<p class="khoa">✗ Có ${cao} finding HIGH — nút Merge khoá theo luật cổng. Vá xong push lên nhánh, chạy kiểm lại.</p>`
+      : `${vua.length ? `<p style="font-size:13px;margin:8px 0 4px">Xác nhận TỪNG cảnh báo MEDIUM trước khi merge (được ghi vào receipt):</p>` : ''}
+${vua.map((f, i) => `<label class="canhbao"><input type="checkbox" class="tick-med" data-i="${i}"> <span><b>${f.title_vi}</b><br><span style="color:var(--muted)">${f.what_vi}</span></span></label>`).join('')}
+<form class="inline" method="post" action="/api/runs/${meta.id}/merge" id="form-merge">
+  <input type="hidden" name="da_tick" id="da_tick" value="0">
+  <button id="nut-merge" ${vua.length ? 'disabled' : ''}>✓ Merge PR #${so}</button>
+</form>`;
+  return `<div class="cong"><h3>Cổng merge — PR #${so} <span style="font-weight:400;color:var(--muted);font-size:12.5px">verdict ghim ${meta.pr.headSha.slice(0, 7)} · push mới là verdict hết hiệu lực</span></h3>
+${nutMerge}
+<form class="inline" method="post" action="/api/runs/${meta.id}/reject">
+  <input type="text" name="ghi_chu" placeholder="Ghi chú thêm cho dev (tuỳ chọn)">
+  <label style="font-size:12.5px;margin:0 6px"><input type="checkbox" name="dong_pr" value="1"> đóng PR</label>
+  <button class="phu" style="background:var(--fail)">↩ Trả về dev</button>
+</form>
+<p class="goiy" style="margin-top:8px">Trả về dev = post phán quyết đầy đủ (Request changes) lên PR để dev vá rồi push lại nhánh này.</p></div>`;
+}
+
 export function trangRun(meta: RunMeta, replay: boolean): string {
   const stages = ['Nhận artifact', 'Nạp spec / rubric', 'Sinh phép thử đối kháng', 'Chạy & đối chiếu bằng chứng', 'Kết luận'];
   return khung(
@@ -195,6 +236,7 @@ export function trangRun(meta: RunMeta, replay: boolean): string {
 <ul class="stages" id="stages">${stages.map((s, i) => `<li data-s="${i + 1}">${s}<div class="logs" id="logs-${i + 1}"></div></li>`).join('')}</ul>
 <div id="findings"></div>
 <div class="verdict" id="verdict"><div class="kq"></div><div class="chitiet"></div></div>
+${khoiCong(meta)}
 <div class="err" id="err"></div>`,
     `const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let cur=0;
@@ -210,17 +252,27 @@ function ve(e){
  else if(e.type==='log'&&e.msg!=='__END__'){const b=document.getElementById('logs-'+(cur||1));
   if(b){const d=document.createElement('div');d.className='logline';d.textContent=e.msg;b.appendChild(d);}}
  else if(e.type==='finding'){const f=e.finding,d=document.createElement('div');
-  d.className='finding'+(f.severity==='blocking'?'':' nb');
-  d.innerHTML='<div class="sev">'+(f.severity==='blocking'?'✗ mức chặn':'△ không chặn')+'</div><h3>'+esc(f.title_vi)+'</h3>'+
+  const muc=f.severity==='blocking'?'high':(f.severity==='non_blocking'?'medium':f.severity);
+  d.className='finding sev-'+muc;
+  const nhan={high:'✗ HIGH — chặn merge',medium:'⚠ MEDIUM — cảnh báo',low:'△ LOW'}[muc]||muc;
+  d.innerHTML='<div class="sev">'+nhan+'</div><h3>'+esc(f.title_vi)+'</h3>'+
    '<div class="row"><b>Điều gì sai:</b> '+esc(f.what_vi)+'</div><div class="row"><b>Hậu quả:</b> '+esc(f.consequence_vi)+'</div>'+evHtml(f.evidence);
   document.getElementById('findings').appendChild(d);}
  else if(e.type==='verdict'){const v=e.verdict;document.querySelectorAll('.stages li').forEach(li=>li.className='done');
   const kv=document.getElementById('verdict');kv.className='verdict '+v.result;
   kv.querySelector('.kq').textContent=v.result==='FAIL'?'✗ FAIL — bị bác':'✓ PASS — qua cổng';
+  const dm=m=>v.findings.filter(f=>(f.severity==='blocking'?'high':(f.severity==='non_blocking'?'medium':f.severity))===m).length;
   kv.querySelector('.chitiet').textContent=v.artifact_ref.name+' @ '+v.artifact_ref.sha_or_hash.slice(0,10)+
-   ' · '+v.findings.length+' finding ('+v.findings.filter(f=>f.severity==='blocking').length+' chặn) · '+v.model;}
+   ' · '+v.findings.length+' finding ('+dm('high')+' high · '+dm('medium')+' medium · '+dm('low')+' low) · '+v.model;
+  if(!document.querySelector('.cong')&&${'${meta.pr ? "true" : "false"}'}){const a=document.createElement('p');
+   a.innerHTML='<a class="btn" href="">↻ Tải lại trang để mở cổng Merge / Trả về dev</a>';kv.after(a);}}
  else if(e.type==='error'){const er=document.getElementById('err');er.style.display='block';er.textContent='LỖI: '+e.msg;}
 }
+document.querySelectorAll('.tick-med').forEach(c=>c.addEventListener('change',()=>{
+  const t=document.querySelectorAll('.tick-med');const n=[...t].filter(x=>x.checked).length;
+  document.getElementById('da_tick').value=String(n);
+  document.getElementById('nut-merge').disabled = n!==t.length;
+}));
 const es=new EventSource('/api/runs/${meta.id}/events${replay ? '?timed=1' : ''}');
 es.onmessage=m=>{const{e}=JSON.parse(m.data);if(e.type==='log'&&e.msg==='__END__'){es.close();return;}ve(e);};
 es.onerror=()=>{};`,

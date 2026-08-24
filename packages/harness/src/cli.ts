@@ -21,7 +21,8 @@ function phat(e: RunEvent): void {
   else if (e.type === 'log') console.log(`   ${e.msg}`);
   else if (e.type === 'finding') {
     const f = e.finding;
-    console.log(`\n   ✗ [${f.severity === 'blocking' ? 'CHẶN' : 'không chặn'}] ${f.title_vi}`);
+    const nhan = { high: 'HIGH — chặn', medium: 'MEDIUM — cảnh báo', low: 'LOW' }[f.severity] ?? f.severity;
+    console.log(`\n   ✗ [${nhan}] ${f.title_vi}`);
     console.log(`     Điều gì sai: ${f.what_vi}`);
     console.log(`     Hậu quả:     ${f.consequence_vi}`);
     if (f.evidence.type === 'test_run') {
@@ -38,7 +39,8 @@ function phat(e: RunEvent): void {
     const v = e.verdict;
     console.log(`\n════════════════════════════════════════`);
     console.log(` VERDICT: ${v.result}  ·  ${v.artifact_ref.name} @ ${v.artifact_ref.sha_or_hash.slice(0, 7)}`);
-    console.log(` ${v.findings.length} finding (${v.findings.filter((f) => f.severity === 'blocking').length} chặn) · model ${v.model}`);
+    const dem = (m: string) => v.findings.filter((f) => f.severity === m).length;
+    console.log(` ${v.findings.length} finding (${dem('high')} high · ${dem('medium')} medium · ${dem('low')} low) · model ${v.model}`);
     console.log(`════════════════════════════════════════`);
   } else if (e.type === 'error') console.error(`✗ LỖI: ${e.msg}`);
 }
@@ -106,7 +108,7 @@ async function main(): Promise<void> {
       run_id: runId,
       skill,
       artifact_ref: artifactRef,
-      result: findings.some((f) => f.severity === 'blocking') ? 'FAIL' : 'PASS',
+      result: findings.some((f) => f.severity === 'high') ? 'FAIL' : 'PASS',
       findings,
       model: model.ten,
       mode: 'live',

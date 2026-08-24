@@ -17,6 +17,8 @@ export interface RunMeta {
   trangThai: 'dang_chay' | 'xong' | 'loi';
   batDau: string;
   verdict?: Verdict;
+  pr?: { so: number; headSha: string };
+  ketQuaCong?: { hanhDong: 'merge' | 'reject'; luc: string; nguoi: string; chiTiet: string };
 }
 
 interface RunState {
@@ -35,9 +37,9 @@ export class RunManager {
     return [...this.runs.values()].filter((r) => r.meta.trangThai === 'dang_chay').length;
   }
 
-  batDau(tieuDe: string, skill: 'code' | 'doc', args: string[], envThem: NodeJS.ProcessEnv = {}): string {
+  batDau(tieuDe: string, skill: 'code' | 'doc', args: string[], envThem: NodeJS.ProcessEnv = {}, pr?: { so: number; headSha: string }): string {
     const id = `w${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-    const meta: RunMeta = { id, tieuDe, skill, trangThai: 'dang_chay', batDau: new Date().toISOString() };
+    const meta: RunMeta = { id, tieuDe, skill, trangThai: 'dang_chay', batDau: new Date().toISOString(), pr };
     const state: RunState = { meta, events: [], subs: new Set() };
     this.runs.set(id, state);
 
@@ -105,6 +107,13 @@ export class RunManager {
       .map((r) => r.meta)
       .sort((a, b) => b.batDau.localeCompare(a.batDau))
       .slice(0, 30);
+  }
+
+  ghiKetQuaCong(id: string, kq: RunMeta['ketQuaCong']): void {
+    const st = this.lay(id);
+    if (!st) return;
+    st.meta.ketQuaCong = kq;
+    this.luu(st);
   }
 
   private luu(state: RunState): void {

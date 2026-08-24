@@ -19,6 +19,75 @@ export interface PrDaFetch {
   fileDoc?: string; // file .md được chọn khi loai=doc
 }
 
+// Ghi lên GitHub (merge / comment / review) — token hoặc gh CLI của máy
+async function goiApiGhi(cfg: CheckmateConfig, method: string, path: string, body: unknown): Promise<unknown> {
+  if (cfg.github_token) {
+    const res = await fetch(`https://api.github.com${path}`, {
+      method,
+      headers: {
+        authorization: `Bearer ${cfg.github_token}`,
+        accept: 'application/vnd.github+json',
+        'user-agent': 'checkmate',
+        'content-type': 'application/json',
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`GitHub API ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    return res.status === 204 ? {} : res.json();
+  }
+  const out = execFileSync('gh', ['api', '-X', method, path.replace(/^\//, ''), '--input', '-'], {
+    encoding: 'utf8',
+    timeout: 60_000,
+    input: JSON.stringify(body ?? {}),
+  });
+  return out ? JSON.parse(out) : {};
+}
+
+export interface PrHienTai {
+  headSha: string;
+  state: string;
+  merged: boolean;
+}
+
+export async function layPrHienTai(cfg: CheckmateConfig, so: number): Promise<PrHienTai> {
+  const p = (await goiApi(cfg, `/repos/${cfg.repo.github}/pulls/${so}`)) as {
+    head: { sha: string };
+    state: string;
+    merged: boolean;
+  };
+  return { headSha: p.head.sha, state: p.state, merged: p.merged };
+}
+
+export async function binhLuanPr(cfg: CheckmateConfig, so: number, body: string): Promise<void> {
+  await goiApiGhi(cfg, 'POST', `/repos/${cfg.repo.github}/issues/${so}/comments`, { body });
+}
+
+export async function mergePr(cfg: CheckmateConfig, so: number, tieuDe: string, moTa: string): Promise<void> {
+  await goiApiGhi(cfg, 'PUT', `/repos/${cfg.repo.github}/pulls/${so}/merge`, {
+    merge_method: 'merge',
+    commit_title: tieuDe,
+    commit_message: moTa,
+  });
+}
+
+// Trả về dev: thử review Request-changes; GitHub cấm author tự request-changes PR của mình → fallback comment
+export async function traVeDev(cfg: CheckmateConfig, so: number, body: string): Promise<'review' | 'comment'> {
+  try {
+    await goiApiGhi(cfg, 'POST', `/repos/${cfg.repo.github}/pulls/${so}/reviews`, {
+      event: 'REQUEST_CHANGES',
+      body,
+    });
+    return 'review';
+  } catch {
+    await binhLuanPr(cfg, so, body);
+    return 'comment';
+  }
+}
+
+export async function dongPr(cfg: CheckmateConfig, so: number): Promise<void> {
+  await goiApiGhi(cfg, 'PATCH', `/repos/${cfg.repo.github}/pulls/${so}`, { state: 'closed' });
+}
+
 async function goiApi(cfg: CheckmateConfig, path: string): Promise<unknown> {
   if (cfg.github_token) {
     const res = await fetch(`https://api.github.com${path}`, {

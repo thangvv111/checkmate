@@ -7,7 +7,9 @@ import { GOC } from './paths.js';
 import { RunManager } from './runs.js';
 import { khung, khoiPrList, trangChu, trangRun, trangSettings } from './ui.js';
 import { MODE, cheToken, docConfig, envAgent, ghiConfig } from './config.js';
-import { danhSachPr, fetchVaRouter } from './github.js';
+import { danhSachPr, dongPr, fetchVaRouter, layPrHienTai, mergePr, binhLuanPr, traVeDev } from './github.js';
+import { banPhanQuyet, banReceipt, demMuc, ghiSo, nguoiThaoTac } from './cong.js';
+import { chuanMuc } from '../../../packages/shared/src/types.js';
 
 const app = express();
 app.use(express.urlencoded({ extended: false, limit: '300kb' }));
@@ -91,6 +93,7 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
           'doc',
           ['--skill', 'doc', '--repo', cfg.repo.local_path, '--branch', pr.headSha, '--file', pr.fileDoc!],
           envAgent(cfg),
+          { so: pr.so, headSha: pr.headSha },
         );
       } else {
         id = rm.batDau(
@@ -98,6 +101,7 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
           'code',
           ['--skill', 'code', '--repo', cfg.repo.local_path, '--branch', pr.headRef, '--base', pr.baseRef],
           envAgent(cfg),
+          { so: pr.so, headSha: pr.headSha },
         );
       }
     } catch (e) {
@@ -133,6 +137,60 @@ app.get('/runs/:id', (req, res) => {
   const st = rm.lay(req.params.id);
   if (!st) return res.status(404).send(khung('CheckMate', '<h1>Không tìm thấy run</h1><p class="sub"><a href="/">← quay lại</a></p>'));
   res.send(trangRun(st.meta, req.query.replay === '1'));
+});
+
+// ---- Cổng merge / trả về dev (spec §10) ----
+function loiCong(res: import('express').Response, ma: number, thongBao: string): void {
+  res.status(ma).send(khung('CheckMate — cổng merge', `<h1>Không thực hiện được</h1><p class="sub">${thongBao}</p>`));
+}
+
+app.post('/api/runs/:id/merge', async (req, res) => {
+  const st = rm.lay(req.params.id);
+  const cfg = docConfig();
+  if (!st || !st.meta.verdict || !st.meta.pr) return loiCong(res, 404, 'Run không tồn tại hoặc không gắn PR. <a href="/">← về trang chính</a>');
+  if (st.meta.ketQuaCong) return loiCong(res, 409, `Run này đã ${st.meta.ketQuaCong.hanhDong} lúc ${st.meta.ketQuaCong.luc}.`);
+  const v = st.meta.verdict;
+  const d = demMuc(v.findings);
+  if (d.high > 0 || v.result === 'FAIL') return loiCong(res, 403, 'Verdict FAIL (có finding HIGH) — nút merge khoá theo luật cổng.');
+  const daTick = Number((req.body as Record<string, string>).da_tick ?? 0);
+  if (daTick !== d.medium) return loiCong(res, 422, `Phải xác nhận đủ ${d.medium} cảnh báo MEDIUM (đã tick ${daTick}).`);
+  try {
+    const hienTai = await layPrHienTai(cfg, st.meta.pr.so);
+    if (hienTai.state !== 'open') return loiCong(res, 409, `PR #${st.meta.pr.so} không còn mở (${hienTai.merged ? 'đã merge' : hienTai.state}).`);
+    if (hienTai.headSha !== st.meta.pr.headSha) {
+      return loiCong(res, 409, `PR đã có commit mới (${hienTai.headSha.slice(0, 7)} ≠ ${st.meta.pr.headSha.slice(0, 7)}) — verdict cũ hết hiệu lực, chạy kiểm lại rồi mới merge. <a href="/">← về trang chính</a>`);
+    }
+    const nguoi = nguoiThaoTac();
+    const xacNhan = v.findings.filter((f) => chuanMuc(f.severity) === 'medium').map((f) => f.title_vi);
+    await binhLuanPr(cfg, st.meta.pr.so, banReceipt(v, nguoi, xacNhan));
+    await mergePr(cfg, st.meta.pr.so, `${st.meta.tieuDe} (#${st.meta.pr.so})`,
+      `CheckMate: PASS @ ${v.artifact_ref.sha_or_hash.slice(0, 10)} · run ${v.run_id}${xacNhan.length ? ` · ${xacNhan.length} cảnh báo medium được ${nguoi} chấp nhận` : ''}`);
+    const kq = { hanhDong: 'merge' as const, luc: new Date().toISOString(), nguoi, chiTiet: `merge PR #${st.meta.pr.so} @ ${st.meta.pr.headSha.slice(0, 7)}` };
+    rm.ghiKetQuaCong(st.meta.id, kq);
+    ghiSo({ hanhDong: 'merge', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: v.run_id, verdict: v.result, nguoi, xac_nhan_medium: xacNhan });
+    res.redirect(303, `/runs/${st.meta.id}`);
+  } catch (e) {
+    loiCong(res, 500, `GitHub từ chối: ${(e as Error).message.slice(0, 300)}`);
+  }
+});
+
+app.post('/api/runs/:id/reject', async (req, res) => {
+  const st = rm.lay(req.params.id);
+  const cfg = docConfig();
+  if (!st || !st.meta.verdict || !st.meta.pr) return loiCong(res, 404, 'Run không tồn tại hoặc không gắn PR.');
+  if (st.meta.ketQuaCong) return loiCong(res, 409, `Run này đã ${st.meta.ketQuaCong.hanhDong} lúc ${st.meta.ketQuaCong.luc}.`);
+  const b = req.body as Record<string, string>;
+  try {
+    const nguoi = nguoiThaoTac();
+    const kenh = await traVeDev(cfg, st.meta.pr.so, banPhanQuyet(st.meta.verdict, (b.ghi_chu ?? '').trim()));
+    if (b.dong_pr === '1') await dongPr(cfg, st.meta.pr.so);
+    const kq = { hanhDong: 'reject' as const, luc: new Date().toISOString(), nguoi, chiTiet: `trả về dev qua ${kenh}${b.dong_pr === '1' ? ' + đóng PR' : ''}` };
+    rm.ghiKetQuaCong(st.meta.id, kq);
+    ghiSo({ hanhDong: 'reject', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.verdict.run_id, verdict: st.meta.verdict.result, nguoi, kenh, dong_pr: b.dong_pr === '1' });
+    res.redirect(303, `/runs/${st.meta.id}`);
+  } catch (e) {
+    loiCong(res, 500, `GitHub từ chối: ${(e as Error).message.slice(0, 300)}`);
+  }
 });
 
 app.get('/api/runs/:id/events', (req, res) => {

@@ -1,6 +1,15 @@
 // Schema dùng chung CLI ↔ web ↔ replay — theo spec MVP §2 (msb-hackathon-ai-checker-spec-mvp.md)
 
-export type Severity = 'blocking' | 'non_blocking';
+// 3 mức finding (spec §10). Cổng vẫn nhị phân: FAIL ⟺ có ≥1 high.
+// high = chặn merge · medium = merge phải xác nhận từng cảnh báo · low = cho qua, vẫn ghi log.
+export type Severity = 'high' | 'medium' | 'low';
+
+// Run cũ còn lưu 'blocking'/'non_blocking' — mọi chỗ đọc phải qua hàm này.
+export function chuanMuc(s: string): Severity {
+  if (s === 'high' || s === 'medium' || s === 'low') return s;
+  if (s === 'non_blocking') return 'medium';
+  return 'high'; // blocking + mọi giá trị lạ → fail-closed
+}
 export type SkillId = 'code' | 'doc';
 
 export interface EvidenceTestRun {
