@@ -3,7 +3,7 @@ import multer from 'multer';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DINH_DANG_NHAN, trichText } from './extract.js';
-import { GOC, PRESETS } from './presets.js';
+import { GOC } from './paths.js';
 import { RunManager } from './runs.js';
 import { khung, khoiPrList, trangChu, trangRun, trangSettings } from './ui.js';
 import { MODE, cheToken, docConfig, envAgent, ghiConfig } from './config.js';
@@ -27,7 +27,7 @@ app.get('/', async (_req, res) => {
   } catch (e) {
     prBlock = khoiPrList(cfg.repo.github, cfg.repo.base_branch, null, (e as Error).message.slice(0, 200));
   }
-  res.send(trangChu(PRESETS, rm.danhSach(), prBlock));
+  res.send(trangChu(rm.danhSach(), prBlock));
 });
 
 app.get('/settings', (req, res) => {
@@ -103,10 +103,6 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
     } catch (e) {
       return res.status(500).send(khung('CheckMate', `<h1>Không chạy được PR #${so}</h1><p class="sub">${(e as Error).message.slice(0, 300)} · <a href="/">← quay lại</a></p>`));
     }
-  } else if (kieu === 'preset') {
-    const p = PRESETS.find((x) => x.id === preset);
-    if (!p) return res.status(422).send('Preset không tồn tại');
-    id = rm.batDau(p.tieuDe, p.skill, p.args, envAgent(cfg));
   } else if (kieu === 'doc') {
     const nd = (noi_dung ?? '').trim();
     if (nd.length < 200) return res.status(422).send(khung('CheckMate', '<h1>Tài liệu quá ngắn</h1><p class="sub">Cần tối thiểu 200 ký tự để kiểm có nghĩa. <a href="/">← quay lại</a></p>'));

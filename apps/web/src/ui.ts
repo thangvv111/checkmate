@@ -1,4 +1,3 @@
-import type { Preset } from './presets.js';
 import type { RunMeta } from './runs.js';
 
 const CSS = `
@@ -97,15 +96,7 @@ ${loiPr ? `<div class="err" style="display:block">Không nạp được PR: ${lo
 ${prs && prs.length ? `<table class="runs"><tr><th>#</th><th>Tiêu đề</th><th>Tác giả</th><th>Nhánh</th><th></th></tr>${rows}</table>` : prs ? '<p class="sub">Không có PR mở nào nhắm vào nhánh đích.</p>' : ''}`;
 }
 
-export function trangChu(presets: Preset[], runs: RunMeta[], prBlock = ''): string {
-  const cards = presets
-    .map(
-      (p) => `<div class="card"><span class="badge b-${p.skill}">${p.skill === 'code' ? 'Code-PR · skill A' : 'Tài liệu · skill B'}</span>
-<h3>${p.tieuDe}</h3><p>${p.moTa}</p>
-<form method="post" action="/api/runs"><input type="hidden" name="kieu" value="preset"><input type="hidden" name="preset" value="${p.id}">
-<button>Chạy kiểm</button></form></div>`,
-    )
-    .join('');
+export function trangChu(runs: RunMeta[], prBlock = ''): string {
   const rows = runs
     .map(
       (r) => `<tr><td><a href="/runs/${r.id}">${r.tieuDe}</a></td><td>${r.skill}</td>
@@ -116,10 +107,9 @@ export function trangChu(presets: Preset[], runs: RunMeta[], prBlock = ''): stri
   return khung(
     'CheckMate',
     `<h1>Đưa artifact vào cổng kiểm</h1>
-<p class="sub">Chọn PR từ repo đã kết nối, chạy bộ mẫu, hoặc dán tài liệu. CheckMate đọc spec, tự sinh phép thử, chạy bằng chứng thật rồi mới phán.</p>
+<p class="sub">Chọn PR từ repo đã kết nối, hoặc kiểm nhanh một tài liệu rời. CheckMate đọc spec, tự sinh phép thử, chạy bằng chứng thật rồi mới phán.</p>
 ${prBlock}
-<h2>Bộ mẫu demo</h2><div class="grid">${cards}</div>
-<h2>Hoặc kiểm nhanh một tài liệu rời (PRD / BA doc / spec)</h2>
+<h2>Kiểm nhanh một tài liệu rời (PRD / BA doc / spec)</h2>
 <p class="sub">Đường phụ quick-check — tài liệu sống trong repo thì đi qua PR (bên trên) để có ngữ cảnh đầy đủ hơn.</p>
 <form method="post" action="/api/runs" enctype="multipart/form-data" style="margin-bottom:14px">
 <input type="hidden" name="kieu" value="upload">
@@ -131,11 +121,11 @@ ${prBlock}
 <textarea name="noi_dung" id="noidung" placeholder="…hoặc dán thẳng nội dung tài liệu (text / markdown)"></textarea>
 <p class="goiy" id="goiy">Router: dán vào để nhận diện loại artifact.</p>
 <button>Chạy kiểm tài liệu</button></form>
-<p class="goiy">Bản public chỉ nhận bộ mẫu + tài liệu dán tay. Dán URL PR GitHub: sắp mở (kèm rào an toàn). Diff code tự do chỉ chạy ở chế độ trình diễn local.</p>
+<p class="goiy">Code chỉ được kiểm qua PR của repo đã kết nối (skill A thực thi code thật). Dán diff code tự do không hỗ trợ.</p>
 ${rows ? `<h2>Lượt chạy gần đây</h2><table class="runs"><tr><th>Artifact</th><th>Skill</th><th>Kết quả</th><th>Lúc</th></tr>${rows}</table>` : ''}`,
     `const ta=document.getElementById('noidung'),gy=document.getElementById('goiy');
 ta.addEventListener('input',()=>{const v=ta.value;
-if(/^diff --git|^@@|^index [0-9a-f]+\\.\\./m.test(v)) gy.textContent='Router: nội dung giống DIFF CODE — bản public chỉ kiểm tài liệu; PR code hãy dùng bộ mẫu.';
+if(/^diff --git|^@@|^index [0-9a-f]+\\.\\./m.test(v)) gy.textContent='Router: nội dung giống DIFF CODE — code chỉ kiểm qua PR trong danh sách bên trên.';
 else if(v.trim()) gy.textContent='Router: nhận diện TÀI LIỆU YÊU CẦU → skill B (rubric 4 loại lỗi khách quan).';
 else gy.textContent='Router: dán vào để nhận diện loại artifact.';});`,
   );

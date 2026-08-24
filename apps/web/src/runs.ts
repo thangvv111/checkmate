@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync, readdirSync, readFileSync, existsSync } from 
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import type { RunEvent, Verdict } from '../../../packages/shared/src/types.js';
-import { GOC } from './presets.js';
+import { GOC } from './paths.js';
 
 export interface StoredEvent {
   t: number; // ms từ lúc bắt đầu run
