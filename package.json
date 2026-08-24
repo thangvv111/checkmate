@@ -7,7 +7,8 @@
   "scripts": {
     "checker": "tsx packages/harness/src/cli.ts",
     "web": "tsx apps/web/src/server.ts",
-    "web:org": "tsx apps/web/src/server.ts --org"
+    "web:org": "tsx apps/web/src/server.ts --org",
+    "mcp": "tsx apps/mcp/src/server.ts"
   },
   "devDependencies": {
     "@types/multer": "^2.2.0",
@@ -16,12 +17,14 @@
     "typescript": "^5.6.0"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@types/express": "^5.0.6",
     "express": "^5.2.1",
     "fast-xml-parser": "^5.11.0",
     "mammoth": "^1.12.1",
     "multer": "^2.2.0",
     "pdf-parse": "^2.4.5",
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
   }
 }
