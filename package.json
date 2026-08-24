@@ -10,12 +10,16 @@
     "web:org": "tsx apps/web/src/server.ts --org"
   },
   "devDependencies": {
+    "@types/multer": "^2.2.0",
     "@types/node": "^22.15.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"
   },
   "dependencies": {
     "@types/express": "^5.0.6",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "mammoth": "^1.12.1",
+    "multer": "^2.2.0",
+    "pdf-parse": "^2.4.5"
   }
 }

@@ -114,9 +114,16 @@ export function trangChu(presets: Preset[], runs: RunMeta[], prBlock = ''): stri
 <p class="sub">Chọn PR từ repo đã kết nối, chạy bộ mẫu, hoặc dán tài liệu. CheckMate đọc spec, tự sinh phép thử, chạy bằng chứng thật rồi mới phán.</p>
 ${prBlock}
 <h2>Bộ mẫu demo</h2><div class="grid">${cards}</div>
-<h2>Hoặc dán tài liệu yêu cầu của bạn (PRD / BA doc / spec)</h2>
+<h2>Hoặc kiểm nhanh một tài liệu rời (PRD / BA doc / spec)</h2>
+<p class="sub">Đường phụ quick-check — tài liệu sống trong repo thì đi qua PR (bên trên) để có ngữ cảnh đầy đủ hơn.</p>
+<form method="post" action="/api/runs" enctype="multipart/form-data" style="margin-bottom:14px">
+<input type="hidden" name="kieu" value="upload">
+<input type="file" name="tep" accept=".md,.txt,.docx,.pdf" style="font-size:13px">
+<button style="margin-left:8px">Tải lên &amp; kiểm</button>
+<span class="goiy" style="margin-left:8px">.md · .txt · .docx · .pdf (≤5MB; bản scan/ảnh chưa hỗ trợ)</span>
+</form>
 <form method="post" action="/api/runs"><input type="hidden" name="kieu" value="doc">
-<textarea name="noi_dung" id="noidung" placeholder="Dán nội dung tài liệu (text / markdown)…"></textarea>
+<textarea name="noi_dung" id="noidung" placeholder="…hoặc dán thẳng nội dung tài liệu (text / markdown)"></textarea>
 <p class="goiy" id="goiy">Router: dán vào để nhận diện loại artifact.</p>
 <button>Chạy kiểm tài liệu</button></form>
 <p class="goiy">Bản public chỉ nhận bộ mẫu + tài liệu dán tay. Dán URL PR GitHub: sắp mở (kèm rào an toàn). Diff code tự do chỉ chạy ở chế độ trình diễn local.</p>

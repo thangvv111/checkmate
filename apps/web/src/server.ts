@@ -1,6 +1,8 @@
 import express from 'express';
+import multer from 'multer';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { DINH_DANG_NHAN, trichText } from './extract.js';
 import { GOC, PRESETS } from './presets.js';
 import { RunManager } from './runs.js';
 import { khung, khoiPrList, trangChu, trangRun, trangSettings } from './ui.js';
@@ -14,6 +16,7 @@ app.use(express.json({ limit: '300kb' }));
 const rm = new RunManager();
 const TMP_DOC = join(GOC, 'web-runs', 'tmp');
 mkdirSync(TMP_DOC, { recursive: true });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 app.get('/', async (_req, res) => {
   const cfg = docConfig();
@@ -68,7 +71,7 @@ app.post('/settings', (req, res) => {
   res.redirect(303, '/settings?luu=1');
 });
 
-app.post('/api/runs', (req, res) => {
+app.post('/api/runs', upload.single('tep'), async (req, res) => {
   if (rm.soDangChay() >= 2) {
     return res
       .status(429)
@@ -109,7 +112,21 @@ app.post('/api/runs', (req, res) => {
     if (nd.length < 200) return res.status(422).send(khung('CheckMate', '<h1>Tài liệu quá ngắn</h1><p class="sub">Cần tối thiểu 200 ký tự để kiểm có nghĩa. <a href="/">← quay lại</a></p>'));
     const f = join(TMP_DOC, `doc-${Date.now()}.md`);
     writeFileSync(f, nd, 'utf8');
-    id = rm.batDau('Tài liệu dán tay', 'doc', ['--skill', 'doc', '--file', f]);
+    id = rm.batDau('Tài liệu dán tay', 'doc', ['--skill', 'doc', '--file', f], envAgent(cfg));
+  } else if (kieu === 'upload') {
+    if (!req.file) return res.status(422).send(khung('CheckMate', '<h1>Chưa chọn file</h1><p class="sub"><a href="/">← quay lại</a></p>'));
+    let text: string;
+    try {
+      text = (await trichText(req.file.originalname, req.file.buffer)).trim();
+    } catch (e) {
+      return res.status(422).send(khung('CheckMate', `<h1>Không đọc được file</h1><p class="sub">${(e as Error).message} · <a href="/">← quay lại</a></p>`));
+    }
+    if (text.length < 200) {
+      return res.status(422).send(khung('CheckMate', '<h1>Nội dung trích ra quá ngắn</h1><p class="sub">File có thể là bản scan/ảnh (chưa hỗ trợ OCR) hoặc rỗng. <a href="/">← quay lại</a></p>'));
+    }
+    const f = join(TMP_DOC, `up-${Date.now()}.md`);
+    writeFileSync(f, text, 'utf8');
+    id = rm.batDau(`Tài liệu tải lên · ${req.file.originalname}`, 'doc', ['--skill', 'doc', '--file', f], envAgent(cfg));
   } else {
     return res.status(422).send('Thiếu loại artifact');
   }
