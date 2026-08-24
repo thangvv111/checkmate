@@ -182,7 +182,7 @@ app.post('/api/runs/:id/reject', async (req, res) => {
   const b = req.body as Record<string, string>;
   try {
     const nguoi = nguoiThaoTac();
-    const kenh = await traVeDev(cfg, st.meta.pr.so, banPhanQuyet(st.meta.verdict, (b.ghi_chu ?? '').trim()));
+    const kenh = await traVeDev(cfg, st.meta.pr.so, banPhanQuyet(st.meta.verdict, (b.ghi_chu ?? '').trim(), b.dong_pr === '1'));
     if (b.dong_pr === '1') await dongPr(cfg, st.meta.pr.so);
     const kq = { hanhDong: 'reject' as const, luc: new Date().toISOString(), nguoi, chiTiet: `trả về dev qua ${kenh}${b.dong_pr === '1' ? ' + đóng PR' : ''}` };
     rm.ghiKetQuaCong(st.meta.id, kq);

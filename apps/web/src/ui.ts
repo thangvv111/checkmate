@@ -220,10 +220,10 @@ ${vua.map((f, i) => `<label class="canhbao"><input type="checkbox" class="tick-m
 ${nutMerge}
 <form class="inline" method="post" action="/api/runs/${meta.id}/reject">
   <input type="text" name="ghi_chu" placeholder="Ghi chú thêm cho dev (tuỳ chọn)">
-  <label style="font-size:12.5px;margin:0 6px"><input type="checkbox" name="dong_pr" value="1"> đóng PR</label>
+  <label style="font-size:12.5px;margin:0 6px" title="Chỉ dùng khi muốn dừng hẳn hướng đi này. Dev sẽ phải Reopen PR để tiếp tục."><input type="checkbox" name="dong_pr" value="1"> đóng PR <span style="color:var(--muted)">(dừng hướng này — dev cần Reopen để tiếp tục)</span></label>
   <button class="phu" style="background:var(--fail)">↩ Trả về dev</button>
 </form>
-<p class="goiy" style="margin-top:8px">Trả về dev = post phán quyết đầy đủ (Request changes) lên PR để dev vá rồi push lại nhánh này.</p></div>`;
+<p class="goiy" style="margin-top:8px">Trả về dev = post phán quyết đầy đủ (Request changes) lên PR để dev vá rồi push lại nhánh này — verdict cũ tự hết hiệu lực, chấm lại là xong. Mặc định <b>giữ PR mở</b>.</p></div>`;
 }
 
 export function trangRun(meta: RunMeta, replay: boolean): string {

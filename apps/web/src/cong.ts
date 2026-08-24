@@ -54,7 +54,7 @@ ${dsFinding}
 _Verdict ghim đúng commit trên — push mới là verdict hết hiệu lực._`;
 }
 
-export function banPhanQuyet(v: Verdict, ghiChu: string): string {
+export function banPhanQuyet(v: Verdict, ghiChu: string, dongPr = false): string {
   const d = demMuc(v.findings);
   return `## ♞ CheckMate — Trả về dev
 
@@ -62,5 +62,6 @@ export function banPhanQuyet(v: Verdict, ghiChu: string): string {
 
 ${v.findings.map(dongFinding).join('\n')}
 ${ghiChu ? `\n**Ghi chú của người review:** ${ghiChu}\n` : ''}
-Vá theo từng finding rồi push lên chính nhánh này — CheckMate sẽ chấm lại trên commit mới (verdict cũ tự hết hiệu lực).`;
+Vá theo từng finding rồi push lên chính nhánh này — CheckMate sẽ chấm lại trên commit mới (verdict cũ tự hết hiệu lực).
+${dongPr ? '\n> ⚠ **PR này đã được đóng.** Nhánh vẫn còn nguyên: vá xong hãy bấm **Reopen** chính PR này (đừng tạo PR mới) để giữ lịch sử review. PR đang đóng sẽ không xuất hiện trong hàng đợi review của CheckMate, và push commit mới KHÔNG tự mở lại PR.\n' : ''}`;
 }
