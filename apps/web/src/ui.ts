@@ -264,7 +264,7 @@ function ve(e){
   const dm=m=>v.findings.filter(f=>(f.severity==='blocking'?'high':(f.severity==='non_blocking'?'medium':f.severity))===m).length;
   kv.querySelector('.chitiet').textContent=v.artifact_ref.name+' @ '+v.artifact_ref.sha_or_hash.slice(0,10)+
    ' · '+v.findings.length+' finding ('+dm('high')+' high · '+dm('medium')+' medium · '+dm('low')+' low) · '+v.model;
-  if(!document.querySelector('.cong')&&${'${meta.pr ? "true" : "false"}'}){const a=document.createElement('p');
+  if(!document.querySelector('.cong')&&${meta.pr ? 'true' : 'false'}){const a=document.createElement('p');
    a.innerHTML='<a class="btn" href="">↻ Tải lại trang để mở cổng Merge / Trả về dev</a>';kv.after(a);}}
  else if(e.type==='error'){const er=document.getElementById('err');er.style.display='block';er.textContent='LỖI: '+e.msg;}
 }
