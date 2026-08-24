@@ -1,0 +1,94 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import type { RunEvent, Verdict } from '../../shared/src/types.js';
+import { chonProvider } from './model.js';
+import { chaySkillCode } from './skill-code.js';
+
+function layArg(ten: string, macDinh?: string): string | undefined {
+  const i = process.argv.indexOf(`--${ten}`);
+  return i >= 0 ? process.argv[i + 1] : macDinh;
+}
+
+const lenhJson = process.argv.includes('--json');
+
+function phat(e: RunEvent): void {
+  if (lenhJson) {
+    console.log(JSON.stringify(e));
+    return;
+  }
+  if (e.type === 'stage') console.log(`\n▶ [${e.stage}/5] ${e.ten}`);
+  else if (e.type === 'log') console.log(`   ${e.msg}`);
+  else if (e.type === 'finding') {
+    const f = e.finding;
+    console.log(`\n   ✗ [${f.severity === 'blocking' ? 'CHẶN' : 'không chặn'}] ${f.title_vi}`);
+    console.log(`     Điều gì sai: ${f.what_vi}`);
+    console.log(`     Hậu quả:     ${f.consequence_vi}`);
+    if (f.evidence.type === 'test_run') {
+      console.log(`     Bằng chứng:  ${f.evidence.probe_name}`);
+      console.log(`       kỳ vọng:  ${f.evidence.expected}`);
+      console.log(`       thực tế:  ${f.evidence.actual.split('\n')[0]}`);
+    }
+  } else if (e.type === 'verdict') {
+    const v = e.verdict;
+    console.log(`\n════════════════════════════════════════`);
+    console.log(` VERDICT: ${v.result}  ·  ${v.artifact_ref.name} @ ${v.artifact_ref.sha_or_hash.slice(0, 7)}`);
+    console.log(` ${v.findings.length} finding (${v.findings.filter((f) => f.severity === 'blocking').length} chặn) · model ${v.model}`);
+    console.log(`════════════════════════════════════════`);
+  } else if (e.type === 'error') console.error(`✗ LỖI: ${e.msg}`);
+}
+
+async function main(): Promise<void> {
+  const lenh = process.argv[2];
+  if (lenh !== 'run') {
+    console.error('Cách dùng: checker run --skill code --repo <path> --branch <tên nhánh> [--base main] [--json] [--out <file>]');
+    process.exit(2);
+  }
+  const skill = layArg('skill', 'code');
+  const repo = layArg('repo');
+  const branch = layArg('branch');
+  const base = layArg('base', 'main')!;
+  if (!repo || !branch) {
+    console.error('Thiếu --repo hoặc --branch');
+    process.exit(2);
+  }
+  if (skill !== 'code') {
+    console.error(`Skill "${skill}" chưa hỗ trợ ở CLI này (skill doc: bước B1.4)`);
+    process.exit(2);
+  }
+
+  const model = chonProvider();
+  const events: RunEvent[] = [];
+  const ghiPhat = (e: RunEvent): void => {
+    events.push(e);
+    phat(e);
+  };
+
+  const runId = `run-${new Date().toISOString().replace(/[:.]/g, '-')}-${branch.replace(/[^\w-]/g, '_')}`;
+  const batDau = new Date().toISOString();
+  try {
+    const kq = await chaySkillCode(model, repo, branch, base, ghiPhat);
+    const verdict: Verdict = {
+      run_id: runId,
+      skill: 'code',
+      artifact_ref: { type: 'pr', name: branch, sha_or_hash: kq.target.branchSha },
+      result: kq.findings.some((f) => f.severity === 'blocking') ? 'FAIL' : 'PASS',
+      findings: kq.findings,
+      model: model.ten,
+      mode: 'live',
+      started_at: batDau,
+      finished_at: new Date().toISOString(),
+    };
+    ghiPhat({ type: 'verdict', verdict });
+
+    const outFile = layArg('out') ?? join('runs', `${runId}.json`);
+    mkdirSync(join(outFile, '..'), { recursive: true });
+    writeFileSync(outFile, JSON.stringify({ verdict, events }, null, 2), 'utf8');
+    if (!lenhJson) console.log(`\nĐã lưu run: ${outFile}`);
+    process.exit(verdict.result === 'FAIL' ? 1 : 0);
+  } catch (e) {
+    ghiPhat({ type: 'error', msg: (e as Error).message });
+    process.exit(3);
+  }
+}
+
+main();
