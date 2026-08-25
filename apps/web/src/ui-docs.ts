@@ -111,6 +111,11 @@ export function trangDocs(): string {
         <span><b>4</b>Máy phân loại kết quả</span>
         <span><b>5</b>Model viết finding</span>
       </div>
+      <p class="luuy"><b>Hai nhân vật trong tài liệu này:</b> <b>model</b> là phần AI (Claude, gọi qua adapter) —
+      sinh probe, viết finding, phân xử ca mơ hồ; sáng tạo nhưng không tất định. <b>Máy</b> là harness
+      (phần code cố định của CheckMate, không có AI) — chạy probe, so fingerprint, phân loại, đếm severity,
+      đóng/mở cổng; tất định, cùng input luôn cùng output. Phân công xuyên suốt:
+      <b>model được sáng tạo, máy được quyết định</b> — mọi điểm ra phán quyết đều nằm ở máy.</p>
       <p><b>Probe</b> (phép thử đối kháng do checker tự sinh) được tạo <b>neo vào từng luật trong spec</b> của repo — mỗi probe khai báo nó kiểm luật nào.
       Toàn bộ chạy trong sandbox tách biệt (git worktree), trên chính bộ khung test của repo:
       repo nào chạy test được — dù chưa có CI — là chấm được. Stack khác (Python, Java…) khai cách chạy
