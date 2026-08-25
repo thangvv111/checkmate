@@ -13,6 +13,7 @@ import { backfillSoCai, docSoCai } from './ledger.js';
 import { tinhHoSo } from './tincay.js';
 import { trangHoSoTacGia, trangTinCay } from './ui-tincay.js';
 import { trangLedger } from './ui-ledger.js';
+import { trangDocs } from './ui-docs.js';
 import { chuanMuc } from '../../../packages/shared/src/types.js';
 
 const app = express();
@@ -106,6 +107,10 @@ app.get('/', async (_req, res) => {
     prBlock = khoiPrList(cfg.repo.github, cfg.repo.base_branch, null, (e as Error).message.slice(0, 200));
   }
   res.send(trangChu(rm.danhSach(), prBlock, khoiDaTraVe(rm.daTraVe(), cfg.repo.github)));
+});
+
+app.get('/docs', (_req, res) => {
+  res.send(trangDocs());
 });
 
 app.get('/ledger', (_req, res) => {

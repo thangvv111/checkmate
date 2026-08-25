@@ -12,6 +12,9 @@ const CSS = `
     padding:4px 8px; border-radius:7px; }
   .gear:hover { color:#fff; background:rgba(255,255,255,.08); }
   .gear:focus-visible { outline:2px solid #5FC7B4; outline-offset:2px; }
+  .navlink { color:#9db8b3; font-size:13px; font-weight:600; text-decoration:none; padding:5px 10px; border-radius:7px; }
+  .navlink:hover { color:#fff; background:rgba(255,255,255,.08); }
+  .navlink:focus-visible { outline:2px solid #5FC7B4; outline-offset:2px; }
   .logo { font-size:19px; font-weight:700; letter-spacing:.02em; }
   .logo .mate { color:#5FC7B4; }
   .tag { font-size:12.5px; color:#9db8b3; }
@@ -84,7 +87,8 @@ export function khung(tieuDe: string, than: string, js = ''): string {
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>${tieuDe}</title><style>${CSS}</style></head>
 <body><div class="top"><div class="wrap"><span class="logo">Check<span class="mate">Mate</span> ♞</span>
 <span class="tag">maker–checker cho code và tài liệu — checker không tin ai, chỉ tin bằng chứng</span>
-<a class="gear" href="/tin-cay" title="Thang tin cậy tác giả" aria-label="Thang tin cậy tác giả" style="margin-left:auto">👤</a>
+<a class="navlink" href="/docs" style="margin-left:auto">Nguyên tắc</a>
+<a class="gear" href="/tin-cay" title="Thang tin cậy tác giả" aria-label="Thang tin cậy tác giả" style="margin-left:0">👤</a>
 <a class="gear" href="/ledger" title="Sổ cái verdict" aria-label="Sổ cái verdict" style="margin-left:0">📒</a>
 <a class="gear" href="/settings" title="Cài đặt" aria-label="Cài đặt" style="margin-left:0">⚙</a></div></div>
 <main class="wrap">${than}</main>${js ? `<script>${js}</script>` : ''}</body></html>`;
