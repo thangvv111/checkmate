@@ -68,7 +68,7 @@ export function trangDocs(): string {
     <a href="#cham-tai-lieu">Rubric &amp; trích dẫn nguyên văn</a>
     <div class="nhom">Cổng &amp; vận hành</div>
     <a href="#cong-merge">Ba mức finding, một cổng</a>
-    <a href="#thu-vien">Thư viện phép thử tích luỹ</a>
+    <a href="#thu-vien">Thư viện probe tích luỹ</a>
     <a href="#truc-va-agent">Trực · sổ cái · tin cậy · MCP</a>
     <div class="nhom">Trung thực</div>
     <a href="#gioi-han">Giới hạn nói thẳng</a>
@@ -94,7 +94,7 @@ export function trangDocs(): string {
       <ul>
         <li>Dev push commit mới → verdict cũ <b>tự hết hiệu lực</b>, cổng merge khoá lại chờ chấm lại.</li>
         <li>Cùng một commit đã có verdict → không chấm lại lặng lẽ; muốn chấm lại phải xác nhận tường minh.</li>
-        <li>Mọi verdict vào <b>sổ cái chỉ-ghi-thêm</b> — không sửa được, không xoá được.</li>
+        <li>Mọi verdict vào <b>sổ cái append-only</b> (chỉ ghi thêm — không sửa, không xoá được).</li>
       </ul>
       <p>FAIL khi và chỉ khi có ít nhất một finding mức <b>High</b>. Finding nào cũng phải mang bằng chứng
       mà người thật kiểm lại được trong khoảng 10 giây.</p>
@@ -102,16 +102,16 @@ export function trangDocs(): string {
 
     <section id="cham-code">
       <h2>Chấm code: chạy thật trong sandbox</h2>
-      <p class="tomtat">Checker không "đọc code rồi nhận xét". Nó sinh phép thử từ spec, chạy code thật,
+      <p class="tomtat">Checker không "đọc code rồi nhận xét". Nó sinh probe (phép thử) từ spec, chạy code thật,
       và chỉ nói những gì kết quả chạy chứng minh được.</p>
       <div class="buoc">
         <span><b>1</b>Đọc spec + diff</span>
-        <span><b>2</b>Sinh phép thử đối kháng</span>
+        <span><b>2</b>Sinh probe đối kháng</span>
         <span><b>3</b>Chạy trên cả hai nhánh</span>
         <span><b>4</b>Máy phân loại kết quả</span>
         <span><b>5</b>Model viết finding</span>
       </div>
-      <p>Phép thử (probe) được sinh <b>neo vào từng luật trong spec</b> của repo — mỗi probe khai báo nó kiểm luật nào.
+      <p><b>Probe</b> (phép thử đối kháng do checker tự sinh) được tạo <b>neo vào từng luật trong spec</b> của repo — mỗi probe khai báo nó kiểm luật nào.
       Toàn bộ chạy trong sandbox tách biệt (git worktree), trên chính bộ khung test của repo:
       repo nào chạy test được — dù chưa có CI — là chấm được. Stack khác (Python, Java…) khai cách chạy
       qua một file <code>checkmate.yml</code>; hợp đồng kết quả là JUnit XML.</p>
@@ -121,22 +121,35 @@ export function trangDocs(): string {
 
     <section id="doi-chung">
       <h2>Đối chứng hai nhánh</h2>
-      <p class="tomtat">Cùng một bộ phép thử chạy trên <b>nhánh PR</b> (code mới) và <b>nhánh gốc</b>
+      <p class="tomtat">Cùng một bộ probe chạy trên <b>nhánh PR</b> (code mới) và <b>nhánh gốc</b>
       (code đang chạy ổn). So kết quả hai bên mới kết luận được lỗi nằm ở đâu.</p>
       <table class="ca">
         <tr><th>Nhánh gốc</th><th>Nhánh PR</th><th>Máy kết luận</th></tr>
-        <tr><td class="kq-ok">đạt</td><td class="kq-no">hỏng</td><td><b>Hồi quy — finding bắt buộc.</b> PR làm gãy hành vi đang đúng.</td></tr>
+        <tr><td class="kq-ok">đạt</td><td class="kq-no">hỏng</td><td><b>Regression (hồi quy) — finding bắt buộc.</b> PR làm gãy hành vi đang đúng.</td></tr>
         <tr><td class="kq-ok">đạt</td><td class="kq-ok">đạt</td><td>Không có gì để nói.</td></tr>
         <tr><td class="kq-no">hỏng</td><td class="kq-ok">đạt</td><td>PR sửa được lỗi cũ — không phải finding.</td></tr>
-        <tr><td class="kq-no">hỏng</td><td class="kq-no">hỏng</td><td><b>Phép thử hỏng — loại</b>, không được dùng làm bằng chứng (xem lưới máy bên dưới).</td></tr>
+        <tr><td class="kq-no">hỏng</td><td class="kq-no">hỏng</td><td><b>Probe hỏng — loại</b>, không được dùng làm bằng chứng (xem lưới máy bên dưới).</td></tr>
       </table>
-      <p>Vế cuối là chốt chặn quan trọng nhất: một phép thử fail <i>ngay cả trên code đang chạy ổn</i> thì
-      nhiều khả năng lỗi nằm ở chính phép thử — nó hỏi sai câu hỏi. Ví dụ thật:</p>
+      <p>Vế cuối là chốt chặn quan trọng nhất: một probe fail <i>ngay cả trên code đang chạy ổn</i> thì
+      nhiều khả năng lỗi nằm ở chính probe — nó hỏi sai câu hỏi. Ví dụ thật:</p>
       <div class="vidu">probe kiểm tra <b>response.message</b> — nhưng API của repo trả về trường <code>error</code>.<br>
       → probe fail trên CẢ HAI nhánh, cùng một thông báo lỗi → máy loại trước khi model nhìn thấy.</div>
-      <p>Máy phân biệt hai ca "hỏng–hỏng" bằng <b>vân tay lỗi</b>: dòng đầu của thông báo lỗi sau khi chuẩn hoá
-      số liệu. Cùng vân tay = cùng nguyên nhân → loại. Khác vân tay (ví dụ nhánh gốc fail vì <i>chưa có</i> tính năng,
-      nhánh PR fail vì <i>làm sai</i> tính năng) → chuyển model phân xử, vì đó có thể vẫn là lỗi thật.</p>
+      <h3>Error fingerprint (vân tay lỗi)</h3>
+      <p>Để phân biệt hai ca "hỏng–hỏng", máy rút mỗi thông báo lỗi về một <b>fingerprint</b> — chữ ký ngắn
+      đại diện cho <i>nguyên nhân</i>, đã gột sạch phần ngẫu nhiên:</p>
+      <ul>
+        <li>Chỉ lấy <b>dòng đầu</b> của thông báo — stack trace (vết gọi hàm) phía dưới chứa đường dẫn file,
+        số dòng… vốn khác nhau giữa hai sandbox, toàn nhiễu;</li>
+        <li><b>Chuẩn hoá phần ngẫu nhiên</b>: mọi con số và chuỗi hex dài (id bản ghi, SHA, thời lượng ms, port)
+        thay bằng <code>#</code>; về chữ thường; gộp khoảng trắng.</li>
+      </ul>
+      <div class="vidu">nhánh gốc: expected 201 but got 500 (request id <b>8f3a2c1d9</b>, <b>34</b>ms)<br>
+      nhánh PR:&nbsp; expected 201 but got 500 (request id <b>77b04e2aa</b>, <b>41</b>ms)<br>
+      → cùng fingerprint <code>expected # but got # (request id #, #ms)</code> — cùng nguyên nhân → probe hỏng, loại.</div>
+      <p><b>Cùng fingerprint = cùng nguyên nhân → loại thẳng.</b> Khác fingerprint thì máy <b>không tự quyết</b> —
+      chuyển model phân xử, vì đó có thể vẫn là lỗi thật: nhánh gốc fail kiểu <code>TypeError</code>
+      (tính năng <i>chưa có</i>), nhánh PR fail kiểu <code>AssertionError</code> (tính năng <i>làm sai</i>).
+      Chiều nghiêng của thiết kế: mơ hồ thì đưa lên xét, không lặng lẽ vứt.</p>
     </section>
 
     <section id="luoi-may">
@@ -144,17 +157,17 @@ export function trangDocs(): string {
       <p class="tomtat">Câu hỏi lớn nhất với AI review: "nó bịa thì sao?" — Trả lời của CheckMate:
       <b>nó không được phép bịa</b>. Ba lưới dưới đây là code cố định, không phải lời hứa của model.</p>
       <ul>
-        <li><b>Lưới 1 — loại phép thử hỏng:</b> fail trên cả hai nhánh với cùng vân tay lỗi → loại
+        <li><b>Lưới 1 — loại probe hỏng:</b> fail trên cả hai nhánh với cùng fingerprint → loại
         <b>trước khi model nhìn thấy</b>. Lý do phải để máy làm: khi cho model tự phân loại, nó có xu hướng
-        "thương" phép thử của chính mình — giữ lại một cái hỏng rồi viết thành finding, khiến hai lượt chấm
+        "thương" probe của chính mình — giữ lại một cái hỏng rồi viết thành finding, khiến hai lượt chấm
         cùng một commit ra hai kết quả khác nhau. Chuyển quyền phân loại cho máy thì dao động đó biến mất.</li>
-        <li><b>Lưới 2 — hồi quy không được bỏ sót:</b> phép thử "gốc đạt + PR hỏng" là hồi quy máy đã xác nhận.
+        <li><b>Lưới 2 — regression không được bỏ sót:</b> probe "gốc đạt + PR hỏng" là regression máy đã xác nhận.
         Model <b>bắt buộc</b> phải viết nó thành finding; nếu model bỏ sót, máy tự bổ sung một finding mức High
         (fail-closed — thà chặn nhầm còn hơn cho lọt).</li>
-        <li><b>Lưới 3 — finding trỏ bậy bị vứt:</b> finding nào trỏ vào phép thử không hề fail thì bị máy vứt
+        <li><b>Lưới 3 — finding trỏ bậy bị vứt:</b> finding nào trỏ vào probe không hề fail thì bị máy vứt
         trước khi ra verdict. Model không thể "kể thêm" lỗi mà không có bằng chứng chạy.</li>
       </ul>
-      <p>Cả ba lưới đều <b>ghi vết trong log lượt chạy</b> — loại bao nhiêu phép thử, bổ sung finding nào — ai xem cũng thấy.</p>
+      <p>Cả ba lưới đều <b>ghi vết trong log lượt chạy</b> — loại bao nhiêu probe, bổ sung finding nào — ai xem cũng thấy.</p>
     </section>
 
     <section id="cham-tai-lieu">
@@ -169,8 +182,8 @@ export function trangDocs(): string {
         <li><b>Lệch chéo mô tả–bảng</b> — phần chữ và bảng/biểu không khớp nhau.</li>
       </ul>
       <p>Mỗi finding phải <b>neo trích dẫn nguyên văn</b> — máy đối chiếu từng ký tự với tài liệu gốc;
-      trích dẫn không khớp thì finding bị vứt. Sau đó một vòng <b>phản biện</b> (skeptic) rà lại từng finding:
-      GIỮ, SỬA, hay LOẠI — finding yếu tự rụng trước khi ra verdict.</p>
+      trích dẫn không khớp thì finding bị vứt. Sau đó một vòng <b>skeptic</b> (phản biện đối kháng) rà lại từng
+      finding: GIỮ, SỬA, hay LOẠI — finding yếu tự rụng trước khi ra verdict.</p>
     </section>
 
     <section id="cong-merge">
@@ -187,15 +200,15 @@ export function trangDocs(): string {
     </section>
 
     <section id="thu-vien">
-      <h2>Thư viện phép thử tích luỹ</h2>
-      <p class="tomtat">Càng dùng càng sắc: phép thử tốt của lượt trước được giữ lại, chạy lại miễn phí ở mọi lượt sau.</p>
-      <p>Sau mỗi lượt chấm, phép thử nào đã <b>chứng minh khớp hợp đồng API</b> (chạy đạt trên nhánh gốc)
-      được nhận vào thư viện theo repo. Lượt sau, checker chạy: phép thử mới sinh <b>+ toàn bộ thư viện</b> —
-      lớp regression này không tốn thêm call model nào.</p>
+      <h2>Thư viện probe tích luỹ</h2>
+      <p class="tomtat">Càng dùng càng sắc: probe tốt của lượt trước được giữ lại, chạy lại miễn phí ở mọi lượt sau.</p>
+      <p>Sau mỗi lượt chấm, probe nào đã <b>chứng minh khớp contract</b> (hợp đồng vào/ra của API — chạy đạt
+      trên nhánh gốc) được nhận vào thư viện theo repo. Lượt sau, checker chạy: probe mới sinh
+      <b>+ toàn bộ thư viện</b> — lớp regression này không tốn thêm call model nào.</p>
       <ul>
-        <li>Nhận vào <b>từng phép thử một</b>, không nhận cả gói — cái fail-gốc bị cắt ra, phần còn lại phải chạy lại chứng minh sạch mới được nhận.</li>
+        <li>Nhận vào <b>từng probe một</b>, không nhận cả gói — cái fail-gốc bị cắt ra, phần còn lại phải chạy lại chứng minh sạch mới được nhận.</li>
         <li>Trùng nội dung (hash) thì không nhận lại; thư viện có trần, đầy thì loại cái cũ nhất.</li>
-        <li>Phép thử thư viện cũng đi qua đúng ba lưới máy như phép thử mới — không có "ghế VIP".</li>
+        <li>Probe thư viện cũng đi qua đúng ba lưới máy như probe mới — không có "ghế VIP".</li>
       </ul>
     </section>
 
@@ -203,9 +216,9 @@ export function trangDocs(): string {
       <h2>Chế độ trực · sổ cái · thang tin cậy · MCP</h2>
       <p>CheckMate không chỉ là một trang web có nút bấm — nó là một <b>thành viên trong dàn agent</b>:</p>
       <ul>
-        <li><b>Chế độ trực:</b> bật lên là checker tự quét hàng đợi theo chu kỳ; PR mở ra hoặc push commit mới
+        <li><b>Chế độ trực (PR-bot):</b> bật lên là checker tự quét hàng đợi theo chu kỳ; PR mở ra hoặc push commit mới
         là tự chấm, verdict + dấu ✓/✗ tự lên GitHub — không ai phải bấm gì.</li>
-        <li><b>Sổ cái verdict:</b> mọi kết luận vào sổ chỉ-ghi-thêm, có trang truy vết cho kiểm soát/kiểm toán.
+        <li><b>Sổ cái verdict:</b> mọi kết luận vào sổ append-only, có trang truy vết cho kiểm soát/kiểm toán.
         Khâu review vốn không để lại vết — giờ vết tự sinh.</li>
         <li><b>Thang tin cậy tác giả:</b> track record per maker do máy đếm từ sổ cái (tỷ lệ PASS vòng đầu,
         số lần bị chặn bởi High). Điểm tin cậy để <b>nhìn</b>, không để <b>nới</b>: tác giả điểm cao đến đâu
@@ -220,10 +233,10 @@ export function trangDocs(): string {
       <p class="tomtat">Một checker đòi người khác trưng bằng chứng thì phải tự khai giới hạn của mình.</p>
       <ul>
         <li><b>Lỗi có sẵn từ trước</b> — tồn tại trên cả hai nhánh — nằm ngoài phạm vi: cổng này trả lời
-        "PR này có làm hỏng gì không", không phải "toàn bộ codebase có sạch không". Việc loại phép thử
+        "PR này có làm hỏng gì không", không phải "toàn bộ codebase có sạch không". Việc loại probe
         hỏng-cả-hai-nhánh là đánh đổi có chủ đích cho câu hỏi đó.</li>
         <li><b>Spec càng rõ, checker càng sắc.</b> Chưa có spec thì vẫn chạy được chế độ đối chứng hai nhánh
-        (bắt breaking change), nhưng phép thử neo-luật cần spec. Vài file markdown mỏng trong <code>specs/</code>
+        (bắt breaking change), nhưng probe neo-luật cần spec. Vài file markdown mỏng trong <code>specs/</code>
         là đủ khởi động — và đó cũng là kỷ luật tổ chức nên có sẵn.</li>
         <li><b>Tầng chỉ quan sát được sau khi deploy</b> (hạ tầng, tích hợp thật) nằm ngoài sandbox —
         CheckMate đứng trên nền test của repo, không thay thế giám sát production.</li>
