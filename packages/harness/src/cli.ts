@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chuanMuc, type ArtifactRef, type Finding, type RunEvent, type Verdict } from '../../shared/src/types.js';
-import { chonProvider } from './model.js';
+import { LoiCauHinhProvider, chonProvider, kiemTraProvider } from './model.js';
 import { chaySkillCode } from './skill-code.js';
 import { chaySkillDoc } from './skill-doc.js';
 
@@ -69,6 +69,15 @@ async function main(): Promise<void> {
     process.exit(2);
   }
 
+  try {
+    kiemTraProvider();
+  } catch (e) {
+    const msg = (e as Error).message;
+    if (lenhJson) console.log(JSON.stringify({ type: 'error', msg }));
+    else console.error(`✗ LỖI CẤU HÌNH: ${msg}`);
+    process.exit(4); // 4 = cấu hình provider, phân biệt với 3 = lỗi khi chạy
+  }
+
   const model = chonProvider();
   const events: RunEvent[] = [];
   const ghiPhat = (e: RunEvent): void => {
@@ -123,8 +132,9 @@ async function main(): Promise<void> {
     if (!lenhJson) console.log(`\nĐã lưu run: ${outFile}`);
     process.exit(verdict.result === 'FAIL' ? 1 : 0);
   } catch (e) {
-    ghiPhat({ type: 'error', msg: (e as Error).message });
-    process.exit(3);
+    const laCauHinh = e instanceof LoiCauHinhProvider;
+    ghiPhat({ type: 'error', msg: (laCauHinh ? 'Cấu hình provider: ' : '') + (e as Error).message });
+    process.exit(laCauHinh ? 4 : 3);
   }
 }
 

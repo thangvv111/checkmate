@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 
 export interface ModelProvider {
@@ -75,13 +75,55 @@ export class AnthropicApiProvider implements ModelProvider {
         messages: [{ role: 'user', content: prompt }],
       }),
     });
-    if (!res.ok) throw new Error(`Anthropic API ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    if (!res.ok) {
+      const chiTiet = (await res.text()).slice(0, 300);
+      if (res.status === 401 || res.status === 403) {
+        throw new LoiCauHinhProvider(
+          `Anthropic API từ chối xác thực (HTTP ${res.status}) — ANTHROPIC_API_KEY sai hoặc hết hạn. ` +
+            'Vào ⚙ Cài đặt → mục Agent review kiểm tra provider, hoặc đặt lại ANTHROPIC_API_KEY. ' +
+            `Chi tiết: ${chiTiet}`,
+        );
+      }
+      throw new Error(`Anthropic API ${res.status}: ${chiTiet}`);
+    }
     const data = (await res.json()) as { content: Array<{ type: string; text?: string }> };
     return data.content
       .filter((b) => b.type === 'text')
       .map((b) => b.text ?? '')
       .join('')
       .trim();
+  }
+}
+
+// Lỗi cấu hình provider — phân biệt hẳn với lỗi nghiệp vụ để UI hướng người dùng vào ⚙ Cài đặt
+export class LoiCauHinhProvider extends Error {
+  readonly loai = 'cau_hinh_provider' as const;
+}
+
+// Kiểm cấu hình TRƯỚC khi tốn thời gian dựng sandbox — sai thì báo ngay, kèm cách sửa
+export function kiemTraProvider(): void {
+  const ep = process.env.CHECKER_PROVIDER;
+  const model = MODEL_MAC_DINH;
+  if (ep === 'api' || (!ep && process.env.ANTHROPIC_API_KEY)) {
+    if (!process.env.ANTHROPIC_API_KEY?.trim()) {
+      throw new LoiCauHinhProvider(
+        'Cấu hình provider không hợp lệ: đang chọn "Anthropic API" nhưng KHÔNG có ANTHROPIC_API_KEY trong môi trường. ' +
+          'Vào ⚙ Cài đặt → mục Agent review: đổi provider sang "Claude Code CLI", hoặc đặt biến môi trường ANTHROPIC_API_KEY rồi khởi động lại CheckMate.',
+      );
+    }
+    return;
+  }
+  // provider = cli: phải có lệnh claude trên máy
+  const thu = spawnSync('claude', ['--version'], { shell: true, encoding: 'utf8', timeout: 30_000 });
+  if (thu.status !== 0) {
+    throw new LoiCauHinhProvider(
+      'Cấu hình provider không hợp lệ: đang chọn "Claude Code CLI" nhưng không chạy được lệnh `claude` trên máy này' +
+        (thu.error ? ` (${thu.error.message})` : '') +
+        '. Vào ⚙ Cài đặt → mục Agent review: đổi provider sang "Anthropic API" (cần ANTHROPIC_API_KEY), hoặc cài/đăng nhập Claude Code trên máy chạy CheckMate.',
+    );
+  }
+  if (!model.trim()) {
+    throw new LoiCauHinhProvider('Cấu hình provider không hợp lệ: chưa chọn model. Vào ⚙ Cài đặt → mục Agent review để chọn model.');
   }
 }
 

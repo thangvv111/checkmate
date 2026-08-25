@@ -306,7 +306,7 @@ function ve(e){
    ' · '+v.findings.length+' finding ('+dm('high')+' high · '+dm('medium')+' medium · '+dm('low')+' low) · '+v.model;
   if(!document.querySelector('.cong')&&${meta.pr ? 'true' : 'false'}){const a=document.createElement('p');
    a.innerHTML='<a class="btn" href="">↻ Tải lại trang để mở cổng Merge / Trả về dev</a>';kv.after(a);}}
- else if(e.type==='error'){const er=document.getElementById('err');er.style.display='block';er.textContent='LỖI: '+e.msg;}
+ else if(e.type==='error'){const er=document.getElementById('err');er.style.display='block';const d=document.createElement('div');d.style.marginBottom='6px';d.innerHTML='<b>LỖI:</b> '+esc(e.msg);er.appendChild(d);}
 }
 document.querySelectorAll('.tick-med').forEach(c=>c.addEventListener('change',()=>{
   const t=document.querySelectorAll('.tick-med');const n=[...t].filter(x=>x.checked).length;

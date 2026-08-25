@@ -70,12 +70,18 @@ export class RunManager {
         ghi({ type: 'log', msg: line.slice(0, 300) });
       }
     });
+    const duoiStderr: string[] = [];
     const rlErr = createInterface({ input: child.stderr });
     rlErr.on('line', (line) => {
+      if (line.trim()) {
+        duoiStderr.push(line.trim());
+        if (duoiStderr.length > 8) duoiStderr.shift();
+      }
       // chỉ chuyển tiếp thông báo hữu ích (retry model...), bỏ noise npm/npx
       if (/model/i.test(line)) ghi({ type: 'log', msg: line.trim() });
     });
     child.on('close', (code) => {
+      const daCoLoi = state.events.some((x) => x.e.type === 'error');
       if (meta.verdict) {
         meta.trangThai = 'xong';
         const muc = mucTuMeta(meta);
@@ -88,7 +94,14 @@ export class RunManager {
       }
       else {
         meta.trangThai = 'loi';
-        ghi({ type: 'error', msg: `Run kết thúc không có verdict (exit ${code})` });
+        if (!daCoLoi) {
+          const goiY =
+            code === 4
+              ? 'Nguyên nhân: cấu hình provider không hợp lệ — kiểm tra ⚙ Cài đặt → mục Agent review (provider / model / API key).'
+              : 'Chưa rõ nguyên nhân — xem log máy chủ. Nếu vừa đổi cấu hình, kiểm tra ⚙ Cài đặt → mục Agent review trước tiên.';
+          const duoi = duoiStderr.length ? ` · Log cuối: ${duoiStderr.slice(-3).join(' | ').slice(0, 400)}` : '';
+          ghi({ type: 'error', msg: `Run dừng giữa chừng, không có verdict (mã thoát ${code}). ${goiY}${duoi}` });
+        }
       }
       this.luu(state);
       for (const s of state.subs) s({ t: Date.now() - t0, e: { type: 'log', msg: '__END__' } });
