@@ -34,7 +34,11 @@ export function slugRepo(repoPath: string): string {
 function docMeta(slug: string): MetaLib {
   const f = join(GOC_LIB, slug, 'meta.json');
   if (!existsSync(f)) return { files: [] };
-  return JSON.parse(readFileSync(f, 'utf8')) as MetaLib;
+  try {
+    return JSON.parse(readFileSync(f, 'utf8')) as MetaLib;
+  } catch {
+    return { files: [] }; // L10: meta hỏng không được giết run — thư viện coi như rỗng, admission sẽ ghi lại
+  }
 }
 
 function ghiMeta(slug: string, meta: MetaLib): void {

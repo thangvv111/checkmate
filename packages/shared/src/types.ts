@@ -63,6 +63,18 @@ export interface Verdict {
   result: 'PASS' | 'FAIL';
   findings: Finding[];
   model: string;
+  // C5: PASS/FAIL nói trên cơ sở nào — độ phủ probe đưa thẳng vào verdict
+  probe_stats?: {
+    ke_hoach: number; // số probe model đề ra
+    ghi_nhan: number; // số probe thực chạy và được ghi nhận
+    pass: number;
+    hoi_quy: number;
+    hong: number;
+    nghi_van: number;
+    cai_thien: number;
+    bo_qua: number;
+    that_lac: string[]; // id probe trong kế hoạch nhưng không thấy khi chạy
+  };
   mode: 'live' | 'replay';
   started_at: string;
   finished_at: string;

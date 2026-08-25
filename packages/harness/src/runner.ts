@@ -17,6 +17,26 @@ export interface RunnerCfg {
   huong_dan_probe?: string; // ghi chú repo-specific cho model (cách dựng app, fixture, dải dữ liệu...)
 }
 
+// C6: tri thức nghiệp vụ per-repo — repo khai khuôn lỗi ưu tiên + thang severity của CHÍNH NÓ.
+// Engine không biết gì về domain; không khai thì dùng bộ khuôn tổng quát + khuôn có-điều-kiện theo spec.
+export interface ReviewCfg {
+  khuon_loi?: string[]; // các góc tấn công ưu tiên cho domain này
+  severity_map?: { high?: string; medium?: string; low?: string }; // cái gì là high VỚI REPO NÀY
+}
+
+export function docReviewCfg(repoPath: string): ReviewCfg | null {
+  const f = join(repoPath, 'checkmate.yml');
+  if (!existsSync(f)) return null;
+  try {
+    const raw = parseYaml(readFileSync(f, 'utf8')) as { review?: ReviewCfg };
+    const r = raw?.review;
+    if (!r || (!Array.isArray(r.khuon_loi) && !r.severity_map)) return null;
+    return { khuon_loi: Array.isArray(r.khuon_loi) ? r.khuon_loi.map(String) : undefined, severity_map: r.severity_map };
+  } catch {
+    return null; // yml hỏng: đường runner sẽ tự báo; review cfg thì fail-safe về default
+  }
+}
+
 export function docRunnerCfg(repoPath: string): RunnerCfg | null {
   const f = join(repoPath, 'checkmate.yml');
   if (!existsSync(f)) return null;
@@ -59,11 +79,13 @@ export function parseJUnit(xml: string, file: string): KetQuaProbe[] {
   };
 
   return cases.map((c) => {
+    // C8: <failure/> rỗng parse thành '' (falsy) — kiểm PRESENCE, không kiểm truthiness
+    const coFail = c.failure !== undefined || c.error !== undefined;
     const fail = c.failure ?? c.error;
     const skipped = c.skipped !== undefined;
     return {
       title: String(c['@_name'] ?? ''),
-      status: fail ? ('failed' as const) : skipped ? ('skipped' as const) : ('passed' as const),
+      status: coFail ? ('failed' as const) : skipped ? ('skipped' as const) : ('passed' as const),
       message: layText(fail).slice(0, 1500),
       file,
     };

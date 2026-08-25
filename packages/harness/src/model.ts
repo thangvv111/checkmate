@@ -72,6 +72,7 @@ export class AnthropicApiProvider implements ModelProvider {
       body: JSON.stringify({
         model: MODEL_MAC_DINH,
         max_tokens: 8000,
+        temperature: 0, // C10: verdict phải tái lập được trên cùng commit
         messages: [{ role: 'user', content: prompt }],
       }),
     });

@@ -4,7 +4,7 @@ import { bocCode, goiJson } from './jsonx.js';
 import { docTarget, type TargetInfo } from './target.js';
 import { Sandbox, type KetQuaProbe } from './sandbox.js';
 import { docThuVien, nhanVaoThuVien, slugRepo } from './thu-vien.js';
-import { docRunnerCfg, parseJUnit, type RunnerCfg } from './runner.js';
+import { docReviewCfg, docRunnerCfg, parseJUnit, type ReviewCfg, type RunnerCfg } from './runner.js';
 
 export interface KeHoachProbe {
   id: string;
@@ -14,10 +14,13 @@ export interface KeHoachProbe {
   ky_vong: string;
 }
 
+import type { Verdict } from '../../shared/src/types.js';
+
 interface KetQuaSkillCode {
   findings: Finding[];
   target: TargetInfo;
   soProbe: number;
+  probeStats: NonNullable<Verdict['probe_stats']>;
 }
 
 type PhatEvent = (e: RunEvent) => void;
@@ -27,7 +30,7 @@ const FILE_PROBE_MOI = 'checker.probe.test.ts';
 
 // ---------- Phân loại MÁY (spec §11-A): model không được tự giác luật này ----------
 
-export type TrangThaiProbe = 'pass' | 'hoi_quy' | 'hong' | 'nghi_van' | 'cai_thien' | 'khong_chay';
+export type TrangThaiProbe = 'pass' | 'hoi_quy' | 'hong' | 'nghi_van' | 'cai_thien' | 'bo_qua' | 'khong_chay';
 
 // Vân tay lỗi: dòng đầu message, chuẩn hoá số/hex/khoảng trắng — hai nhánh cùng vân tay = cùng nguyên nhân
 function vanTayLoi(msg: string): string {
@@ -40,14 +43,33 @@ function vanTayLoi(msg: string): string {
     .slice(0, 160);
 }
 
+// C4: vân tay CHẶT — giữ chữ số ngắn (status code, số đếm) để "expected 500" ≠ "expected 404";
+// vẫn gột hex dài, số dài (id/timestamp) và thời lượng (ms) vì chúng đổi giữa hai lần chạy.
+function vanTayChat(msg: string): string {
+  return (msg.split('\n')[0] ?? '')
+    .toLowerCase()
+    .replace(/[a-f0-9]{7,}/g, '#')
+    .replace(/\d+\s*ms\b/g, '#ms')
+    .replace(/\d{5,}/g, '#')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 200);
+}
+
 function phanLoaiMay(br: KetQuaProbe | undefined, bs: KetQuaProbe | undefined): TrangThaiProbe {
   if (!br) return 'khong_chay';
+  if (br.status === 'skipped') return 'bo_qua'; // C2: it.skip không được tính pass — lách lưới
   const brFail = br.status === 'failed';
-  const bsFail = bs?.status === 'failed';
+  const bsFail = bs !== undefined && bs.status === 'failed';
   if (!brFail && !bsFail) return 'pass';
   if (!brFail && bsFail) return 'cai_thien';
-  if (brFail && !bsFail) return 'hoi_quy';
-  return vanTayLoi(br.message) === vanTayLoi(bs?.message ?? '') ? 'hong' : 'nghi_van';
+  if (brFail && !bsFail) {
+    // C1: KHÔNG có dữ liệu đối chứng (nhánh gốc không chạy được) thì không được phong hồi quy
+    return bs === undefined ? 'nghi_van' : 'hoi_quy';
+  }
+  // C4: vân tay thô trùng NHƯNG vân tay chặt khác → có thể khác nguyên nhân — đẩy model phân xử, không vứt
+  if (vanTayLoi(br.message) !== vanTayLoi(bs?.message ?? '')) return 'nghi_van';
+  return vanTayChat(br.message) === vanTayChat(bs?.message ?? '') ? 'hong' : 'nghi_van';
 }
 
 interface UngVien {
@@ -70,7 +92,33 @@ function trichCode(nguon: string, probeId: string): string {
 
 // ---------- Prompts ----------
 
-function promptPhanTich(t: TargetInfo): string {
+// C6: bộ khuôn lỗi = tổng quát (mọi phần mềm) + có-điều-kiện (kích hoạt theo nội dung spec) + per-repo (checkmate.yml).
+// Engine không hiểu domain — spec của repo và cấu hình repo là nguồn tri thức nghiệp vụ.
+function xayKhuonLoi(t: TargetInfo, review: ReviewCfg | null): string {
+  const khuon: string[] = [
+    'điều kiện KÉP bị gộp sai: thử TỪNG VẾ riêng (vế này đúng + vế kia sai, và ngược lại);',
+    'giá trị BIÊN đúng ngưỡng của hằng số trong spec (biên đóng/mở);',
+    'phép tính số học: tổng các phần phải bằng đúng tổng gốc, thử số CHIA KHÔNG HẾT / làm tròn;',
+    'hành vi cũ không bị PR phá (probe kỳ vọng qua, để chứng minh PASS xứng đáng khi PR sạch).',
+  ];
+  const specText = t.specs.map((s) => s.noiDung).join('\n').toLowerCase();
+  // khuôn CÓ ĐIỀU KIỆN — chỉ bật khi spec của repo thực sự có loại luật đó
+  if (/quyền|vai trò|role|permission|phân cấp|thẩm quyền|actor|chỉ .* được/.test(specText)) {
+    khuon.unshift('PHÂN QUYỀN (spec repo này có luật về quyền/vai): BẮT BUỘC có probe thử VƯỢT QUYỀN — actor không đủ quyền thực hiện hành động của actor đủ quyền, và tự thao tác trên đối tượng của chính mình nếu spec cấm;');
+  }
+  if (/4\d\d|http|route|endpoint|api|status/.test(specText) || t.apiDoc.length > 0) {
+    khuon.push('đường SAI phải trả lỗi nghiệp vụ 4xx kèm thông báo (trùng khoá, tham chiếu không tồn tại) — app-guard, không được vỡ thành 500;');
+  }
+  if (/đầu vào|validate|bắt buộc|không được rỗng|required/.test(specText)) {
+    khuon.push('VALIDATION đầu vào: trường bắt buộc bỏ trống / kiểu sai / giá trị ngoài miền — phải bị chặn đúng như spec khai;');
+  }
+  if (review?.khuon_loi?.length) {
+    khuon.unshift(...review.khuon_loi.map((k) => `[repo khai] ${k};`));
+  }
+  return khuon.map((k) => `- ${k}`).join('\n');
+}
+
+function promptPhanTich(t: TargetInfo, review: ReviewCfg | null): string {
   const specs = t.specs.map((s) => `--- ${s.file} ---\n${s.noiDung}`).join('\n\n');
   return `Bạn là CHECKER ĐỐI KHÁNG trong quy trình maker–checker cho code. Bạn KHÔNG có tool, KHÔNG đọc được file nào ngoài dữ liệu trong prompt này. Nhiệm vụ của bạn là BÁC BỎ một pull request: tìm chỗ nó vi phạm spec, rồi đề xuất các phép thử (probe) chạy được để chứng minh.
 
@@ -91,12 +139,8 @@ ${t.diff}
 \`\`\`
 
 # YÊU CẦU
-Đề xuất TỐI ĐA ${MAX_PROBE} probe độc lập, mỗi probe kiểm MỘT hành vi mà spec khai. Ưu tiên các khuôn lỗi kinh điển:
-- điều kiện KÉP bị gộp sai: thử TỪNG VẾ riêng (vế này đúng + vế kia sai, và ngược lại);
-- giá trị BIÊN đúng ngưỡng của hằng số trong spec (biên đóng/mở);
-- tính đúng tuyệt đối về TIỀN: tổng các phần phải bằng đúng tổng gốc, thử số CHIA KHÔNG HẾT;
-- đường SAI phải trả lỗi nghiệp vụ 4xx kèm thông báo (trùng khoá, tham chiếu không tồn tại) — app-guard, không được vỡ thành 500;
-- hành vi cũ không bị PR phá (probe kỳ vọng qua, để chứng minh PASS xứng đáng khi PR sạch).
+Đề xuất TỐI ĐA ${MAX_PROBE} probe độc lập, mỗi probe kiểm MỘT hành vi mà spec khai. TRẢI probe theo LOẠI LUẬT có trong spec và phần diff đụng tới — đừng dồn hết vào một loại. Ưu tiên các khuôn lỗi sau:
+${xayKhuonLoi(t, review)}
 Probe chỉ dùng API công khai ĐÚNG NHƯ file test mẫu của repo (không đào vào hàm nội bộ khác) — để cùng một probe chạy được trên cả nhánh PR lẫn nhánh gốc.
 QUAN TRỌNG: chỉ assert những gì API THẬT SỰ trả (đối chiếu tài liệu API + file test mẫu) — đừng bịa thêm trường response; probe sai contract sẽ bị máy loại và phí một suất probe.
 
@@ -131,7 +175,16 @@ ${loiLanTruoc ? `\n# LẦN TRƯỚC FILE CỦA BẠN CÓ VẤN ĐỀ — SỬA C
 Trả lời CHỈ MỘT khối code trong MỘT fence code duy nhất (không giải thích gì thêm).`;
 }
 
-function promptVietFinding(ungVien: UngVien[], t: TargetInfo): string {
+function xaySeverity(review: ReviewCfg | null): string {
+  const m = review?.severity_map;
+  if (m?.high || m?.medium || m?.low) {
+    return `"high" = ${m.high ?? 'hành vi trái điều spec khai PHẢI/KHÔNG ĐƯỢC'}; "medium" = ${m.medium ?? 'lệch nhẹ ngoài nhóm high'}; "low" = ${m.low ?? 'lỗi khách quan nhỏ không đổi hành vi'}.`;
+  }
+  // mặc định: vế generic đứng ĐẦU (mọi domain), các ví dụ nghiệp-vụ-giao-dịch đứng sau như minh hoạ
+  return `"high" = hành vi trái điều spec khai PHẢI/KHÔNG ĐƯỢC — điển hình: sai phân quyền, sai số liệu giao dịch/tiền, mất dữ liệu, lỗi kỹ thuật 5xx thay vì lỗi nghiệp vụ 4xx; "medium" = lệch nhẹ không phá luật PHẢI (thông báo sai, chặn oan ca phụ, thiếu chặn phụ); "low" = lỗi khách quan nhỏ không đổi hành vi.`;
+}
+
+function promptVietFinding(ungVien: UngVien[], t: TargetInfo, review: ReviewCfg | null): string {
   const duLieu = ungVien.map((u) => ({
     ma: u.ma,
     nguon: u.nguon === 'thu_vien' ? 'probe THƯ VIỆN (đã chứng minh khớp contract ở lượt trước)' : 'probe mới sinh',
@@ -145,7 +198,7 @@ function promptVietFinding(ungVien: UngVien[], t: TargetInfo): string {
 2. Với ứng viên \`nghi_van\` (fail cả hai nhánh nhưng KHÁC nguyên nhân): quyết giữ/bỏ — GIỮ chỉ khi nhánh gốc fail vì tính năng chưa tồn tại (404 route, trường chưa có) còn nhánh PR fail vì sai nghiệp vụ; nếu giữ thì viết finding, nếu bỏ ghi lý do vào ghi_chu.
 
 # MỨC (severity)
-"high" = sai phân quyền / sai tiền / mất dữ liệu / lỗi 5xx thay vì 4xx nghiệp vụ / hành vi trái điều spec khai PHẢI; "medium" = lệch nhẹ không đụng tiền-quyền (thông báo sai, chặn oan ca phụ, thiếu chặn phụ); "low" = lỗi khách quan nhỏ không đổi hành vi.
+${xaySeverity(review)}
 
 # ỨNG VIÊN
 ${JSON.stringify(duLieu, null, 2)}
@@ -176,11 +229,13 @@ export async function chaySkillCode(
   const slug = slugRepo(repo);
   const thuVien = docThuVien(slug);
   const runner = docRunnerCfg(repo);
+  const review = docReviewCfg(repo);
+  if (review) phat({ type: 'log', msg: `Tri thức nghiệp vụ per-repo từ checkmate.yml: ${review.khuon_loi?.length ?? 0} khuôn lỗi${review.severity_map ? ' + thang severity riêng' : ''}` });
   const fileProbeMoi = runner ? (runner.probe_file ?? `checker_probe${runner.probe_ext}`) : FILE_PROBE_MOI;
   if (runner) phat({ type: 'log', msg: `Runner cấu hình từ checkmate.yml: ${runner.framework} · lệnh test của repo · hợp đồng JUnit XML` });
 
   phat({ type: 'stage', stage: 3, ten: 'Sinh probe đối kháng' });
-  const keHoach = (await goiJson<{ probes: KeHoachProbe[] }>(model, promptPhanTich(t))).probes.slice(0, MAX_PROBE);
+  const keHoach = (await goiJson<{ probes: KeHoachProbe[] }>(model, promptPhanTich(t, review))).probes.slice(0, MAX_PROBE);
   phat({ type: 'log', msg: `${keHoach.length} probe mới: ${keHoach.map((p) => `${p.id} (${p.spec_rule})`).join(' · ')}` });
   if (thuVien.length > 0) {
     phat({ type: 'log', msg: `+ ${thuVien.reduce((s, f) => s + f.plan.length, 0)} probe THƯ VIỆN từ ${thuVien.length} lượt trước (regression, không tốn model)` });
@@ -190,26 +245,59 @@ export async function chaySkillCode(
 
   phat({ type: 'stage', stage: 4, ten: 'Chạy probe trong sandbox — nhánh PR và nhánh gốc đối chứng + cổng sanity' });
 
-  const chayCaHaiNhanh = (codeMoi: string): { branchKq: KetQuaProbe[]; baseKq: KetQuaProbe[]; loiThu?: string } => {
-    const chay = (sha: string): { probes: KetQuaProbe[]; ok: boolean; loiThu: string } => {
+  const chayCaHaiNhanh = (codeMoi: string): { branchKq: KetQuaProbe[]; baseKq: KetQuaProbe[] | undefined; loiThu?: string; treoBranch?: boolean } => {
+    const chay = (sha: string): { probes: KetQuaProbe[]; ok: boolean; loiThu: string; treo?: boolean } => {
       const sb = new Sandbox(repo, sha);
       try {
-        const files = [sb.ghiProbe(codeMoi, fileProbeMoi), ...thuVien.map((f) => sb.ghiProbe(f.code, f.ten))];
+        const files = [sb.ghiProbe(codeMoi, fileProbeMoi, runner?.probe_dir ?? 'test'), ...thuVien.map((f) => sb.ghiProbe(f.code, f.ten, runner?.probe_dir ?? 'test'))];
         const kq = runner ? sb.chayTheoRunner(files, runner, parseJUnit) : sb.chayVitest(files);
-        return { probes: kq.probes, ok: kq.ok, loiThu: kq.loiThu };
+        return { probes: kq.probes, ok: kq.ok, loiThu: kq.loiThu, treo: kq.treo };
       } finally {
         sb.huy();
       }
     };
     const br = chay(t.branchSha);
-    if (!br.ok) return { branchKq: [], baseKq: [], loiThu: br.loiThu };
-    return { branchKq: br.probes, baseKq: chay(t.baseSha).probes, loiThu: undefined };
+    if (br.treo) return { branchKq: [], baseKq: undefined, treoBranch: true }; // C7: PR làm treo test — finding, không regen
+    if (!br.ok) return { branchKq: [], baseKq: undefined, loiThu: br.loiThu };
+    const bs = chay(t.baseSha);
+    // C1: nhánh gốc không chạy được (kể cả treo) → KHÔNG có đối chứng — baseKq=undefined, mọi fail thành nghi_van
+    if (!bs.ok) {
+      phat({ type: 'log', msg: `Cảnh báo: nhánh gốc KHÔNG chạy được probe (${(bs.loiThu || 'không rõ').slice(0, 160)}) — không có đối chứng, mọi probe fail sẽ là nghi_van thay vì hồi quy` });
+      return { branchKq: br.probes, baseKq: undefined };
+    }
+    return { branchKq: br.probes, baseKq: bs.probes };
   };
+
+  // C7: finding cứng khi PR làm treo bộ test — máy tự viết, không cần model
+  const findingTreo = (): Finding => ({
+    id: 'F1',
+    skill: 'code',
+    severity: 'high',
+    title_vi: 'PR làm treo bộ test — lệnh test không kết thúc trong thời hạn',
+    what_vi: `Bộ probe chạy trên nhánh PR không kết thúc trong thời hạn (timeout), trong khi hạ tầng test của repo bình thường. Nhiều khả năng PR đưa vào vòng lặp vô hạn, deadlock hoặc I/O treo.`,
+    consequence_vi: 'Code này lên môi trường thật có thể làm treo tiến trình phục vụ — phải chặn cho tới khi tác giả chứng minh nguyên nhân.',
+    evidence: {
+      type: 'test_run',
+      probe_name: 'toàn bộ phiên chạy probe trên nhánh PR',
+      probe_code: '',
+      command: `chạy bộ probe (nhánh ${branch} @ ${t.branchSha.slice(0, 7)})`,
+      expected: 'bộ test kết thúc trong thời hạn như trên nhánh gốc',
+      actual: 'TIMEOUT — lệnh test bị cắt vì không kết thúc',
+      exit_code: 1,
+    },
+  });
 
   // gom ứng viên + phân loại máy; retry sinh lại 1 lần nếu file mới lỗi thu thập HOẶC >50% probe mới hỏng
   let ungVienTatCa: UngVien[] = [];
+  const thongKe = { ke_hoach: keHoach.length, ghi_nhan: 0, pass: 0, hoi_quy: 0, hong: 0, nghi_van: 0, cai_thien: 0, bo_qua: 0, that_lac: [] as string[] };
   for (let lan = 1; lan <= 2; lan++) {
-    const { branchKq, baseKq, loiThu } = chayCaHaiNhanh(code);
+    const { branchKq, baseKq, loiThu, treoBranch } = chayCaHaiNhanh(code);
+    if (treoBranch) {
+      const f = findingTreo();
+      phat({ type: 'log', msg: 'C7: nhánh PR làm TREO lệnh test — kết luận thẳng finding high, không sinh lại probe' });
+      phat({ type: 'finding', finding: f });
+      return { findings: [f], target: t, soProbe: 0, probeStats: { ...thongKe, that_lac: keHoach.map((p) => p.id) } };
+    }
     if (loiThu !== undefined) {
       if (lan === 2) throw new Error(`Probe không thu thập được sau 2 lần sinh: ${loiThu}`);
       phat({ type: 'log', msg: 'File probe lỗi thu thập — sinh lại lần 2 kèm thông báo lỗi' });
@@ -222,11 +310,11 @@ export async function chaySkillCode(
       const t = title.startsWith('test_') ? title.slice(5) : title;
       return t.startsWith(id);
     };
-    const tomTatKq = (kq: KetQuaProbe[]) => kq.map((p) => `${p.title.split(':')[0].slice(0, 24)}=${p.status[0]}`).join(' ') || '(rỗng)';
+    const tomTatKq = (kq: KetQuaProbe[] | undefined) => (kq ?? []).map((p) => `${p.title.split(':')[0].slice(0, 24)}=${p.status[0]}`).join(' ') || '(rỗng)';
     phat({ type: 'log', msg: `Nhánh PR:  ${tomTatKq(branchKq)}` });
     phat({ type: 'log', msg: `Nhánh gốc: ${tomTatKq(baseKq)}` });
-    const timKq = (kq: KetQuaProbe[], file: string, id: string) =>
-      kq.find((r) => r.file === file && khopId(r.title, id));
+    const timKq = (kq: KetQuaProbe[] | undefined, file: string, id: string) =>
+      kq?.find((r) => r.file === file && khopId(r.title, id));
 
     const bo: Array<{ file: string; nguon: 'moi' | 'thu_vien'; plan: KeHoachProbe[] }> = [
       { file: fileProbeMoi, nguon: 'moi', plan: keHoach },
@@ -246,10 +334,20 @@ export async function chaySkillCode(
     const tomTat = (loai: TrangThaiProbe) => ungVienTatCa.filter((u) => u.trangThai === loai);
     phat({
       type: 'log',
-      msg: `Phân loại máy: ${tomTat('pass').length} pass · ${tomTat('hoi_quy').length} hồi quy · ${tomTat('hong').length} hỏng · ${tomTat('nghi_van').length} nghi vấn · ${tomTat('cai_thien').length} cải thiện`,
+      msg: `Phân loại máy: ${tomTat('pass').length} pass · ${tomTat('hoi_quy').length} hồi quy · ${tomTat('hong').length} hỏng · ${tomTat('nghi_van').length} nghi vấn · ${tomTat('cai_thien').length} cải thiện · ${tomTat('bo_qua').length} bỏ qua (skip)`,
     });
+    // C5: thống kê độ phủ đưa vào verdict + truy vết probe thất lạc
+    thongKe.ghi_nhan = ungVienTatCa.length;
+    thongKe.pass = tomTat('pass').length; thongKe.hoi_quy = tomTat('hoi_quy').length; thongKe.hong = tomTat('hong').length;
+    thongKe.nghi_van = tomTat('nghi_van').length; thongKe.cai_thien = tomTat('cai_thien').length; thongKe.bo_qua = tomTat('bo_qua').length;
+    const idGhiNhan = new Set(ungVienTatCa.filter((u) => u.nguon === 'moi').map((u) => u.probe.id));
+    thongKe.that_lac = keHoach.filter((p) => !idGhiNhan.has(p.id)).map((p) => p.id);
+    if (thongKe.that_lac.length > 0) {
+      phat({ type: 'log', msg: `C5: probe trong kế hoạch nhưng KHÔNG thấy khi chạy (thất lạc): ${thongKe.that_lac.join(', ')}` });
+    }
 
-    const soMoiGhiNhan = ungVienTatCa.filter((u) => u.nguon === 'moi').length;
+    // C2: probe bị skip không được tính là "đã ghi nhận" — it.skip toàn bộ = PASS-rỗng
+    const soMoiGhiNhan = ungVienTatCa.filter((u) => u.nguon === 'moi' && u.trangThai !== 'bo_qua').length;
     if (soMoiGhiNhan === 0) {
       const mau = branchKq.slice(0, 4).map((p) => p.title).join(' · ') || 'không có testcase nào';
       if (lan === 2) throw new Error(`Không ghi nhận được probe mới nào sau 2 lần sinh (tên test không khớp id hoặc lỗi thu thập). Testcase thấy được: ${mau}`);
@@ -281,14 +379,14 @@ export async function chaySkillCode(
     const kl = await goiJson<{
       findings: Array<{ ma: string; severity: Severity; title_vi: string; what_vi: string; consequence_vi: string }>;
       ghi_chu?: string;
-    }>(model, promptVietFinding(duocPhepFinding, t));
+    }>(model, promptVietFinding(duocPhepFinding, t, review));
     if (kl.ghi_chu) phat({ type: 'log', msg: `Ghi chú kết luận: ${kl.ghi_chu}` });
 
     const lamEvidence = (u: UngVien) => ({
       type: 'test_run' as const,
       probe_name: `${u.br.title}${u.nguon === 'thu_vien' ? ` [thư viện: ${u.file}]` : ''}`,
       probe_code: trichCode(u.nguon === 'moi' ? code : (thuVien.find((f) => f.ten === u.file)?.code ?? ''), u.probe.id).slice(0, 2000),
-      command: `vitest run test/${u.file} (nhánh ${branch} @ ${t.branchSha.slice(0, 7)})`,
+      command: `${runner ? 'lệnh test của repo (checkmate.yml)' : `vitest run test/${u.file}`} (nhánh ${branch} @ ${t.branchSha.slice(0, 7)})`,
       expected: u.probe.ky_vong,
       actual: u.br.message.slice(0, 1200),
       exit_code: 1,
@@ -301,10 +399,15 @@ export async function chaySkillCode(
         phat({ type: 'log', msg: `Lưới máy: vứt finding trỏ vào ứng viên không tồn tại/không được phép (${f.ma})` });
         continue;
       }
+      let sev = chuanMuc(f.severity);
+      if (u.trangThai === 'hoi_quy' && sev !== 'high') {
+        phat({ type: 'log', msg: `C3: model gán ${sev} cho hồi quy máy-xác-nhận ${u.ma} (${u.probe.id}) — máy ép về high (sàn cứng cho regression)` });
+        sev = 'high';
+      }
       findings.push({
         id: `F${findings.length + 1}`,
         skill: 'code',
-        severity: chuanMuc(f.severity),
+        severity: sev,
         title_vi: f.title_vi,
         what_vi: f.what_vi,
         consequence_vi: f.consequence_vi,
@@ -350,7 +453,7 @@ export async function chaySkillCode(
       // verify bản cắt trên nhánh gốc — deterministic, không tốn model
       const sb = new Sandbox(repo, t.baseSha);
       try {
-        const filesV = [sb.ghiProbe(codeNhan, fileProbeMoi)];
+        const filesV = [sb.ghiProbe(codeNhan, fileProbeMoi, runner?.probe_dir ?? 'test')];
         const kq = runner ? sb.chayTheoRunner(filesV, runner, parseJUnit) : sb.chayVitest(filesV);
         sach = kq.ok && kq.probes.length === planNhan.length && kq.probes.every((p) => p.status === 'passed');
       } finally {
@@ -373,5 +476,5 @@ export async function chaySkillCode(
   }
 
   for (const f of findings) phat({ type: 'finding', finding: f });
-  return { findings, target: t, soProbe: ungVienTatCa.length };
+  return { findings, target: t, soProbe: ungVienTatCa.length, probeStats: thongKe };
 }

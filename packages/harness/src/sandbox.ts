@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, symlinkSync, writeFileSync, readFileSync, rmSync, rmdirSync, existsSync, unlinkSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync, readFileSync, rmSync, rmdirSync, existsSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -15,6 +15,30 @@ export interface KetQuaVitest {
   tongTest: number;
   probes: KetQuaProbe[];
   loiThu: string; // lỗi thu thập/biên dịch nếu có
+  treo?: boolean; // C7: lệnh test vượt timeout (PR có thể chứa vòng lặp vô hạn)
+}
+
+// S2: code PR chạy trong sandbox KHÔNG được thấy secrets của checker (API key, token GitHub).
+// Allowlist tối thiểu cho Windows + Node toolchain; thiếu biến nào thì test hợp lệ sẽ lộ ra ngay khi chạy thử.
+const ENV_CHO_PHEP = [
+  'PATH', 'PATHEXT', 'COMSPEC', 'SYSTEMROOT', 'SYSTEMDRIVE', 'WINDIR', 'OS',
+  'TEMP', 'TMP', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH', 'HOME',
+  'APPDATA', 'LOCALAPPDATA', 'PROGRAMDATA', 'PROGRAMFILES', 'PROGRAMFILES(X86)', 'PROGRAMW6432',
+  'NUMBER_OF_PROCESSORS', 'PROCESSOR_ARCHITECTURE', 'USERNAME', 'COMPUTERNAME', 'LANG', 'LC_ALL',
+  'NODE', 'NODE_PATH', 'NPM_CONFIG_CACHE', 'PYTHONIOENCODING', 'VIRTUAL_ENV', 'JAVA_HOME', 'MAVEN_HOME', 'GRADLE_HOME',
+];
+function envSandbox(): NodeJS.ProcessEnv {
+  const ra: NodeJS.ProcessEnv = { CI: 'true' };
+  for (const k of Object.keys(process.env)) {
+    if (ENV_CHO_PHEP.includes(k.toUpperCase())) ra[k] = process.env[k];
+  }
+  return ra;
+}
+
+// C7: spawnSync timeout trên Windows chỉ giết cmd vỏ — dọn cây tiến trình con best-effort
+function donCayTienTrinh(pid: number | undefined): void {
+  if (!pid || process.platform !== 'win32') return;
+  try { spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], { encoding: 'utf8', timeout: 15_000 }); } catch { /* best-effort */ }
 }
 
 function git(repo: string, args: string[]): string {
@@ -35,8 +59,9 @@ export class Sandbox {
     if (existsSync(nm)) symlinkSync(nm, join(this.dir, 'node_modules'), 'junction');
   }
 
-  ghiProbe(code: string, ten = 'checker.probe.test.ts'): string {
-    const rel = join('test', ten);
+  ghiProbe(code: string, ten = 'checker.probe.test.ts', thuMuc = 'test'): string {
+    const rel = join(thuMuc, ten);
+    mkdirSync(join(this.dir, thuMuc), { recursive: true });
     writeFileSync(join(this.dir, rel), code, 'utf8');
     return rel;
   }
@@ -44,13 +69,17 @@ export class Sandbox {
   chayVitest(testFilesRel: string | string[]): KetQuaVitest {
     const files = (Array.isArray(testFilesRel) ? testFilesRel : [testFilesRel]).map((f) => f.replace(/\\/g, '/'));
     const outFile = join(this.dir, 'vitest-out.json');
-    const kq = spawnSync('npx', ['vitest', 'run', ...files, '--reporter=json', `--outputFile=${outFile}`], {
+    const kq = spawnSync('npx', ['vitest', 'run', ...files, '--reporter=json', `--outputFile="${outFile}"`], {
       cwd: this.dir,
       shell: true,
       encoding: 'utf8',
       timeout: 300_000,
-      env: { ...process.env, CI: 'true' },
+      env: envSandbox(),
     });
+    if ((kq.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT' || kq.signal) {
+      donCayTienTrinh(kq.pid);
+      return { ok: false, tongTest: 0, probes: [], loiThu: `TIMEOUT: lệnh test không kết thúc trong 300s — PR có thể chứa vòng lặp vô hạn/treo I/O`, treo: true };
+    }
     if (!existsSync(outFile)) {
       return { ok: false, tongTest: 0, probes: [], loiThu: (kq.stderr || kq.stdout || 'vitest không ra output').slice(0, 2000) };
     }
@@ -87,14 +116,20 @@ export class Sandbox {
     for (const rel of testFilesRel) {
       const relSach = rel.replace(/\\/g, '/');
       const out = join(this.dir, `junit-${probes.length}-${Date.now()}.xml`);
-      const lenh = cfg.test_cmd.replaceAll('{files}', relSach).replaceAll('{out}', out);
+      // L7: path chứa dấu cách (username Windows) phải được quote khi thế vào template shell
+      const quote = (x: string) => (/\s/.test(x) ? `"${x}"` : x);
+      const lenh = cfg.test_cmd.replaceAll('{files}', quote(relSach)).replaceAll('{out}', quote(out));
       const kq = spawnSync(lenh, {
         cwd: this.dir,
         shell: true,
         encoding: 'utf8',
         timeout: cfg.timeout_s * 1000,
-        env: { ...process.env, CI: 'true' },
+        env: envSandbox(),
       });
+      if ((kq.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT' || kq.signal) {
+        donCayTienTrinh(kq.pid);
+        return { ok: false, tongTest: tong, probes, loiThu: `TIMEOUT: lệnh test cho ${relSach} không kết thúc trong ${cfg.timeout_s}s`, treo: true };
+      }
       if (!existsSync(out)) {
         return {
           ok: false,

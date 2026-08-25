@@ -41,6 +41,10 @@ function phat(e: RunEvent): void {
     console.log(` VERDICT: ${v.result}  ·  ${v.artifact_ref.name} @ ${v.artifact_ref.sha_or_hash.slice(0, 7)}`);
     const dem = (m: string) => v.findings.filter((f) => f.severity === m).length;
     console.log(` ${v.findings.length} finding (${dem('high')} high · ${dem('medium')} medium · ${dem('low')} low) · model ${v.model}`);
+    if (v.probe_stats) {
+      const ps = v.probe_stats;
+      console.log(` Độ phủ: ${ps.ghi_nhan} probe ghi nhận / ${ps.ke_hoach} kế hoạch · ${ps.pass} pass · ${ps.hoi_quy} hồi quy · ${ps.hong} hỏng · ${ps.nghi_van} nghi vấn${ps.bo_qua ? ` · ${ps.bo_qua} skip` : ''}${ps.that_lac.length ? ` · thất lạc: ${ps.that_lac.join(',')}` : ''}`);
+    }
     console.log(`════════════════════════════════════════`);
   } else if (e.type === 'error') console.error(`✗ LỖI: ${e.msg}`);
 }
@@ -91,9 +95,11 @@ async function main(): Promise<void> {
   try {
     let findings: Finding[];
     let artifactRef: ArtifactRef;
+    let probeStats: Verdict['probe_stats'];
     if (skill === 'code') {
       const kq = await chaySkillCode(model, repo!, branch!, base, ghiPhat);
       findings = kq.findings;
+      probeStats = kq.probeStats;
       artifactRef = { type: 'pr', name: branch!, sha_or_hash: kq.target.branchSha };
     } else if (repo && branch) {
       // docs-as-code: đọc file ở đúng bản của nhánh/PR qua worktree
@@ -119,6 +125,7 @@ async function main(): Promise<void> {
       artifact_ref: artifactRef,
       result: findings.some((f) => chuanMuc(f.severity) === 'high') ? 'FAIL' : 'PASS',
       findings,
+      probe_stats: probeStats,
       model: model.ten,
       mode: 'live',
       started_at: batDau,
