@@ -4,3 +4,4 @@ runs/
 web-runs/
 config.json
 probes-lib/
+*.tmp.ts
