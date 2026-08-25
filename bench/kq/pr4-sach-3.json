@@ -1,0 +1,124 @@
+{
+  "verdict": {
+    "run_id": "run-2026-08-25T19-02-43-100Z-feature_loc-trang-thai-v2",
+    "skill": "code",
+    "artifact_ref": {
+      "type": "pr",
+      "name": "feature/loc-trang-thai-v2",
+      "sha_or_hash": "66abacf8690e5040747d9b257fbbff6b1050c8df"
+    },
+    "result": "PASS",
+    "findings": [],
+    "probe_stats": {
+      "ke_hoach": 6,
+      "ghi_nhan": 75,
+      "pass": 73,
+      "hoi_quy": 0,
+      "hong": 1,
+      "nghi_van": 0,
+      "cai_thien": 1,
+      "bo_qua": 0,
+      "that_lac": []
+    },
+    "model": "claude-cli/claude-sonnet-5",
+    "mode": "live",
+    "started_at": "2026-08-25T19:02:43.101Z",
+    "finished_at": "2026-08-25T19:06:11.817Z"
+  },
+  "events": [
+    {
+      "type": "stage",
+      "stage": 1,
+      "ten": "Nhận artifact — đọc diff PR"
+    },
+    {
+      "type": "log",
+      "msg": "PR feature/loc-trang-thai-v2 @ 66abacf · đối chứng main @ e278bbe · diff 3501 ký tự"
+    },
+    {
+      "type": "stage",
+      "stage": 2,
+      "ten": "Đọc spec — nạp luật hành vi"
+    },
+    {
+      "type": "log",
+      "msg": "2 file spec: specs/spec-giai-ngan.md, specs/spec-phe-duyet.md"
+    },
+    {
+      "type": "stage",
+      "stage": 3,
+      "ten": "Sinh probe đối kháng"
+    },
+    {
+      "type": "log",
+      "msg": "6 probe mới: P1 (R1) · P2 (R1) · P3 (R2) · P4 (R6) · P5 (R7) · P6 (R4)"
+    },
+    {
+      "type": "log",
+      "msg": "+ 70 probe THƯ VIỆN từ 12 lượt trước (regression, không tốn model)"
+    },
+    {
+      "type": "stage",
+      "stage": 4,
+      "ten": "Chạy probe trong sandbox — nhánh PR và nhánh gốc đối chứng + cổng sanity"
+    },
+    {
+      "type": "log",
+      "msg": "Nhánh PR:  P1=p P2=f P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p"
+    },
+    {
+      "type": "log",
+      "msg": "Nhánh gốc: P1=p P2=f P3=p P4=p P5=p P6=f P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p"
+    },
+    {
+      "type": "log",
+      "msg": "Phân loại máy: 73 pass · 0 hồi quy · 1 hỏng · 0 nghi vấn · 1 cải thiện · 0 bỏ qua (skip)"
+    },
+    {
+      "type": "log",
+      "msg": "Sanity: loại 1 probe hỏng — fail cùng nguyên nhân trên CẢ HAI nhánh (P2): probe sai contract hoặc lỗi có sẵn, không phải lỗi của PR"
+    },
+    {
+      "type": "stage",
+      "stage": 5,
+      "ten": "Kết luận — máy làm chủ phân loại, model viết finding"
+    },
+    {
+      "type": "log",
+      "msg": "Thư viện: nhận 4 probe khớp contract (lib_66abacf_13.probe.test.ts, đã cắt 2 probe fail-gốc) — thành regression cho các lượt sau"
+    },
+    {
+      "type": "log",
+      "msg": "Chi phí lượt chấm: 2 call model · ~6k token vào + ~0k token ra (ước từ ký tự)"
+    },
+    {
+      "type": "verdict",
+      "verdict": {
+        "run_id": "run-2026-08-25T19-02-43-100Z-feature_loc-trang-thai-v2",
+        "skill": "code",
+        "artifact_ref": {
+          "type": "pr",
+          "name": "feature/loc-trang-thai-v2",
+          "sha_or_hash": "66abacf8690e5040747d9b257fbbff6b1050c8df"
+        },
+        "result": "PASS",
+        "findings": [],
+        "probe_stats": {
+          "ke_hoach": 6,
+          "ghi_nhan": 75,
+          "pass": 73,
+          "hoi_quy": 0,
+          "hong": 1,
+          "nghi_van": 0,
+          "cai_thien": 1,
+          "bo_qua": 0,
+          "that_lac": []
+        },
+        "model": "claude-cli/claude-sonnet-5",
+        "mode": "live",
+        "started_at": "2026-08-25T19:02:43.101Z",
+        "finished_at": "2026-08-25T19:06:11.817Z"
+      }
+    }
+  ]
+}

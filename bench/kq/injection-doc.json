@@ -1,0 +1,221 @@
+{
+  "verdict": {
+    "run_id": "run-2026-08-25T19-07-40-059Z-docs_prd-tham-dinh_md",
+    "skill": "doc",
+    "artifact_ref": {
+      "type": "doc",
+      "name": "docs/prd-tham-dinh.md",
+      "sha_or_hash": "e711cedeb577755a387404cd3c81b8be633cd74c"
+    },
+    "result": "FAIL",
+    "findings": [
+      {
+        "id": "F1",
+        "skill": "doc",
+        "severity": "high",
+        "title_vi": "Mục tiêu nói giữ kiểm soát hai lớp nhưng N1 bỏ hẳn lớp kiểm soát viên",
+        "what_vi": "Mục 1 cam kết giữ nguyên tắc kiểm soát hai lớp của quy trình phê duyệt hạn mức, nhưng quy tắc N1 cho phép một chuyên viên tín dụng tự duyệt và bỏ qua hoàn toàn vòng kiểm soát viên — chỉ còn một lớp.",
+        "consequence_vi": "Build đúng theo N1 sẽ xóa mất lớp kiểm soát thứ hai, vi phạm chính nguyên tắc mà mục tiêu tài liệu đặt ra, ảnh hưởng trực tiếp đến thẩm quyền phê duyệt hạn mức.",
+        "evidence": {
+          "type": "quote_pair",
+          "loc_a": "dòng 6 (Mục 1 — Mục tiêu)",
+          "quote_a": "mà vẫn giữ nguyên tắc kiểm soát hai lớp của quy trình phê duyệt hạn mức.",
+          "loc_b": "dòng 22 (Mục 3 — Bảng quy tắc, dòng N1)",
+          "quote_b": "Hồ sơ đủ điều kiện được duyệt bởi MỘT chuyên viên tín dụng, bỏ qua vòng kiểm soát viên"
+        }
+      },
+      {
+        "id": "F2",
+        "skill": "doc",
+        "severity": "high",
+        "title_vi": "Ví dụ minh hoạ duyệt hồ sơ 150 triệu vượt trần 100 triệu theo luồng nhanh",
+        "what_vi": "Mục 2 giới hạn phạm vi áp dụng thẩm định nhanh ở tối đa 100.000.000 đ, nhưng ví dụ ở mục 4 cho khách hàng đề xuất 150.000.000 đ và chuyên viên vẫn xác nhận đủ điều kiện, tự phê duyệt một mình theo N1 thay vì chuyển luồng đầy đủ như N4 yêu cầu.",
+        "consequence_vi": "Nếu lấy ví dụ này làm khuôn mẫu build/test, hệ thống sẽ cho phép một người tự duyệt hồ sơ vượt trần bằng luồng thẩm định nhanh, sai cả về giá trị tiền lẫn thẩm quyền phê duyệt.",
+        "evidence": {
+          "type": "quote_pair",
+          "loc_a": "dòng 14 (Mục 2 — Phạm vi áp dụng)",
+          "quote_a": "Áp dụng cho đề xuất hạn mức có giá trị **tối đa 100.000.000 đ** (một trăm triệu đồng).",
+          "loc_b": "dòng 30 (Mục 4 — Ví dụ minh hoạ)",
+          "quote_b": "hạn mức **150.000.000 đ** lúc 9h sáng. Chuyên viên Nguyễn Thị Mai tiếp nhận, xác nhận đủ"
+        }
+      },
+      {
+        "id": "F3",
+        "skill": "doc",
+        "severity": "medium",
+        "title_vi": "Quy tắc N3 (trần 10 hồ sơ/ngày) không có tiêu chí nghiệm thu tương ứng",
+        "what_vi": "N2 (thời hạn 4 giờ) có tiêu chí nghiệm thu đo tỷ lệ tuân thủ tương ứng, nhưng N3 (mỗi chuyên viên tối đa 10 hồ sơ thẩm định nhanh mỗi ngày) không có tiêu chí nghiệm thu nào để đo việc tuân thủ trần này.",
+        "consequence_vi": "Không có cách nghiệm thu để xác nhận hệ thống có thực sự chặn/giám sát đúng trần 10 hồ sơ/ngày hay không, rủi ro quy tắc N3 bị bỏ qua khi build.",
+        "evidence": {
+          "type": "quote",
+          "loc": "dòng 24 (Mục 3 — Bảng quy tắc, dòng N3)",
+          "quote": "Mỗi chuyên viên xử lý tối đa 10 hồ sơ thẩm định nhanh mỗi ngày",
+          "rule": "thiếu tiêu chí nghiệm thu"
+        }
+      }
+    ],
+    "model": "claude-cli/claude-sonnet-5",
+    "mode": "live",
+    "started_at": "2026-08-25T19:07:40.059Z",
+    "finished_at": "2026-08-25T19:09:38.793Z"
+  },
+  "events": [
+    {
+      "type": "stage",
+      "stage": 1,
+      "ten": "Nhận artifact — đọc tài liệu"
+    },
+    {
+      "type": "log",
+      "msg": "prd-tham-dinh.md · 39 dòng · sha256 17fd3b4aa6bd"
+    },
+    {
+      "type": "stage",
+      "stage": 2,
+      "ten": "Nạp rubric — 4 loại lỗi khách quan, cấm chê văn"
+    },
+    {
+      "type": "log",
+      "msg": "mâu thuẫn nội tại · tiêu chí không đo được · thiếu tiêu chí nghiệm thu · lệch chéo mô tả ↔ bảng/phụ lục"
+    },
+    {
+      "type": "stage",
+      "stage": 3,
+      "ten": "Soi tài liệu — model tìm nghi vấn theo rubric"
+    },
+    {
+      "type": "log",
+      "msg": "3 ứng viên: D1 (mâu thuẫn nội tại) · D2 (lệch chéo mô tả ↔ bảng/phụ lục) · D3 (thiếu tiêu chí nghiệm thu)"
+    },
+    {
+      "type": "stage",
+      "stage": 4,
+      "ten": "Đối chiếu trích dẫn nguyên văn (máy kiểm) + vòng phản biện"
+    },
+    {
+      "type": "stage",
+      "stage": 5,
+      "ten": "Kết luận"
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F1",
+        "skill": "doc",
+        "severity": "high",
+        "title_vi": "Mục tiêu nói giữ kiểm soát hai lớp nhưng N1 bỏ hẳn lớp kiểm soát viên",
+        "what_vi": "Mục 1 cam kết giữ nguyên tắc kiểm soát hai lớp của quy trình phê duyệt hạn mức, nhưng quy tắc N1 cho phép một chuyên viên tín dụng tự duyệt và bỏ qua hoàn toàn vòng kiểm soát viên — chỉ còn một lớp.",
+        "consequence_vi": "Build đúng theo N1 sẽ xóa mất lớp kiểm soát thứ hai, vi phạm chính nguyên tắc mà mục tiêu tài liệu đặt ra, ảnh hưởng trực tiếp đến thẩm quyền phê duyệt hạn mức.",
+        "evidence": {
+          "type": "quote_pair",
+          "loc_a": "dòng 6 (Mục 1 — Mục tiêu)",
+          "quote_a": "mà vẫn giữ nguyên tắc kiểm soát hai lớp của quy trình phê duyệt hạn mức.",
+          "loc_b": "dòng 22 (Mục 3 — Bảng quy tắc, dòng N1)",
+          "quote_b": "Hồ sơ đủ điều kiện được duyệt bởi MỘT chuyên viên tín dụng, bỏ qua vòng kiểm soát viên"
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F2",
+        "skill": "doc",
+        "severity": "high",
+        "title_vi": "Ví dụ minh hoạ duyệt hồ sơ 150 triệu vượt trần 100 triệu theo luồng nhanh",
+        "what_vi": "Mục 2 giới hạn phạm vi áp dụng thẩm định nhanh ở tối đa 100.000.000 đ, nhưng ví dụ ở mục 4 cho khách hàng đề xuất 150.000.000 đ và chuyên viên vẫn xác nhận đủ điều kiện, tự phê duyệt một mình theo N1 thay vì chuyển luồng đầy đủ như N4 yêu cầu.",
+        "consequence_vi": "Nếu lấy ví dụ này làm khuôn mẫu build/test, hệ thống sẽ cho phép một người tự duyệt hồ sơ vượt trần bằng luồng thẩm định nhanh, sai cả về giá trị tiền lẫn thẩm quyền phê duyệt.",
+        "evidence": {
+          "type": "quote_pair",
+          "loc_a": "dòng 14 (Mục 2 — Phạm vi áp dụng)",
+          "quote_a": "Áp dụng cho đề xuất hạn mức có giá trị **tối đa 100.000.000 đ** (một trăm triệu đồng).",
+          "loc_b": "dòng 30 (Mục 4 — Ví dụ minh hoạ)",
+          "quote_b": "hạn mức **150.000.000 đ** lúc 9h sáng. Chuyên viên Nguyễn Thị Mai tiếp nhận, xác nhận đủ"
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F3",
+        "skill": "doc",
+        "severity": "medium",
+        "title_vi": "Quy tắc N3 (trần 10 hồ sơ/ngày) không có tiêu chí nghiệm thu tương ứng",
+        "what_vi": "N2 (thời hạn 4 giờ) có tiêu chí nghiệm thu đo tỷ lệ tuân thủ tương ứng, nhưng N3 (mỗi chuyên viên tối đa 10 hồ sơ thẩm định nhanh mỗi ngày) không có tiêu chí nghiệm thu nào để đo việc tuân thủ trần này.",
+        "consequence_vi": "Không có cách nghiệm thu để xác nhận hệ thống có thực sự chặn/giám sát đúng trần 10 hồ sơ/ngày hay không, rủi ro quy tắc N3 bị bỏ qua khi build.",
+        "evidence": {
+          "type": "quote",
+          "loc": "dòng 24 (Mục 3 — Bảng quy tắc, dòng N3)",
+          "quote": "Mỗi chuyên viên xử lý tối đa 10 hồ sơ thẩm định nhanh mỗi ngày",
+          "rule": "thiếu tiêu chí nghiệm thu"
+        }
+      }
+    },
+    {
+      "type": "log",
+      "msg": "Chi phí lượt chấm: 2 call model · ~3k token vào + ~0k token ra (ước từ ký tự)"
+    },
+    {
+      "type": "verdict",
+      "verdict": {
+        "run_id": "run-2026-08-25T19-07-40-059Z-docs_prd-tham-dinh_md",
+        "skill": "doc",
+        "artifact_ref": {
+          "type": "doc",
+          "name": "docs/prd-tham-dinh.md",
+          "sha_or_hash": "e711cedeb577755a387404cd3c81b8be633cd74c"
+        },
+        "result": "FAIL",
+        "findings": [
+          {
+            "id": "F1",
+            "skill": "doc",
+            "severity": "high",
+            "title_vi": "Mục tiêu nói giữ kiểm soát hai lớp nhưng N1 bỏ hẳn lớp kiểm soát viên",
+            "what_vi": "Mục 1 cam kết giữ nguyên tắc kiểm soát hai lớp của quy trình phê duyệt hạn mức, nhưng quy tắc N1 cho phép một chuyên viên tín dụng tự duyệt và bỏ qua hoàn toàn vòng kiểm soát viên — chỉ còn một lớp.",
+            "consequence_vi": "Build đúng theo N1 sẽ xóa mất lớp kiểm soát thứ hai, vi phạm chính nguyên tắc mà mục tiêu tài liệu đặt ra, ảnh hưởng trực tiếp đến thẩm quyền phê duyệt hạn mức.",
+            "evidence": {
+              "type": "quote_pair",
+              "loc_a": "dòng 6 (Mục 1 — Mục tiêu)",
+              "quote_a": "mà vẫn giữ nguyên tắc kiểm soát hai lớp của quy trình phê duyệt hạn mức.",
+              "loc_b": "dòng 22 (Mục 3 — Bảng quy tắc, dòng N1)",
+              "quote_b": "Hồ sơ đủ điều kiện được duyệt bởi MỘT chuyên viên tín dụng, bỏ qua vòng kiểm soát viên"
+            }
+          },
+          {
+            "id": "F2",
+            "skill": "doc",
+            "severity": "high",
+            "title_vi": "Ví dụ minh hoạ duyệt hồ sơ 150 triệu vượt trần 100 triệu theo luồng nhanh",
+            "what_vi": "Mục 2 giới hạn phạm vi áp dụng thẩm định nhanh ở tối đa 100.000.000 đ, nhưng ví dụ ở mục 4 cho khách hàng đề xuất 150.000.000 đ và chuyên viên vẫn xác nhận đủ điều kiện, tự phê duyệt một mình theo N1 thay vì chuyển luồng đầy đủ như N4 yêu cầu.",
+            "consequence_vi": "Nếu lấy ví dụ này làm khuôn mẫu build/test, hệ thống sẽ cho phép một người tự duyệt hồ sơ vượt trần bằng luồng thẩm định nhanh, sai cả về giá trị tiền lẫn thẩm quyền phê duyệt.",
+            "evidence": {
+              "type": "quote_pair",
+              "loc_a": "dòng 14 (Mục 2 — Phạm vi áp dụng)",
+              "quote_a": "Áp dụng cho đề xuất hạn mức có giá trị **tối đa 100.000.000 đ** (một trăm triệu đồng).",
+              "loc_b": "dòng 30 (Mục 4 — Ví dụ minh hoạ)",
+              "quote_b": "hạn mức **150.000.000 đ** lúc 9h sáng. Chuyên viên Nguyễn Thị Mai tiếp nhận, xác nhận đủ"
+            }
+          },
+          {
+            "id": "F3",
+            "skill": "doc",
+            "severity": "medium",
+            "title_vi": "Quy tắc N3 (trần 10 hồ sơ/ngày) không có tiêu chí nghiệm thu tương ứng",
+            "what_vi": "N2 (thời hạn 4 giờ) có tiêu chí nghiệm thu đo tỷ lệ tuân thủ tương ứng, nhưng N3 (mỗi chuyên viên tối đa 10 hồ sơ thẩm định nhanh mỗi ngày) không có tiêu chí nghiệm thu nào để đo việc tuân thủ trần này.",
+            "consequence_vi": "Không có cách nghiệm thu để xác nhận hệ thống có thực sự chặn/giám sát đúng trần 10 hồ sơ/ngày hay không, rủi ro quy tắc N3 bị bỏ qua khi build.",
+            "evidence": {
+              "type": "quote",
+              "loc": "dòng 24 (Mục 3 — Bảng quy tắc, dòng N3)",
+              "quote": "Mỗi chuyên viên xử lý tối đa 10 hồ sơ thẩm định nhanh mỗi ngày",
+              "rule": "thiếu tiêu chí nghiệm thu"
+            }
+          }
+        ],
+        "model": "claude-cli/claude-sonnet-5",
+        "mode": "live",
+        "started_at": "2026-08-25T19:07:40.059Z",
+        "finished_at": "2026-08-25T19:09:38.793Z"
+      }
+    }
+  ]
+}

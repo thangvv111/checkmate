@@ -1,0 +1,342 @@
+{
+  "verdict": {
+    "run_id": "run-2026-08-25T18-14-30-078Z-feature_duyet-nhanh",
+    "skill": "code",
+    "artifact_ref": {
+      "type": "pr",
+      "name": "feature/duyet-nhanh",
+      "sha_or_hash": "b571b961d9925749fe8df2cc9576a453903eb34b"
+    },
+    "result": "FAIL",
+    "findings": [
+      {
+        "id": "F1",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Tự duyệt hồ sơ trong hạn mức vẫn được duyệt (bỏ qua R2)",
+        "what_vi": "Điều kiện duyệt dùng OR (so_tien <= han_muc || user !== nguoi_tao) thay vì AND: khi số tiền trong hạn mức, hệ thống bỏ qua hoàn toàn kiểm tra 'người duyệt khác người tạo', cho phép chuyên viên tự duyệt đề xuất 300.000.000đ của chính mình.",
+        "consequence_vi": "Phá vỡ nguyên tắc bắt buộc tách bạch người tạo và người duyệt (four-eyes) đối với mọi khoản trong hạn mức, một cá nhân có thể tự thông qua tín dụng mà không qua kiểm soát chéo.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P1: chuyên viên tự duyệt hồ sơ do chính mình tạo (trong hạn mức) phải bị chặn",
+          "probe_code": "it('P1: chuyên viên tự duyệt hồ sơ do chính mình tạo (trong hạn mức) phải bị chặn', async () => {\n    const dx = await taoDeXuat('HM-2026-8001', 300_000_000, 'lan');\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n\n    expect(res.statusCode).toBe(403);\n    expect(res.body).toContain('Người tạo đề xuất không được tự phê duyệt');\n  });",
+          "command": "vitest run test/checker.probe.test.ts (nhánh feature/duyet-nhanh @ b571b96)",
+          "expected": "403 kèm thông báo 'Người tạo đề xuất không được tự phê duyệt' (spec-phe-duyet R2, độc lập với R1). Code PR sẽ trả 200/da_duyet — lộ bug.",
+          "actual": "AssertionError: expected 200 to be 403 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-oZWTJN\\test\\checker.probe.test.ts:33:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F2",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Duyệt vượt hạn mức vai khi người duyệt khác người tạo (bỏ qua R1)",
+        "what_vi": "Cùng lỗi OR: khi người duyệt khác người tạo, vế 'user !== nguoi_tao' đã đúng nên hệ thống bỏ qua kiểm tra hạn mức, duyệt luôn cả khoản vượt hạn mức đúng 1 đồng (500.000.001đ so với trần 500.000.000đ).",
+        "consequence_vi": "Người duyệt có thể phê duyệt khoản tín dụng vượt thẩm quyền tài chính được cấp, mất kiểm soát rủi ro theo hạn mức vai trò.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P2: người khác duyệt hồ sơ vượt đúng 1 đồng so với hạn mức vai phải bị chặn",
+          "probe_code": "it('P2: người khác duyệt hồ sơ vượt đúng 1 đồng so với hạn mức vai phải bị chặn', async () => {\n    const dx = await taoDeXuat('HM-2026-8002', 500_000_001, 'hung');\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n\n    expect(res.statusCode).toBe(403);\n    expect(res.body).toContain('hạn mức');\n  });",
+          "command": "vitest run test/checker.probe.test.ts (nhánh feature/duyet-nhanh @ b571b96)",
+          "expected": "403 kèm thông báo nêu hạn mức của vai (spec-phe-duyet R1, biên đóng dùng <=, 500.000.001 > 500.000.000 nên phải từ chối). Code PR sẽ trả 200/da_duyet — lộ bug.",
+          "actual": "AssertionError: expected 200 to be 403 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-oZWTJN\\test\\checker.probe.test.ts:46:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F3",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Chuyên viên duyệt được đề xuất 600tr vượt xa hạn mức 500tr của mình",
+        "what_vi": "Lỗi OR khiến điều kiện hạn mức bị bỏ qua khi người duyệt khác người tạo: lan (chuyên viên, trần 500.000.000đ) duyệt thành công đề xuất 600.000.000đ do hung (trưởng phòng) tạo.",
+        "consequence_vi": "Nhân sự có hạn mức thấp có thể duyệt khoản tín dụng vượt xa thẩm quyền, gây rủi ro phê duyệt tín dụng sai thẩm quyền và mất kiểm soát tài chính.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P1: chuyên viên vượt hạn mức không được duyệt hồ sơ do người khác tạo [thư viện: lib_b571b96_1.probe.test.ts]",
+          "probe_code": "it('P1: chuyên viên vượt hạn mức không được duyệt hồ sơ do người khác tạo', async () => {\n    const dx = await taoDeXuat('HM-2026-8001', 600_000_000, 'hung');\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(res.statusCode).toBe(403);\n    expect(JSON.stringify(res.json())).toMatch(/500[.,]?000[.,]?000/);\n\n    const ds = await app.inject({ method: 'GET', url: '/api/de-xuat' });\n    const found = ds.json().find((d: { id: number }) => d.id === dx.id);\n    expect(found.trang_thai).toBe('cho_duyet');\n  });",
+          "command": "vitest run test/lib_b571b96_1.probe.test.ts (nhánh feature/duyet-nhanh @ b571b96)",
+          "expected": "POST /api/de-xuat/:id/duyet trả 403 kèm thông báo nêu hạn mức vai (tối đa 500.000.000 đ); trạng thái đề xuất vẫn giữ cho_duyet. (PR lỗi dự kiến trả 200, trang_thai=da_duyet — đây là bằng chứng bug).",
+          "actual": "AssertionError: expected 200 to be 403 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-oZWTJN\\test\\lib_b571b96_1.probe.test.ts:31:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F4",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Người tạo tự duyệt đề xuất trong hạn mức của chính mình (bỏ qua R2)",
+        "what_vi": "Lỗi OR khiến điều kiện chống tự duyệt bị bỏ qua khi số tiền nằm trong hạn mức: lan tự tạo đề xuất 300.000.000đ (trong hạn mức của lan) rồi tự duyệt chính hồ sơ đó.",
+        "consequence_vi": "Vi phạm quy định bắt buộc R2 (người tạo không được tự phê duyệt) dù đủ thẩm quyền số tiền, cho phép thông qua tín dụng mà không có kiểm soát độc lập thứ hai.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P2: người tạo không được tự duyệt hồ sơ dù trong hạn mức của chính mình [thư viện: lib_b571b96_1.probe.test.ts]",
+          "probe_code": "it('P2: người tạo không được tự duyệt hồ sơ dù trong hạn mức của chính mình', async () => {\n    const dx = await taoDeXuat('HM-2026-8002', 300_000_000, 'lan');\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(res.statusCode).toBe(403);\n    expect(JSON.stringify(res.json())).toMatch(/tự phê duyệt|tự duyệt/i);\n\n    const ds = await app.inject({ method: 'GET', url: '/api/de-xuat' });\n    const found = ds.json().find((d: { id: number }) => d.id === dx.id);\n    expect(found.trang_thai).toBe('cho_duyet');\n  });",
+          "command": "vitest run test/lib_b571b96_1.probe.test.ts (nhánh feature/duyet-nhanh @ b571b96)",
+          "expected": "POST /api/de-xuat/:id/duyet (X-User: lan) trả 403 «Người tạo đề xuất không được tự phê duyệt»; trang_thai vẫn cho_duyet. (PR lỗi dự kiến trả 200 — bằng chứng bug).",
+          "actual": "AssertionError: expected 200 to be 403 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-oZWTJN\\test\\lib_b571b96_1.probe.test.ts:46:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    ],
+    "probe_stats": {
+      "ke_hoach": 6,
+      "ghi_nhan": 11,
+      "pass": 7,
+      "hoi_quy": 4,
+      "hong": 0,
+      "nghi_van": 0,
+      "cai_thien": 0,
+      "bo_qua": 0,
+      "that_lac": []
+    },
+    "model": "claude-cli/claude-sonnet-5",
+    "mode": "live",
+    "started_at": "2026-08-25T18:14:30.079Z",
+    "finished_at": "2026-08-25T18:17:18.381Z"
+  },
+  "events": [
+    {
+      "type": "stage",
+      "stage": 1,
+      "ten": "Nhận artifact — đọc diff PR"
+    },
+    {
+      "type": "log",
+      "msg": "PR feature/duyet-nhanh @ b571b96 · đối chứng main @ e278bbe · diff 1168 ký tự"
+    },
+    {
+      "type": "stage",
+      "stage": 2,
+      "ten": "Đọc spec — nạp luật hành vi"
+    },
+    {
+      "type": "log",
+      "msg": "2 file spec: specs/spec-giai-ngan.md, specs/spec-phe-duyet.md"
+    },
+    {
+      "type": "stage",
+      "stage": 3,
+      "ten": "Sinh probe đối kháng"
+    },
+    {
+      "type": "log",
+      "msg": "6 probe mới: P1 (R2) · P2 (R1) · P3 (R1) · P4 (R6) · P5 (R7) · P6 (R5)"
+    },
+    {
+      "type": "log",
+      "msg": "+ 5 probe THƯ VIỆN từ 1 lượt trước (regression, không tốn model)"
+    },
+    {
+      "type": "stage",
+      "stage": 4,
+      "ten": "Chạy probe trong sandbox — nhánh PR và nhánh gốc đối chứng + cổng sanity"
+    },
+    {
+      "type": "log",
+      "msg": "Nhánh PR:  P1=f P2=f P3=p P4=p P5=p P6=p P1=f P2=f P3=p P4=p P5=p"
+    },
+    {
+      "type": "log",
+      "msg": "Nhánh gốc: P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p"
+    },
+    {
+      "type": "log",
+      "msg": "Phân loại máy: 7 pass · 4 hồi quy · 0 hỏng · 0 nghi vấn · 0 cải thiện · 0 bỏ qua (skip)"
+    },
+    {
+      "type": "stage",
+      "stage": 5,
+      "ten": "Kết luận — máy làm chủ phân loại, model viết finding"
+    },
+    {
+      "type": "log",
+      "msg": "Ghi chú kết luận: Không có ứng viên nghi_van nào trong lô này — cả 4 ứng viên (U1, U2, U7, U8) đều đã được máy xác nhận là hoi_quy (PR fail, gốc pass) nên đều bắt buộc có finding."
+    },
+    {
+      "type": "log",
+      "msg": "Thư viện: nhận 6 probe khớp contract (lib_b571b96_2.probe.test.ts) — thành regression cho các lượt sau"
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F1",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Tự duyệt hồ sơ trong hạn mức vẫn được duyệt (bỏ qua R2)",
+        "what_vi": "Điều kiện duyệt dùng OR (so_tien <= han_muc || user !== nguoi_tao) thay vì AND: khi số tiền trong hạn mức, hệ thống bỏ qua hoàn toàn kiểm tra 'người duyệt khác người tạo', cho phép chuyên viên tự duyệt đề xuất 300.000.000đ của chính mình.",
+        "consequence_vi": "Phá vỡ nguyên tắc bắt buộc tách bạch người tạo và người duyệt (four-eyes) đối với mọi khoản trong hạn mức, một cá nhân có thể tự thông qua tín dụng mà không qua kiểm soát chéo.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P1: chuyên viên tự duyệt hồ sơ do chính mình tạo (trong hạn mức) phải bị chặn",
+          "probe_code": "it('P1: chuyên viên tự duyệt hồ sơ do chính mình tạo (trong hạn mức) phải bị chặn', async () => {\n    const dx = await taoDeXuat('HM-2026-8001', 300_000_000, 'lan');\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n\n    expect(res.statusCode).toBe(403);\n    expect(res.body).toContain('Người tạo đề xuất không được tự phê duyệt');\n  });",
+          "command": "vitest run test/checker.probe.test.ts (nhánh feature/duyet-nhanh @ b571b96)",
+          "expected": "403 kèm thông báo 'Người tạo đề xuất không được tự phê duyệt' (spec-phe-duyet R2, độc lập với R1). Code PR sẽ trả 200/da_duyet — lộ bug.",
+          "actual": "AssertionError: expected 200 to be 403 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-oZWTJN\\test\\checker.probe.test.ts:33:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F2",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Duyệt vượt hạn mức vai khi người duyệt khác người tạo (bỏ qua R1)",
+        "what_vi": "Cùng lỗi OR: khi người duyệt khác người tạo, vế 'user !== nguoi_tao' đã đúng nên hệ thống bỏ qua kiểm tra hạn mức, duyệt luôn cả khoản vượt hạn mức đúng 1 đồng (500.000.001đ so với trần 500.000.000đ).",
+        "consequence_vi": "Người duyệt có thể phê duyệt khoản tín dụng vượt thẩm quyền tài chính được cấp, mất kiểm soát rủi ro theo hạn mức vai trò.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P2: người khác duyệt hồ sơ vượt đúng 1 đồng so với hạn mức vai phải bị chặn",
+          "probe_code": "it('P2: người khác duyệt hồ sơ vượt đúng 1 đồng so với hạn mức vai phải bị chặn', async () => {\n    const dx = await taoDeXuat('HM-2026-8002', 500_000_001, 'hung');\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n\n    expect(res.statusCode).toBe(403);\n    expect(res.body).toContain('hạn mức');\n  });",
+          "command": "vitest run test/checker.probe.test.ts (nhánh feature/duyet-nhanh @ b571b96)",
+          "expected": "403 kèm thông báo nêu hạn mức của vai (spec-phe-duyet R1, biên đóng dùng <=, 500.000.001 > 500.000.000 nên phải từ chối). Code PR sẽ trả 200/da_duyet — lộ bug.",
+          "actual": "AssertionError: expected 200 to be 403 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-oZWTJN\\test\\checker.probe.test.ts:46:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F3",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Chuyên viên duyệt được đề xuất 600tr vượt xa hạn mức 500tr của mình",
+        "what_vi": "Lỗi OR khiến điều kiện hạn mức bị bỏ qua khi người duyệt khác người tạo: lan (chuyên viên, trần 500.000.000đ) duyệt thành công đề xuất 600.000.000đ do hung (trưởng phòng) tạo.",
+        "consequence_vi": "Nhân sự có hạn mức thấp có thể duyệt khoản tín dụng vượt xa thẩm quyền, gây rủi ro phê duyệt tín dụng sai thẩm quyền và mất kiểm soát tài chính.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P1: chuyên viên vượt hạn mức không được duyệt hồ sơ do người khác tạo [thư viện: lib_b571b96_1.probe.test.ts]",
+          "probe_code": "it('P1: chuyên viên vượt hạn mức không được duyệt hồ sơ do người khác tạo', async () => {\n    const dx = await taoDeXuat('HM-2026-8001', 600_000_000, 'hung');\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(res.statusCode).toBe(403);\n    expect(JSON.stringify(res.json())).toMatch(/500[.,]?000[.,]?000/);\n\n    const ds = await app.inject({ method: 'GET', url: '/api/de-xuat' });\n    const found = ds.json().find((d: { id: number }) => d.id === dx.id);\n    expect(found.trang_thai).toBe('cho_duyet');\n  });",
+          "command": "vitest run test/lib_b571b96_1.probe.test.ts (nhánh feature/duyet-nhanh @ b571b96)",
+          "expected": "POST /api/de-xuat/:id/duyet trả 403 kèm thông báo nêu hạn mức vai (tối đa 500.000.000 đ); trạng thái đề xuất vẫn giữ cho_duyet. (PR lỗi dự kiến trả 200, trang_thai=da_duyet — đây là bằng chứng bug).",
+          "actual": "AssertionError: expected 200 to be 403 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-oZWTJN\\test\\lib_b571b96_1.probe.test.ts:31:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F4",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Người tạo tự duyệt đề xuất trong hạn mức của chính mình (bỏ qua R2)",
+        "what_vi": "Lỗi OR khiến điều kiện chống tự duyệt bị bỏ qua khi số tiền nằm trong hạn mức: lan tự tạo đề xuất 300.000.000đ (trong hạn mức của lan) rồi tự duyệt chính hồ sơ đó.",
+        "consequence_vi": "Vi phạm quy định bắt buộc R2 (người tạo không được tự phê duyệt) dù đủ thẩm quyền số tiền, cho phép thông qua tín dụng mà không có kiểm soát độc lập thứ hai.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P2: người tạo không được tự duyệt hồ sơ dù trong hạn mức của chính mình [thư viện: lib_b571b96_1.probe.test.ts]",
+          "probe_code": "it('P2: người tạo không được tự duyệt hồ sơ dù trong hạn mức của chính mình', async () => {\n    const dx = await taoDeXuat('HM-2026-8002', 300_000_000, 'lan');\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(res.statusCode).toBe(403);\n    expect(JSON.stringify(res.json())).toMatch(/tự phê duyệt|tự duyệt/i);\n\n    const ds = await app.inject({ method: 'GET', url: '/api/de-xuat' });\n    const found = ds.json().find((d: { id: number }) => d.id === dx.id);\n    expect(found.trang_thai).toBe('cho_duyet');\n  });",
+          "command": "vitest run test/lib_b571b96_1.probe.test.ts (nhánh feature/duyet-nhanh @ b571b96)",
+          "expected": "POST /api/de-xuat/:id/duyet (X-User: lan) trả 403 «Người tạo đề xuất không được tự phê duyệt»; trang_thai vẫn cho_duyet. (PR lỗi dự kiến trả 200 — bằng chứng bug).",
+          "actual": "AssertionError: expected 200 to be 403 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-oZWTJN\\test\\lib_b571b96_1.probe.test.ts:46:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "log",
+      "msg": "Chi phí lượt chấm: 3 call model · ~8k token vào + ~0k token ra (ước từ ký tự)"
+    },
+    {
+      "type": "verdict",
+      "verdict": {
+        "run_id": "run-2026-08-25T18-14-30-078Z-feature_duyet-nhanh",
+        "skill": "code",
+        "artifact_ref": {
+          "type": "pr",
+          "name": "feature/duyet-nhanh",
+          "sha_or_hash": "b571b961d9925749fe8df2cc9576a453903eb34b"
+        },
+        "result": "FAIL",
+        "findings": [
+          {
+            "id": "F1",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Tự duyệt hồ sơ trong hạn mức vẫn được duyệt (bỏ qua R2)",
+            "what_vi": "Điều kiện duyệt dùng OR (so_tien <= han_muc || user !== nguoi_tao) thay vì AND: khi số tiền trong hạn mức, hệ thống bỏ qua hoàn toàn kiểm tra 'người duyệt khác người tạo', cho phép chuyên viên tự duyệt đề xuất 300.000.000đ của chính mình.",
+            "consequence_vi": "Phá vỡ nguyên tắc bắt buộc tách bạch người tạo và người duyệt (four-eyes) đối với mọi khoản trong hạn mức, một cá nhân có thể tự thông qua tín dụng mà không qua kiểm soát chéo.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P1: chuyên viên tự duyệt hồ sơ do chính mình tạo (trong hạn mức) phải bị chặn",
+              "probe_code": "it('P1: chuyên viên tự duyệt hồ sơ do chính mình tạo (trong hạn mức) phải bị chặn', async () => {\n    const dx = await taoDeXuat('HM-2026-8001', 300_000_000, 'lan');\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n\n    expect(res.statusCode).toBe(403);\n    expect(res.body).toContain('Người tạo đề xuất không được tự phê duyệt');\n  });",
+              "command": "vitest run test/checker.probe.test.ts (nhánh feature/duyet-nhanh @ b571b96)",
+              "expected": "403 kèm thông báo 'Người tạo đề xuất không được tự phê duyệt' (spec-phe-duyet R2, độc lập với R1). Code PR sẽ trả 200/da_duyet — lộ bug.",
+              "actual": "AssertionError: expected 200 to be 403 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-oZWTJN\\test\\checker.probe.test.ts:33:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F2",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Duyệt vượt hạn mức vai khi người duyệt khác người tạo (bỏ qua R1)",
+            "what_vi": "Cùng lỗi OR: khi người duyệt khác người tạo, vế 'user !== nguoi_tao' đã đúng nên hệ thống bỏ qua kiểm tra hạn mức, duyệt luôn cả khoản vượt hạn mức đúng 1 đồng (500.000.001đ so với trần 500.000.000đ).",
+            "consequence_vi": "Người duyệt có thể phê duyệt khoản tín dụng vượt thẩm quyền tài chính được cấp, mất kiểm soát rủi ro theo hạn mức vai trò.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P2: người khác duyệt hồ sơ vượt đúng 1 đồng so với hạn mức vai phải bị chặn",
+              "probe_code": "it('P2: người khác duyệt hồ sơ vượt đúng 1 đồng so với hạn mức vai phải bị chặn', async () => {\n    const dx = await taoDeXuat('HM-2026-8002', 500_000_001, 'hung');\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n\n    expect(res.statusCode).toBe(403);\n    expect(res.body).toContain('hạn mức');\n  });",
+              "command": "vitest run test/checker.probe.test.ts (nhánh feature/duyet-nhanh @ b571b96)",
+              "expected": "403 kèm thông báo nêu hạn mức của vai (spec-phe-duyet R1, biên đóng dùng <=, 500.000.001 > 500.000.000 nên phải từ chối). Code PR sẽ trả 200/da_duyet — lộ bug.",
+              "actual": "AssertionError: expected 200 to be 403 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-oZWTJN\\test\\checker.probe.test.ts:46:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F3",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Chuyên viên duyệt được đề xuất 600tr vượt xa hạn mức 500tr của mình",
+            "what_vi": "Lỗi OR khiến điều kiện hạn mức bị bỏ qua khi người duyệt khác người tạo: lan (chuyên viên, trần 500.000.000đ) duyệt thành công đề xuất 600.000.000đ do hung (trưởng phòng) tạo.",
+            "consequence_vi": "Nhân sự có hạn mức thấp có thể duyệt khoản tín dụng vượt xa thẩm quyền, gây rủi ro phê duyệt tín dụng sai thẩm quyền và mất kiểm soát tài chính.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P1: chuyên viên vượt hạn mức không được duyệt hồ sơ do người khác tạo [thư viện: lib_b571b96_1.probe.test.ts]",
+              "probe_code": "it('P1: chuyên viên vượt hạn mức không được duyệt hồ sơ do người khác tạo', async () => {\n    const dx = await taoDeXuat('HM-2026-8001', 600_000_000, 'hung');\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(res.statusCode).toBe(403);\n    expect(JSON.stringify(res.json())).toMatch(/500[.,]?000[.,]?000/);\n\n    const ds = await app.inject({ method: 'GET', url: '/api/de-xuat' });\n    const found = ds.json().find((d: { id: number }) => d.id === dx.id);\n    expect(found.trang_thai).toBe('cho_duyet');\n  });",
+              "command": "vitest run test/lib_b571b96_1.probe.test.ts (nhánh feature/duyet-nhanh @ b571b96)",
+              "expected": "POST /api/de-xuat/:id/duyet trả 403 kèm thông báo nêu hạn mức vai (tối đa 500.000.000 đ); trạng thái đề xuất vẫn giữ cho_duyet. (PR lỗi dự kiến trả 200, trang_thai=da_duyet — đây là bằng chứng bug).",
+              "actual": "AssertionError: expected 200 to be 403 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-oZWTJN\\test\\lib_b571b96_1.probe.test.ts:31:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F4",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Người tạo tự duyệt đề xuất trong hạn mức của chính mình (bỏ qua R2)",
+            "what_vi": "Lỗi OR khiến điều kiện chống tự duyệt bị bỏ qua khi số tiền nằm trong hạn mức: lan tự tạo đề xuất 300.000.000đ (trong hạn mức của lan) rồi tự duyệt chính hồ sơ đó.",
+            "consequence_vi": "Vi phạm quy định bắt buộc R2 (người tạo không được tự phê duyệt) dù đủ thẩm quyền số tiền, cho phép thông qua tín dụng mà không có kiểm soát độc lập thứ hai.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P2: người tạo không được tự duyệt hồ sơ dù trong hạn mức của chính mình [thư viện: lib_b571b96_1.probe.test.ts]",
+              "probe_code": "it('P2: người tạo không được tự duyệt hồ sơ dù trong hạn mức của chính mình', async () => {\n    const dx = await taoDeXuat('HM-2026-8002', 300_000_000, 'lan');\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(res.statusCode).toBe(403);\n    expect(JSON.stringify(res.json())).toMatch(/tự phê duyệt|tự duyệt/i);\n\n    const ds = await app.inject({ method: 'GET', url: '/api/de-xuat' });\n    const found = ds.json().find((d: { id: number }) => d.id === dx.id);\n    expect(found.trang_thai).toBe('cho_duyet');\n  });",
+              "command": "vitest run test/lib_b571b96_1.probe.test.ts (nhánh feature/duyet-nhanh @ b571b96)",
+              "expected": "POST /api/de-xuat/:id/duyet (X-User: lan) trả 403 «Người tạo đề xuất không được tự phê duyệt»; trang_thai vẫn cho_duyet. (PR lỗi dự kiến trả 200 — bằng chứng bug).",
+              "actual": "AssertionError: expected 200 to be 403 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-oZWTJN\\test\\lib_b571b96_1.probe.test.ts:46:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          }
+        ],
+        "probe_stats": {
+          "ke_hoach": 6,
+          "ghi_nhan": 11,
+          "pass": 7,
+          "hoi_quy": 4,
+          "hong": 0,
+          "nghi_van": 0,
+          "cai_thien": 0,
+          "bo_qua": 0,
+          "that_lac": []
+        },
+        "model": "claude-cli/claude-sonnet-5",
+        "mode": "live",
+        "started_at": "2026-08-25T18:14:30.079Z",
+        "finished_at": "2026-08-25T18:17:18.381Z"
+      }
+    }
+  ]
+}

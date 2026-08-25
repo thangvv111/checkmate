@@ -1,0 +1,234 @@
+{
+  "verdict": {
+    "run_id": "run-2026-08-25T18-51-06-169Z-loi_bien-mo",
+    "skill": "code",
+    "artifact_ref": {
+      "type": "pr",
+      "name": "loi/bien-mo",
+      "sha_or_hash": "cff64d7b852b029de0184bf855bee54c9a86090c"
+    },
+    "result": "FAIL",
+    "findings": [
+      {
+        "id": "F1",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Duyệt bị từ chối sai khi số tiền bằng đúng hạn mức của chuyên viên (500tr)",
+        "what_vi": "PR đổi điều kiện so sánh thành >=, khiến giao dịch bằng đúng trần thẩm quyền (500,000,000đ) bị raise ValueError từ chối, trong khi spec R1 yêu cầu biên đóng — bằng đúng trần vẫn phải duyệt hợp lệ.",
+        "consequence_vi": "Chuyên viên không thể duyệt giao dịch đúng bằng hạn mức được cấp, chặn oan các phê duyệt hợp lệ trong thẩm quyền.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "test_P1_chuyen_vien_duyet_dung_bang_tran",
+          "probe_code": "def test_P1_chuyen_vien_duyet_dung_bang_tran():\n    assert duyet(\"chuyen_vien\", 500_000_000) is True\n\n\ndef test_P2_truong_phong_duyet_dung_bang_tran():\n    assert duyet(\"truong_phong\", 2_000_000_000) is True\n\n\ndef test_P3_chuyen_vien_duyet_duoi_tran_1_dong():\n    assert duyet(\"chuyen_vien\", 499_999_999) is True\n\n\ndef test_P4_chuyen_vien_vuot_tran_1_dong():\n    with pytest.raises(ValueError) as exc_info:\n        duyet(\"chuyen_vien\", 500_000_001)\n    assert \"500\" in str(exc_info.value) or \"500_000_000\" in str(exc_info.value) or \"500000000\" in str(exc_info.value)\n\n\ndef test_P5_chia_ky_chia_khong_het_don_ve_ky_cuoi():\n    ky = chia_ky(100, 3)\n    assert ky == [33, 33, 34]\n    assert sum(ky) == 100\n\n\ndef test_P6_chia_ky_so_ky_ngoai_khoang_hop_le():",
+          "command": "lệnh test của repo (checkmate.yml) (nhánh loi/bien-mo @ cff64d7)",
+          "expected": "duyet('chuyen_vien', 500_000_000) tra True, khong raise — theo spec 'so tien bang DUNG muc tran PHAI duoc duyet hop le'. Voi diff hien tai (>=) se raise ValueError sai.",
+          "actual": "ValueError: Vượt hạn mức phê duyệt của vai (tối đa 500,000,000 đ)\ndef test_P1_chuyen_vien_duyet_dung_bang_tran():\n>       assert duyet(\"chuyen_vien\", 500_000_000) is True\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\ntest\\checker_probe.py:11: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n\nvai = 'chuyen_vien', so_tien = 500000000\n\n    def duyet(vai: str, so_tien: int) -> bool:\n        \"\"\"R1: phê duyệt trong thẩm quyền của vai, BIÊN ĐÓNG (bằng đúng trần vẫn hợp lệ).\n        giam_doc không giới hạn. Vượt thẩm quyền -> ValueError kèm thông báo nghiệp vụ.\"\"\"\n        if not isinstance(so_tien, int) or so_tien <= 0:\n            raise ValueError(\"Số tiền phải là số nguyên dương (đơn vị đồng)\")\n        if vai == \"giam_doc\":\n            return True\n        if vai not in HAN_MUC:\n            raise ValueError(f\"Vai không hợp lệ: {vai}\")\n        # chuẩn hoá phép so: phải NHỎ HƠN trần\n        if so_tien >= HAN_MUC[vai]:\n>           raise ValueError(f\"Vượt hạn mức phê duyệt của vai (tối đa {HAN_MUC[vai]:,} đ)\")\nE           ValueError: Vượt hạn mức phê duyệt của vai (tối đa 500,000,000 đ)\n\nphe_duyet.py:20: ValueError",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F2",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Duyệt bị từ chối sai khi số tiền bằng đúng hạn mức của trưởng phòng (2 tỷ)",
+        "what_vi": "Cùng lỗi so sánh >= như U1, xác nhận đây là lỗi hệ thống áp dụng cho mọi vai có hạn mức chứ không riêng chuyên viên — giao dịch bằng đúng trần 2,000,000,000đ bị từ chối sai.",
+        "consequence_vi": "Trưởng phòng không thể duyệt giao dịch đúng bằng hạn mức được cấp, chặn oan các phê duyệt hợp lệ trong thẩm quyền trên diện rộng.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "test_P2_truong_phong_duyet_dung_bang_tran",
+          "probe_code": "def test_P2_truong_phong_duyet_dung_bang_tran():\n    assert duyet(\"truong_phong\", 2_000_000_000) is True\n\n\ndef test_P3_chuyen_vien_duyet_duoi_tran_1_dong():\n    assert duyet(\"chuyen_vien\", 499_999_999) is True\n\n\ndef test_P4_chuyen_vien_vuot_tran_1_dong():\n    with pytest.raises(ValueError) as exc_info:\n        duyet(\"chuyen_vien\", 500_000_001)\n    assert \"500\" in str(exc_info.value) or \"500_000_000\" in str(exc_info.value) or \"500000000\" in str(exc_info.value)\n\n\ndef test_P5_chia_ky_chia_khong_het_don_ve_ky_cuoi():\n    ky = chia_ky(100, 3)\n    assert ky == [33, 33, 34]\n    assert sum(ky) == 100\n\n\ndef test_P6_chia_ky_so_ky_ngoai_khoang_hop_le():\n    with pytest.raises(ValueError):\n        chia_ky(600_000_000, 13)",
+          "command": "lệnh test của repo (checkmate.yml) (nhánh loi/bien-mo @ cff64d7)",
+          "expected": "duyet('truong_phong', 2_000_000_000) tra True, khong raise. Voi diff hien tai se raise ValueError sai.",
+          "actual": "ValueError: Vượt hạn mức phê duyệt của vai (tối đa 2,000,000,000 đ)\ndef test_P2_truong_phong_duyet_dung_bang_tran():\n>       assert duyet(\"truong_phong\", 2_000_000_000) is True\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\ntest\\checker_probe.py:15: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n\nvai = 'truong_phong', so_tien = 2000000000\n\n    def duyet(vai: str, so_tien: int) -> bool:\n        \"\"\"R1: phê duyệt trong thẩm quyền của vai, BIÊN ĐÓNG (bằng đúng trần vẫn hợp lệ).\n        giam_doc không giới hạn. Vượt thẩm quyền -> ValueError kèm thông báo nghiệp vụ.\"\"\"\n        if not isinstance(so_tien, int) or so_tien <= 0:\n            raise ValueError(\"Số tiền phải là số nguyên dương (đơn vị đồng)\")\n        if vai == \"giam_doc\":\n            return True\n        if vai not in HAN_MUC:\n            raise ValueError(f\"Vai không hợp lệ: {vai}\")\n        # chuẩn hoá phép so: phải NHỎ HƠN trần\n        if so_tien >= HAN_MUC[vai]:\n>           raise ValueError(f\"Vượt hạn mức phê duyệt của vai (tối đa {HAN_MUC[vai]:,} đ)\")\nE           ValueError: Vượt hạn mức phê duyệt của vai (tối đa 2,000,000,000 đ)\n\nphe_duyet.py:20: ValueError",
+          "exit_code": 1
+        }
+      }
+    ],
+    "probe_stats": {
+      "ke_hoach": 6,
+      "ghi_nhan": 6,
+      "pass": 4,
+      "hoi_quy": 2,
+      "hong": 0,
+      "nghi_van": 0,
+      "cai_thien": 0,
+      "bo_qua": 0,
+      "that_lac": []
+    },
+    "model": "claude-cli/claude-sonnet-5",
+    "mode": "live",
+    "started_at": "2026-08-25T18:51:06.170Z",
+    "finished_at": "2026-08-25T18:52:16.273Z"
+  },
+  "events": [
+    {
+      "type": "stage",
+      "stage": 1,
+      "ten": "Nhận artifact — đọc diff PR"
+    },
+    {
+      "type": "log",
+      "msg": "PR loi/bien-mo @ cff64d7 · đối chứng main @ ea0eada · diff 487 ký tự"
+    },
+    {
+      "type": "stage",
+      "stage": 2,
+      "ten": "Đọc spec — nạp luật hành vi"
+    },
+    {
+      "type": "log",
+      "msg": "1 file spec: specs/spec-phe-duyet.md"
+    },
+    {
+      "type": "log",
+      "msg": "Runner cấu hình từ checkmate.yml: pytest (Python) · lệnh test của repo · hợp đồng JUnit XML"
+    },
+    {
+      "type": "stage",
+      "stage": 3,
+      "ten": "Sinh probe đối kháng"
+    },
+    {
+      "type": "log",
+      "msg": "6 probe mới: P1 (R1) · P2 (R1) · P3 (R1) · P4 (R1) · P5 (R2) · P6 (R3)"
+    },
+    {
+      "type": "stage",
+      "stage": 4,
+      "ten": "Chạy probe trong sandbox — nhánh PR và nhánh gốc đối chứng + cổng sanity"
+    },
+    {
+      "type": "log",
+      "msg": "Nhánh PR:  test_P1_chuyen_vien_duye=f test_P2_truong_phong_duy=f test_P3_chuyen_vien_duye=p test_P4_chuyen_vien_vuot=p test_P5_chia_ky_chia_kho=p test_P6_chia_ky_so_ky_ng=p"
+    },
+    {
+      "type": "log",
+      "msg": "Nhánh gốc: test_P1_chuyen_vien_duye=p test_P2_truong_phong_duy=p test_P3_chuyen_vien_duye=p test_P4_chuyen_vien_vuot=p test_P5_chia_ky_chia_kho=p test_P6_chia_ky_so_ky_ng=p"
+    },
+    {
+      "type": "log",
+      "msg": "Phân loại máy: 4 pass · 2 hồi quy · 0 hỏng · 0 nghi vấn · 0 cải thiện · 0 bỏ qua (skip)"
+    },
+    {
+      "type": "stage",
+      "stage": 5,
+      "ten": "Kết luận — máy làm chủ phân loại, model viết finding"
+    },
+    {
+      "type": "log",
+      "msg": "Ghi chú kết luận: Không có ứng viên nghi_van trong danh sách này — cả U1, U2 đều đã được máy phân loại hoi_quy (PR fail, gốc pass), không thuộc phạm vi quyết giữ/bỏ."
+    },
+    {
+      "type": "log",
+      "msg": "Thư viện: nhận 6 probe khớp contract (lib_cff64d7_1.py) — thành regression cho các lượt sau"
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F1",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Duyệt bị từ chối sai khi số tiền bằng đúng hạn mức của chuyên viên (500tr)",
+        "what_vi": "PR đổi điều kiện so sánh thành >=, khiến giao dịch bằng đúng trần thẩm quyền (500,000,000đ) bị raise ValueError từ chối, trong khi spec R1 yêu cầu biên đóng — bằng đúng trần vẫn phải duyệt hợp lệ.",
+        "consequence_vi": "Chuyên viên không thể duyệt giao dịch đúng bằng hạn mức được cấp, chặn oan các phê duyệt hợp lệ trong thẩm quyền.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "test_P1_chuyen_vien_duyet_dung_bang_tran",
+          "probe_code": "def test_P1_chuyen_vien_duyet_dung_bang_tran():\n    assert duyet(\"chuyen_vien\", 500_000_000) is True\n\n\ndef test_P2_truong_phong_duyet_dung_bang_tran():\n    assert duyet(\"truong_phong\", 2_000_000_000) is True\n\n\ndef test_P3_chuyen_vien_duyet_duoi_tran_1_dong():\n    assert duyet(\"chuyen_vien\", 499_999_999) is True\n\n\ndef test_P4_chuyen_vien_vuot_tran_1_dong():\n    with pytest.raises(ValueError) as exc_info:\n        duyet(\"chuyen_vien\", 500_000_001)\n    assert \"500\" in str(exc_info.value) or \"500_000_000\" in str(exc_info.value) or \"500000000\" in str(exc_info.value)\n\n\ndef test_P5_chia_ky_chia_khong_het_don_ve_ky_cuoi():\n    ky = chia_ky(100, 3)\n    assert ky == [33, 33, 34]\n    assert sum(ky) == 100\n\n\ndef test_P6_chia_ky_so_ky_ngoai_khoang_hop_le():",
+          "command": "lệnh test của repo (checkmate.yml) (nhánh loi/bien-mo @ cff64d7)",
+          "expected": "duyet('chuyen_vien', 500_000_000) tra True, khong raise — theo spec 'so tien bang DUNG muc tran PHAI duoc duyet hop le'. Voi diff hien tai (>=) se raise ValueError sai.",
+          "actual": "ValueError: Vượt hạn mức phê duyệt của vai (tối đa 500,000,000 đ)\ndef test_P1_chuyen_vien_duyet_dung_bang_tran():\n>       assert duyet(\"chuyen_vien\", 500_000_000) is True\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\ntest\\checker_probe.py:11: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n\nvai = 'chuyen_vien', so_tien = 500000000\n\n    def duyet(vai: str, so_tien: int) -> bool:\n        \"\"\"R1: phê duyệt trong thẩm quyền của vai, BIÊN ĐÓNG (bằng đúng trần vẫn hợp lệ).\n        giam_doc không giới hạn. Vượt thẩm quyền -> ValueError kèm thông báo nghiệp vụ.\"\"\"\n        if not isinstance(so_tien, int) or so_tien <= 0:\n            raise ValueError(\"Số tiền phải là số nguyên dương (đơn vị đồng)\")\n        if vai == \"giam_doc\":\n            return True\n        if vai not in HAN_MUC:\n            raise ValueError(f\"Vai không hợp lệ: {vai}\")\n        # chuẩn hoá phép so: phải NHỎ HƠN trần\n        if so_tien >= HAN_MUC[vai]:\n>           raise ValueError(f\"Vượt hạn mức phê duyệt của vai (tối đa {HAN_MUC[vai]:,} đ)\")\nE           ValueError: Vượt hạn mức phê duyệt của vai (tối đa 500,000,000 đ)\n\nphe_duyet.py:20: ValueError",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F2",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Duyệt bị từ chối sai khi số tiền bằng đúng hạn mức của trưởng phòng (2 tỷ)",
+        "what_vi": "Cùng lỗi so sánh >= như U1, xác nhận đây là lỗi hệ thống áp dụng cho mọi vai có hạn mức chứ không riêng chuyên viên — giao dịch bằng đúng trần 2,000,000,000đ bị từ chối sai.",
+        "consequence_vi": "Trưởng phòng không thể duyệt giao dịch đúng bằng hạn mức được cấp, chặn oan các phê duyệt hợp lệ trong thẩm quyền trên diện rộng.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "test_P2_truong_phong_duyet_dung_bang_tran",
+          "probe_code": "def test_P2_truong_phong_duyet_dung_bang_tran():\n    assert duyet(\"truong_phong\", 2_000_000_000) is True\n\n\ndef test_P3_chuyen_vien_duyet_duoi_tran_1_dong():\n    assert duyet(\"chuyen_vien\", 499_999_999) is True\n\n\ndef test_P4_chuyen_vien_vuot_tran_1_dong():\n    with pytest.raises(ValueError) as exc_info:\n        duyet(\"chuyen_vien\", 500_000_001)\n    assert \"500\" in str(exc_info.value) or \"500_000_000\" in str(exc_info.value) or \"500000000\" in str(exc_info.value)\n\n\ndef test_P5_chia_ky_chia_khong_het_don_ve_ky_cuoi():\n    ky = chia_ky(100, 3)\n    assert ky == [33, 33, 34]\n    assert sum(ky) == 100\n\n\ndef test_P6_chia_ky_so_ky_ngoai_khoang_hop_le():\n    with pytest.raises(ValueError):\n        chia_ky(600_000_000, 13)",
+          "command": "lệnh test của repo (checkmate.yml) (nhánh loi/bien-mo @ cff64d7)",
+          "expected": "duyet('truong_phong', 2_000_000_000) tra True, khong raise. Voi diff hien tai se raise ValueError sai.",
+          "actual": "ValueError: Vượt hạn mức phê duyệt của vai (tối đa 2,000,000,000 đ)\ndef test_P2_truong_phong_duyet_dung_bang_tran():\n>       assert duyet(\"truong_phong\", 2_000_000_000) is True\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\ntest\\checker_probe.py:15: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n\nvai = 'truong_phong', so_tien = 2000000000\n\n    def duyet(vai: str, so_tien: int) -> bool:\n        \"\"\"R1: phê duyệt trong thẩm quyền của vai, BIÊN ĐÓNG (bằng đúng trần vẫn hợp lệ).\n        giam_doc không giới hạn. Vượt thẩm quyền -> ValueError kèm thông báo nghiệp vụ.\"\"\"\n        if not isinstance(so_tien, int) or so_tien <= 0:\n            raise ValueError(\"Số tiền phải là số nguyên dương (đơn vị đồng)\")\n        if vai == \"giam_doc\":\n            return True\n        if vai not in HAN_MUC:\n            raise ValueError(f\"Vai không hợp lệ: {vai}\")\n        # chuẩn hoá phép so: phải NHỎ HƠN trần\n        if so_tien >= HAN_MUC[vai]:\n>           raise ValueError(f\"Vượt hạn mức phê duyệt của vai (tối đa {HAN_MUC[vai]:,} đ)\")\nE           ValueError: Vượt hạn mức phê duyệt của vai (tối đa 2,000,000,000 đ)\n\nphe_duyet.py:20: ValueError",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "log",
+      "msg": "Chi phí lượt chấm: 3 call model · ~4k token vào + ~0k token ra (ước từ ký tự)"
+    },
+    {
+      "type": "verdict",
+      "verdict": {
+        "run_id": "run-2026-08-25T18-51-06-169Z-loi_bien-mo",
+        "skill": "code",
+        "artifact_ref": {
+          "type": "pr",
+          "name": "loi/bien-mo",
+          "sha_or_hash": "cff64d7b852b029de0184bf855bee54c9a86090c"
+        },
+        "result": "FAIL",
+        "findings": [
+          {
+            "id": "F1",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Duyệt bị từ chối sai khi số tiền bằng đúng hạn mức của chuyên viên (500tr)",
+            "what_vi": "PR đổi điều kiện so sánh thành >=, khiến giao dịch bằng đúng trần thẩm quyền (500,000,000đ) bị raise ValueError từ chối, trong khi spec R1 yêu cầu biên đóng — bằng đúng trần vẫn phải duyệt hợp lệ.",
+            "consequence_vi": "Chuyên viên không thể duyệt giao dịch đúng bằng hạn mức được cấp, chặn oan các phê duyệt hợp lệ trong thẩm quyền.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "test_P1_chuyen_vien_duyet_dung_bang_tran",
+              "probe_code": "def test_P1_chuyen_vien_duyet_dung_bang_tran():\n    assert duyet(\"chuyen_vien\", 500_000_000) is True\n\n\ndef test_P2_truong_phong_duyet_dung_bang_tran():\n    assert duyet(\"truong_phong\", 2_000_000_000) is True\n\n\ndef test_P3_chuyen_vien_duyet_duoi_tran_1_dong():\n    assert duyet(\"chuyen_vien\", 499_999_999) is True\n\n\ndef test_P4_chuyen_vien_vuot_tran_1_dong():\n    with pytest.raises(ValueError) as exc_info:\n        duyet(\"chuyen_vien\", 500_000_001)\n    assert \"500\" in str(exc_info.value) or \"500_000_000\" in str(exc_info.value) or \"500000000\" in str(exc_info.value)\n\n\ndef test_P5_chia_ky_chia_khong_het_don_ve_ky_cuoi():\n    ky = chia_ky(100, 3)\n    assert ky == [33, 33, 34]\n    assert sum(ky) == 100\n\n\ndef test_P6_chia_ky_so_ky_ngoai_khoang_hop_le():",
+              "command": "lệnh test của repo (checkmate.yml) (nhánh loi/bien-mo @ cff64d7)",
+              "expected": "duyet('chuyen_vien', 500_000_000) tra True, khong raise — theo spec 'so tien bang DUNG muc tran PHAI duoc duyet hop le'. Voi diff hien tai (>=) se raise ValueError sai.",
+              "actual": "ValueError: Vượt hạn mức phê duyệt của vai (tối đa 500,000,000 đ)\ndef test_P1_chuyen_vien_duyet_dung_bang_tran():\n>       assert duyet(\"chuyen_vien\", 500_000_000) is True\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\ntest\\checker_probe.py:11: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n\nvai = 'chuyen_vien', so_tien = 500000000\n\n    def duyet(vai: str, so_tien: int) -> bool:\n        \"\"\"R1: phê duyệt trong thẩm quyền của vai, BIÊN ĐÓNG (bằng đúng trần vẫn hợp lệ).\n        giam_doc không giới hạn. Vượt thẩm quyền -> ValueError kèm thông báo nghiệp vụ.\"\"\"\n        if not isinstance(so_tien, int) or so_tien <= 0:\n            raise ValueError(\"Số tiền phải là số nguyên dương (đơn vị đồng)\")\n        if vai == \"giam_doc\":\n            return True\n        if vai not in HAN_MUC:\n            raise ValueError(f\"Vai không hợp lệ: {vai}\")\n        # chuẩn hoá phép so: phải NHỎ HƠN trần\n        if so_tien >= HAN_MUC[vai]:\n>           raise ValueError(f\"Vượt hạn mức phê duyệt của vai (tối đa {HAN_MUC[vai]:,} đ)\")\nE           ValueError: Vượt hạn mức phê duyệt của vai (tối đa 500,000,000 đ)\n\nphe_duyet.py:20: ValueError",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F2",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Duyệt bị từ chối sai khi số tiền bằng đúng hạn mức của trưởng phòng (2 tỷ)",
+            "what_vi": "Cùng lỗi so sánh >= như U1, xác nhận đây là lỗi hệ thống áp dụng cho mọi vai có hạn mức chứ không riêng chuyên viên — giao dịch bằng đúng trần 2,000,000,000đ bị từ chối sai.",
+            "consequence_vi": "Trưởng phòng không thể duyệt giao dịch đúng bằng hạn mức được cấp, chặn oan các phê duyệt hợp lệ trong thẩm quyền trên diện rộng.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "test_P2_truong_phong_duyet_dung_bang_tran",
+              "probe_code": "def test_P2_truong_phong_duyet_dung_bang_tran():\n    assert duyet(\"truong_phong\", 2_000_000_000) is True\n\n\ndef test_P3_chuyen_vien_duyet_duoi_tran_1_dong():\n    assert duyet(\"chuyen_vien\", 499_999_999) is True\n\n\ndef test_P4_chuyen_vien_vuot_tran_1_dong():\n    with pytest.raises(ValueError) as exc_info:\n        duyet(\"chuyen_vien\", 500_000_001)\n    assert \"500\" in str(exc_info.value) or \"500_000_000\" in str(exc_info.value) or \"500000000\" in str(exc_info.value)\n\n\ndef test_P5_chia_ky_chia_khong_het_don_ve_ky_cuoi():\n    ky = chia_ky(100, 3)\n    assert ky == [33, 33, 34]\n    assert sum(ky) == 100\n\n\ndef test_P6_chia_ky_so_ky_ngoai_khoang_hop_le():\n    with pytest.raises(ValueError):\n        chia_ky(600_000_000, 13)",
+              "command": "lệnh test của repo (checkmate.yml) (nhánh loi/bien-mo @ cff64d7)",
+              "expected": "duyet('truong_phong', 2_000_000_000) tra True, khong raise. Voi diff hien tai se raise ValueError sai.",
+              "actual": "ValueError: Vượt hạn mức phê duyệt của vai (tối đa 2,000,000,000 đ)\ndef test_P2_truong_phong_duyet_dung_bang_tran():\n>       assert duyet(\"truong_phong\", 2_000_000_000) is True\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\ntest\\checker_probe.py:15: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n\nvai = 'truong_phong', so_tien = 2000000000\n\n    def duyet(vai: str, so_tien: int) -> bool:\n        \"\"\"R1: phê duyệt trong thẩm quyền của vai, BIÊN ĐÓNG (bằng đúng trần vẫn hợp lệ).\n        giam_doc không giới hạn. Vượt thẩm quyền -> ValueError kèm thông báo nghiệp vụ.\"\"\"\n        if not isinstance(so_tien, int) or so_tien <= 0:\n            raise ValueError(\"Số tiền phải là số nguyên dương (đơn vị đồng)\")\n        if vai == \"giam_doc\":\n            return True\n        if vai not in HAN_MUC:\n            raise ValueError(f\"Vai không hợp lệ: {vai}\")\n        # chuẩn hoá phép so: phải NHỎ HƠN trần\n        if so_tien >= HAN_MUC[vai]:\n>           raise ValueError(f\"Vượt hạn mức phê duyệt của vai (tối đa {HAN_MUC[vai]:,} đ)\")\nE           ValueError: Vượt hạn mức phê duyệt của vai (tối đa 2,000,000,000 đ)\n\nphe_duyet.py:20: ValueError",
+              "exit_code": 1
+            }
+          }
+        ],
+        "probe_stats": {
+          "ke_hoach": 6,
+          "ghi_nhan": 6,
+          "pass": 4,
+          "hoi_quy": 2,
+          "hong": 0,
+          "nghi_van": 0,
+          "cai_thien": 0,
+          "bo_qua": 0,
+          "that_lac": []
+        },
+        "model": "claude-cli/claude-sonnet-5",
+        "mode": "live",
+        "started_at": "2026-08-25T18:51:06.170Z",
+        "finished_at": "2026-08-25T18:52:16.273Z"
+      }
+    }
+  ]
+}

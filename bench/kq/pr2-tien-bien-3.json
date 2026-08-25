@@ -1,0 +1,774 @@
+{
+  "verdict": {
+    "run_id": "run-2026-08-25T18-29-57-734Z-feature_giai-ngan-nhieu-ky",
+    "skill": "code",
+    "artifact_ref": {
+      "type": "pr",
+      "name": "feature/giai-ngan-nhieu-ky",
+      "sha_or_hash": "0c6eaec7abdfe2d2a46f84bf8956d97d2b626bf7"
+    },
+    "result": "FAIL",
+    "findings": [
+      {
+        "id": "F1",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Duyệt đúng biên trần 500tr (chuyên viên) bị từ chối oan 403",
+        "what_vi": "PR đổi điều kiện so sánh hạn mức từ `so_tien > HAN_MUC` thành `>=`, khiến số tiền đúng bằng trần vai chuyên viên (500.000.000đ) bị coi là vượt quyền.",
+        "consequence_vi": "Chuyên viên không thể duyệt hồ sơ hợp lệ đúng bằng hạn mức thẩm quyền, chặn oan giao dịch đúng luật.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P1: lan (chuyên viên) duyệt hồ sơ 500tr đúng trần do hung tạo -> 200 da_duyet",
+          "probe_code": "it('P1: lan (chuyên viên) duyệt hồ sơ 500tr đúng trần do hung tạo -> 200 da_duyet', async () => {\n    const dx = await taoDeXuat('HM-2026-8001', 500_000_000, 'hung');\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(res.statusCode).toBe(200);\n    expect(res.json().trang_thai).toBe('da_duyet');\n    expect(res.json().nguoi_duyet).toBe('lan');\n  });",
+          "command": "vitest run test/checker.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "200, trang_thai=da_duyet, nguoi_duyet=lan (diff đổi phép so từ `>` thành `>=` sẽ làm case biên này bị từ chối oan với 403)",
+          "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\checker.probe.test.ts:39:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F2",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Giải ngân hồ sơ 500tr đã duyệt, chia 3 kỳ, bị chặn oan 403",
+        "what_vi": "Yêu cầu giải ngân cho đề xuất 500.000.000đ đã hợp lệ, chia 3 kỳ theo R6, bị hệ thống trả 403 thay vì 200 kèm các kỳ đúng.",
+        "consequence_vi": "Hồ sơ đã duyệt hợp lệ không giải ngân được, chặn đứng nghiệp vụ giải ngân đúng luật.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P4: floor + dồn dư về kỳ cuối, tổng 3 kỳ đúng 500.000.000",
+          "probe_code": "it('P4: floor + dồn dư về kỳ cuối, tổng 3 kỳ đúng 500.000.000', async () => {\n    const dx = await taoDeXuat('HM-2026-8004', 500_000_000, 'hung');\n    const duyet = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(duyet.statusCode).toBe(200);\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    const soTienCacKy = kq.cac_ky.map((k: { so_tien: number }) => k.so_tien);\n    expect(soTienCacKy).toEqual([166_666_666, 166_666_666, 166_666_668]);\n    const tong = kq.cac_ky.reduce((s: number, k: { so_tien: number }) => s + k.so_tien, 0);\n    expect(tong).toBe(500_000_000);\n  });",
+          "command": "vitest run test/checker.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "200; cac_ky = [166.666.666, 166.666.666, 166.666.668]; tổng 3 kỳ = đúng 500.000.000 (diff đổi floor+dồn-dư thành Math.round mỗi kỳ sẽ làm tổng lệch, ví dụ 500.000.001)",
+          "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\checker.probe.test.ts:85:30\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F3",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Biên đóng R1 (500tr) vẫn bị 403 sau refactor logic duyệt",
+        "what_vi": "Ở bản refactor gộp điều kiện duyệt, trường hợp số tiền đúng bằng trần (500.000.000đ) vẫn bị trả 403 thay vì cho duyệt hợp lệ.",
+        "consequence_vi": "Người có thẩm quyền không duyệt được hồ sơ đúng bằng hạn mức, sai lệch với luật biên đóng PHẢI cho qua.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P3: chuyên viên duyệt đúng bằng trần hạn mức do người khác tạo vẫn PASS [thư viện: lib_b571b96_1.probe.test.ts]",
+          "probe_code": "it('P3: chuyên viên duyệt đúng bằng trần hạn mức do người khác tạo vẫn PASS', async () => {\n    const dx = await taoDeXuat('HM-2026-8003', 500_000_000, 'hung');\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(res.statusCode).toBe(200);\n    expect(res.json().trang_thai).toBe('da_duyet');\n    expect(res.json().nguoi_duyet).toBe('lan');\n  });",
+          "command": "vitest run test/lib_b571b96_1.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "Trả 200, trang_thai='da_duyet', nguoi_duyet='lan'.",
+          "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_b571b96_1.probe.test.ts:61:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F4",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Chia kỳ giải ngân dùng làm tròn từng kỳ, sai số tiền kỳ đầu",
+        "what_vi": "PR thay thuật toán floor+dồn-dư-kỳ-cuối bằng làm tròn (round) từng kỳ, khiến kỳ đầu ra 166.666.667đ thay vì 166.666.666đ theo đúng ví dụ spec R6.",
+        "consequence_vi": "Số tiền từng kỳ giải ngân sai lệch, tổng ba kỳ không còn khớp tuyệt đối với số tiền đã duyệt.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P4: giải ngân 500 triệu chia 3 kỳ không hết, dồn dư về kỳ cuối [thư viện: lib_b571b96_1.probe.test.ts]",
+          "probe_code": "it('P4: giải ngân 500 triệu chia 3 kỳ không hết, dồn dư về kỳ cuối', async () => {\n    const dx = await taoDeXuat('HM-2026-8004', 500_000_000, 'lan');\n    await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'hung' },\n    });\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    expect(kq.cac_ky).toHaveLength(3);\n    expect(kq.cac_ky[0].so_tien).toBe(166_666_666);\n    expect(kq.cac_ky[1].so_tien).toBe(166_666_666);\n    expect(kq.cac_ky[2].so_tien).toBe(166_666_668);\n    const tong = kq.cac_ky.reduce((s: number, k: { so_tien: number }) => s + k.so_tien, 0);\n    expect(tong).toBe(500_000_000);\n  });",
+          "command": "vitest run test/lib_b571b96_1.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "POST .../giai-ngan trả 200; cac_ky có 3 phần tử với so_tien lần lượt 166.666.666, 166.666.666, 166.666.668; tổng cac_ky.so_tien = 500.000.000 khớp tuyệt đối số đã duyệt.",
+          "actual": "AssertionError: expected 166666667 to be 166666666 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_b571b96_1.probe.test.ts:82:34\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F5",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Người khác duyệt đúng biên hạn mức 500tr vẫn bị từ chối 403",
+        "what_vi": "Duyệt hồ sơ 500.000.000đ do người khác tạo, đúng bằng trần vai chuyên viên, vẫn bị hệ thống trả 403 thay vì 200.",
+        "consequence_vi": "Chặn oan giao dịch duyệt hợp lệ đúng biên, vi phạm quy định biên đóng của R1.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P3: người khác duyệt đúng biên hạn mức 500.000.000đ phải thành công [thư viện: lib_b571b96_2.probe.test.ts]",
+          "probe_code": "it('P3: người khác duyệt đúng biên hạn mức 500.000.000đ phải thành công', async () => {\n    const dx = await taoDeXuat('HM-2026-8003', 500_000_000, 'hung');\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    expect(kq.trang_thai).toBe('da_duyet');\n    expect(kq.nguoi_duyet).toBe('lan');\n  });",
+          "command": "vitest run test/lib_b571b96_2.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "200, trang_thai = 'da_duyet', nguoi_duyet = 'lan' (đúng bằng trần 500.000.000đ của chuyên viên, biên đóng hợp lệ).",
+          "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_b571b96_2.probe.test.ts:59:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F6",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Giải ngân 500tr chia 3 kỳ hợp lệ bị báo xung đột 409",
+        "what_vi": "Yêu cầu giải ngân cho đề xuất 500.000.000đ đã duyệt hợp lệ, chia 3 kỳ theo R6, bị hệ thống trả 409 (xung đột) thay vì 200 kèm các kỳ đúng.",
+        "consequence_vi": "Giải ngân hợp lệ bị chặn do lỗi xung đột giả, hồ sơ đã duyệt không giải ngân được.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P4: giải ngân 500 triệu chia 3 kỳ, dồn phần dư về kỳ cuối [thư viện: lib_b571b96_2.probe.test.ts]",
+          "probe_code": "it('P4: giải ngân 500 triệu chia 3 kỳ, dồn phần dư về kỳ cuối', async () => {\n    const dx = await taoDeXuat('HM-2026-8004', 500_000_000, 'hung');\n    await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    expect(kq.cac_ky.map((k: { so_tien: number }) => k.so_tien)).toEqual([\n      166_666_666, 166_666_666, 166_666_668,\n    ]);\n    const tong = kq.cac_ky.reduce((s: number, k: { so_tien: number }) => s + k.so_tien, 0);\n    expect(tong).toBe(500_000_000);\n  });",
+          "command": "vitest run test/lib_b571b96_2.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "200; cac_ky có 3 phần tử = [166.666.666, 166.666.666, 166.666.668]; tổng = 500.000.000 (khớp tuyệt đối số đã duyệt, không round-per-kỳ).",
+          "actual": "AssertionError: expected 409 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_b571b96_2.probe.test.ts:79:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F7",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Luồng duyệt chuẩn tại biên trần vai (500tr) bị PR làm gãy, trả 403",
+        "what_vi": "Trường hợp chuẩn: số tiền đúng bằng trần vai chuyên viên, khác người tạo duyệt — vẫn bị từ chối 403 thay vì duyệt thành công.",
+        "consequence_vi": "Phá luồng duyệt hợp lệ cơ bản nhất theo R1, chặn oan các hồ sơ đúng hạn mức.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P3: duyệt đúng biên trần vai (500tr), khác người tạo, phải cho qua (luồng chuẩn không bị PR phá) [thư viện: lib_b571b96_3.probe.test.ts]",
+          "probe_code": "it('P3: duyệt đúng biên trần vai (500tr), khác người tạo, phải cho qua (luồng chuẩn không bị PR phá)', async () => {\n    const dx = await taoDeXuat('HM-2026-8003', 500_000_000, 'hung');\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n\n    expect(res.statusCode).toBe(200);\n    expect(res.json().trang_thai).toBe('da_duyet');\n    expect(res.json().nguoi_duyet).toBe('lan');\n  });",
+          "command": "vitest run test/lib_b571b96_3.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "POST /api/de-xuat/:id/duyet trả 200, trang_thai=da_duyet, nguoi_duyet=lan.",
+          "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_b571b96_3.probe.test.ts:74:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F8",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Giải ngân đề xuất đã duyệt hợp lệ (500tr, 3 kỳ) bị từ chối 403",
+        "what_vi": "Sau khi duyệt hợp lệ đề xuất 500.000.000đ, gọi giải ngân 3 kỳ theo R6 vẫn bị trả 403 thay vì 200 kèm các kỳ dồn dư đúng ví dụ spec.",
+        "consequence_vi": "Nghiệp vụ giải ngân bị chặn hoàn toàn dù hồ sơ đã đủ điều kiện hợp lệ.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P5: chia 500tr thành 3 kỳ không chia hết, dồn phần dư vào kỳ cuối, tổng khớp gốc [thư viện: lib_b571b96_3.probe.test.ts]",
+          "probe_code": "it('P5: chia 500tr thành 3 kỳ không chia hết, dồn phần dư vào kỳ cuối, tổng khớp gốc', async () => {\n    const dx = await taoDeXuat('HM-2026-8005', 500_000_000, 'hung');\n\n    const duyetRes = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(duyetRes.statusCode).toBe(200);\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    expect(kq.cac_ky).toHaveLength(3);\n    expect(kq.cac_ky.map((k: { so_tien: number }) => k.so_tien)).toEqual([\n      166_666_666, 166_666_666, 166_666_668,\n    ]);\n    const tong = kq.cac_ky.reduce((s: number, k: { so_tien: number }) => s + k.so_tien, 0);\n    expect(tong).toBe(500_000_000);\n  });",
+          "command": "vitest run test/lib_b571b96_3.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "res.statusCode=200; cac_ky.length=3; cac_ky = [166666666, 166666666, 166666668] (thứ tự); tổng cac_ky[].so_tien = 500000000 đúng tuyệt đối.",
+          "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_b571b96_3.probe.test.ts:101:33\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F9",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Duyệt hồ sơ đúng bằng trần thẩm quyền (500tr) bị coi là vượt quyền",
+        "what_vi": "Diff đổi `so_tien > HAN_MUC_DUYET` thành `>=`, khiến số tiền bằng đúng trần bị chặn 403 thay vì duyệt hợp lệ theo R1.",
+        "consequence_vi": "Chuyên viên bị từ chối oan quyền duyệt hồ sơ đúng hạn mức, sai lệch chính sách phân quyền.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P1: chuyên viên duyệt hồ sơ đúng bằng trần thẩm quyền (500tr, biên đóng) [thư viện: lib_0c6eaec_4.probe.test.ts]",
+          "probe_code": "it('P1: chuyên viên duyệt hồ sơ đúng bằng trần thẩm quyền (500tr, biên đóng)', async () => {\n    const dx = await taoDeXuat('HM-2026-8001', 500_000_000, 'hung');\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(res.statusCode).toBe(200);\n    expect(res.json().trang_thai).toBe('da_duyet');\n    expect(res.json().nguoi_duyet).toBe('lan');\n  });",
+          "command": "vitest run test/lib_0c6eaec_4.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "200, trang_thai='da_duyet', nguoi_duyet='lan' (R1: 'Số tiền bằng ĐÚNG mức trần của vai PHẢI được phê duyệt hợp lệ, biên đóng dùng <='). PR lỗi sẽ trả 403.",
+          "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_0c6eaec_4.probe.test.ts:31:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F10",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Giải ngân 500tr chia 3 kỳ đúng luật R6 bị báo xung đột 409",
+        "what_vi": "Thay vì trả về 3 kỳ dồn-dư-kỳ-cuối đúng ví dụ spec (166.666.666/166.666.666/166.666.668), hệ thống trả 409 chặn luôn yêu cầu giải ngân hợp lệ.",
+        "consequence_vi": "Hồ sơ hợp lệ đã duyệt không thể giải ngân, gây tắc nghẽn nghiệp vụ giải ngân.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P4: giải ngân 500 triệu chia 3 kỳ - chia không hết, dư dồn kỳ cuối [thư viện: lib_0c6eaec_4.probe.test.ts]",
+          "probe_code": "it('P4: giải ngân 500 triệu chia 3 kỳ - chia không hết, dư dồn kỳ cuối', async () => {\n    const dx = await taoDeXuat('HM-2026-8004', 500_000_000, 'hung');\n    await app.inject({ method: 'POST', url: `/api/de-xuat/${dx.id}/duyet`, headers: { 'x-user': 'lan' } });\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    const soTienCacKy = kq.cac_ky.map((k: { so_tien: number }) => k.so_tien);\n    expect(soTienCacKy).toEqual([166_666_666, 166_666_666, 166_666_668]);\n    const tong = kq.cac_ky.reduce((s: number, k: { so_tien: number }) => s + k.so_tien, 0);\n    expect(tong).toBe(500_000_000);\n  });",
+          "command": "vitest run test/lib_0c6eaec_4.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "200; cac_ky = [166666666, 166666666, 166666668]; tổng cac_ky.so_tien === 500000000 (đúng bằng số tiền phê duyệt, không sai lệch dù 1 đồng).",
+          "actual": "AssertionError: expected 409 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_0c6eaec_4.probe.test.ts:73:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F11",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Biên đóng R1 bị đổi thành biên mở, chặn nhầm duyệt đúng trần 500tr",
+        "what_vi": "So sánh hạn mức đổi từ biên đóng (`<=` cho qua) thành biên mở (chặn cả trường hợp bằng), khiến duyệt đúng trần vai bị từ chối 403.",
+        "consequence_vi": "Hồ sơ đúng bằng hạn mức thẩm quyền không duyệt được, vi phạm trực tiếp quy tắc biên đóng bắt buộc của R1.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P1: lan (chuyên viên) duyệt đề xuất đúng bằng trần vai phải được cho qua [thư viện: lib_0c6eaec_5.probe.test.ts]",
+          "probe_code": "it('P1: lan (chuyên viên) duyệt đề xuất đúng bằng trần vai phải được cho qua', async () => {\n    const dx = await taoDeXuat('HM-2026-8001', 500_000_000, 'hung');\n    const res = await duyet(dx.id, 'lan');\n\n    expect(res.statusCode).toBe(200);\n    expect(res.json().trang_thai).toBe('da_duyet');\n    expect(res.json().nguoi_duyet).toBe('lan');\n  });",
+          "command": "vitest run test/lib_0c6eaec_5.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "200 OK, trang_thai = 'da_duyet', nguoi_duyet = 'lan' (đúng biên đóng '<=' theo spec — trên nhánh PR bị lỗi sẽ trả 403 sai)",
+          "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_0c6eaec_5.probe.test.ts:37:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F12",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Chia 3 kỳ giải ngân 500tr sai số tiền, tổng lệch 1 đồng",
+        "what_vi": "PR đổi thuật toán chia kỳ thành làm tròn đều mỗi kỳ (166.666.667×3), thay vì floor+dồn-dư-kỳ-cuối đúng ví dụ spec (166.666.666/166.666.666/166.666.668).",
+        "consequence_vi": "Tổng ba kỳ giải ngân ra 500.000.001đ, lệch 1 đồng so với số tiền đã duyệt, sai số liệu giao dịch.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P5: floor + dồn dư về kỳ cuối phải cho tổng cac_ky đúng bằng 500.000.000 tuyệt đối [thư viện: lib_0c6eaec_5.probe.test.ts]",
+          "probe_code": "it('P5: floor + dồn dư về kỳ cuối phải cho tổng cac_ky đúng bằng 500.000.000 tuyệt đối', async () => {\n    const dx = await taoDeXuat('HM-2026-8005', 500_000_000, 'lan');\n    const dRes = await duyet(dx.id, 'hung');\n    expect(dRes.statusCode).toBe(200);\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    const soTienCacKy = kq.cac_ky.map((k: { so_tien: number }) => k.so_tien);\n    expect(soTienCacKy).toEqual([166_666_666, 166_666_666, 166_666_668]);\n    const tong = kq.cac_ky.reduce((s: number, k: { so_tien: number }) => s + k.so_tien, 0);\n    expect(tong).toBe(500_000_000);\n  });",
+          "command": "vitest run test/lib_0c6eaec_5.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "cac_ky = [166.666.666, 166.666.666, 166.666.668] đúng ví dụ spec, tổng cac_ky đúng bằng 500.000.000 tuyệt đối (trên nhánh PR lỗi: mỗi kỳ round thành 166.666.667, tổng lệch thành 500.000.001)",
+          "actual": "AssertionError: expected [ 166666667, 166666667, 166666667 ] to deeply equal [ 166666666, 166666666, 166666668 ]\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_0c6eaec_5.probe.test.ts:95:25\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    ],
+    "probe_stats": {
+      "ke_hoach": 6,
+      "ghi_nhan": 35,
+      "pass": 23,
+      "hoi_quy": 12,
+      "hong": 0,
+      "nghi_van": 0,
+      "cai_thien": 0,
+      "bo_qua": 0,
+      "that_lac": []
+    },
+    "model": "claude-cli/claude-sonnet-5",
+    "mode": "live",
+    "started_at": "2026-08-25T18:29:57.735Z",
+    "finished_at": "2026-08-25T18:34:39.533Z"
+  },
+  "events": [
+    {
+      "type": "stage",
+      "stage": 1,
+      "ten": "Nhận artifact — đọc diff PR"
+    },
+    {
+      "type": "log",
+      "msg": "PR feature/giai-ngan-nhieu-ky @ 0c6eaec · đối chứng main @ e278bbe · diff 1752 ký tự"
+    },
+    {
+      "type": "stage",
+      "stage": 2,
+      "ten": "Đọc spec — nạp luật hành vi"
+    },
+    {
+      "type": "log",
+      "msg": "2 file spec: specs/spec-giai-ngan.md, specs/spec-phe-duyet.md"
+    },
+    {
+      "type": "stage",
+      "stage": 3,
+      "ten": "Sinh probe đối kháng"
+    },
+    {
+      "type": "log",
+      "msg": "6 probe mới: P1 (R1) · P2 (R1) · P3 (R2) · P4 (R6) · P5 (R7) · P6 (R7)"
+    },
+    {
+      "type": "log",
+      "msg": "+ 29 probe THƯ VIỆN từ 5 lượt trước (regression, không tốn model)"
+    },
+    {
+      "type": "stage",
+      "stage": 4,
+      "ten": "Chạy probe trong sandbox — nhánh PR và nhánh gốc đối chứng + cổng sanity"
+    },
+    {
+      "type": "log",
+      "msg": "Nhánh PR:  P1=f P2=p P3=p P4=f P5=p P6=p P1=f P2=p P3=p P4=f P5=p P6=p P1=f P2=p P3=p P4=p P5=f P6=p P1=p P2=p P3=f P4=f P5=p P1=p P2=p P3=f P4=f P5=p P6=p P1=p P2=p P3=f P4=p P5=f P6=p"
+    },
+    {
+      "type": "log",
+      "msg": "Nhánh gốc: P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p"
+    },
+    {
+      "type": "log",
+      "msg": "Phân loại máy: 23 pass · 12 hồi quy · 0 hỏng · 0 nghi vấn · 0 cải thiện · 0 bỏ qua (skip)"
+    },
+    {
+      "type": "stage",
+      "stage": 5,
+      "ten": "Kết luận — máy làm chủ phân loại, model viết finding"
+    },
+    {
+      "type": "log",
+      "msg": "Ghi chú kết luận: Không có ứng viên nghi_van trong lô này — toàn bộ 12 ứng viên đều đã được máy phân loại hoi_quy nên đều phải có finding."
+    },
+    {
+      "type": "log",
+      "msg": "Thư viện: nhận 6 probe khớp contract (lib_0c6eaec_6.probe.test.ts) — thành regression cho các lượt sau"
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F1",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Duyệt đúng biên trần 500tr (chuyên viên) bị từ chối oan 403",
+        "what_vi": "PR đổi điều kiện so sánh hạn mức từ `so_tien > HAN_MUC` thành `>=`, khiến số tiền đúng bằng trần vai chuyên viên (500.000.000đ) bị coi là vượt quyền.",
+        "consequence_vi": "Chuyên viên không thể duyệt hồ sơ hợp lệ đúng bằng hạn mức thẩm quyền, chặn oan giao dịch đúng luật.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P1: lan (chuyên viên) duyệt hồ sơ 500tr đúng trần do hung tạo -> 200 da_duyet",
+          "probe_code": "it('P1: lan (chuyên viên) duyệt hồ sơ 500tr đúng trần do hung tạo -> 200 da_duyet', async () => {\n    const dx = await taoDeXuat('HM-2026-8001', 500_000_000, 'hung');\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(res.statusCode).toBe(200);\n    expect(res.json().trang_thai).toBe('da_duyet');\n    expect(res.json().nguoi_duyet).toBe('lan');\n  });",
+          "command": "vitest run test/checker.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "200, trang_thai=da_duyet, nguoi_duyet=lan (diff đổi phép so từ `>` thành `>=` sẽ làm case biên này bị từ chối oan với 403)",
+          "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\checker.probe.test.ts:39:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F2",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Giải ngân hồ sơ 500tr đã duyệt, chia 3 kỳ, bị chặn oan 403",
+        "what_vi": "Yêu cầu giải ngân cho đề xuất 500.000.000đ đã hợp lệ, chia 3 kỳ theo R6, bị hệ thống trả 403 thay vì 200 kèm các kỳ đúng.",
+        "consequence_vi": "Hồ sơ đã duyệt hợp lệ không giải ngân được, chặn đứng nghiệp vụ giải ngân đúng luật.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P4: floor + dồn dư về kỳ cuối, tổng 3 kỳ đúng 500.000.000",
+          "probe_code": "it('P4: floor + dồn dư về kỳ cuối, tổng 3 kỳ đúng 500.000.000', async () => {\n    const dx = await taoDeXuat('HM-2026-8004', 500_000_000, 'hung');\n    const duyet = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(duyet.statusCode).toBe(200);\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    const soTienCacKy = kq.cac_ky.map((k: { so_tien: number }) => k.so_tien);\n    expect(soTienCacKy).toEqual([166_666_666, 166_666_666, 166_666_668]);\n    const tong = kq.cac_ky.reduce((s: number, k: { so_tien: number }) => s + k.so_tien, 0);\n    expect(tong).toBe(500_000_000);\n  });",
+          "command": "vitest run test/checker.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "200; cac_ky = [166.666.666, 166.666.666, 166.666.668]; tổng 3 kỳ = đúng 500.000.000 (diff đổi floor+dồn-dư thành Math.round mỗi kỳ sẽ làm tổng lệch, ví dụ 500.000.001)",
+          "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\checker.probe.test.ts:85:30\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F3",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Biên đóng R1 (500tr) vẫn bị 403 sau refactor logic duyệt",
+        "what_vi": "Ở bản refactor gộp điều kiện duyệt, trường hợp số tiền đúng bằng trần (500.000.000đ) vẫn bị trả 403 thay vì cho duyệt hợp lệ.",
+        "consequence_vi": "Người có thẩm quyền không duyệt được hồ sơ đúng bằng hạn mức, sai lệch với luật biên đóng PHẢI cho qua.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P3: chuyên viên duyệt đúng bằng trần hạn mức do người khác tạo vẫn PASS [thư viện: lib_b571b96_1.probe.test.ts]",
+          "probe_code": "it('P3: chuyên viên duyệt đúng bằng trần hạn mức do người khác tạo vẫn PASS', async () => {\n    const dx = await taoDeXuat('HM-2026-8003', 500_000_000, 'hung');\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(res.statusCode).toBe(200);\n    expect(res.json().trang_thai).toBe('da_duyet');\n    expect(res.json().nguoi_duyet).toBe('lan');\n  });",
+          "command": "vitest run test/lib_b571b96_1.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "Trả 200, trang_thai='da_duyet', nguoi_duyet='lan'.",
+          "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_b571b96_1.probe.test.ts:61:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F4",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Chia kỳ giải ngân dùng làm tròn từng kỳ, sai số tiền kỳ đầu",
+        "what_vi": "PR thay thuật toán floor+dồn-dư-kỳ-cuối bằng làm tròn (round) từng kỳ, khiến kỳ đầu ra 166.666.667đ thay vì 166.666.666đ theo đúng ví dụ spec R6.",
+        "consequence_vi": "Số tiền từng kỳ giải ngân sai lệch, tổng ba kỳ không còn khớp tuyệt đối với số tiền đã duyệt.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P4: giải ngân 500 triệu chia 3 kỳ không hết, dồn dư về kỳ cuối [thư viện: lib_b571b96_1.probe.test.ts]",
+          "probe_code": "it('P4: giải ngân 500 triệu chia 3 kỳ không hết, dồn dư về kỳ cuối', async () => {\n    const dx = await taoDeXuat('HM-2026-8004', 500_000_000, 'lan');\n    await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'hung' },\n    });\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    expect(kq.cac_ky).toHaveLength(3);\n    expect(kq.cac_ky[0].so_tien).toBe(166_666_666);\n    expect(kq.cac_ky[1].so_tien).toBe(166_666_666);\n    expect(kq.cac_ky[2].so_tien).toBe(166_666_668);\n    const tong = kq.cac_ky.reduce((s: number, k: { so_tien: number }) => s + k.so_tien, 0);\n    expect(tong).toBe(500_000_000);\n  });",
+          "command": "vitest run test/lib_b571b96_1.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "POST .../giai-ngan trả 200; cac_ky có 3 phần tử với so_tien lần lượt 166.666.666, 166.666.666, 166.666.668; tổng cac_ky.so_tien = 500.000.000 khớp tuyệt đối số đã duyệt.",
+          "actual": "AssertionError: expected 166666667 to be 166666666 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_b571b96_1.probe.test.ts:82:34\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F5",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Người khác duyệt đúng biên hạn mức 500tr vẫn bị từ chối 403",
+        "what_vi": "Duyệt hồ sơ 500.000.000đ do người khác tạo, đúng bằng trần vai chuyên viên, vẫn bị hệ thống trả 403 thay vì 200.",
+        "consequence_vi": "Chặn oan giao dịch duyệt hợp lệ đúng biên, vi phạm quy định biên đóng của R1.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P3: người khác duyệt đúng biên hạn mức 500.000.000đ phải thành công [thư viện: lib_b571b96_2.probe.test.ts]",
+          "probe_code": "it('P3: người khác duyệt đúng biên hạn mức 500.000.000đ phải thành công', async () => {\n    const dx = await taoDeXuat('HM-2026-8003', 500_000_000, 'hung');\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    expect(kq.trang_thai).toBe('da_duyet');\n    expect(kq.nguoi_duyet).toBe('lan');\n  });",
+          "command": "vitest run test/lib_b571b96_2.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "200, trang_thai = 'da_duyet', nguoi_duyet = 'lan' (đúng bằng trần 500.000.000đ của chuyên viên, biên đóng hợp lệ).",
+          "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_b571b96_2.probe.test.ts:59:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F6",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Giải ngân 500tr chia 3 kỳ hợp lệ bị báo xung đột 409",
+        "what_vi": "Yêu cầu giải ngân cho đề xuất 500.000.000đ đã duyệt hợp lệ, chia 3 kỳ theo R6, bị hệ thống trả 409 (xung đột) thay vì 200 kèm các kỳ đúng.",
+        "consequence_vi": "Giải ngân hợp lệ bị chặn do lỗi xung đột giả, hồ sơ đã duyệt không giải ngân được.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P4: giải ngân 500 triệu chia 3 kỳ, dồn phần dư về kỳ cuối [thư viện: lib_b571b96_2.probe.test.ts]",
+          "probe_code": "it('P4: giải ngân 500 triệu chia 3 kỳ, dồn phần dư về kỳ cuối', async () => {\n    const dx = await taoDeXuat('HM-2026-8004', 500_000_000, 'hung');\n    await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    expect(kq.cac_ky.map((k: { so_tien: number }) => k.so_tien)).toEqual([\n      166_666_666, 166_666_666, 166_666_668,\n    ]);\n    const tong = kq.cac_ky.reduce((s: number, k: { so_tien: number }) => s + k.so_tien, 0);\n    expect(tong).toBe(500_000_000);\n  });",
+          "command": "vitest run test/lib_b571b96_2.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "200; cac_ky có 3 phần tử = [166.666.666, 166.666.666, 166.666.668]; tổng = 500.000.000 (khớp tuyệt đối số đã duyệt, không round-per-kỳ).",
+          "actual": "AssertionError: expected 409 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_b571b96_2.probe.test.ts:79:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F7",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Luồng duyệt chuẩn tại biên trần vai (500tr) bị PR làm gãy, trả 403",
+        "what_vi": "Trường hợp chuẩn: số tiền đúng bằng trần vai chuyên viên, khác người tạo duyệt — vẫn bị từ chối 403 thay vì duyệt thành công.",
+        "consequence_vi": "Phá luồng duyệt hợp lệ cơ bản nhất theo R1, chặn oan các hồ sơ đúng hạn mức.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P3: duyệt đúng biên trần vai (500tr), khác người tạo, phải cho qua (luồng chuẩn không bị PR phá) [thư viện: lib_b571b96_3.probe.test.ts]",
+          "probe_code": "it('P3: duyệt đúng biên trần vai (500tr), khác người tạo, phải cho qua (luồng chuẩn không bị PR phá)', async () => {\n    const dx = await taoDeXuat('HM-2026-8003', 500_000_000, 'hung');\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n\n    expect(res.statusCode).toBe(200);\n    expect(res.json().trang_thai).toBe('da_duyet');\n    expect(res.json().nguoi_duyet).toBe('lan');\n  });",
+          "command": "vitest run test/lib_b571b96_3.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "POST /api/de-xuat/:id/duyet trả 200, trang_thai=da_duyet, nguoi_duyet=lan.",
+          "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_b571b96_3.probe.test.ts:74:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F8",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Giải ngân đề xuất đã duyệt hợp lệ (500tr, 3 kỳ) bị từ chối 403",
+        "what_vi": "Sau khi duyệt hợp lệ đề xuất 500.000.000đ, gọi giải ngân 3 kỳ theo R6 vẫn bị trả 403 thay vì 200 kèm các kỳ dồn dư đúng ví dụ spec.",
+        "consequence_vi": "Nghiệp vụ giải ngân bị chặn hoàn toàn dù hồ sơ đã đủ điều kiện hợp lệ.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P5: chia 500tr thành 3 kỳ không chia hết, dồn phần dư vào kỳ cuối, tổng khớp gốc [thư viện: lib_b571b96_3.probe.test.ts]",
+          "probe_code": "it('P5: chia 500tr thành 3 kỳ không chia hết, dồn phần dư vào kỳ cuối, tổng khớp gốc', async () => {\n    const dx = await taoDeXuat('HM-2026-8005', 500_000_000, 'hung');\n\n    const duyetRes = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(duyetRes.statusCode).toBe(200);\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    expect(kq.cac_ky).toHaveLength(3);\n    expect(kq.cac_ky.map((k: { so_tien: number }) => k.so_tien)).toEqual([\n      166_666_666, 166_666_666, 166_666_668,\n    ]);\n    const tong = kq.cac_ky.reduce((s: number, k: { so_tien: number }) => s + k.so_tien, 0);\n    expect(tong).toBe(500_000_000);\n  });",
+          "command": "vitest run test/lib_b571b96_3.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "res.statusCode=200; cac_ky.length=3; cac_ky = [166666666, 166666666, 166666668] (thứ tự); tổng cac_ky[].so_tien = 500000000 đúng tuyệt đối.",
+          "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_b571b96_3.probe.test.ts:101:33\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F9",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Duyệt hồ sơ đúng bằng trần thẩm quyền (500tr) bị coi là vượt quyền",
+        "what_vi": "Diff đổi `so_tien > HAN_MUC_DUYET` thành `>=`, khiến số tiền bằng đúng trần bị chặn 403 thay vì duyệt hợp lệ theo R1.",
+        "consequence_vi": "Chuyên viên bị từ chối oan quyền duyệt hồ sơ đúng hạn mức, sai lệch chính sách phân quyền.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P1: chuyên viên duyệt hồ sơ đúng bằng trần thẩm quyền (500tr, biên đóng) [thư viện: lib_0c6eaec_4.probe.test.ts]",
+          "probe_code": "it('P1: chuyên viên duyệt hồ sơ đúng bằng trần thẩm quyền (500tr, biên đóng)', async () => {\n    const dx = await taoDeXuat('HM-2026-8001', 500_000_000, 'hung');\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(res.statusCode).toBe(200);\n    expect(res.json().trang_thai).toBe('da_duyet');\n    expect(res.json().nguoi_duyet).toBe('lan');\n  });",
+          "command": "vitest run test/lib_0c6eaec_4.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "200, trang_thai='da_duyet', nguoi_duyet='lan' (R1: 'Số tiền bằng ĐÚNG mức trần của vai PHẢI được phê duyệt hợp lệ, biên đóng dùng <='). PR lỗi sẽ trả 403.",
+          "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_0c6eaec_4.probe.test.ts:31:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F10",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Giải ngân 500tr chia 3 kỳ đúng luật R6 bị báo xung đột 409",
+        "what_vi": "Thay vì trả về 3 kỳ dồn-dư-kỳ-cuối đúng ví dụ spec (166.666.666/166.666.666/166.666.668), hệ thống trả 409 chặn luôn yêu cầu giải ngân hợp lệ.",
+        "consequence_vi": "Hồ sơ hợp lệ đã duyệt không thể giải ngân, gây tắc nghẽn nghiệp vụ giải ngân.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P4: giải ngân 500 triệu chia 3 kỳ - chia không hết, dư dồn kỳ cuối [thư viện: lib_0c6eaec_4.probe.test.ts]",
+          "probe_code": "it('P4: giải ngân 500 triệu chia 3 kỳ - chia không hết, dư dồn kỳ cuối', async () => {\n    const dx = await taoDeXuat('HM-2026-8004', 500_000_000, 'hung');\n    await app.inject({ method: 'POST', url: `/api/de-xuat/${dx.id}/duyet`, headers: { 'x-user': 'lan' } });\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    const soTienCacKy = kq.cac_ky.map((k: { so_tien: number }) => k.so_tien);\n    expect(soTienCacKy).toEqual([166_666_666, 166_666_666, 166_666_668]);\n    const tong = kq.cac_ky.reduce((s: number, k: { so_tien: number }) => s + k.so_tien, 0);\n    expect(tong).toBe(500_000_000);\n  });",
+          "command": "vitest run test/lib_0c6eaec_4.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "200; cac_ky = [166666666, 166666666, 166666668]; tổng cac_ky.so_tien === 500000000 (đúng bằng số tiền phê duyệt, không sai lệch dù 1 đồng).",
+          "actual": "AssertionError: expected 409 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_0c6eaec_4.probe.test.ts:73:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F11",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Biên đóng R1 bị đổi thành biên mở, chặn nhầm duyệt đúng trần 500tr",
+        "what_vi": "So sánh hạn mức đổi từ biên đóng (`<=` cho qua) thành biên mở (chặn cả trường hợp bằng), khiến duyệt đúng trần vai bị từ chối 403.",
+        "consequence_vi": "Hồ sơ đúng bằng hạn mức thẩm quyền không duyệt được, vi phạm trực tiếp quy tắc biên đóng bắt buộc của R1.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P1: lan (chuyên viên) duyệt đề xuất đúng bằng trần vai phải được cho qua [thư viện: lib_0c6eaec_5.probe.test.ts]",
+          "probe_code": "it('P1: lan (chuyên viên) duyệt đề xuất đúng bằng trần vai phải được cho qua', async () => {\n    const dx = await taoDeXuat('HM-2026-8001', 500_000_000, 'hung');\n    const res = await duyet(dx.id, 'lan');\n\n    expect(res.statusCode).toBe(200);\n    expect(res.json().trang_thai).toBe('da_duyet');\n    expect(res.json().nguoi_duyet).toBe('lan');\n  });",
+          "command": "vitest run test/lib_0c6eaec_5.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "200 OK, trang_thai = 'da_duyet', nguoi_duyet = 'lan' (đúng biên đóng '<=' theo spec — trên nhánh PR bị lỗi sẽ trả 403 sai)",
+          "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_0c6eaec_5.probe.test.ts:37:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F12",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Chia 3 kỳ giải ngân 500tr sai số tiền, tổng lệch 1 đồng",
+        "what_vi": "PR đổi thuật toán chia kỳ thành làm tròn đều mỗi kỳ (166.666.667×3), thay vì floor+dồn-dư-kỳ-cuối đúng ví dụ spec (166.666.666/166.666.666/166.666.668).",
+        "consequence_vi": "Tổng ba kỳ giải ngân ra 500.000.001đ, lệch 1 đồng so với số tiền đã duyệt, sai số liệu giao dịch.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P5: floor + dồn dư về kỳ cuối phải cho tổng cac_ky đúng bằng 500.000.000 tuyệt đối [thư viện: lib_0c6eaec_5.probe.test.ts]",
+          "probe_code": "it('P5: floor + dồn dư về kỳ cuối phải cho tổng cac_ky đúng bằng 500.000.000 tuyệt đối', async () => {\n    const dx = await taoDeXuat('HM-2026-8005', 500_000_000, 'lan');\n    const dRes = await duyet(dx.id, 'hung');\n    expect(dRes.statusCode).toBe(200);\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    const soTienCacKy = kq.cac_ky.map((k: { so_tien: number }) => k.so_tien);\n    expect(soTienCacKy).toEqual([166_666_666, 166_666_666, 166_666_668]);\n    const tong = kq.cac_ky.reduce((s: number, k: { so_tien: number }) => s + k.so_tien, 0);\n    expect(tong).toBe(500_000_000);\n  });",
+          "command": "vitest run test/lib_0c6eaec_5.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+          "expected": "cac_ky = [166.666.666, 166.666.666, 166.666.668] đúng ví dụ spec, tổng cac_ky đúng bằng 500.000.000 tuyệt đối (trên nhánh PR lỗi: mỗi kỳ round thành 166.666.667, tổng lệch thành 500.000.001)",
+          "actual": "AssertionError: expected [ 166666667, 166666667, 166666667 ] to deeply equal [ 166666666, 166666666, 166666668 ]\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_0c6eaec_5.probe.test.ts:95:25\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "log",
+      "msg": "Chi phí lượt chấm: 3 call model · ~10k token vào + ~0k token ra (ước từ ký tự)"
+    },
+    {
+      "type": "verdict",
+      "verdict": {
+        "run_id": "run-2026-08-25T18-29-57-734Z-feature_giai-ngan-nhieu-ky",
+        "skill": "code",
+        "artifact_ref": {
+          "type": "pr",
+          "name": "feature/giai-ngan-nhieu-ky",
+          "sha_or_hash": "0c6eaec7abdfe2d2a46f84bf8956d97d2b626bf7"
+        },
+        "result": "FAIL",
+        "findings": [
+          {
+            "id": "F1",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Duyệt đúng biên trần 500tr (chuyên viên) bị từ chối oan 403",
+            "what_vi": "PR đổi điều kiện so sánh hạn mức từ `so_tien > HAN_MUC` thành `>=`, khiến số tiền đúng bằng trần vai chuyên viên (500.000.000đ) bị coi là vượt quyền.",
+            "consequence_vi": "Chuyên viên không thể duyệt hồ sơ hợp lệ đúng bằng hạn mức thẩm quyền, chặn oan giao dịch đúng luật.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P1: lan (chuyên viên) duyệt hồ sơ 500tr đúng trần do hung tạo -> 200 da_duyet",
+              "probe_code": "it('P1: lan (chuyên viên) duyệt hồ sơ 500tr đúng trần do hung tạo -> 200 da_duyet', async () => {\n    const dx = await taoDeXuat('HM-2026-8001', 500_000_000, 'hung');\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(res.statusCode).toBe(200);\n    expect(res.json().trang_thai).toBe('da_duyet');\n    expect(res.json().nguoi_duyet).toBe('lan');\n  });",
+              "command": "vitest run test/checker.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+              "expected": "200, trang_thai=da_duyet, nguoi_duyet=lan (diff đổi phép so từ `>` thành `>=` sẽ làm case biên này bị từ chối oan với 403)",
+              "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\checker.probe.test.ts:39:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F2",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Giải ngân hồ sơ 500tr đã duyệt, chia 3 kỳ, bị chặn oan 403",
+            "what_vi": "Yêu cầu giải ngân cho đề xuất 500.000.000đ đã hợp lệ, chia 3 kỳ theo R6, bị hệ thống trả 403 thay vì 200 kèm các kỳ đúng.",
+            "consequence_vi": "Hồ sơ đã duyệt hợp lệ không giải ngân được, chặn đứng nghiệp vụ giải ngân đúng luật.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P4: floor + dồn dư về kỳ cuối, tổng 3 kỳ đúng 500.000.000",
+              "probe_code": "it('P4: floor + dồn dư về kỳ cuối, tổng 3 kỳ đúng 500.000.000', async () => {\n    const dx = await taoDeXuat('HM-2026-8004', 500_000_000, 'hung');\n    const duyet = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(duyet.statusCode).toBe(200);\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    const soTienCacKy = kq.cac_ky.map((k: { so_tien: number }) => k.so_tien);\n    expect(soTienCacKy).toEqual([166_666_666, 166_666_666, 166_666_668]);\n    const tong = kq.cac_ky.reduce((s: number, k: { so_tien: number }) => s + k.so_tien, 0);\n    expect(tong).toBe(500_000_000);\n  });",
+              "command": "vitest run test/checker.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+              "expected": "200; cac_ky = [166.666.666, 166.666.666, 166.666.668]; tổng 3 kỳ = đúng 500.000.000 (diff đổi floor+dồn-dư thành Math.round mỗi kỳ sẽ làm tổng lệch, ví dụ 500.000.001)",
+              "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\checker.probe.test.ts:85:30\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F3",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Biên đóng R1 (500tr) vẫn bị 403 sau refactor logic duyệt",
+            "what_vi": "Ở bản refactor gộp điều kiện duyệt, trường hợp số tiền đúng bằng trần (500.000.000đ) vẫn bị trả 403 thay vì cho duyệt hợp lệ.",
+            "consequence_vi": "Người có thẩm quyền không duyệt được hồ sơ đúng bằng hạn mức, sai lệch với luật biên đóng PHẢI cho qua.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P3: chuyên viên duyệt đúng bằng trần hạn mức do người khác tạo vẫn PASS [thư viện: lib_b571b96_1.probe.test.ts]",
+              "probe_code": "it('P3: chuyên viên duyệt đúng bằng trần hạn mức do người khác tạo vẫn PASS', async () => {\n    const dx = await taoDeXuat('HM-2026-8003', 500_000_000, 'hung');\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(res.statusCode).toBe(200);\n    expect(res.json().trang_thai).toBe('da_duyet');\n    expect(res.json().nguoi_duyet).toBe('lan');\n  });",
+              "command": "vitest run test/lib_b571b96_1.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+              "expected": "Trả 200, trang_thai='da_duyet', nguoi_duyet='lan'.",
+              "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_b571b96_1.probe.test.ts:61:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F4",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Chia kỳ giải ngân dùng làm tròn từng kỳ, sai số tiền kỳ đầu",
+            "what_vi": "PR thay thuật toán floor+dồn-dư-kỳ-cuối bằng làm tròn (round) từng kỳ, khiến kỳ đầu ra 166.666.667đ thay vì 166.666.666đ theo đúng ví dụ spec R6.",
+            "consequence_vi": "Số tiền từng kỳ giải ngân sai lệch, tổng ba kỳ không còn khớp tuyệt đối với số tiền đã duyệt.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P4: giải ngân 500 triệu chia 3 kỳ không hết, dồn dư về kỳ cuối [thư viện: lib_b571b96_1.probe.test.ts]",
+              "probe_code": "it('P4: giải ngân 500 triệu chia 3 kỳ không hết, dồn dư về kỳ cuối', async () => {\n    const dx = await taoDeXuat('HM-2026-8004', 500_000_000, 'lan');\n    await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'hung' },\n    });\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    expect(kq.cac_ky).toHaveLength(3);\n    expect(kq.cac_ky[0].so_tien).toBe(166_666_666);\n    expect(kq.cac_ky[1].so_tien).toBe(166_666_666);\n    expect(kq.cac_ky[2].so_tien).toBe(166_666_668);\n    const tong = kq.cac_ky.reduce((s: number, k: { so_tien: number }) => s + k.so_tien, 0);\n    expect(tong).toBe(500_000_000);\n  });",
+              "command": "vitest run test/lib_b571b96_1.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+              "expected": "POST .../giai-ngan trả 200; cac_ky có 3 phần tử với so_tien lần lượt 166.666.666, 166.666.666, 166.666.668; tổng cac_ky.so_tien = 500.000.000 khớp tuyệt đối số đã duyệt.",
+              "actual": "AssertionError: expected 166666667 to be 166666666 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_b571b96_1.probe.test.ts:82:34\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F5",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Người khác duyệt đúng biên hạn mức 500tr vẫn bị từ chối 403",
+            "what_vi": "Duyệt hồ sơ 500.000.000đ do người khác tạo, đúng bằng trần vai chuyên viên, vẫn bị hệ thống trả 403 thay vì 200.",
+            "consequence_vi": "Chặn oan giao dịch duyệt hợp lệ đúng biên, vi phạm quy định biên đóng của R1.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P3: người khác duyệt đúng biên hạn mức 500.000.000đ phải thành công [thư viện: lib_b571b96_2.probe.test.ts]",
+              "probe_code": "it('P3: người khác duyệt đúng biên hạn mức 500.000.000đ phải thành công', async () => {\n    const dx = await taoDeXuat('HM-2026-8003', 500_000_000, 'hung');\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    expect(kq.trang_thai).toBe('da_duyet');\n    expect(kq.nguoi_duyet).toBe('lan');\n  });",
+              "command": "vitest run test/lib_b571b96_2.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+              "expected": "200, trang_thai = 'da_duyet', nguoi_duyet = 'lan' (đúng bằng trần 500.000.000đ của chuyên viên, biên đóng hợp lệ).",
+              "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_b571b96_2.probe.test.ts:59:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F6",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Giải ngân 500tr chia 3 kỳ hợp lệ bị báo xung đột 409",
+            "what_vi": "Yêu cầu giải ngân cho đề xuất 500.000.000đ đã duyệt hợp lệ, chia 3 kỳ theo R6, bị hệ thống trả 409 (xung đột) thay vì 200 kèm các kỳ đúng.",
+            "consequence_vi": "Giải ngân hợp lệ bị chặn do lỗi xung đột giả, hồ sơ đã duyệt không giải ngân được.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P4: giải ngân 500 triệu chia 3 kỳ, dồn phần dư về kỳ cuối [thư viện: lib_b571b96_2.probe.test.ts]",
+              "probe_code": "it('P4: giải ngân 500 triệu chia 3 kỳ, dồn phần dư về kỳ cuối', async () => {\n    const dx = await taoDeXuat('HM-2026-8004', 500_000_000, 'hung');\n    await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    expect(kq.cac_ky.map((k: { so_tien: number }) => k.so_tien)).toEqual([\n      166_666_666, 166_666_666, 166_666_668,\n    ]);\n    const tong = kq.cac_ky.reduce((s: number, k: { so_tien: number }) => s + k.so_tien, 0);\n    expect(tong).toBe(500_000_000);\n  });",
+              "command": "vitest run test/lib_b571b96_2.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+              "expected": "200; cac_ky có 3 phần tử = [166.666.666, 166.666.666, 166.666.668]; tổng = 500.000.000 (khớp tuyệt đối số đã duyệt, không round-per-kỳ).",
+              "actual": "AssertionError: expected 409 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_b571b96_2.probe.test.ts:79:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F7",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Luồng duyệt chuẩn tại biên trần vai (500tr) bị PR làm gãy, trả 403",
+            "what_vi": "Trường hợp chuẩn: số tiền đúng bằng trần vai chuyên viên, khác người tạo duyệt — vẫn bị từ chối 403 thay vì duyệt thành công.",
+            "consequence_vi": "Phá luồng duyệt hợp lệ cơ bản nhất theo R1, chặn oan các hồ sơ đúng hạn mức.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P3: duyệt đúng biên trần vai (500tr), khác người tạo, phải cho qua (luồng chuẩn không bị PR phá) [thư viện: lib_b571b96_3.probe.test.ts]",
+              "probe_code": "it('P3: duyệt đúng biên trần vai (500tr), khác người tạo, phải cho qua (luồng chuẩn không bị PR phá)', async () => {\n    const dx = await taoDeXuat('HM-2026-8003', 500_000_000, 'hung');\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n\n    expect(res.statusCode).toBe(200);\n    expect(res.json().trang_thai).toBe('da_duyet');\n    expect(res.json().nguoi_duyet).toBe('lan');\n  });",
+              "command": "vitest run test/lib_b571b96_3.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+              "expected": "POST /api/de-xuat/:id/duyet trả 200, trang_thai=da_duyet, nguoi_duyet=lan.",
+              "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_b571b96_3.probe.test.ts:74:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F8",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Giải ngân đề xuất đã duyệt hợp lệ (500tr, 3 kỳ) bị từ chối 403",
+            "what_vi": "Sau khi duyệt hợp lệ đề xuất 500.000.000đ, gọi giải ngân 3 kỳ theo R6 vẫn bị trả 403 thay vì 200 kèm các kỳ dồn dư đúng ví dụ spec.",
+            "consequence_vi": "Nghiệp vụ giải ngân bị chặn hoàn toàn dù hồ sơ đã đủ điều kiện hợp lệ.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P5: chia 500tr thành 3 kỳ không chia hết, dồn phần dư vào kỳ cuối, tổng khớp gốc [thư viện: lib_b571b96_3.probe.test.ts]",
+              "probe_code": "it('P5: chia 500tr thành 3 kỳ không chia hết, dồn phần dư vào kỳ cuối, tổng khớp gốc', async () => {\n    const dx = await taoDeXuat('HM-2026-8005', 500_000_000, 'hung');\n\n    const duyetRes = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(duyetRes.statusCode).toBe(200);\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    expect(kq.cac_ky).toHaveLength(3);\n    expect(kq.cac_ky.map((k: { so_tien: number }) => k.so_tien)).toEqual([\n      166_666_666, 166_666_666, 166_666_668,\n    ]);\n    const tong = kq.cac_ky.reduce((s: number, k: { so_tien: number }) => s + k.so_tien, 0);\n    expect(tong).toBe(500_000_000);\n  });",
+              "command": "vitest run test/lib_b571b96_3.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+              "expected": "res.statusCode=200; cac_ky.length=3; cac_ky = [166666666, 166666666, 166666668] (thứ tự); tổng cac_ky[].so_tien = 500000000 đúng tuyệt đối.",
+              "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_b571b96_3.probe.test.ts:101:33\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F9",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Duyệt hồ sơ đúng bằng trần thẩm quyền (500tr) bị coi là vượt quyền",
+            "what_vi": "Diff đổi `so_tien > HAN_MUC_DUYET` thành `>=`, khiến số tiền bằng đúng trần bị chặn 403 thay vì duyệt hợp lệ theo R1.",
+            "consequence_vi": "Chuyên viên bị từ chối oan quyền duyệt hồ sơ đúng hạn mức, sai lệch chính sách phân quyền.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P1: chuyên viên duyệt hồ sơ đúng bằng trần thẩm quyền (500tr, biên đóng) [thư viện: lib_0c6eaec_4.probe.test.ts]",
+              "probe_code": "it('P1: chuyên viên duyệt hồ sơ đúng bằng trần thẩm quyền (500tr, biên đóng)', async () => {\n    const dx = await taoDeXuat('HM-2026-8001', 500_000_000, 'hung');\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/duyet`,\n      headers: { 'x-user': 'lan' },\n    });\n    expect(res.statusCode).toBe(200);\n    expect(res.json().trang_thai).toBe('da_duyet');\n    expect(res.json().nguoi_duyet).toBe('lan');\n  });",
+              "command": "vitest run test/lib_0c6eaec_4.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+              "expected": "200, trang_thai='da_duyet', nguoi_duyet='lan' (R1: 'Số tiền bằng ĐÚNG mức trần của vai PHẢI được phê duyệt hợp lệ, biên đóng dùng <='). PR lỗi sẽ trả 403.",
+              "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_0c6eaec_4.probe.test.ts:31:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F10",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Giải ngân 500tr chia 3 kỳ đúng luật R6 bị báo xung đột 409",
+            "what_vi": "Thay vì trả về 3 kỳ dồn-dư-kỳ-cuối đúng ví dụ spec (166.666.666/166.666.666/166.666.668), hệ thống trả 409 chặn luôn yêu cầu giải ngân hợp lệ.",
+            "consequence_vi": "Hồ sơ hợp lệ đã duyệt không thể giải ngân, gây tắc nghẽn nghiệp vụ giải ngân.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P4: giải ngân 500 triệu chia 3 kỳ - chia không hết, dư dồn kỳ cuối [thư viện: lib_0c6eaec_4.probe.test.ts]",
+              "probe_code": "it('P4: giải ngân 500 triệu chia 3 kỳ - chia không hết, dư dồn kỳ cuối', async () => {\n    const dx = await taoDeXuat('HM-2026-8004', 500_000_000, 'hung');\n    await app.inject({ method: 'POST', url: `/api/de-xuat/${dx.id}/duyet`, headers: { 'x-user': 'lan' } });\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    const soTienCacKy = kq.cac_ky.map((k: { so_tien: number }) => k.so_tien);\n    expect(soTienCacKy).toEqual([166_666_666, 166_666_666, 166_666_668]);\n    const tong = kq.cac_ky.reduce((s: number, k: { so_tien: number }) => s + k.so_tien, 0);\n    expect(tong).toBe(500_000_000);\n  });",
+              "command": "vitest run test/lib_0c6eaec_4.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+              "expected": "200; cac_ky = [166666666, 166666666, 166666668]; tổng cac_ky.so_tien === 500000000 (đúng bằng số tiền phê duyệt, không sai lệch dù 1 đồng).",
+              "actual": "AssertionError: expected 409 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_0c6eaec_4.probe.test.ts:73:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F11",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Biên đóng R1 bị đổi thành biên mở, chặn nhầm duyệt đúng trần 500tr",
+            "what_vi": "So sánh hạn mức đổi từ biên đóng (`<=` cho qua) thành biên mở (chặn cả trường hợp bằng), khiến duyệt đúng trần vai bị từ chối 403.",
+            "consequence_vi": "Hồ sơ đúng bằng hạn mức thẩm quyền không duyệt được, vi phạm trực tiếp quy tắc biên đóng bắt buộc của R1.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P1: lan (chuyên viên) duyệt đề xuất đúng bằng trần vai phải được cho qua [thư viện: lib_0c6eaec_5.probe.test.ts]",
+              "probe_code": "it('P1: lan (chuyên viên) duyệt đề xuất đúng bằng trần vai phải được cho qua', async () => {\n    const dx = await taoDeXuat('HM-2026-8001', 500_000_000, 'hung');\n    const res = await duyet(dx.id, 'lan');\n\n    expect(res.statusCode).toBe(200);\n    expect(res.json().trang_thai).toBe('da_duyet');\n    expect(res.json().nguoi_duyet).toBe('lan');\n  });",
+              "command": "vitest run test/lib_0c6eaec_5.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+              "expected": "200 OK, trang_thai = 'da_duyet', nguoi_duyet = 'lan' (đúng biên đóng '<=' theo spec — trên nhánh PR bị lỗi sẽ trả 403 sai)",
+              "actual": "AssertionError: expected 403 to be 200 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_0c6eaec_5.probe.test.ts:37:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F12",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Chia 3 kỳ giải ngân 500tr sai số tiền, tổng lệch 1 đồng",
+            "what_vi": "PR đổi thuật toán chia kỳ thành làm tròn đều mỗi kỳ (166.666.667×3), thay vì floor+dồn-dư-kỳ-cuối đúng ví dụ spec (166.666.666/166.666.666/166.666.668).",
+            "consequence_vi": "Tổng ba kỳ giải ngân ra 500.000.001đ, lệch 1 đồng so với số tiền đã duyệt, sai số liệu giao dịch.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P5: floor + dồn dư về kỳ cuối phải cho tổng cac_ky đúng bằng 500.000.000 tuyệt đối [thư viện: lib_0c6eaec_5.probe.test.ts]",
+              "probe_code": "it('P5: floor + dồn dư về kỳ cuối phải cho tổng cac_ky đúng bằng 500.000.000 tuyệt đối', async () => {\n    const dx = await taoDeXuat('HM-2026-8005', 500_000_000, 'lan');\n    const dRes = await duyet(dx.id, 'hung');\n    expect(dRes.statusCode).toBe(200);\n\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/${dx.id}/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n\n    expect(res.statusCode).toBe(200);\n    const kq = res.json();\n    const soTienCacKy = kq.cac_ky.map((k: { so_tien: number }) => k.so_tien);\n    expect(soTienCacKy).toEqual([166_666_666, 166_666_666, 166_666_668]);\n    const tong = kq.cac_ky.reduce((s: number, k: { so_tien: number }) => s + k.so_tien, 0);\n    expect(tong).toBe(500_000_000);\n  });",
+              "command": "vitest run test/lib_0c6eaec_5.probe.test.ts (nhánh feature/giai-ngan-nhieu-ky @ 0c6eaec)",
+              "expected": "cac_ky = [166.666.666, 166.666.666, 166.666.668] đúng ví dụ spec, tổng cac_ky đúng bằng 500.000.000 tuyệt đối (trên nhánh PR lỗi: mỗi kỳ round thành 166.666.667, tổng lệch thành 500.000.001)",
+              "actual": "AssertionError: expected [ 166666667, 166666667, 166666667 ] to deeply equal [ 166666666, 166666666, 166666668 ]\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-kBVfNL\\test\\lib_0c6eaec_5.probe.test.ts:95:25\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          }
+        ],
+        "probe_stats": {
+          "ke_hoach": 6,
+          "ghi_nhan": 35,
+          "pass": 23,
+          "hoi_quy": 12,
+          "hong": 0,
+          "nghi_van": 0,
+          "cai_thien": 0,
+          "bo_qua": 0,
+          "that_lac": []
+        },
+        "model": "claude-cli/claude-sonnet-5",
+        "mode": "live",
+        "started_at": "2026-08-25T18:29:57.735Z",
+        "finished_at": "2026-08-25T18:34:39.533Z"
+      }
+    }
+  ]
+}

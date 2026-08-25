@@ -1,0 +1,504 @@
+{
+  "verdict": {
+    "run_id": "run-2026-08-25T18-34-41-516Z-feature_tao-nhanh-de-xuat",
+    "skill": "code",
+    "artifact_ref": {
+      "type": "pr",
+      "name": "feature/tao-nhanh-de-xuat",
+      "sha_or_hash": "a80b30f3cdd0e6157301d8558de2d1e067dc68e5"
+    },
+    "result": "FAIL",
+    "findings": [
+      {
+        "id": "F1",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Tạo trùng số hồ sơ (so_ho_so) vỡ lỗi hệ thống 500 thay vì 422",
+        "what_vi": "PR đã gỡ bỏ kiểm tra trùng so_ho_so ở tầng ứng dụng, phó mặc cho UNIQUE index của DB chặn, nên khi tạo đề xuất trùng mã, lỗi ràng buộc DB vỡ thành 500 thay vì trả 422 kèm thông báo 'Mã hồ sơ đã tồn tại'.",
+        "consequence_vi": "Người dùng nhận màn hình lỗi hệ thống khó hiểu thay vì thông báo nghiệp vụ, đồng thời có nguy cơ lộ chi tiết kỹ thuật (lỗi SQL/cấu trúc DB) ra ngoài.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P1: trùng so_ho_so trả 422 nghiệp vụ, không vỡ 500, không ghi thêm bản ghi",
+          "probe_code": "it('P1: trùng so_ho_so trả 422 nghiệp vụ, không vỡ 500, không ghi thêm bản ghi', async () => {\n    const soHoSo = 'HM-2026-8001';\n\n    const res1 = await taoDeXuat(soHoSo, 300_000_000, 'hung');\n    expect(res1.statusCode).toBe(201);\n\n    const res2 = await taoDeXuat(soHoSo, 300_000_000, 'lan');\n    expect(res2.statusCode).toBe(422);\n    expect(res2.statusCode).not.toBe(500);\n    expect(res2.body).toContain('Mã hồ sơ đã tồn tại');\n\n    const ds = await app.inject({ method: 'GET', url: '/api/de-xuat' });\n    expect(ds.statusCode).toBe(200);\n    const trung = ds\n      .json()\n      .filter((d: { so_ho_so: string }) => d.so_ho_so === soHoSo);\n    expect(trung).toHaveLength(1);\n  });",
+          "command": "vitest run test/checker.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+          "expected": "Request thứ 2 trả 422 kèm thông báo tiếng Việt 'Mã hồ sơ đã tồn tại'; KHÔNG được là 500. Dữ liệu không ghi thêm bản ghi trùng.",
+          "actual": "AssertionError: expected 500 to be 422 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\checker.probe.test.ts:30:29\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F2",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Giải ngân với de_xuat_id không tồn tại gây crash 500 (TypeError)",
+        "what_vi": "PR đã bỏ bước kiểm tra đề xuất có tồn tại hay không, cast thẳng kết quả SELECT (có thể undefined) sang DeXuat rồi đọc dx.trang_thai, khiến request với id rác vỡ TypeError/500 thay vì trả 404.",
+        "consequence_vi": "Yêu cầu giải ngân với id sai làm sập request bằng lỗi hệ thống thay vì thông báo rõ ràng 'Không tìm thấy đề xuất', ảnh hưởng trải nghiệm và có thể lộ stack trace.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P2: giai-ngan với de_xuat_id không tồn tại trả 404, không vỡ 500",
+          "probe_code": "it('P2: giai-ngan với de_xuat_id không tồn tại trả 404, không vỡ 500', async () => {\n    const res = await app.inject({\n      method: 'POST',\n      url: '/api/de-xuat/999999/giai-ngan',\n      payload: { so_ky: 3 },\n    });\n    expect(res.statusCode).toBe(404);\n    expect(res.statusCode).not.toBe(500);\n    expect(res.body).toContain('Không tìm thấy đề xuất');\n  });",
+          "command": "vitest run test/checker.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+          "expected": "Trả 404 kèm thông báo 'Không tìm thấy đề xuất'; KHÔNG được là 500.",
+          "actual": "AssertionError: expected 500 to be 404 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\checker.probe.test.ts:48:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F3",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "App-guard R7 không chặn id không tồn tại trước khi giải ngân, vỡ 500",
+        "what_vi": "Gọi giải ngân với de_xuat_id=999999 (không tồn tại) và so_ky hợp lệ vẫn trả 500 thay vì 404 — app không kiểm tồn tại trước khi chạm DB/ràng buộc FK.",
+        "consequence_vi": "Mọi lời gọi giải ngân với id sai đều vỡ lỗi hệ thống thay vì nhận thông báo nghiệp vụ, có nguy cơ lộ thông tin kỹ thuật.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P5: giải ngân đề xuất không tồn tại trả 404 tiếng Việt, không lộ lỗi DB [thư viện: lib_b571b96_1.probe.test.ts]",
+          "probe_code": "it('P5: giải ngân đề xuất không tồn tại trả 404 tiếng Việt, không lộ lỗi DB', async () => {\n    const res = await app.inject({\n      method: 'POST',\n      url: '/api/de-xuat/999999/giai-ngan',\n      payload: { so_ky: 2 },\n    });\n    expect(res.statusCode).toBe(404);\n    expect(JSON.stringify(res.json())).toMatch(/Không tìm thấy đề xuất/);\n  });",
+          "command": "vitest run test/lib_b571b96_1.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+          "expected": "Trả 404 kèm thông báo tiếng Việt «Không tìm thấy đề xuất» (không phải 500, không có stack trace/mã lỗi SQL).",
+          "actual": "AssertionError: expected 500 to be 404 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\lib_b571b96_1.probe.test.ts:95:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F4",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Xác nhận lặp lại: giải ngân id không tồn tại vẫn vỡ 500 thay vì 404",
+        "what_vi": "Probe thư viện xác nhận lại cùng lỗi: PR không chặn ở tầng ứng dụng khi de_xuat_id không tồn tại, để lỗi FK/DB lộ ra thành 500.",
+        "consequence_vi": "Lỗi có tính hệ thống (không phải ngẫu nhiên) trên mọi luồng giải ngân với id sai, gây trải nghiệm lỗi kỹ thuật thay vì lỗi nghiệp vụ.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P5: giải ngân với de_xuat_id không tồn tại phải trả 404, không phải 500 [thư viện: lib_b571b96_2.probe.test.ts]",
+          "probe_code": "it('P5: giải ngân với de_xuat_id không tồn tại phải trả 404, không phải 500', async () => {\n    const res = await app.inject({\n      method: 'POST',\n      url: '/api/de-xuat/999999/giai-ngan',\n      payload: { so_ky: 3 },\n    });\n\n    expect(res.statusCode).toBe(404);\n    expect(res.body).toContain('Không tìm thấy đề xuất');\n  });",
+          "command": "vitest run test/lib_b571b96_2.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+          "expected": "404 kèm thông báo 'Không tìm thấy đề xuất', KHÔNG phải 500 hay lỗi SQL/stack trace.",
+          "actual": "AssertionError: expected 500 to be 404 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\lib_b571b96_2.probe.test.ts:95:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F5",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Xác nhận lặp lại: tạo trùng so_ho_so vẫn vỡ 500 thay vì 422",
+        "what_vi": "Probe thư viện xác nhận lại cùng lỗi ở U1: tạo đề xuất lần hai với so_ho_so trùng ('HM-2026-0001') trả 500 thay vì 422 kèm thông báo 'Mã hồ sơ đã tồn tại'.",
+        "consequence_vi": "Người dùng nhập trùng mã hồ sơ nhận lỗi hệ thống thay vì được hướng dẫn sửa, rủi ro lộ lỗi kỹ thuật DB.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P6: tạo đề xuất với so_ho_so trùng phải bị chặn ở tầng ứng dụng, không vỡ 500 [thư viện: lib_b571b96_3.probe.test.ts]",
+          "probe_code": "it('P6: tạo đề xuất với so_ho_so trùng phải bị chặn ở tầng ứng dụng, không vỡ 500', async () => {\n    await taoDeXuat('HM-2026-8006', 300_000_000, 'hung');\n\n    const res = await app.inject({\n      method: 'POST',\n      url: '/api/de-xuat',\n      headers: { 'x-user': 'hung' },\n      payload: { so_ho_so: 'HM-2026-8006', khach_hang: 'Trần Thị B', so_tien: 300_000_000 },\n    });\n\n    expect(res.statusCode).toBe(422);\n    expect(JSON.stringify(res.json())).toContain('tồn tại');\n  });",
+          "command": "vitest run test/lib_b571b96_3.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+          "expected": "Lần tạo thứ hai trả 422 kèm thông báo tiếng Việt «Mã hồ sơ đã tồn tại» (hoặc tương đương); tuyệt đối không phải 500.",
+          "actual": "AssertionError: expected 500 to be 422 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\lib_b571b96_3.probe.test.ts:131:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F6",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Xác nhận lặp lại: app-guard giải ngân id lạ vẫn vỡ 500 thay vì 404",
+        "what_vi": "Probe thư viện thứ ba xác nhận lại cùng lỗi ở U2/U11/U16: gọi giải ngân với id không có trong hệ thống trả 500 thay vì 404 với thông báo tiếng Việt.",
+        "consequence_vi": "Lỗi tái hiện nhất quán qua nhiều probe độc lập, khẳng định đây là lỗ hổng app-guard có hệ thống, không phải trường hợp cá biệt.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P6: giải ngân với de_xuat_id không tồn tại [thư viện: lib_0c6eaec_4.probe.test.ts]",
+          "probe_code": "it('P6: giải ngân với de_xuat_id không tồn tại', async () => {\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/999999/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n    expect(res.statusCode).toBe(404);\n  });",
+          "command": "vitest run test/lib_0c6eaec_4.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+          "expected": "404 kèm thông báo tiếng Việt «Không tìm thấy đề xuất»; không phải 500.",
+          "actual": "AssertionError: expected 500 to be 404 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\lib_0c6eaec_4.probe.test.ts:105:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      },
+      {
+        "id": "F7",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Xác nhận lặp lại: giải ngân id không tồn tại (so_ky=3) vẫn vỡ 500",
+        "what_vi": "Probe thư viện thứ tư (biến thể so_ky=3) xác nhận lại cùng lỗi app-guard R7: gọi giải ngân id 999999 vẫn trả 500 thay vì 404.",
+        "consequence_vi": "Lỗi không phụ thuộc giá trị so_ky, khẳng định gốc rễ là thiếu kiểm tồn tại đề xuất trước khi chạm DB trong toàn bộ luồng giải ngân.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P6: id không có trong DB -> 404 rõ ràng, không vỡ thành 500 [thư viện: lib_0c6eaec_6.probe.test.ts]",
+          "probe_code": "it('P6: id không có trong DB -> 404 rõ ràng, không vỡ thành 500', async () => {\n    const res = await app.inject({\n      method: 'POST',\n      url: '/api/de-xuat/999999/giai-ngan',\n      payload: { so_ky: 3 },\n    });\n    expect(res.statusCode).toBe(404);\n    expect(res.body).toContain('Không tìm thấy đề xuất');\n  });",
+          "command": "vitest run test/lib_0c6eaec_6.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+          "expected": "404 «Không tìm thấy đề xuất», không vỡ thành 500 lộ lỗi kỹ thuật",
+          "actual": "AssertionError: expected 500 to be 404 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\lib_0c6eaec_6.probe.test.ts:123:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    ],
+    "probe_stats": {
+      "ke_hoach": 6,
+      "ghi_nhan": 41,
+      "pass": 34,
+      "hoi_quy": 7,
+      "hong": 0,
+      "nghi_van": 0,
+      "cai_thien": 0,
+      "bo_qua": 0,
+      "that_lac": []
+    },
+    "model": "claude-cli/claude-sonnet-5",
+    "mode": "live",
+    "started_at": "2026-08-25T18:34:41.517Z",
+    "finished_at": "2026-08-25T18:37:26.751Z"
+  },
+  "events": [
+    {
+      "type": "stage",
+      "stage": 1,
+      "ten": "Nhận artifact — đọc diff PR"
+    },
+    {
+      "type": "log",
+      "msg": "PR feature/tao-nhanh-de-xuat @ a80b30f · đối chứng main @ e278bbe · diff 1722 ký tự"
+    },
+    {
+      "type": "stage",
+      "stage": 2,
+      "ten": "Đọc spec — nạp luật hành vi"
+    },
+    {
+      "type": "log",
+      "msg": "2 file spec: specs/spec-giai-ngan.md, specs/spec-phe-duyet.md"
+    },
+    {
+      "type": "stage",
+      "stage": 3,
+      "ten": "Sinh probe đối kháng"
+    },
+    {
+      "type": "log",
+      "msg": "6 probe mới: P1 (R3+R4) · P2 (R7+R4) · P3 (R1) · P4 (R2) · P5 (R1) · P6 (R6)"
+    },
+    {
+      "type": "log",
+      "msg": "+ 35 probe THƯ VIỆN từ 6 lượt trước (regression, không tốn model)"
+    },
+    {
+      "type": "stage",
+      "stage": 4,
+      "ten": "Chạy probe trong sandbox — nhánh PR và nhánh gốc đối chứng + cổng sanity"
+    },
+    {
+      "type": "log",
+      "msg": "Nhánh PR:  P1=f P2=f P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=f P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=f P1=p P2=p P3=p P4=p P5=f P1=p P2=p P3=p P4=p P5=f P6=p P1=p P2=p P3=p P4=p P5=p P6=f"
+    },
+    {
+      "type": "log",
+      "msg": "Nhánh gốc: P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P1=p P2=p P3=p P4=p P5=p P6=p P1=p P2=p P3=p P4=p P5=p P6=p"
+    },
+    {
+      "type": "log",
+      "msg": "Phân loại máy: 34 pass · 7 hồi quy · 0 hỏng · 0 nghi vấn · 0 cải thiện · 0 bỏ qua (skip)"
+    },
+    {
+      "type": "stage",
+      "stage": 5,
+      "ten": "Kết luận — máy làm chủ phân loại, model viết finding"
+    },
+    {
+      "type": "log",
+      "msg": "Ghi chú kết luận: Không có ứng viên nghi_van trong lô này — cả 7 ứng viên đều được máy phân loại hoi_quy (PR fail, gốc pass), đúng 1 finding mỗi ứng viên theo yêu cầu. Ghi nhận: cả 7 đều quy về đúng 2 nguyên nhân gốc — (1) gỡ app-guard kiểm trùng so_ho_so (U1, U23) và (2) gỡ app-guard kiểm tồn tại de_xuat_id trước giải ngân (U2, U11, U16, U29, U41) — probe thư viện lặp lại nhiều lần chỉ để xác nhận tính nhất quán của cùng lỗi, không phải lỗi mới."
+    },
+    {
+      "type": "log",
+      "msg": "Thư viện: nhận 6 probe khớp contract (lib_a80b30f_7.probe.test.ts) — thành regression cho các lượt sau"
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F1",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Tạo trùng số hồ sơ (so_ho_so) vỡ lỗi hệ thống 500 thay vì 422",
+        "what_vi": "PR đã gỡ bỏ kiểm tra trùng so_ho_so ở tầng ứng dụng, phó mặc cho UNIQUE index của DB chặn, nên khi tạo đề xuất trùng mã, lỗi ràng buộc DB vỡ thành 500 thay vì trả 422 kèm thông báo 'Mã hồ sơ đã tồn tại'.",
+        "consequence_vi": "Người dùng nhận màn hình lỗi hệ thống khó hiểu thay vì thông báo nghiệp vụ, đồng thời có nguy cơ lộ chi tiết kỹ thuật (lỗi SQL/cấu trúc DB) ra ngoài.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P1: trùng so_ho_so trả 422 nghiệp vụ, không vỡ 500, không ghi thêm bản ghi",
+          "probe_code": "it('P1: trùng so_ho_so trả 422 nghiệp vụ, không vỡ 500, không ghi thêm bản ghi', async () => {\n    const soHoSo = 'HM-2026-8001';\n\n    const res1 = await taoDeXuat(soHoSo, 300_000_000, 'hung');\n    expect(res1.statusCode).toBe(201);\n\n    const res2 = await taoDeXuat(soHoSo, 300_000_000, 'lan');\n    expect(res2.statusCode).toBe(422);\n    expect(res2.statusCode).not.toBe(500);\n    expect(res2.body).toContain('Mã hồ sơ đã tồn tại');\n\n    const ds = await app.inject({ method: 'GET', url: '/api/de-xuat' });\n    expect(ds.statusCode).toBe(200);\n    const trung = ds\n      .json()\n      .filter((d: { so_ho_so: string }) => d.so_ho_so === soHoSo);\n    expect(trung).toHaveLength(1);\n  });",
+          "command": "vitest run test/checker.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+          "expected": "Request thứ 2 trả 422 kèm thông báo tiếng Việt 'Mã hồ sơ đã tồn tại'; KHÔNG được là 500. Dữ liệu không ghi thêm bản ghi trùng.",
+          "actual": "AssertionError: expected 500 to be 422 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\checker.probe.test.ts:30:29\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F2",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Giải ngân với de_xuat_id không tồn tại gây crash 500 (TypeError)",
+        "what_vi": "PR đã bỏ bước kiểm tra đề xuất có tồn tại hay không, cast thẳng kết quả SELECT (có thể undefined) sang DeXuat rồi đọc dx.trang_thai, khiến request với id rác vỡ TypeError/500 thay vì trả 404.",
+        "consequence_vi": "Yêu cầu giải ngân với id sai làm sập request bằng lỗi hệ thống thay vì thông báo rõ ràng 'Không tìm thấy đề xuất', ảnh hưởng trải nghiệm và có thể lộ stack trace.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P2: giai-ngan với de_xuat_id không tồn tại trả 404, không vỡ 500",
+          "probe_code": "it('P2: giai-ngan với de_xuat_id không tồn tại trả 404, không vỡ 500', async () => {\n    const res = await app.inject({\n      method: 'POST',\n      url: '/api/de-xuat/999999/giai-ngan',\n      payload: { so_ky: 3 },\n    });\n    expect(res.statusCode).toBe(404);\n    expect(res.statusCode).not.toBe(500);\n    expect(res.body).toContain('Không tìm thấy đề xuất');\n  });",
+          "command": "vitest run test/checker.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+          "expected": "Trả 404 kèm thông báo 'Không tìm thấy đề xuất'; KHÔNG được là 500.",
+          "actual": "AssertionError: expected 500 to be 404 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\checker.probe.test.ts:48:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F3",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "App-guard R7 không chặn id không tồn tại trước khi giải ngân, vỡ 500",
+        "what_vi": "Gọi giải ngân với de_xuat_id=999999 (không tồn tại) và so_ky hợp lệ vẫn trả 500 thay vì 404 — app không kiểm tồn tại trước khi chạm DB/ràng buộc FK.",
+        "consequence_vi": "Mọi lời gọi giải ngân với id sai đều vỡ lỗi hệ thống thay vì nhận thông báo nghiệp vụ, có nguy cơ lộ thông tin kỹ thuật.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P5: giải ngân đề xuất không tồn tại trả 404 tiếng Việt, không lộ lỗi DB [thư viện: lib_b571b96_1.probe.test.ts]",
+          "probe_code": "it('P5: giải ngân đề xuất không tồn tại trả 404 tiếng Việt, không lộ lỗi DB', async () => {\n    const res = await app.inject({\n      method: 'POST',\n      url: '/api/de-xuat/999999/giai-ngan',\n      payload: { so_ky: 2 },\n    });\n    expect(res.statusCode).toBe(404);\n    expect(JSON.stringify(res.json())).toMatch(/Không tìm thấy đề xuất/);\n  });",
+          "command": "vitest run test/lib_b571b96_1.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+          "expected": "Trả 404 kèm thông báo tiếng Việt «Không tìm thấy đề xuất» (không phải 500, không có stack trace/mã lỗi SQL).",
+          "actual": "AssertionError: expected 500 to be 404 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\lib_b571b96_1.probe.test.ts:95:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F4",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Xác nhận lặp lại: giải ngân id không tồn tại vẫn vỡ 500 thay vì 404",
+        "what_vi": "Probe thư viện xác nhận lại cùng lỗi: PR không chặn ở tầng ứng dụng khi de_xuat_id không tồn tại, để lỗi FK/DB lộ ra thành 500.",
+        "consequence_vi": "Lỗi có tính hệ thống (không phải ngẫu nhiên) trên mọi luồng giải ngân với id sai, gây trải nghiệm lỗi kỹ thuật thay vì lỗi nghiệp vụ.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P5: giải ngân với de_xuat_id không tồn tại phải trả 404, không phải 500 [thư viện: lib_b571b96_2.probe.test.ts]",
+          "probe_code": "it('P5: giải ngân với de_xuat_id không tồn tại phải trả 404, không phải 500', async () => {\n    const res = await app.inject({\n      method: 'POST',\n      url: '/api/de-xuat/999999/giai-ngan',\n      payload: { so_ky: 3 },\n    });\n\n    expect(res.statusCode).toBe(404);\n    expect(res.body).toContain('Không tìm thấy đề xuất');\n  });",
+          "command": "vitest run test/lib_b571b96_2.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+          "expected": "404 kèm thông báo 'Không tìm thấy đề xuất', KHÔNG phải 500 hay lỗi SQL/stack trace.",
+          "actual": "AssertionError: expected 500 to be 404 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\lib_b571b96_2.probe.test.ts:95:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F5",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Xác nhận lặp lại: tạo trùng so_ho_so vẫn vỡ 500 thay vì 422",
+        "what_vi": "Probe thư viện xác nhận lại cùng lỗi ở U1: tạo đề xuất lần hai với so_ho_so trùng ('HM-2026-0001') trả 500 thay vì 422 kèm thông báo 'Mã hồ sơ đã tồn tại'.",
+        "consequence_vi": "Người dùng nhập trùng mã hồ sơ nhận lỗi hệ thống thay vì được hướng dẫn sửa, rủi ro lộ lỗi kỹ thuật DB.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P6: tạo đề xuất với so_ho_so trùng phải bị chặn ở tầng ứng dụng, không vỡ 500 [thư viện: lib_b571b96_3.probe.test.ts]",
+          "probe_code": "it('P6: tạo đề xuất với so_ho_so trùng phải bị chặn ở tầng ứng dụng, không vỡ 500', async () => {\n    await taoDeXuat('HM-2026-8006', 300_000_000, 'hung');\n\n    const res = await app.inject({\n      method: 'POST',\n      url: '/api/de-xuat',\n      headers: { 'x-user': 'hung' },\n      payload: { so_ho_so: 'HM-2026-8006', khach_hang: 'Trần Thị B', so_tien: 300_000_000 },\n    });\n\n    expect(res.statusCode).toBe(422);\n    expect(JSON.stringify(res.json())).toContain('tồn tại');\n  });",
+          "command": "vitest run test/lib_b571b96_3.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+          "expected": "Lần tạo thứ hai trả 422 kèm thông báo tiếng Việt «Mã hồ sơ đã tồn tại» (hoặc tương đương); tuyệt đối không phải 500.",
+          "actual": "AssertionError: expected 500 to be 422 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\lib_b571b96_3.probe.test.ts:131:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F6",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Xác nhận lặp lại: app-guard giải ngân id lạ vẫn vỡ 500 thay vì 404",
+        "what_vi": "Probe thư viện thứ ba xác nhận lại cùng lỗi ở U2/U11/U16: gọi giải ngân với id không có trong hệ thống trả 500 thay vì 404 với thông báo tiếng Việt.",
+        "consequence_vi": "Lỗi tái hiện nhất quán qua nhiều probe độc lập, khẳng định đây là lỗ hổng app-guard có hệ thống, không phải trường hợp cá biệt.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P6: giải ngân với de_xuat_id không tồn tại [thư viện: lib_0c6eaec_4.probe.test.ts]",
+          "probe_code": "it('P6: giải ngân với de_xuat_id không tồn tại', async () => {\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/999999/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n    expect(res.statusCode).toBe(404);\n  });",
+          "command": "vitest run test/lib_0c6eaec_4.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+          "expected": "404 kèm thông báo tiếng Việt «Không tìm thấy đề xuất»; không phải 500.",
+          "actual": "AssertionError: expected 500 to be 404 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\lib_0c6eaec_4.probe.test.ts:105:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F7",
+        "skill": "code",
+        "severity": "high",
+        "title_vi": "Xác nhận lặp lại: giải ngân id không tồn tại (so_ky=3) vẫn vỡ 500",
+        "what_vi": "Probe thư viện thứ tư (biến thể so_ky=3) xác nhận lại cùng lỗi app-guard R7: gọi giải ngân id 999999 vẫn trả 500 thay vì 404.",
+        "consequence_vi": "Lỗi không phụ thuộc giá trị so_ky, khẳng định gốc rễ là thiếu kiểm tồn tại đề xuất trước khi chạm DB trong toàn bộ luồng giải ngân.",
+        "evidence": {
+          "type": "test_run",
+          "probe_name": "P6: id không có trong DB -> 404 rõ ràng, không vỡ thành 500 [thư viện: lib_0c6eaec_6.probe.test.ts]",
+          "probe_code": "it('P6: id không có trong DB -> 404 rõ ràng, không vỡ thành 500', async () => {\n    const res = await app.inject({\n      method: 'POST',\n      url: '/api/de-xuat/999999/giai-ngan',\n      payload: { so_ky: 3 },\n    });\n    expect(res.statusCode).toBe(404);\n    expect(res.body).toContain('Không tìm thấy đề xuất');\n  });",
+          "command": "vitest run test/lib_0c6eaec_6.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+          "expected": "404 «Không tìm thấy đề xuất», không vỡ thành 500 lộ lỗi kỹ thuật",
+          "actual": "AssertionError: expected 500 to be 404 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\lib_0c6eaec_6.probe.test.ts:123:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+          "exit_code": 1
+        }
+      }
+    },
+    {
+      "type": "log",
+      "msg": "Chi phí lượt chấm: 3 call model · ~8k token vào + ~0k token ra (ước từ ký tự)"
+    },
+    {
+      "type": "verdict",
+      "verdict": {
+        "run_id": "run-2026-08-25T18-34-41-516Z-feature_tao-nhanh-de-xuat",
+        "skill": "code",
+        "artifact_ref": {
+          "type": "pr",
+          "name": "feature/tao-nhanh-de-xuat",
+          "sha_or_hash": "a80b30f3cdd0e6157301d8558de2d1e067dc68e5"
+        },
+        "result": "FAIL",
+        "findings": [
+          {
+            "id": "F1",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Tạo trùng số hồ sơ (so_ho_so) vỡ lỗi hệ thống 500 thay vì 422",
+            "what_vi": "PR đã gỡ bỏ kiểm tra trùng so_ho_so ở tầng ứng dụng, phó mặc cho UNIQUE index của DB chặn, nên khi tạo đề xuất trùng mã, lỗi ràng buộc DB vỡ thành 500 thay vì trả 422 kèm thông báo 'Mã hồ sơ đã tồn tại'.",
+            "consequence_vi": "Người dùng nhận màn hình lỗi hệ thống khó hiểu thay vì thông báo nghiệp vụ, đồng thời có nguy cơ lộ chi tiết kỹ thuật (lỗi SQL/cấu trúc DB) ra ngoài.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P1: trùng so_ho_so trả 422 nghiệp vụ, không vỡ 500, không ghi thêm bản ghi",
+              "probe_code": "it('P1: trùng so_ho_so trả 422 nghiệp vụ, không vỡ 500, không ghi thêm bản ghi', async () => {\n    const soHoSo = 'HM-2026-8001';\n\n    const res1 = await taoDeXuat(soHoSo, 300_000_000, 'hung');\n    expect(res1.statusCode).toBe(201);\n\n    const res2 = await taoDeXuat(soHoSo, 300_000_000, 'lan');\n    expect(res2.statusCode).toBe(422);\n    expect(res2.statusCode).not.toBe(500);\n    expect(res2.body).toContain('Mã hồ sơ đã tồn tại');\n\n    const ds = await app.inject({ method: 'GET', url: '/api/de-xuat' });\n    expect(ds.statusCode).toBe(200);\n    const trung = ds\n      .json()\n      .filter((d: { so_ho_so: string }) => d.so_ho_so === soHoSo);\n    expect(trung).toHaveLength(1);\n  });",
+              "command": "vitest run test/checker.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+              "expected": "Request thứ 2 trả 422 kèm thông báo tiếng Việt 'Mã hồ sơ đã tồn tại'; KHÔNG được là 500. Dữ liệu không ghi thêm bản ghi trùng.",
+              "actual": "AssertionError: expected 500 to be 422 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\checker.probe.test.ts:30:29\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F2",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Giải ngân với de_xuat_id không tồn tại gây crash 500 (TypeError)",
+            "what_vi": "PR đã bỏ bước kiểm tra đề xuất có tồn tại hay không, cast thẳng kết quả SELECT (có thể undefined) sang DeXuat rồi đọc dx.trang_thai, khiến request với id rác vỡ TypeError/500 thay vì trả 404.",
+            "consequence_vi": "Yêu cầu giải ngân với id sai làm sập request bằng lỗi hệ thống thay vì thông báo rõ ràng 'Không tìm thấy đề xuất', ảnh hưởng trải nghiệm và có thể lộ stack trace.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P2: giai-ngan với de_xuat_id không tồn tại trả 404, không vỡ 500",
+              "probe_code": "it('P2: giai-ngan với de_xuat_id không tồn tại trả 404, không vỡ 500', async () => {\n    const res = await app.inject({\n      method: 'POST',\n      url: '/api/de-xuat/999999/giai-ngan',\n      payload: { so_ky: 3 },\n    });\n    expect(res.statusCode).toBe(404);\n    expect(res.statusCode).not.toBe(500);\n    expect(res.body).toContain('Không tìm thấy đề xuất');\n  });",
+              "command": "vitest run test/checker.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+              "expected": "Trả 404 kèm thông báo 'Không tìm thấy đề xuất'; KHÔNG được là 500.",
+              "actual": "AssertionError: expected 500 to be 404 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\checker.probe.test.ts:48:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F3",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "App-guard R7 không chặn id không tồn tại trước khi giải ngân, vỡ 500",
+            "what_vi": "Gọi giải ngân với de_xuat_id=999999 (không tồn tại) và so_ky hợp lệ vẫn trả 500 thay vì 404 — app không kiểm tồn tại trước khi chạm DB/ràng buộc FK.",
+            "consequence_vi": "Mọi lời gọi giải ngân với id sai đều vỡ lỗi hệ thống thay vì nhận thông báo nghiệp vụ, có nguy cơ lộ thông tin kỹ thuật.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P5: giải ngân đề xuất không tồn tại trả 404 tiếng Việt, không lộ lỗi DB [thư viện: lib_b571b96_1.probe.test.ts]",
+              "probe_code": "it('P5: giải ngân đề xuất không tồn tại trả 404 tiếng Việt, không lộ lỗi DB', async () => {\n    const res = await app.inject({\n      method: 'POST',\n      url: '/api/de-xuat/999999/giai-ngan',\n      payload: { so_ky: 2 },\n    });\n    expect(res.statusCode).toBe(404);\n    expect(JSON.stringify(res.json())).toMatch(/Không tìm thấy đề xuất/);\n  });",
+              "command": "vitest run test/lib_b571b96_1.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+              "expected": "Trả 404 kèm thông báo tiếng Việt «Không tìm thấy đề xuất» (không phải 500, không có stack trace/mã lỗi SQL).",
+              "actual": "AssertionError: expected 500 to be 404 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\lib_b571b96_1.probe.test.ts:95:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F4",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Xác nhận lặp lại: giải ngân id không tồn tại vẫn vỡ 500 thay vì 404",
+            "what_vi": "Probe thư viện xác nhận lại cùng lỗi: PR không chặn ở tầng ứng dụng khi de_xuat_id không tồn tại, để lỗi FK/DB lộ ra thành 500.",
+            "consequence_vi": "Lỗi có tính hệ thống (không phải ngẫu nhiên) trên mọi luồng giải ngân với id sai, gây trải nghiệm lỗi kỹ thuật thay vì lỗi nghiệp vụ.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P5: giải ngân với de_xuat_id không tồn tại phải trả 404, không phải 500 [thư viện: lib_b571b96_2.probe.test.ts]",
+              "probe_code": "it('P5: giải ngân với de_xuat_id không tồn tại phải trả 404, không phải 500', async () => {\n    const res = await app.inject({\n      method: 'POST',\n      url: '/api/de-xuat/999999/giai-ngan',\n      payload: { so_ky: 3 },\n    });\n\n    expect(res.statusCode).toBe(404);\n    expect(res.body).toContain('Không tìm thấy đề xuất');\n  });",
+              "command": "vitest run test/lib_b571b96_2.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+              "expected": "404 kèm thông báo 'Không tìm thấy đề xuất', KHÔNG phải 500 hay lỗi SQL/stack trace.",
+              "actual": "AssertionError: expected 500 to be 404 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\lib_b571b96_2.probe.test.ts:95:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F5",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Xác nhận lặp lại: tạo trùng so_ho_so vẫn vỡ 500 thay vì 422",
+            "what_vi": "Probe thư viện xác nhận lại cùng lỗi ở U1: tạo đề xuất lần hai với so_ho_so trùng ('HM-2026-0001') trả 500 thay vì 422 kèm thông báo 'Mã hồ sơ đã tồn tại'.",
+            "consequence_vi": "Người dùng nhập trùng mã hồ sơ nhận lỗi hệ thống thay vì được hướng dẫn sửa, rủi ro lộ lỗi kỹ thuật DB.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P6: tạo đề xuất với so_ho_so trùng phải bị chặn ở tầng ứng dụng, không vỡ 500 [thư viện: lib_b571b96_3.probe.test.ts]",
+              "probe_code": "it('P6: tạo đề xuất với so_ho_so trùng phải bị chặn ở tầng ứng dụng, không vỡ 500', async () => {\n    await taoDeXuat('HM-2026-8006', 300_000_000, 'hung');\n\n    const res = await app.inject({\n      method: 'POST',\n      url: '/api/de-xuat',\n      headers: { 'x-user': 'hung' },\n      payload: { so_ho_so: 'HM-2026-8006', khach_hang: 'Trần Thị B', so_tien: 300_000_000 },\n    });\n\n    expect(res.statusCode).toBe(422);\n    expect(JSON.stringify(res.json())).toContain('tồn tại');\n  });",
+              "command": "vitest run test/lib_b571b96_3.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+              "expected": "Lần tạo thứ hai trả 422 kèm thông báo tiếng Việt «Mã hồ sơ đã tồn tại» (hoặc tương đương); tuyệt đối không phải 500.",
+              "actual": "AssertionError: expected 500 to be 422 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\lib_b571b96_3.probe.test.ts:131:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F6",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Xác nhận lặp lại: app-guard giải ngân id lạ vẫn vỡ 500 thay vì 404",
+            "what_vi": "Probe thư viện thứ ba xác nhận lại cùng lỗi ở U2/U11/U16: gọi giải ngân với id không có trong hệ thống trả 500 thay vì 404 với thông báo tiếng Việt.",
+            "consequence_vi": "Lỗi tái hiện nhất quán qua nhiều probe độc lập, khẳng định đây là lỗ hổng app-guard có hệ thống, không phải trường hợp cá biệt.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P6: giải ngân với de_xuat_id không tồn tại [thư viện: lib_0c6eaec_4.probe.test.ts]",
+              "probe_code": "it('P6: giải ngân với de_xuat_id không tồn tại', async () => {\n    const res = await app.inject({\n      method: 'POST',\n      url: `/api/de-xuat/999999/giai-ngan`,\n      payload: { so_ky: 3 },\n    });\n    expect(res.statusCode).toBe(404);\n  });",
+              "command": "vitest run test/lib_0c6eaec_4.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+              "expected": "404 kèm thông báo tiếng Việt «Không tìm thấy đề xuất»; không phải 500.",
+              "actual": "AssertionError: expected 500 to be 404 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\lib_0c6eaec_4.probe.test.ts:105:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          },
+          {
+            "id": "F7",
+            "skill": "code",
+            "severity": "high",
+            "title_vi": "Xác nhận lặp lại: giải ngân id không tồn tại (so_ky=3) vẫn vỡ 500",
+            "what_vi": "Probe thư viện thứ tư (biến thể so_ky=3) xác nhận lại cùng lỗi app-guard R7: gọi giải ngân id 999999 vẫn trả 500 thay vì 404.",
+            "consequence_vi": "Lỗi không phụ thuộc giá trị so_ky, khẳng định gốc rễ là thiếu kiểm tồn tại đề xuất trước khi chạm DB trong toàn bộ luồng giải ngân.",
+            "evidence": {
+              "type": "test_run",
+              "probe_name": "P6: id không có trong DB -> 404 rõ ràng, không vỡ thành 500 [thư viện: lib_0c6eaec_6.probe.test.ts]",
+              "probe_code": "it('P6: id không có trong DB -> 404 rõ ràng, không vỡ thành 500', async () => {\n    const res = await app.inject({\n      method: 'POST',\n      url: '/api/de-xuat/999999/giai-ngan',\n      payload: { so_ky: 3 },\n    });\n    expect(res.statusCode).toBe(404);\n    expect(res.body).toContain('Không tìm thấy đề xuất');\n  });",
+              "command": "vitest run test/lib_0c6eaec_6.probe.test.ts (nhánh feature/tao-nhanh-de-xuat @ a80b30f)",
+              "expected": "404 «Không tìm thấy đề xuất», không vỡ thành 500 lộ lỗi kỹ thuật",
+              "actual": "AssertionError: expected 500 to be 404 // Object.is equality\n    at C:\\Users\\vinac\\AppData\\Local\\Temp\\checker-sb-vIAi6j\\test\\lib_0c6eaec_6.probe.test.ts:123:28\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at file:///E:/Projects/ai-checker/demo-credit-approval/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20",
+              "exit_code": 1
+            }
+          }
+        ],
+        "probe_stats": {
+          "ke_hoach": 6,
+          "ghi_nhan": 41,
+          "pass": 34,
+          "hoi_quy": 7,
+          "hong": 0,
+          "nghi_van": 0,
+          "cai_thien": 0,
+          "bo_qua": 0,
+          "that_lac": []
+        },
+        "model": "claude-cli/claude-sonnet-5",
+        "mode": "live",
+        "started_at": "2026-08-25T18:34:41.517Z",
+        "finished_at": "2026-08-25T18:37:26.751Z"
+      }
+    }
+  ]
+}

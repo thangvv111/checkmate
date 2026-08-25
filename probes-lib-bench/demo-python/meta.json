@@ -1,0 +1,154 @@
+{
+  "files": [
+    {
+      "ten": "lib_cff64d7_1.py",
+      "sha_sinh": "cff64d7b852b029de0184bf855bee54c9a86090c",
+      "luc": "2026-08-25T18:52:16.272Z",
+      "hash": "c79bfc700eef36052127c6c6a75460c81ab15e1e79fce9b6a58a8cd45d6197a0",
+      "plan": [
+        {
+          "id": "P1",
+          "ten": "chuyen_vien duyet dung bang tran (500tr)",
+          "muc_dich": "PR doi > thanh >=, kiem tra so tien BANG DUNG tran co con duoc duyet hop le khong (bien dong)",
+          "spec_rule": "R1",
+          "ky_vong": "duyet('chuyen_vien', 500_000_000) tra True, khong raise — theo spec 'so tien bang DUNG muc tran PHAI duoc duyet hop le'. Voi diff hien tai (>=) se raise ValueError sai."
+        },
+        {
+          "id": "P2",
+          "ten": "truong_phong duyet dung bang tran (2 ty)",
+          "muc_dich": "xac nhan loi bien dong o P1 la loi he thong tren moi vai, khong phai truong hop rieng cua chuyen_vien",
+          "spec_rule": "R1",
+          "ky_vong": "duyet('truong_phong', 2_000_000_000) tra True, khong raise. Voi diff hien tai se raise ValueError sai."
+        },
+        {
+          "id": "P3",
+          "ten": "chuyen_vien duyet duoi tran 1 dong (499_999_999)",
+          "muc_dich": "regression: gia tri sat duoi bien phai van duyet duoc, PR khong duoc lam hong nhanh nay",
+          "spec_rule": "R1",
+          "ky_vong": "duyet('chuyen_vien', 499_999_999) tra True, khong raise. Ca hai nhanh (goc va PR) deu phai PASS."
+        },
+        {
+          "id": "P4",
+          "ten": "chuyen_vien vuot tran 1 dong (500_000_001)",
+          "muc_dich": "regression: gia tri vuot tran phai raise ValueError kem thong bao han muc, dam bao PR khong lam hong nhanh reject",
+          "spec_rule": "R1",
+          "ky_vong": "duyet('chuyen_vien', 500_000_001) raise ValueError co chua han muc cua vai trong thong bao. Ca hai nhanh deu phai PASS."
+        },
+        {
+          "id": "P5",
+          "ten": "chia_ky chia khong het, du don ve ky cuoi",
+          "muc_dich": "kiem R2 khong bi dung tram: tong cac ky phai bang dung so_tien goc, phan du phai don ve ky CUOI chu khong rai deu sai",
+          "spec_rule": "R2",
+          "ky_vong": "chia_ky(100, 3) tra [33, 33, 34] (hai ky dau phan nguyen, du 1 don ve ky cuoi) va sum(ky) == 100."
+        },
+        {
+          "id": "P6",
+          "ten": "chia_ky so_ky ngoai khoang hop le (13)",
+          "muc_dich": "regression R3: dam bao PR khong lam hong kiem tra bien so_ky, du diff khong dung truc tiep vao ham nay",
+          "spec_rule": "R3",
+          "ky_vong": "chia_ky(600_000_000, 13) raise ValueError vi so_ky vuot khoang 1-12."
+        }
+      ]
+    },
+    {
+      "ten": "lib_cff64d7_2.py",
+      "sha_sinh": "cff64d7b852b029de0184bf855bee54c9a86090c",
+      "luc": "2026-08-25T18:54:23.540Z",
+      "hash": "a8bbbe18f40f2c77d148490027e698251474a3eb86cf909ebee0a2ed48d1050f",
+      "plan": [
+        {
+          "id": "P1",
+          "ten": "chuyen_vien duyet dung bang tran (bien dong)",
+          "muc_dich": "Kiem tra so_tien == HAN_MUC['chuyen_vien'] (500.000.000) phai duoc duyet hop le theo bien dong cua R1. Diff doi '>' thanh '>=' se khien truong hop nay raise ValueError sai.",
+          "spec_rule": "R1",
+          "ky_vong": "duyet('chuyen_vien', 500_000_000) tra ve True, khong raise"
+        },
+        {
+          "id": "P2",
+          "ten": "truong_phong duyet dung bang tran (bien dong, hang so khac)",
+          "muc_dich": "Doi chieu lai loi bien dong tren mot hang so tran khac (2.000.000.000) de dam bao phat hien loi khong phu thuoc vao gia tri cu the cua chuyen_vien.",
+          "spec_rule": "R1",
+          "ky_vong": "duyet('truong_phong', 2_000_000_000) tra ve True, khong raise"
+        },
+        {
+          "id": "P3",
+          "ten": "chuyen_vien ngay duoi tran",
+          "muc_dich": "Kiem tra ve 'trong han muc' cua dieu kien khi so_tien nho hon tran 1 dong, phai luon duoc duyet du truoc hay sau fix.",
+          "spec_rule": "R1",
+          "ky_vong": "duyet('chuyen_vien', 499_999_999) tra ve True, khong raise"
+        },
+        {
+          "id": "P4",
+          "ten": "chuyen_vien vuot tran 1 dong",
+          "muc_dich": "Kiem tra ve 'vuot han muc' cua dieu kien khi so_tien lon hon tran 1 dong, phai luon bi tu choi du truoc hay sau fix, dam bao sua bien dong khong lam hong nhanh loi nay.",
+          "spec_rule": "R1",
+          "ky_vong": "duyet('chuyen_vien', 500_000_001) raise ValueError co thong bao neu han muc cua vai"
+        },
+        {
+          "id": "P5",
+          "ten": "chia_ky chia khong het, du don ky cuoi",
+          "muc_dich": "Regression cho R2 (khong bi diff dung toi): xac nhan tong cac ky bang dung so_tien va phan du don ve ky cuoi khi chia khong het.",
+          "spec_rule": "R2",
+          "ky_vong": "chia_ky(700_000_000, 3) == [233_333_333, 233_333_333, 233_333_334] va sum(...) == 700_000_000"
+        },
+        {
+          "id": "P6",
+          "ten": "chia_ky voi so_ky ngoai khoang hop le",
+          "muc_dich": "Regression cho R3 (khong bi diff dung toi): xac nhan so_ky vuot qua 12 van bi tu choi dung nhu spec.",
+          "spec_rule": "R3",
+          "ky_vong": "chia_ky(600_000_000, 13) raise ValueError"
+        }
+      ]
+    },
+    {
+      "ten": "lib_cff64d7_3.py",
+      "sha_sinh": "cff64d7b852b029de0184bf855bee54c9a86090c",
+      "luc": "2026-08-25T18:56:12.933Z",
+      "hash": "9bb17859e7e5ba867e75f3ca5fcc6f5857cabdcb0ddcbd1a1169e846331cabc3",
+      "plan": [
+        {
+          "id": "P1",
+          "ten": "chuyen_vien duyet dung bang tran (bien dong)",
+          "muc_dich": "So tien = 500_000_000 dung bang HAN_MUC['chuyen_vien'] phai duoc duyet hop le. PR doi '>' thanh '>=' nen se raise ValueError sai o chinh bien nay.",
+          "spec_rule": "R1",
+          "ky_vong": "duyet('chuyen_vien', 500_000_000) tra ve True, khong raise"
+        },
+        {
+          "id": "P2",
+          "ten": "truong_phong duyet dung bang tran (bien dong, vai khac)",
+          "muc_dich": "Kiem tra loi bien dong khong chi rieng vai chuyen_vien ma anh huong toan bo dieu kien so sanh HAN_MUC[vai] dung chung.",
+          "spec_rule": "R1",
+          "ky_vong": "duyet('truong_phong', 2_000_000_000) tra ve True, khong raise"
+        },
+        {
+          "id": "P3",
+          "ten": "chuyen_vien vuot tran dung 1 dong van phai raise",
+          "muc_dich": "Tach ve con lai cua dieu kien so sanh: so tien > tran (khong bang) phai raise ValueError — dam bao PR khong vo tinh lam sai huong nguoc lai khi sua bien dong.",
+          "spec_rule": "R1",
+          "ky_vong": "duyet('chuyen_vien', 500_000_001) raise ValueError co thong bao han muc cua vai"
+        },
+        {
+          "id": "P4",
+          "ten": "chuyen_vien duoi tran 1 dong van duyet duoc",
+          "muc_dich": "Kiem tra hanh vi da dung truoc PR (so tien nho hon tran) khong bi PR nay pha vo.",
+          "spec_rule": "R1",
+          "ky_vong": "duyet('chuyen_vien', 499_999_999) tra ve True, khong raise"
+        },
+        {
+          "id": "P5",
+          "ten": "chia_ky voi so chia khong het, phan du don ve ky cuoi",
+          "muc_dich": "Kiem tra R2: tong cac ky phai bang dung so_tien goc, phan du dua vao ky cuoi cung chu khong lam tron rai deu.",
+          "spec_rule": "R2",
+          "ky_vong": "chia_ky(100, 3) == [33, 33, 34] va sum(chia_ky(100, 3)) == 100"
+        },
+        {
+          "id": "P6",
+          "ten": "so_ky ngoai khoang hop le raise ValueError",
+          "muc_dich": "Kiem tra R3: so_ky ngoai [1,12] (vi du 13) phai raise ValueError, khong duoc chap nhan.",
+          "spec_rule": "R3",
+          "ky_vong": "chia_ky(600_000_000, 13) raise ValueError"
+        }
+      ]
+    }
+  ]
+}
