@@ -94,7 +94,7 @@ export function trangDocs(): string {
       <ul>
         <li>Dev push commit mới → verdict cũ <b>tự hết hiệu lực</b>, cổng merge khoá lại chờ chấm lại.</li>
         <li>Cùng một commit đã có verdict → không chấm lại lặng lẽ; muốn chấm lại phải xác nhận tường minh.</li>
-        <li>Mọi verdict vào <b>sổ cái append-only</b> (chỉ ghi thêm — không sửa, không xoá được).</li>
+        <li>Mọi verdict vào <b>sổ cái append-only</b> (chỉ ghi thêm theo quy trình — mọi thao tác của hệ chỉ nối thêm dòng; chống-sửa-mật-mã hoá bằng hash-chain là bước kế tiếp).</li>
       </ul>
       <p>FAIL khi và chỉ khi có ít nhất một finding mức <b>High</b>. Finding nào cũng phải mang bằng chứng
       mà người thật kiểm lại được trong khoảng 10 giây.</p>
@@ -117,9 +117,10 @@ export function trangDocs(): string {
       đóng/mở cổng; tất định, cùng input luôn cùng output. Phân công xuyên suốt:
       <b>model được sáng tạo, máy được quyết định</b> — mọi điểm ra phán quyết đều nằm ở máy.</p>
       <p><b>Probe</b> (phép thử đối kháng do checker tự sinh) được tạo <b>neo vào từng luật trong spec</b> của repo — mỗi probe khai báo nó kiểm luật nào.
-      Toàn bộ chạy trong sandbox tách biệt (git worktree), trên chính bộ khung test của repo:
-      repo nào chạy test được — dù chưa có CI — là chấm được. Stack khác (Python, Java…) khai cách chạy
-      qua một file <code>checkmate.yml</code>; hợp đồng kết quả là JUnit XML.</p>
+      Toàn bộ chạy trong sandbox tách biệt (git worktree) với biến môi trường được lọc allowlist — code PR
+      không thấy secrets của checker; trên chính bộ khung test của repo: repo nào chạy test được — dù chưa có CI —
+      là chấm được. Stack khác khai cách chạy qua <code>checkmate.yml</code>, hợp đồng kết quả là JUnit XML
+      (Python đã chạy end-to-end; Java đi cùng hợp đồng, chưa kiểm end-to-end).</p>
       <p>Finding của skill code luôn có dạng: <b>kỳ vọng theo spec</b> đối chiếu <b>kết quả chạy thật</b>.
       Đó là AssertionError, không phải ý kiến.</p>
     </section>
@@ -237,6 +238,10 @@ export function trangDocs(): string {
       <h2>Giới hạn nói thẳng</h2>
       <p class="tomtat">Một checker đòi người khác trưng bằng chứng thì phải tự khai giới hạn của mình.</p>
       <ul>
+        <li><b>PR rất lớn / monorepo</b> — diff hàng nghìn dòng làm probe trải mỏng; hướng xử là trần kích thước diff
+        + cấu hình <code>checkmate.yml</code> per-package, chưa phải hôm nay.</li>
+        <li><b>Maker chủ đích tấn công checker</b> (prompt injection trong diff/tài liệu) — đã có rào delimiter
+        ngẫu nhiên + lưới đếm assert thật, nhưng đây là cuộc rượt đuổi liên tục, không phải bài toán đóng.</li>
         <li><b>Lỗi có sẵn từ trước</b> — tồn tại trên cả hai nhánh — nằm ngoài phạm vi: cổng này trả lời
         "PR này có làm hỏng gì không", không phải "toàn bộ codebase có sạch không". Việc loại probe
         hỏng-cả-hai-nhánh là đánh đổi có chủ đích cho câu hỏi đó.</li>

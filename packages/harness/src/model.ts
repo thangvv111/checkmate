@@ -6,6 +6,16 @@ export interface ModelProvider {
   complete(prompt: string): Promise<string>;
 }
 
+// L3: đo chi phí mỗi lượt chấm — CLI không trả usage nên ước theo ký tự (~3.5 ký tự/token với text Việt+code);
+// API dùng usage thật khi có. Đủ để trả lời "mỗi PR tốn bao nhiêu?" bằng số.
+export const doChiPhi = { calls: 0, kyTuVao: 0, kyTuRa: 0, tokenVao: 0, tokenRa: 0 };
+export function tomTatChiPhi(): string {
+  const inTok = doChiPhi.tokenVao || Math.round(doChiPhi.kyTuVao / 3.5);
+  const outTok = doChiPhi.tokenRa || Math.round(doChiPhi.kyTuRa / 3.5);
+  const uoc = doChiPhi.tokenVao ? '' : ' (ước từ ký tự)';
+  return `${doChiPhi.calls} call model · ~${Math.round(inTok / 1000)}k token vào + ~${Math.round(outTok / 1000)}k token ra${uoc}`;
+}
+
 const MODEL_MAC_DINH = process.env.CHECKER_MODEL ?? 'claude-sonnet-5';
 
 // Dev local: đi qua Claude Code CLI (đăng nhập sẵn), prompt truyền qua stdin để né giới hạn arg Windows.
@@ -13,6 +23,8 @@ export class ClaudeCliProvider implements ModelProvider {
   ten = `claude-cli/${MODEL_MAC_DINH}`;
 
   async complete(prompt: string): Promise<string> {
+    doChiPhi.calls += 1;
+    doChiPhi.kyTuVao += prompt.length;
     try {
       return await this.goiMotLan(prompt);
     } catch (e) {
@@ -62,20 +74,28 @@ export class AnthropicApiProvider implements ModelProvider {
   ten = `anthropic-api/${MODEL_MAC_DINH}`;
 
   async complete(prompt: string): Promise<string> {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': process.env.ANTHROPIC_API_KEY ?? '',
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MODEL_MAC_DINH,
-        max_tokens: 8000,
-        temperature: 0, // C10: verdict phải tái lập được trên cùng commit
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    });
+    doChiPhi.calls += 1;
+    doChiPhi.kyTuVao += prompt.length;
+    // L2: 429/529/5xx là lỗi thoáng qua — retry 2 lần với backoff, đừng chết run giữa sân khấu
+    let res!: Response;
+    for (let lan = 0; lan < 3; lan++) {
+      res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': process.env.ANTHROPIC_API_KEY ?? '',
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: MODEL_MAC_DINH,
+          max_tokens: 8000,
+          temperature: 0, // C10: verdict phải tái lập được trên cùng commit
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+      if (res.ok || ![429, 500, 502, 503, 529].includes(res.status) || lan === 2) break;
+      await new Promise((r) => setTimeout(r, (lan + 1) * 4000));
+    }
     if (!res.ok) {
       const chiTiet = (await res.text()).slice(0, 300);
       if (res.status === 401 || res.status === 403) {
@@ -87,12 +107,15 @@ export class AnthropicApiProvider implements ModelProvider {
       }
       throw new Error(`Anthropic API ${res.status}: ${chiTiet}`);
     }
-    const data = (await res.json()) as { content: Array<{ type: string; text?: string }> };
-    return data.content
+    const data = (await res.json()) as { content: Array<{ type: string; text?: string }>; usage?: { input_tokens: number; output_tokens: number } };
+    if (data.usage) { doChiPhi.tokenVao += data.usage.input_tokens; doChiPhi.tokenRa += data.usage.output_tokens; }
+    const ra = data.content
       .filter((b) => b.type === 'text')
       .map((b) => b.text ?? '')
       .join('')
       .trim();
+    doChiPhi.kyTuRa += ra.length;
+    return ra;
   }
 }
 

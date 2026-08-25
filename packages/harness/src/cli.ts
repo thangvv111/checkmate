@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chuanMuc, type ArtifactRef, type Finding, type RunEvent, type Verdict } from '../../shared/src/types.js';
-import { LoiCauHinhProvider, chonProvider, kiemTraProvider } from './model.js';
+import { LoiCauHinhProvider, chonProvider, kiemTraProvider, tomTatChiPhi } from './model.js';
 import { chaySkillCode } from './skill-code.js';
 import { chaySkillDoc } from './skill-doc.js';
 
@@ -131,6 +131,7 @@ async function main(): Promise<void> {
       started_at: batDau,
       finished_at: new Date().toISOString(),
     };
+    ghiPhat({ type: 'log', msg: `Chi phí lượt chấm: ${tomTatChiPhi()}` });
     ghiPhat({ type: 'verdict', verdict });
 
     const outFile = layArg('out') ?? join('runs', `${runId}.json`);
