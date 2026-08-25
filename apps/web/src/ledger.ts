@@ -58,7 +58,10 @@ export function docSoCai(): MucSoCai[] {
   return readFileSync(SO, 'utf8')
     .split('\n')
     .filter(Boolean)
-    .map((l) => JSON.parse(l) as MucSoCai);
+    .flatMap((l) => {
+      // W6: một dòng hỏng (sập giữa lúc ghi, sửa tay nhầm) không được brick cả trang sổ cái
+      try { return [JSON.parse(l) as MucSoCai]; } catch { return []; }
+    });
 }
 
 // Chạy một lần lúc server khởi động: run cũ có verdict mà chưa vào sổ → append (đánh dấu backfill)

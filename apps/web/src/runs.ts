@@ -63,7 +63,8 @@ export class RunManager {
     rl.on('line', (line) => {
       if (!line.trim()) return;
       try {
-        const e = JSON.parse(line) as RunEvent;
+        let e: RunEvent;
+        try { e = JSON.parse(line) as RunEvent; } catch { return; } // L10: dòng stdout không phải JSON — bỏ qua, đừng chết run
         ghi(e);
         if (e.type === 'verdict') meta.verdict = e.verdict;
       } catch {
@@ -114,7 +115,8 @@ export class RunManager {
     // nạp lại từ đĩa (sau restart) để replay
     const f = join(KHO, `${id}.json`);
     if (existsSync(f)) {
-      const data = JSON.parse(readFileSync(f, 'utf8')) as { meta: RunMeta; events: StoredEvent[] };
+      let data: { meta: RunMeta; events: StoredEvent[] };
+      try { data = JSON.parse(readFileSync(f, 'utf8')) as { meta: RunMeta; events: StoredEvent[] }; } catch { return undefined; } // L10: file run cụt (sập giữa lúc ghi) — bỏ qua
       const state: RunState = { meta: data.meta, events: data.events, subs: new Set() };
       this.runs.set(id, state);
       return state;

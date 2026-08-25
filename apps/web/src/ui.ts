@@ -82,6 +82,11 @@ const CSS = `
   .err { background:var(--fail-soft); border-left:4px solid var(--fail); padding:11px 15px; border-radius:0 8px 8px 0; margin:14px 0; display:none; }
 `;
 
+// W8: mọi chuỗi ngoại lai (PR title từ GitHub, tên file upload, finding do model viết) phải qua đây trước khi vào DOM
+export function escHtml(s: unknown): string {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+}
+
 export function khung(tieuDe: string, than: string, js = ''): string {
   return `<!doctype html><html lang="vi"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>${tieuDe}</title><style>${CSS}</style></head>
@@ -113,7 +118,7 @@ export function khoiPrList(repoGithub: string, baseBranch: string, prs: PrHienTh
         const trangThai = p.daCham
           ? `<span class="vd-pill vd-${p.daCham.ketQua}">${p.daCham.ketQua}</span> · ${p.daCham.soFinding} finding<br><a href="/runs/${p.daCham.runId}" style="font-size:12px">xem verdict &amp; cổng merge →</a>`
           : `<span style="color:var(--muted)">chưa kiểm</span>`;
-        return `<tr><td class="mono">#${p.so}</td><td>${p.tieuDe}<br><span class="mono" style="font-size:11.5px;color:var(--muted)">${p.nhanh} @ ${p.headSha.slice(0, 7)}</span></td><td>${p.tacGia}</td>
+        return `<tr><td class="mono">#${p.so}</td><td>${escHtml(p.tieuDe)}<br><span class="mono" style="font-size:11.5px;color:var(--muted)">${escHtml(p.nhanh)} @ ${p.headSha.slice(0, 7)}</span></td><td>${escHtml(p.tacGia)}</td>
 <td>${trangThai}</td><td>${nutChay}</td></tr>`;
       },
     )
@@ -129,7 +134,7 @@ export function khoiDaTraVe(runs: RunMeta[], repoGithub: string): string {
   const rows = runs
     .slice(0, 10)
     .map(
-      (m) => `<tr><td class="mono">#${m.pr!.so}</td><td>${m.tieuDe}</td>
+      (m) => `<tr><td class="mono">#${m.pr!.so}</td><td>${escHtml(m.tieuDe)}</td>
 <td class="mono" style="font-size:12px">${m.pr!.headSha.slice(0, 7)}</td>
 <td style="font-size:12.5px">${m.ketQuaCong!.nguoi} · ${m.ketQuaCong!.luc.slice(0, 16).replace('T', ' ')}<br>
 <a href="/runs/${m.id}" style="font-size:12px">xem phán quyết →</a> · <a href="https://github.com/${repoGithub}/pull/${m.pr!.so}" style="font-size:12px" target="_blank" rel="noopener">mở PR trên GitHub →</a></td></tr>`,
@@ -143,7 +148,7 @@ export function khoiDaTraVe(runs: RunMeta[], repoGithub: string): string {
 export function trangChu(runs: RunMeta[], prBlock = '', daTraVeBlock = ''): string {
   const rows = runs
     .map(
-      (r) => `<tr><td><a href="/runs/${r.id}">${r.tieuDe}</a></td><td>${r.skill}</td>
+      (r) => `<tr><td><a href="/runs/${r.id}">${escHtml(r.tieuDe)}</a></td><td>${r.skill}</td>
 <td>${r.trangThai === 'dang_chay' ? 'đang chạy…' : r.verdict ? `<span class="vd-pill vd-${r.verdict.result}">${r.verdict.result}</span> · ${r.verdict.findings.length} finding` : 'lỗi'}</td>
 <td style="color:var(--muted)">${r.batDau.slice(0, 16).replace('T', ' ')}</td></tr>`,
     )
@@ -256,9 +261,9 @@ function khoiCong(meta: RunMeta): string {
     cao > 0
       ? `<p class="khoa">✗ Có ${cao} finding HIGH — nút Merge khoá theo luật cổng. Vá xong push lên nhánh, chạy kiểm lại.</p>`
       : `${vua.length ? `<p style="font-size:13px;margin:8px 0 4px">Xác nhận TỪNG cảnh báo MEDIUM trước khi merge (được ghi vào receipt):</p>` : ''}
-${vua.map((f, i) => `<label class="canhbao"><input type="checkbox" class="tick-med" data-i="${i}"> <span><b>${f.title_vi}</b><br><span style="color:var(--muted)">${f.what_vi}</span></span></label>`).join('')}
+${vua.map((f) => `<label class="canhbao"><input type="checkbox" class="tick-med" data-fid="${escHtml(f.id)}"> <span><b>${escHtml(f.title_vi)}</b><br><span style="color:var(--muted)">${escHtml(f.what_vi)}</span></span></label>`).join('')}
 <form class="inline" method="post" action="/api/runs/${meta.id}/merge" id="form-merge">
-  <input type="hidden" name="da_tick" id="da_tick" value="0">
+  <input type="hidden" name="tick_ids" id="tick_ids" value="">
   <button id="nut-merge" ${vua.length ? 'disabled' : ''}>✓ Merge PR #${so}</button>
 </form>`;
   return `<div class="cong"><h3>Cổng merge — PR #${so} <span style="font-weight:400;color:var(--muted);font-size:12.5px">verdict ghim ${meta.pr.headSha.slice(0, 7)} · push mới là verdict hết hiệu lực</span></h3>
@@ -270,13 +275,13 @@ ${nutMerge}
 <p class="goiy" style="margin-top:8px">Trả về dev = post phán quyết đầy đủ lên PR <b>và đóng PR</b> để nó rời hàng đợi chờ duyệt (khỏi bị chạy kiểm lại vô ích). Dev vá xong push lên nhánh cũ rồi <b>Reopen</b> chính PR này — lịch sử review giữ nguyên.</p></div>`;
 }
 
-export function trangRun(meta: RunMeta, replay: boolean): string {
+export function trangRun(meta: RunMeta, replay: boolean, speed = 1): string {
   const stages = ['Nhận artifact', 'Nạp spec / rubric', 'Sinh phép thử đối kháng', 'Chạy & đối chiếu bằng chứng', 'Kết luận'];
   return khung(
-    `${meta.tieuDe} — CheckMate`,
-    `<h1>${meta.tieuDe}</h1>
+    `${escHtml(meta.tieuDe)} — CheckMate`,
+    `<h1>${escHtml(meta.tieuDe)}</h1>
 <p class="sub">Run <code>${meta.id}</code> · skill ${meta.skill} · ${replay ? 'PHÁT LẠI từ cache (nhịp thời gian thật)' : 'chạy trực tiếp'}
-&nbsp;·&nbsp;<a href="/">← về trang chọn</a>${meta.trangThai === 'xong' && !replay ? ` &nbsp;·&nbsp; <a class="btn phu" href="/runs/${meta.id}?replay=1">▶ Phát lại</a>` : ''}</p>
+&nbsp;·&nbsp;<a href="/">← về trang chọn</a>${meta.trangThai === 'xong' && !replay ? ` &nbsp;·&nbsp; <a class="btn phu" href="/runs/${meta.id}?replay=1">▶ Phát lại</a> <a class="btn phu" href="/runs/${meta.id}?replay=1&speed=8" title="tua nhanh cho tổng duyệt">⏩ ×8</a>` : ''}</p>
 <ul class="stages" id="stages">${stages.map((s, i) => `<li data-s="${i + 1}">${s}<div class="logs" id="logs-${i + 1}"></div></li>`).join('')}</ul>
 <div id="findings"></div>
 <div class="verdict" id="verdict"><div class="kq"></div><div class="chitiet"></div></div>
@@ -314,10 +319,10 @@ function ve(e){
 }
 document.querySelectorAll('.tick-med').forEach(c=>c.addEventListener('change',()=>{
   const t=document.querySelectorAll('.tick-med');const n=[...t].filter(x=>x.checked).length;
-  document.getElementById('da_tick').value=String(n);
+  document.getElementById('tick_ids').value=[...t].filter(x=>x.checked).map(x=>x.dataset.fid).join(',');
   document.getElementById('nut-merge').disabled = n!==t.length;
 }));
-const es=new EventSource('/api/runs/${meta.id}/events${replay ? '?timed=1' : ''}');
+const es=new EventSource('/api/runs/${meta.id}/events${replay ? (speed > 1 ? `?timed=1&speed=${speed}` : '?timed=1') : ''}');
 es.onmessage=m=>{const{e}=JSON.parse(m.data);if(e.type==='log'&&e.msg==='__END__'){es.close();return;}ve(e);};
 es.onerror=()=>{};`,
   );

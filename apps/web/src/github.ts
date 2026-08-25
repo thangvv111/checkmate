@@ -65,12 +65,15 @@ export async function binhLuanPr(cfg: CheckmateConfig, so: number, body: string)
   await goiApiGhi(cfg, 'POST', `/repos/${cfg.repo.github}/issues/${so}/comments`, { body });
 }
 
-export async function mergePr(cfg: CheckmateConfig, so: number, tieuDe: string, moTa: string): Promise<void> {
+export async function mergePr(cfg: CheckmateConfig, so: number, tieuDe: string, moTa: string, sha?: string): Promise<void> {
   await goiApiGhi(cfg, 'PUT', `/repos/${cfg.repo.github}/pulls/${so}/merge`, {
     merge_method: 'merge',
     commit_title: tieuDe,
     commit_message: moTa,
+    // W1: pin head SHA — GitHub tự trả 409 nếu PR nhận commit mới giữa lúc kiểm và lúc bấm (chặn TOCTOU phía server)
+    ...(sha ? { sha } : {}),
   });
+  xoaCachePr();
 }
 
 // Trả về dev: thử review Request-changes; GitHub cấm author tự request-changes PR của mình → fallback comment
@@ -103,6 +106,7 @@ export async function ganTrangThaiCommit(
 
 export async function dongPr(cfg: CheckmateConfig, so: number): Promise<void> {
   await goiApiGhi(cfg, 'PATCH', `/repos/${cfg.repo.github}/pulls/${so}`, { state: 'closed' });
+  xoaCachePr();
 }
 
 async function goiApi(cfg: CheckmateConfig, path: string): Promise<unknown> {
@@ -123,12 +127,18 @@ async function goiApi(cfg: CheckmateConfig, path: string): Promise<unknown> {
   return JSON.parse(out);
 }
 
+// L5: cache danh sách PR 30s — trang chủ + poller không dội GitHub mỗi lượt (rate limit 60/h khi không token)
+let cachePr: { key: string; luc: number; data: PrTomTat[] } | null = null;
+export function xoaCachePr(): void { cachePr = null; }
+
 export async function danhSachPr(cfg: CheckmateConfig): Promise<PrTomTat[]> {
+  const key = cfg.repo.github;
+  if (cachePr && cachePr.key === key && Date.now() - cachePr.luc < 30_000) return cachePr.data;
   const data = (await goiApi(
     cfg,
     `/repos/${cfg.repo.github}/pulls?state=open&base=${encodeURIComponent(cfg.repo.base_branch)}&per_page=30`,
   )) as Array<{ number: number; title: string; user: { login: string }; head: { ref: string; sha: string }; updated_at: string }>;
-  return data.map((p) => ({
+  const ds = data.map((p) => ({
     so: p.number,
     tieuDe: p.title,
     tacGia: p.user.login,
@@ -136,6 +146,8 @@ export async function danhSachPr(cfg: CheckmateConfig): Promise<PrTomTat[]> {
     capNhat: p.updated_at,
     headSha: p.head.sha,
   }));
+  cachePr = { key, luc: Date.now(), data: ds };
+  return ds;
 }
 
 function git(repo: string, args: string[]): string {
