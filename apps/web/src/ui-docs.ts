@@ -185,12 +185,21 @@ export function trangDocs(): string {
       <h2>Chấm tài liệu: rubric &amp; trích dẫn nguyên văn</h2>
       <p class="tomtat">PRD, tài liệu BA, spec đi qua PR thì được review <b>trước khi merge, trong ngữ cảnh repo</b> —
       chặn lỗi ở cổng rẻ nhất, trước khi ai viết dòng code nào.</p>
-      <p>Checker <b>bị cấm "chê văn"</b>. Nó chỉ được báo bốn loại lỗi khách quan:</p>
+      <p>Checker <b>bị cấm "chê văn"</b>. Nó chỉ được báo <b>bảy</b> loại lỗi khách quan — bốn trục lõi:</p>
       <ul>
         <li><b>Mâu thuẫn nội tại</b> — hai chỗ trong tài liệu nói ngược nhau (bảng ghi ≤ 500 triệu, ví dụ lại duyệt 1 tỷ);</li>
         <li><b>Tiêu chí không đo được</b> — "hệ thống phải nhanh" mà không có con số;</li>
         <li><b>Thiếu tiêu chí nghiệm thu</b> — luồng được mô tả nhưng không có cách biết khi nào là xong;</li>
         <li><b>Lệch chéo mô tả–bảng</b> — phần chữ và bảng/biểu không khớp nhau.</li>
+      </ul>
+      <p>và ba trục bổ sung theo nghiên cứu requirements smells (ambiguity — mơ hồ — là loại lỗi practitioner
+      xếp nặng nhất; các dạng con dưới đây được chọn vì máy neo/kiểm được):</p>
+      <ul>
+        <li><b>Tham chiếu chết</b> — "xem mục 7.2" mà tài liệu không có mục 7.2; <b>máy tự quét</b> toàn bộ
+        tài liệu xác nhận nhãn được tham chiếu có tồn tại hay không — nhãn tìm thấy là finding bị vứt;</li>
+        <li><b>Khoảng ngưỡng hở/chồng</b> — bảng ghi "dưới 500 triệu" và "trên 500 triệu": hồ sơ đúng 500 triệu
+        thuộc ai? Bắt buộc hai trích dẫn (hai vế ngưỡng);</li>
+        <li><b>Điều kiện thiếu vế</b> — quy tắc "nếu X thì A" mà cả tài liệu không nói không-X xử lý ra sao.</li>
       </ul>
       <p>Mỗi finding phải <b>neo trích dẫn nguyên văn</b> — máy đối chiếu từng ký tự với tài liệu gốc;
       trích dẫn không khớp thì finding bị vứt. Sau đó một vòng <b>skeptic</b> (phản biện đối kháng) rà lại từng
