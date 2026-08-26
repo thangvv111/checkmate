@@ -1,56 +1,6 @@
 {
   "files": [
     {
-      "ten": "lib_0c6eaec_4.probe.test.ts",
-      "sha_sinh": "0c6eaec7abdfe2d2a46f84bf8956d97d2b626bf7",
-      "luc": "2026-08-25T18:25:00.463Z",
-      "hash": "c0eb822fc1e10d46d3a87b8a17f33cb7622114404552ebdfd8d7b26af7d19acb",
-      "plan": [
-        {
-          "id": "P1",
-          "ten": "Chuyên viên duyệt hồ sơ đúng bằng trần thẩm quyền (500.000.000đ, biên đóng)",
-          "muc_dich": "Diff đổi `so_tien > HAN_MUC_DUYET` thành `so_tien >= HAN_MUC_DUYET`, khiến số tiền bằng ĐÚNG trần bị coi là vượt quyền. Tạo đề xuất 500.000.000đ bởi 'hung', cho 'lan' (chuyên viên) duyệt.",
-          "spec_rule": "R1",
-          "ky_vong": "200, trang_thai='da_duyet', nguoi_duyet='lan' (R1: 'Số tiền bằng ĐÚNG mức trần của vai PHẢI được phê duyệt hợp lệ, biên đóng dùng <='). PR lỗi sẽ trả 403."
-        },
-        {
-          "id": "P2",
-          "ten": "Chuyên viên thử duyệt hồ sơ vượt rõ thẩm quyền (600.000.000đ)",
-          "muc_dich": "Vượt quyền thật sự (không phải case biên) — actor 'lan' (chuyên viên, trần 500tr) duyệt hồ sơ 600tr do 'hung' tạo. Kiểm tra nhánh từ chối vượt quyền còn hoạt động đúng sau khi sửa dấu so sánh.",
-          "spec_rule": "R1",
-          "ky_vong": "403 kèm thông báo nêu hạn mức của vai; trang_thai vẫn 'cho_duyet' (không đổi trạng thái)."
-        },
-        {
-          "id": "P3",
-          "ten": "Người tạo tự duyệt dù số tiền trong thẩm quyền của chính mình",
-          "muc_dich": "Kiểm điều kiện kép R1∧R2 tách vế: vế R1 (thẩm quyền) ĐÚNG (300 triệu, trong trần chuyên viên) nhưng vế R2 (khác người tạo) SAI — 'lan' tạo rồi tự duyệt. Phải vẫn bị chặn bởi R2 độc lập với R1, không bị cuốn theo thay đổi so sánh ở R1.",
-          "spec_rule": "R2",
-          "ky_vong": "403 «Người tạo đề xuất không được tự phê duyệt»; trang_thai vẫn 'cho_duyet'."
-        },
-        {
-          "id": "P4",
-          "ten": "Giải ngân 500.000.000đ chia 3 kỳ — chia không hết, dư dồn kỳ cuối",
-          "muc_dich": "Diff đổi floor+dồn-dư-kỳ-cuối thành round-đều-mọi-kỳ. Với 500tr/3 kỳ, đúng ví dụ trong spec: kỳ1=166.666.666, kỳ2=166.666.666, kỳ3=166.666.668, tổng=500.000.000. PR lỗi sẽ ra 3 kỳ bằng nhau (166.666.667×3=500.000.001, lệch 1 đồng so với gốc).",
-          "spec_rule": "R6",
-          "ky_vong": "200; cac_ky = [166666666, 166666666, 166666668]; tổng cac_ky.so_tien === 500000000 (đúng bằng số tiền phê duyệt, không sai lệch dù 1 đồng)."
-        },
-        {
-          "id": "P5",
-          "ten": "Giải ngân 600.000.000đ chia 3 kỳ đều nhau (hồi quy theo test mẫu)",
-          "muc_dich": "Case chia hết y hệt baseline test của repo — phải PASS cả trước và sau PR để chứng minh nhánh chia-hết không bị phá dù công thức đổi.",
-          "spec_rule": "R6",
-          "ky_vong": "200; cac_ky có 3 phần tử, mỗi kỳ so_tien=200000000; tổng=600000000; de_xuat.trang_thai='dang_giai_ngan'."
-        },
-        {
-          "id": "P6",
-          "ten": "Giải ngân với de_xuat_id không tồn tại",
-          "muc_dich": "App-guard cho tham chiếu không tồn tại phải chặn ở tầng ứng dụng, không để lọt xuống DB vỡ 500. Gọi giải ngân với id không có trong hệ thống (ví dụ 999999), so_ky hợp lệ.",
-          "spec_rule": "R7",
-          "ky_vong": "404 kèm thông báo tiếng Việt «Không tìm thấy đề xuất»; không phải 500."
-        }
-      ]
-    },
-    {
       "ten": "lib_0c6eaec_5.probe.test.ts",
       "sha_sinh": "0c6eaec7abdfe2d2a46f84bf8956d97d2b626bf7",
       "luc": "2026-08-25T18:29:55.653Z",
@@ -569,6 +519,35 @@
           "muc_dich": "Kiểm R7: giải ngân chỉ hợp lệ khi trang_thai='da_duyet'; thao tác trên trạng thái khác (chưa qua bước duyệt) phải bị chặn ở tầng app, không rơi vào lỗi CHECK constraint của DB rồi vỡ 500.",
           "spec_rule": "R7",
           "ky_vong": "Tạo đề xuất, KHÔNG duyệt, gọi thẳng giai-ngan so_ky=2 → 409, đề xuất vẫn giữ trang_thai='cho_duyet'."
+        }
+      ]
+    },
+    {
+      "ten": "lib_d7accaa_13.probe.test.ts",
+      "sha_sinh": "d7accaa9422c63f63ce7961081367843c6340311",
+      "luc": "2026-08-26T06:49:26.469Z",
+      "hash": "5b51eca6105754f57d006666a70cd4327347d513991001363b4d61736802c7c7",
+      "plan": [
+        {
+          "id": "P1",
+          "ten": "Chuyên viên vượt hạn mức duyệt hồ sơ người khác tạo",
+          "muc_dich": "lan (chuyên viên tín dụng, trần <=500tr) tạo đề xuất bởi 'hung' với so_tien=600.000.000 (vượt trần lan, trong trần hung), sau đó lan POST /api/de-xuat/:id/duyet. Vế 'người duyệt khác người tạo' ĐÚNG, vế 'đủ thẩm quyền số tiền' SAI — kỳ vọng bị chặn dù không tự duyệt.",
+          "spec_rule": "R1",
+          "ky_vong": "403 — từ chối thao tác, không chuyển trạng thái da_duyet (trạng thái vẫn cho_duyet)"
+        },
+        {
+          "id": "P5",
+          "ten": "Giải ngân khi đề xuất chưa được duyệt (sai trạng thái)",
+          "muc_dich": "Tạo đề xuất mới (trạng thái cho_duyet, KHÔNG gọi duyệt), gọi thẳng POST /api/de-xuat/:id/giai-ngan với so_ky=2. App-guard phải chặn ở tầng ứng dụng, không để lỗi FK/logic vỡ thành 500.",
+          "spec_rule": "R7",
+          "ky_vong": "409 (business error, không phải 500); không có bản ghi kỳ giải ngân nào được tạo"
+        },
+        {
+          "id": "P6",
+          "ten": "Tạo trùng mã hồ sơ so_ho_so",
+          "muc_dich": "Tạo đề xuất với so_ho_so='HM-2026-9001' thành công (201), sau đó POST /api/de-xuat lần 2 với cùng so_ho_so='HM-2026-9001' (khách hàng/số tiền có thể khác). Kỳ vọng app chặn trùng khoá ở tầng nghiệp vụ trước khi chạm UNIQUE constraint của DB.",
+          "spec_rule": "R3",
+          "ky_vong": "422 kèm thông báo 'Mã hồ sơ đã tồn tại' (không phải 500); dữ liệu lần 2 không được ghi — GET /api/de-xuat chỉ còn đúng 1 bản ghi với so_ho_so đó"
         }
       ]
     }

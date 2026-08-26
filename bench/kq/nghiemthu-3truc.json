@@ -1,0 +1,263 @@
+{
+  "verdict": {
+    "run_id": "run-2026-08-26T06-45-23-628Z-bec2064c59_scratchpad_doc-test-3-truc_md",
+    "skill": "doc",
+    "artifact_ref": {
+      "type": "doc",
+      "name": "doc-test-3-truc.md",
+      "sha_or_hash": "74ea46e0f4b1511b297aa2bf2128152f00eadb8d8acda03e195730e6ad5e897f"
+    },
+    "result": "FAIL",
+    "findings": [
+      {
+        "id": "F1",
+        "skill": "doc",
+        "severity": "high",
+        "title_vi": "Hở ngưỡng đúng 200 triệu trong bảng phân cấp tiếp nhận",
+        "what_vi": "Bảng chỉ chia 'dưới 200.000.000 đ' và 'trên 200.000.000 đ', hồ sơ có giá trị đúng bằng 200.000.000 đ không thuộc cấp nào.",
+        "consequence_vi": "Khi build, hệ thống không xác định được ai có thẩm quyền tiếp nhận hồ sơ đúng ngưỡng, dẫn tới sai thẩm quyền hoặc hồ sơ bị kẹt.",
+        "evidence": {
+          "type": "quote_pair",
+          "loc_a": "dòng 12 (mục 2, bảng phân loại)",
+          "quote_a": "Dưới 200.000.000 đ",
+          "loc_b": "dòng 13 (mục 2, bảng phân loại)",
+          "quote_b": "Trên 200.000.000 đ"
+        }
+      },
+      {
+        "id": "F2",
+        "skill": "doc",
+        "severity": "medium",
+        "title_vi": "Tham chiếu mục 7.2 không tồn tại trong tài liệu",
+        "what_vi": "Văn bản dẫn 'xem tại mục 7.2' nhưng toàn tài liệu chỉ có 4 mục (1-4), không có mục 7.2.",
+        "consequence_vi": "Đội xây dựng không tìm được bảng thẩm quyền phê duyệt được nhắc tới, phải tự suy đoán hoặc dừng lại chờ bổ sung.",
+        "evidence": {
+          "type": "quote",
+          "loc": "dòng 22 (mục 3)",
+          "quote": "Chi tiết về bảng thẩm quyền phê duyệt xem tại mục 7.2 của tài liệu này.",
+          "rule": "tham chiếu chết (mục/bảng không tồn tại)"
+        }
+      },
+      {
+        "id": "F3",
+        "skill": "doc",
+        "severity": "medium",
+        "title_vi": "Không nói rõ xử lý hồ sơ nộp sau 15h00",
+        "what_vi": "Quy tắc chỉ định nghĩa hành vi khi hồ sơ nộp trước 15h00 (phân loại xong trong ngày), không nói hồ sơ nộp sau 15h00 (hoặc đúng 15h00) thì hạn phân loại là khi nào.",
+        "consequence_vi": "Đội xây dựng không có căn cứ đặt SLA/canh báo trễ hạn cho phần lớn hồ sơ nộp buổi chiều-tối, dễ dẫn đến tranh cãi về vi phạm SLA.",
+        "evidence": {
+          "type": "quote",
+          "loc": "dòng 15 (mục 2, quy tắc bổ sung)",
+          "quote": "nếu hồ sơ được nộp trước 15h00 ngày làm việc thì phải được phân loại xong trong cùng ngày làm việc đó.",
+          "rule": "điều kiện thiếu vế"
+        }
+      },
+      {
+        "id": "F4",
+        "skill": "doc",
+        "severity": "medium",
+        "title_vi": "Luồng thẩm định chính thức (mục 3) không có tiêu chí nghiệm thu",
+        "what_vi": "Mục 3 mô tả cả một luồng gồm kiểm tra chứng từ, đối chiếu khách hàng, chuyển cấp phê duyệt, nhưng mục 4 chỉ nêu tiêu chí nghiệm thu cho khâu tiếp nhận/phân loại, không có tiêu chí nào cho khâu thẩm định.",
+        "consequence_vi": "Không có cách nghiệm thu khách quan cho luồng thẩm định khi bàn giao, dễ phát sinh tranh cãi 'đã làm đúng' hay chưa.",
+        "evidence": {
+          "type": "quote",
+          "loc": "dòng 20 (mục 3)",
+          "quote": "Sau phân loại, hồ sơ chuyển sang thẩm định theo trình tự chuẩn: kiểm tra tính đầy đủ của chứng từ, đối chiếu thông tin khách hàng, rồi chuyển cấp phê duyệt theo thẩm quyền.",
+          "rule": "thiếu tiêu chí nghiệm thu"
+        }
+      }
+    ],
+    "model": "claude-cli/claude-sonnet-5",
+    "mode": "live",
+    "started_at": "2026-08-26T06:45:23.630Z",
+    "finished_at": "2026-08-26T06:46:58.724Z"
+  },
+  "events": [
+    {
+      "type": "stage",
+      "stage": 1,
+      "ten": "Nhận artifact — đọc tài liệu"
+    },
+    {
+      "type": "log",
+      "msg": "doc-test-3-truc.md · 29 dòng · sha256 74ea46e0f4b1"
+    },
+    {
+      "type": "stage",
+      "stage": 2,
+      "ten": "Nạp rubric — 4 loại lỗi khách quan, cấm chê văn"
+    },
+    {
+      "type": "log",
+      "msg": "mâu thuẫn nội tại · tiêu chí không đo được · thiếu tiêu chí nghiệm thu · lệch chéo mô tả ↔ bảng/phụ lục · tham chiếu chết (mục/bảng không tồn tại) · khoảng ngưỡng hở/chồng · điều kiện thiếu vế"
+    },
+    {
+      "type": "stage",
+      "stage": 3,
+      "ten": "Soi tài liệu — model tìm nghi vấn theo rubric"
+    },
+    {
+      "type": "log",
+      "msg": "4 ứng viên: D1 (khoảng ngưỡng hở/chồng) · D2 (tham chiếu chết (mục/bảng không tồn tại)) · D3 (điều kiện thiếu vế) · D4 (thiếu tiêu chí nghiệm thu)"
+    },
+    {
+      "type": "stage",
+      "stage": 4,
+      "ten": "Đối chiếu trích dẫn nguyên văn (máy kiểm) + vòng phản biện"
+    },
+    {
+      "type": "stage",
+      "stage": 5,
+      "ten": "Kết luận"
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F1",
+        "skill": "doc",
+        "severity": "high",
+        "title_vi": "Hở ngưỡng đúng 200 triệu trong bảng phân cấp tiếp nhận",
+        "what_vi": "Bảng chỉ chia 'dưới 200.000.000 đ' và 'trên 200.000.000 đ', hồ sơ có giá trị đúng bằng 200.000.000 đ không thuộc cấp nào.",
+        "consequence_vi": "Khi build, hệ thống không xác định được ai có thẩm quyền tiếp nhận hồ sơ đúng ngưỡng, dẫn tới sai thẩm quyền hoặc hồ sơ bị kẹt.",
+        "evidence": {
+          "type": "quote_pair",
+          "loc_a": "dòng 12 (mục 2, bảng phân loại)",
+          "quote_a": "Dưới 200.000.000 đ",
+          "loc_b": "dòng 13 (mục 2, bảng phân loại)",
+          "quote_b": "Trên 200.000.000 đ"
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F2",
+        "skill": "doc",
+        "severity": "medium",
+        "title_vi": "Tham chiếu mục 7.2 không tồn tại trong tài liệu",
+        "what_vi": "Văn bản dẫn 'xem tại mục 7.2' nhưng toàn tài liệu chỉ có 4 mục (1-4), không có mục 7.2.",
+        "consequence_vi": "Đội xây dựng không tìm được bảng thẩm quyền phê duyệt được nhắc tới, phải tự suy đoán hoặc dừng lại chờ bổ sung.",
+        "evidence": {
+          "type": "quote",
+          "loc": "dòng 22 (mục 3)",
+          "quote": "Chi tiết về bảng thẩm quyền phê duyệt xem tại mục 7.2 của tài liệu này.",
+          "rule": "tham chiếu chết (mục/bảng không tồn tại)"
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F3",
+        "skill": "doc",
+        "severity": "medium",
+        "title_vi": "Không nói rõ xử lý hồ sơ nộp sau 15h00",
+        "what_vi": "Quy tắc chỉ định nghĩa hành vi khi hồ sơ nộp trước 15h00 (phân loại xong trong ngày), không nói hồ sơ nộp sau 15h00 (hoặc đúng 15h00) thì hạn phân loại là khi nào.",
+        "consequence_vi": "Đội xây dựng không có căn cứ đặt SLA/canh báo trễ hạn cho phần lớn hồ sơ nộp buổi chiều-tối, dễ dẫn đến tranh cãi về vi phạm SLA.",
+        "evidence": {
+          "type": "quote",
+          "loc": "dòng 15 (mục 2, quy tắc bổ sung)",
+          "quote": "nếu hồ sơ được nộp trước 15h00 ngày làm việc thì phải được phân loại xong trong cùng ngày làm việc đó.",
+          "rule": "điều kiện thiếu vế"
+        }
+      }
+    },
+    {
+      "type": "finding",
+      "finding": {
+        "id": "F4",
+        "skill": "doc",
+        "severity": "medium",
+        "title_vi": "Luồng thẩm định chính thức (mục 3) không có tiêu chí nghiệm thu",
+        "what_vi": "Mục 3 mô tả cả một luồng gồm kiểm tra chứng từ, đối chiếu khách hàng, chuyển cấp phê duyệt, nhưng mục 4 chỉ nêu tiêu chí nghiệm thu cho khâu tiếp nhận/phân loại, không có tiêu chí nào cho khâu thẩm định.",
+        "consequence_vi": "Không có cách nghiệm thu khách quan cho luồng thẩm định khi bàn giao, dễ phát sinh tranh cãi 'đã làm đúng' hay chưa.",
+        "evidence": {
+          "type": "quote",
+          "loc": "dòng 20 (mục 3)",
+          "quote": "Sau phân loại, hồ sơ chuyển sang thẩm định theo trình tự chuẩn: kiểm tra tính đầy đủ của chứng từ, đối chiếu thông tin khách hàng, rồi chuyển cấp phê duyệt theo thẩm quyền.",
+          "rule": "thiếu tiêu chí nghiệm thu"
+        }
+      }
+    },
+    {
+      "type": "log",
+      "msg": "Chi phí lượt chấm: 2 call model · ~3k token vào + ~0k token ra (ước từ ký tự)"
+    },
+    {
+      "type": "verdict",
+      "verdict": {
+        "run_id": "run-2026-08-26T06-45-23-628Z-bec2064c59_scratchpad_doc-test-3-truc_md",
+        "skill": "doc",
+        "artifact_ref": {
+          "type": "doc",
+          "name": "doc-test-3-truc.md",
+          "sha_or_hash": "74ea46e0f4b1511b297aa2bf2128152f00eadb8d8acda03e195730e6ad5e897f"
+        },
+        "result": "FAIL",
+        "findings": [
+          {
+            "id": "F1",
+            "skill": "doc",
+            "severity": "high",
+            "title_vi": "Hở ngưỡng đúng 200 triệu trong bảng phân cấp tiếp nhận",
+            "what_vi": "Bảng chỉ chia 'dưới 200.000.000 đ' và 'trên 200.000.000 đ', hồ sơ có giá trị đúng bằng 200.000.000 đ không thuộc cấp nào.",
+            "consequence_vi": "Khi build, hệ thống không xác định được ai có thẩm quyền tiếp nhận hồ sơ đúng ngưỡng, dẫn tới sai thẩm quyền hoặc hồ sơ bị kẹt.",
+            "evidence": {
+              "type": "quote_pair",
+              "loc_a": "dòng 12 (mục 2, bảng phân loại)",
+              "quote_a": "Dưới 200.000.000 đ",
+              "loc_b": "dòng 13 (mục 2, bảng phân loại)",
+              "quote_b": "Trên 200.000.000 đ"
+            }
+          },
+          {
+            "id": "F2",
+            "skill": "doc",
+            "severity": "medium",
+            "title_vi": "Tham chiếu mục 7.2 không tồn tại trong tài liệu",
+            "what_vi": "Văn bản dẫn 'xem tại mục 7.2' nhưng toàn tài liệu chỉ có 4 mục (1-4), không có mục 7.2.",
+            "consequence_vi": "Đội xây dựng không tìm được bảng thẩm quyền phê duyệt được nhắc tới, phải tự suy đoán hoặc dừng lại chờ bổ sung.",
+            "evidence": {
+              "type": "quote",
+              "loc": "dòng 22 (mục 3)",
+              "quote": "Chi tiết về bảng thẩm quyền phê duyệt xem tại mục 7.2 của tài liệu này.",
+              "rule": "tham chiếu chết (mục/bảng không tồn tại)"
+            }
+          },
+          {
+            "id": "F3",
+            "skill": "doc",
+            "severity": "medium",
+            "title_vi": "Không nói rõ xử lý hồ sơ nộp sau 15h00",
+            "what_vi": "Quy tắc chỉ định nghĩa hành vi khi hồ sơ nộp trước 15h00 (phân loại xong trong ngày), không nói hồ sơ nộp sau 15h00 (hoặc đúng 15h00) thì hạn phân loại là khi nào.",
+            "consequence_vi": "Đội xây dựng không có căn cứ đặt SLA/canh báo trễ hạn cho phần lớn hồ sơ nộp buổi chiều-tối, dễ dẫn đến tranh cãi về vi phạm SLA.",
+            "evidence": {
+              "type": "quote",
+              "loc": "dòng 15 (mục 2, quy tắc bổ sung)",
+              "quote": "nếu hồ sơ được nộp trước 15h00 ngày làm việc thì phải được phân loại xong trong cùng ngày làm việc đó.",
+              "rule": "điều kiện thiếu vế"
+            }
+          },
+          {
+            "id": "F4",
+            "skill": "doc",
+            "severity": "medium",
+            "title_vi": "Luồng thẩm định chính thức (mục 3) không có tiêu chí nghiệm thu",
+            "what_vi": "Mục 3 mô tả cả một luồng gồm kiểm tra chứng từ, đối chiếu khách hàng, chuyển cấp phê duyệt, nhưng mục 4 chỉ nêu tiêu chí nghiệm thu cho khâu tiếp nhận/phân loại, không có tiêu chí nào cho khâu thẩm định.",
+            "consequence_vi": "Không có cách nghiệm thu khách quan cho luồng thẩm định khi bàn giao, dễ phát sinh tranh cãi 'đã làm đúng' hay chưa.",
+            "evidence": {
+              "type": "quote",
+              "loc": "dòng 20 (mục 3)",
+              "quote": "Sau phân loại, hồ sơ chuyển sang thẩm định theo trình tự chuẩn: kiểm tra tính đầy đủ của chứng từ, đối chiếu thông tin khách hàng, rồi chuyển cấp phê duyệt theo thẩm quyền.",
+              "rule": "thiếu tiêu chí nghiệm thu"
+            }
+          }
+        ],
+        "model": "claude-cli/claude-sonnet-5",
+        "mode": "live",
+        "started_at": "2026-08-26T06:45:23.630Z",
+        "finished_at": "2026-08-26T06:46:58.724Z"
+      }
+    }
+  ]
+}

@@ -1,0 +1,820 @@
+{
+  "verdict": {
+    "run_id": "run-2026-08-26T06-47-01-758Z-thu_vo-hai",
+    "skill": "code",
+    "artifact_ref": {
+      "type": "pr",
+      "name": "thu/vo-hai",
+      "sha_or_hash": "d7accaa9422c63f63ce7961081367843c6340311"
+    },
+    "result": "PASS",
+    "findings": [],
+    "probe_stats": {
+      "ke_hoach": 6,
+      "ghi_nhan": 71,
+      "pass": 22,
+      "hoi_quy": 0,
+      "ngoai_pham_vi": 3,
+      "nghi_loi_co_san": 46,
+      "nghi_van": 0,
+      "cai_thien": 0,
+      "bo_qua": 0,
+      "that_lac": []
+    },
+    "quan_sat_ngoai_pr": [
+      {
+        "probe_id": "P2",
+        "ten": "Người tạo tự duyệt hồ sơ trong hạn mức của mình",
+        "spec_rule": "R2",
+        "loai": "ngoai_pham_vi",
+        "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to contain 'Người tạo đề xuất không được tự phê d…'"
+      },
+      {
+        "probe_id": "P3",
+        "ten": "Duyệt đúng bằng trần vai — biên đóng",
+        "spec_rule": "R1",
+        "loai": "ngoai_pham_vi",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P4",
+        "ten": "Giải ngân chia không hết — dư dồn kỳ cuối",
+        "spec_rule": "R6",
+        "loai": "ngoai_pham_vi",
+        "message": "AssertionError: expected 409 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P1",
+        "ten": "Chuyên viên duyệt hồ sơ đúng bằng trần thẩm quyền (500.000.000đ, biên đóng)",
+        "spec_rule": "R1",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P4",
+        "ten": "Giải ngân 500.000.000đ chia 3 kỳ — chia không hết, dư dồn kỳ cuối",
+        "spec_rule": "R6",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 409 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P5",
+        "ten": "Giải ngân 600.000.000đ chia 3 kỳ đều nhau (hồi quy theo test mẫu)",
+        "spec_rule": "R6",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 409 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P1",
+        "ten": "Biên đóng R1 — chuyên viên duyệt đúng trần 500.000.000đ",
+        "spec_rule": "R1",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P2",
+        "ten": "Vượt trần đúng 1 đồng — vế R2 đúng (khác người tạo) nhưng R1 sai (vượt thẩm quyền)",
+        "spec_rule": "R1",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to match /500[.,]?000[.,]?000/"
+      },
+      {
+        "probe_id": "P3",
+        "ten": "Giám đốc tự duyệt hồ sơ mình tạo dù thẩm quyền không giới hạn",
+        "spec_rule": "R2",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected '{\"error\":\"vượt thẩm quyền phê duyệt\"}' to contain 'tự phê duyệt'"
+      },
+      {
+        "probe_id": "P5",
+        "ten": "Chia 500.000.000đ thành 3 kỳ — chia không hết, đúng ví dụ trong spec",
+        "spec_rule": "R6",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P6",
+        "ten": "Chia 900.000.000đ thành 3 kỳ đều nhau — hành vi cũ không bị phá",
+        "spec_rule": "R6",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P1",
+        "ten": "Duyệt đúng biên trần chuyên viên (500tr), người khác tạo",
+        "spec_rule": "R1",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P2",
+        "ten": "Chuyên viên vượt quyền duyệt hồ sơ 600 triệu",
+        "spec_rule": "R1",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to contain '500.000.000'"
+      },
+      {
+        "probe_id": "P3",
+        "ten": "Tự duyệt hồ sơ trong hạn mức của chính mình (vế R1 đúng, vế R2 sai)",
+        "spec_rule": "R2",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to contain 'tự phê duyệt'"
+      },
+      {
+        "probe_id": "P4",
+        "ten": "Giải ngân 500 triệu chia 3 kỳ — chia không hết, tổng phải khớp",
+        "spec_rule": "R6",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P3",
+        "ten": "Chuyên viên vượt thẩm quyền duyệt 600 triệu",
+        "spec_rule": "R1",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to contain 'hạn mức'"
+      },
+      {
+        "probe_id": "P4",
+        "ten": "Đủ thẩm quyền số tiền nhưng tự duyệt hồ sơ mình tạo",
+        "spec_rule": "R2",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to contain 'Người tạo đề xuất không được tự phê d…'"
+      },
+      {
+        "probe_id": "P5",
+        "ten": "Biên đóng: chuyên viên duyệt đúng 500.000.000đ",
+        "spec_rule": "R1",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P6",
+        "ten": "Chia kỳ không hết — phần dư dồn kỳ cuối",
+        "spec_rule": "R6",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P3",
+        "ten": "Chuyên viên vượt quyền duyệt hồ sơ trên trần",
+        "spec_rule": "R1",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to contain '500.000.000'"
+      },
+      {
+        "probe_id": "P4",
+        "ten": "Tự phê duyệt hồ sơ của chính mình dù đủ thẩm quyền số tiền",
+        "spec_rule": "R2",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to contain 'Người tạo đề xuất không được tự phê d…'"
+      },
+      {
+        "probe_id": "P5",
+        "ten": "Biên đóng — duyệt đúng bằng trần vai chuyên viên",
+        "spec_rule": "R1",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P6",
+        "ten": "Chia kỳ giải ngân không hết — dồn dư về kỳ cuối",
+        "spec_rule": "R6",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 409 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P3",
+        "ten": "Chuyên viên vượt quyền không được duyệt hồ sơ vượt trần vai",
+        "spec_rule": "R1 (spec-phe-duyet.md)",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to contain 'hạn mức'"
+      },
+      {
+        "probe_id": "P4",
+        "ten": "Người tạo không được tự duyệt hồ sơ của chính mình dù đủ thẩm quyền số tiền",
+        "spec_rule": "R2 (spec-phe-duyet.md)",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to contain 'Người tạo đề xuất không được tự phê d…'"
+      },
+      {
+        "probe_id": "P5",
+        "ten": "Biên đóng: số tiền đúng bằng trần vai chuyên viên vẫn phải duyệt được (hành vi cũ không bị phá)",
+        "spec_rule": "R1 (spec-phe-duyet.md)",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P6",
+        "ten": "Chia kỳ giải ngân không hết phải dồn dư về kỳ cuối, tổng khớp tuyệt đối",
+        "spec_rule": "R6 (spec-giai-ngan.md)",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 409 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P1",
+        "ten": "Trưởng phòng vượt trần 2 tỷ bị chặn 403",
+        "spec_rule": "R1",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to contain 'vượt hạn mức'"
+      },
+      {
+        "probe_id": "P2",
+        "ten": "Trưởng phòng duyệt đúng trần 2.000.000.000đ hợp lệ (biên đóng)",
+        "spec_rule": "R1",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P4",
+        "ten": "Duyệt lại hồ sơ đã ở trạng thái da_duyet → 409",
+        "spec_rule": "R7",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P5",
+        "ten": "Giải ngân 500tr chia 3 kỳ — dư dồn kỳ cuối, cấm round-per-kỳ",
+        "spec_rule": "R6",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P1",
+        "ten": "Trưởng phòng vượt trần 2 tỷ",
+        "spec_rule": "R1",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 'Vượt thẩm quyền phê duyệt' to match /vượt hạn mức/i"
+      },
+      {
+        "probe_id": "P3",
+        "ten": "Giám đốc tự duyệt hồ sơ trong thẩm quyền (R2 độc lập R1)",
+        "spec_rule": "R2",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected false to be true // Object.is equality"
+      },
+      {
+        "probe_id": "P4",
+        "ten": "Duyệt đúng biên trần 2.000.000.000đ của trưởng phòng",
+        "spec_rule": "R1",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P5",
+        "ten": "Chia kỳ 500 triệu / 3 kỳ — dư dồn về kỳ cuối",
+        "spec_rule": "R6",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 409 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P1",
+        "ten": "Giám đốc tự phê duyệt hồ sơ do chính mình tạo (R1 thỏa, R2 vi phạm)",
+        "spec_rule": "R2",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 'Vượt thẩm quyền phê duyệt' to contain 'không được tự phê duyệt'"
+      },
+      {
+        "probe_id": "P2",
+        "ten": "Trưởng phòng duyệt vượt trần 2 tỷ nhưng khác người tạo (R2 thỏa, R1 vi phạm)",
+        "spec_rule": "R1",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected false to be true // Object.is equality"
+      },
+      {
+        "probe_id": "P3",
+        "ten": "Biên đóng trần truong_phong đúng 2.000.000.000 đ",
+        "spec_rule": "R1",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P4",
+        "ten": "Duyệt lần hai trên hồ sơ đã da_duyet — hành vi cũ không bị refactor phá",
+        "spec_rule": "R5",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P6",
+        "ten": "Giải ngân 500.000.000 đ chia 3 kỳ — phần dư dồn về kỳ cuối",
+        "spec_rule": "R6",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P1",
+        "ten": "Chuyên viên vượt trần duyệt 500.000.001đ",
+        "spec_rule": "R1",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P3",
+        "ten": "Giám đốc (đủ thẩm quyền) tự duyệt hồ sơ mình tạo",
+        "spec_rule": "R2",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected '{\"error\":\"vượt thẩm quyền phê duyệt\"}' to match /tự phê duyệt|tự duyệt/"
+      },
+      {
+        "probe_id": "P4",
+        "ten": "Giải ngân 500 triệu chia 3 kỳ — dồn dư về kỳ cuối",
+        "spec_rule": "R6",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P1",
+        "ten": "Vượt quyền: chuyên viên duyệt hồ sơ vượt trần 500tr",
+        "spec_rule": "R1",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P3",
+        "ten": "Biên đóng: chuyên viên duyệt đúng 500.000.000đ",
+        "spec_rule": "R1",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected '{\"error\":\"vượt thẩm quyền phê duyệt\"}' to match /tự phê duyệt|tự duyệt/"
+      },
+      {
+        "probe_id": "P4",
+        "ten": "Chia kỳ không hết: 500.000.000đ chia 3 kỳ, dư dồn kỳ cuối",
+        "spec_rule": "R6",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P1",
+        "ten": "Chuyên viên duyệt đúng trần 500.000.000đ (biên đóng)",
+        "spec_rule": "R1",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      },
+      {
+        "probe_id": "P3",
+        "ten": "Tự duyệt hồ sơ trong thẩm quyền số tiền của chính mình",
+        "spec_rule": "R2",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected '{\"error\":\"vượt thẩm quyền phê duyệt\"}' to match /tự phê duyệt|tự duyệt/"
+      },
+      {
+        "probe_id": "P4",
+        "ten": "Giải ngân 500.000.000đ chia 3 kỳ — chia không hết, dồn dư về kỳ cuối",
+        "spec_rule": "R6",
+        "loai": "nghi_loi_co_san",
+        "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+      }
+    ],
+    "model": "claude-cli/claude-sonnet-5",
+    "mode": "live",
+    "started_at": "2026-08-26T06:47:01.759Z",
+    "finished_at": "2026-08-26T06:49:26.474Z"
+  },
+  "events": [
+    {
+      "type": "stage",
+      "stage": 1,
+      "ten": "Nhận artifact — đọc diff PR"
+    },
+    {
+      "type": "log",
+      "msg": "PR thu/vo-hai @ d7accaa · đối chứng main @ 81c9768 · diff 168 ký tự"
+    },
+    {
+      "type": "stage",
+      "stage": 2,
+      "ten": "Đọc spec — nạp luật hành vi"
+    },
+    {
+      "type": "log",
+      "msg": "2 file spec: specs/spec-giai-ngan.md, specs/spec-phe-duyet.md"
+    },
+    {
+      "type": "stage",
+      "stage": 3,
+      "ten": "Sinh probe đối kháng"
+    },
+    {
+      "type": "log",
+      "msg": "6 probe mới: P1 (R1) · P2 (R2) · P3 (R1) · P4 (R6) · P5 (R7) · P6 (R3)"
+    },
+    {
+      "type": "log",
+      "msg": "+ 68 probe THƯ VIỆN từ 12 lượt trước (regression, không tốn model)"
+    },
+    {
+      "type": "stage",
+      "stage": 4,
+      "ten": "Chạy probe trong sandbox — nhánh PR và nhánh gốc đối chứng + cổng sanity"
+    },
+    {
+      "type": "log",
+      "msg": "Nhánh PR:  P1=p P2=f P3=f P4=f P5=p P6=p P1=f P2=p P3=p P4=f P5=f P6=p P1=f P2=f P3=f P4=p P5=f P6=f P1=f P2=f P3=f P4=f P5=p P6=p P1=f P3=f P4=f P5=p P1=f P2=f P3=p P4=f P5=f P6=p P1=f P2=p P3=f P4=f P5=f P6=p P1=f P2=f P3=f P4=f P5=p P6=f P1=p P2=p P3=f P4=f P5=f P6=f P1=p P2=p P3=f P4=f P5=f P6=f P1=p P2=p P3=f P4=f P5=f P6=f"
+    },
+    {
+      "type": "log",
+      "msg": "Nhánh gốc: P1=p P2=f P3=f P4=f P5=p P6=p P1=f P2=p P3=p P4=f P5=f P6=p P1=f P2=f P3=f P4=p P5=f P6=f P1=f P2=f P3=f P4=f P5=p P6=p P1=f P3=f P4=f P5=p P1=f P2=f P3=p P4=f P5=f P6=p P1=f P2=p P3=f P4=f P5=f P6=p P1=f P2=f P3=f P4=f P5=p P6=f P1=p P2=p P3=f P4=f P5=f P6=f P1=p P2=p P3=f P4=f P5=f P6=f P1=p P2=p P3=f P4=f P5=f P6=f"
+    },
+    {
+      "type": "log",
+      "msg": "Phân loại máy: 22 pass · 0 hồi quy · 3 ngoài phạm vi (fail cả 2 nhánh) · 46 nghi lỗi có sẵn (thư viện) · 0 nghi vấn · 0 cải thiện · 0 bỏ qua (skip)"
+    },
+    {
+      "type": "log",
+      "msg": "Sanity: 3 probe mới fail cùng nguyên nhân trên CẢ HAI nhánh (P2, P3, P4) — ngoài phạm vi PR: probe sai contract HOẶC lỗi có sẵn; không thành finding, sẽ báo ở mục quan sát"
+    },
+    {
+      "type": "stage",
+      "stage": 5,
+      "ten": "Kết luận — máy làm chủ phân loại, model viết finding"
+    },
+    {
+      "type": "log",
+      "msg": "Thư viện: nhận 3 probe khớp contract (lib_d7accaa_13.probe.test.ts, đã cắt 3 probe fail-gốc) — thành regression cho các lượt sau"
+    },
+    {
+      "type": "log",
+      "msg": "⚠ Nghi LỖI CÓ SẴN: 46 probe thư viện (đã chứng minh contract lượt trước) nay fail cả hai nhánh — repo có lỗi mới lộ hoặc spec/code đã đổi; xem mục quan sát trong verdict"
+    },
+    {
+      "type": "log",
+      "msg": "Chi phí lượt chấm: 2 call model · ~5k token vào + ~0k token ra (ước từ ký tự)"
+    },
+    {
+      "type": "verdict",
+      "verdict": {
+        "run_id": "run-2026-08-26T06-47-01-758Z-thu_vo-hai",
+        "skill": "code",
+        "artifact_ref": {
+          "type": "pr",
+          "name": "thu/vo-hai",
+          "sha_or_hash": "d7accaa9422c63f63ce7961081367843c6340311"
+        },
+        "result": "PASS",
+        "findings": [],
+        "probe_stats": {
+          "ke_hoach": 6,
+          "ghi_nhan": 71,
+          "pass": 22,
+          "hoi_quy": 0,
+          "ngoai_pham_vi": 3,
+          "nghi_loi_co_san": 46,
+          "nghi_van": 0,
+          "cai_thien": 0,
+          "bo_qua": 0,
+          "that_lac": []
+        },
+        "quan_sat_ngoai_pr": [
+          {
+            "probe_id": "P2",
+            "ten": "Người tạo tự duyệt hồ sơ trong hạn mức của mình",
+            "spec_rule": "R2",
+            "loai": "ngoai_pham_vi",
+            "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to contain 'Người tạo đề xuất không được tự phê d…'"
+          },
+          {
+            "probe_id": "P3",
+            "ten": "Duyệt đúng bằng trần vai — biên đóng",
+            "spec_rule": "R1",
+            "loai": "ngoai_pham_vi",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P4",
+            "ten": "Giải ngân chia không hết — dư dồn kỳ cuối",
+            "spec_rule": "R6",
+            "loai": "ngoai_pham_vi",
+            "message": "AssertionError: expected 409 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P1",
+            "ten": "Chuyên viên duyệt hồ sơ đúng bằng trần thẩm quyền (500.000.000đ, biên đóng)",
+            "spec_rule": "R1",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P4",
+            "ten": "Giải ngân 500.000.000đ chia 3 kỳ — chia không hết, dư dồn kỳ cuối",
+            "spec_rule": "R6",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 409 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P5",
+            "ten": "Giải ngân 600.000.000đ chia 3 kỳ đều nhau (hồi quy theo test mẫu)",
+            "spec_rule": "R6",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 409 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P1",
+            "ten": "Biên đóng R1 — chuyên viên duyệt đúng trần 500.000.000đ",
+            "spec_rule": "R1",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P2",
+            "ten": "Vượt trần đúng 1 đồng — vế R2 đúng (khác người tạo) nhưng R1 sai (vượt thẩm quyền)",
+            "spec_rule": "R1",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to match /500[.,]?000[.,]?000/"
+          },
+          {
+            "probe_id": "P3",
+            "ten": "Giám đốc tự duyệt hồ sơ mình tạo dù thẩm quyền không giới hạn",
+            "spec_rule": "R2",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected '{\"error\":\"vượt thẩm quyền phê duyệt\"}' to contain 'tự phê duyệt'"
+          },
+          {
+            "probe_id": "P5",
+            "ten": "Chia 500.000.000đ thành 3 kỳ — chia không hết, đúng ví dụ trong spec",
+            "spec_rule": "R6",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P6",
+            "ten": "Chia 900.000.000đ thành 3 kỳ đều nhau — hành vi cũ không bị phá",
+            "spec_rule": "R6",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P1",
+            "ten": "Duyệt đúng biên trần chuyên viên (500tr), người khác tạo",
+            "spec_rule": "R1",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P2",
+            "ten": "Chuyên viên vượt quyền duyệt hồ sơ 600 triệu",
+            "spec_rule": "R1",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to contain '500.000.000'"
+          },
+          {
+            "probe_id": "P3",
+            "ten": "Tự duyệt hồ sơ trong hạn mức của chính mình (vế R1 đúng, vế R2 sai)",
+            "spec_rule": "R2",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to contain 'tự phê duyệt'"
+          },
+          {
+            "probe_id": "P4",
+            "ten": "Giải ngân 500 triệu chia 3 kỳ — chia không hết, tổng phải khớp",
+            "spec_rule": "R6",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P3",
+            "ten": "Chuyên viên vượt thẩm quyền duyệt 600 triệu",
+            "spec_rule": "R1",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to contain 'hạn mức'"
+          },
+          {
+            "probe_id": "P4",
+            "ten": "Đủ thẩm quyền số tiền nhưng tự duyệt hồ sơ mình tạo",
+            "spec_rule": "R2",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to contain 'Người tạo đề xuất không được tự phê d…'"
+          },
+          {
+            "probe_id": "P5",
+            "ten": "Biên đóng: chuyên viên duyệt đúng 500.000.000đ",
+            "spec_rule": "R1",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P6",
+            "ten": "Chia kỳ không hết — phần dư dồn kỳ cuối",
+            "spec_rule": "R6",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P3",
+            "ten": "Chuyên viên vượt quyền duyệt hồ sơ trên trần",
+            "spec_rule": "R1",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to contain '500.000.000'"
+          },
+          {
+            "probe_id": "P4",
+            "ten": "Tự phê duyệt hồ sơ của chính mình dù đủ thẩm quyền số tiền",
+            "spec_rule": "R2",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to contain 'Người tạo đề xuất không được tự phê d…'"
+          },
+          {
+            "probe_id": "P5",
+            "ten": "Biên đóng — duyệt đúng bằng trần vai chuyên viên",
+            "spec_rule": "R1",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P6",
+            "ten": "Chia kỳ giải ngân không hết — dồn dư về kỳ cuối",
+            "spec_rule": "R6",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 409 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P3",
+            "ten": "Chuyên viên vượt quyền không được duyệt hồ sơ vượt trần vai",
+            "spec_rule": "R1 (spec-phe-duyet.md)",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to contain 'hạn mức'"
+          },
+          {
+            "probe_id": "P4",
+            "ten": "Người tạo không được tự duyệt hồ sơ của chính mình dù đủ thẩm quyền số tiền",
+            "spec_rule": "R2 (spec-phe-duyet.md)",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to contain 'Người tạo đề xuất không được tự phê d…'"
+          },
+          {
+            "probe_id": "P5",
+            "ten": "Biên đóng: số tiền đúng bằng trần vai chuyên viên vẫn phải duyệt được (hành vi cũ không bị phá)",
+            "spec_rule": "R1 (spec-phe-duyet.md)",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P6",
+            "ten": "Chia kỳ giải ngân không hết phải dồn dư về kỳ cuối, tổng khớp tuyệt đối",
+            "spec_rule": "R6 (spec-giai-ngan.md)",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 409 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P1",
+            "ten": "Trưởng phòng vượt trần 2 tỷ bị chặn 403",
+            "spec_rule": "R1",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected '{\"error\":\"Vượt thẩm quyền phê duyệt\"}' to contain 'vượt hạn mức'"
+          },
+          {
+            "probe_id": "P2",
+            "ten": "Trưởng phòng duyệt đúng trần 2.000.000.000đ hợp lệ (biên đóng)",
+            "spec_rule": "R1",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P4",
+            "ten": "Duyệt lại hồ sơ đã ở trạng thái da_duyet → 409",
+            "spec_rule": "R7",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P5",
+            "ten": "Giải ngân 500tr chia 3 kỳ — dư dồn kỳ cuối, cấm round-per-kỳ",
+            "spec_rule": "R6",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P1",
+            "ten": "Trưởng phòng vượt trần 2 tỷ",
+            "spec_rule": "R1",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 'Vượt thẩm quyền phê duyệt' to match /vượt hạn mức/i"
+          },
+          {
+            "probe_id": "P3",
+            "ten": "Giám đốc tự duyệt hồ sơ trong thẩm quyền (R2 độc lập R1)",
+            "spec_rule": "R2",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected false to be true // Object.is equality"
+          },
+          {
+            "probe_id": "P4",
+            "ten": "Duyệt đúng biên trần 2.000.000.000đ của trưởng phòng",
+            "spec_rule": "R1",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P5",
+            "ten": "Chia kỳ 500 triệu / 3 kỳ — dư dồn về kỳ cuối",
+            "spec_rule": "R6",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 409 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P1",
+            "ten": "Giám đốc tự phê duyệt hồ sơ do chính mình tạo (R1 thỏa, R2 vi phạm)",
+            "spec_rule": "R2",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 'Vượt thẩm quyền phê duyệt' to contain 'không được tự phê duyệt'"
+          },
+          {
+            "probe_id": "P2",
+            "ten": "Trưởng phòng duyệt vượt trần 2 tỷ nhưng khác người tạo (R2 thỏa, R1 vi phạm)",
+            "spec_rule": "R1",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected false to be true // Object.is equality"
+          },
+          {
+            "probe_id": "P3",
+            "ten": "Biên đóng trần truong_phong đúng 2.000.000.000 đ",
+            "spec_rule": "R1",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P4",
+            "ten": "Duyệt lần hai trên hồ sơ đã da_duyet — hành vi cũ không bị refactor phá",
+            "spec_rule": "R5",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P6",
+            "ten": "Giải ngân 500.000.000 đ chia 3 kỳ — phần dư dồn về kỳ cuối",
+            "spec_rule": "R6",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P1",
+            "ten": "Chuyên viên vượt trần duyệt 500.000.001đ",
+            "spec_rule": "R1",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P3",
+            "ten": "Giám đốc (đủ thẩm quyền) tự duyệt hồ sơ mình tạo",
+            "spec_rule": "R2",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected '{\"error\":\"vượt thẩm quyền phê duyệt\"}' to match /tự phê duyệt|tự duyệt/"
+          },
+          {
+            "probe_id": "P4",
+            "ten": "Giải ngân 500 triệu chia 3 kỳ — dồn dư về kỳ cuối",
+            "spec_rule": "R6",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P1",
+            "ten": "Vượt quyền: chuyên viên duyệt hồ sơ vượt trần 500tr",
+            "spec_rule": "R1",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P3",
+            "ten": "Biên đóng: chuyên viên duyệt đúng 500.000.000đ",
+            "spec_rule": "R1",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected '{\"error\":\"vượt thẩm quyền phê duyệt\"}' to match /tự phê duyệt|tự duyệt/"
+          },
+          {
+            "probe_id": "P4",
+            "ten": "Chia kỳ không hết: 500.000.000đ chia 3 kỳ, dư dồn kỳ cuối",
+            "spec_rule": "R6",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P1",
+            "ten": "Chuyên viên duyệt đúng trần 500.000.000đ (biên đóng)",
+            "spec_rule": "R1",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          },
+          {
+            "probe_id": "P3",
+            "ten": "Tự duyệt hồ sơ trong thẩm quyền số tiền của chính mình",
+            "spec_rule": "R2",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected '{\"error\":\"vượt thẩm quyền phê duyệt\"}' to match /tự phê duyệt|tự duyệt/"
+          },
+          {
+            "probe_id": "P4",
+            "ten": "Giải ngân 500.000.000đ chia 3 kỳ — chia không hết, dồn dư về kỳ cuối",
+            "spec_rule": "R6",
+            "loai": "nghi_loi_co_san",
+            "message": "AssertionError: expected 403 to be 200 // Object.is equality"
+          }
+        ],
+        "model": "claude-cli/claude-sonnet-5",
+        "mode": "live",
+        "started_at": "2026-08-26T06:47:01.759Z",
+        "finished_at": "2026-08-26T06:49:26.474Z"
+      }
+    }
+  ]
+}
