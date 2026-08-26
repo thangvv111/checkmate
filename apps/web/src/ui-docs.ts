@@ -134,10 +134,15 @@ export function trangDocs(): string {
         <tr><td class="kq-ok">đạt</td><td class="kq-no">hỏng</td><td><b>Regression (hồi quy) — finding bắt buộc.</b> PR làm gãy hành vi đang đúng.</td></tr>
         <tr><td class="kq-ok">đạt</td><td class="kq-ok">đạt</td><td>Không có gì để nói.</td></tr>
         <tr><td class="kq-no">hỏng</td><td class="kq-ok">đạt</td><td>PR sửa được lỗi cũ — không phải finding.</td></tr>
-        <tr><td class="kq-no">hỏng</td><td class="kq-no">hỏng</td><td><b>Probe hỏng — loại</b>, không được dùng làm bằng chứng (xem lưới máy bên dưới).</td></tr>
+        <tr><td class="kq-no">hỏng</td><td class="kq-no">hỏng</td><td><b>Ngoài phạm vi PR</b> — máy không quy tội PR (probe sai contract HOẶC lỗi có sẵn); không thành finding nhưng được <b>báo tách</b> trong verdict (xem bên dưới).</td></tr>
       </table>
-      <p>Vế cuối là chốt chặn quan trọng nhất: một probe fail <i>ngay cả trên code đang chạy ổn</i> thì
-      nhiều khả năng lỗi nằm ở chính probe — nó hỏi sai câu hỏi. Ví dụ thật:</p>
+      <p>Vế cuối là chốt chặn quan trọng nhất — và máy nói <b>đúng mức những gì nó chứng minh được</b>:
+      fail cả hai nhánh chỉ chứng minh "không phải lỗi của PR", chứ KHÔNG phân biệt được probe hỏi sai câu hỏi
+      hay repo có lỗi từ trước. Vì vậy nhóm này không thành finding (không quy oan tác giả PR) nhưng cũng
+      <b>không bị im lặng</b>: chúng vào mục <b>«Quan sát ngoài phạm vi PR»</b> của verdict để đội mở việc riêng.
+      Riêng <b>probe thư viện</b> fail cả hai nhánh thì máy suy được mạnh hơn: nó đã chứng minh khớp contract
+      ở lượt trước, nên không thể "hỏi sai" — nhãn <b>nghi lỗi có sẵn</b> (lỗi mới lộ, hoặc spec/code đã đổi).
+      Ví dụ probe hỏi sai câu hỏi:</p>
       <div class="vidu">probe kiểm tra <b>response.message</b> — nhưng API của repo trả về trường <code>error</code>.<br>
       → probe fail trên CẢ HAI nhánh, cùng một thông báo lỗi → máy loại trước khi model nhìn thấy.</div>
       <h3>Error fingerprint (vân tay lỗi)</h3>
@@ -163,8 +168,8 @@ export function trangDocs(): string {
       <p class="tomtat">Câu hỏi lớn nhất với AI review: "nó bịa thì sao?" — Trả lời của CheckMate:
       <b>nó không được phép bịa</b>. Ba lưới dưới đây là code cố định, không phải lời hứa của model.</p>
       <ul>
-        <li><b>Lưới 1 — loại probe hỏng:</b> fail trên cả hai nhánh với cùng fingerprint → loại
-        <b>trước khi model nhìn thấy</b>. Lý do phải để máy làm: khi cho model tự phân loại, nó có xu hướng
+        <li><b>Lưới 1 — loại probe ngoài phạm vi:</b> fail trên cả hai nhánh với cùng fingerprint → không được
+        làm bằng chứng chống PR, loại <b>trước khi model nhìn thấy</b> (nhưng vẫn báo tách trong verdict). Lý do phải để máy làm: khi cho model tự phân loại, nó có xu hướng
         "thương" probe của chính mình — giữ lại một cái hỏng rồi viết thành finding, khiến hai lượt chấm
         cùng một commit ra hai kết quả khác nhau. Chuyển quyền phân loại cho máy thì dao động đó biến mất.</li>
         <li><b>Lưới 2 — regression không được bỏ sót:</b> probe "gốc đạt + PR hỏng" là regression máy đã xác nhận.
@@ -242,9 +247,10 @@ export function trangDocs(): string {
         + cấu hình <code>checkmate.yml</code> per-package, chưa phải hôm nay.</li>
         <li><b>Maker chủ đích tấn công checker</b> (prompt injection trong diff/tài liệu) — đã có rào delimiter
         ngẫu nhiên + lưới đếm assert thật, nhưng đây là cuộc rượt đuổi liên tục, không phải bài toán đóng.</li>
-        <li><b>Lỗi có sẵn từ trước</b> — tồn tại trên cả hai nhánh — nằm ngoài phạm vi: cổng này trả lời
-        "PR này có làm hỏng gì không", không phải "toàn bộ codebase có sạch không". Việc loại probe
-        hỏng-cả-hai-nhánh là đánh đổi có chủ đích cho câu hỏi đó.</li>
+        <li><b>Lỗi có sẵn từ trước</b> — tồn tại trên cả hai nhánh — không đổi được verdict: cổng này trả lời
+        "PR này có làm hỏng gì không", không phải "toàn bộ codebase có sạch không". Nhưng nó không bị nuốt:
+        mục «Quan sát ngoài phạm vi PR» liệt kê từng probe fail-cả-hai-nhánh kèm luật spec nó neo — đầu vào
+        để đội mở việc sửa riêng, tách khỏi phán quyết dành cho tác giả PR.</li>
         <li><b>Spec càng rõ, checker càng sắc.</b> Chưa có spec thì vẫn chạy được chế độ đối chứng hai nhánh
         (bắt breaking change), nhưng probe neo-luật cần spec. Vài file markdown mỏng trong <code>specs/</code>
         là đủ khởi động — và đó cũng là kỷ luật tổ chức nên có sẵn.</li>

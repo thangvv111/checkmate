@@ -43,7 +43,10 @@ function phat(e: RunEvent): void {
     console.log(` ${v.findings.length} finding (${dem('high')} high · ${dem('medium')} medium · ${dem('low')} low) · model ${v.model}`);
     if (v.probe_stats) {
       const ps = v.probe_stats;
-      console.log(` Độ phủ: ${ps.ghi_nhan} probe ghi nhận / ${ps.ke_hoach} kế hoạch · ${ps.pass} pass · ${ps.hoi_quy} hồi quy · ${ps.hong} hỏng · ${ps.nghi_van} nghi vấn${ps.bo_qua ? ` · ${ps.bo_qua} skip` : ''}${ps.that_lac.length ? ` · thất lạc: ${ps.that_lac.join(',')}` : ''}`);
+      console.log(` Độ phủ: ${ps.ghi_nhan} probe ghi nhận / ${ps.ke_hoach} kế hoạch · ${ps.pass} pass · ${ps.hoi_quy} hồi quy · ${ps.ngoai_pham_vi} ngoài phạm vi · ${ps.nghi_van} nghi vấn${ps.bo_qua ? ` · ${ps.bo_qua} skip` : ''}${ps.that_lac.length ? ` · thất lạc: ${ps.that_lac.join(',')}` : ''}`);
+    }
+    for (const q of v.quan_sat_ngoai_pr ?? []) {
+      console.log(` ⚠ Ngoài phạm vi PR${q.loai === 'nghi_loi_co_san' ? ' (NGHI LỖI CÓ SẴN — probe thư viện đã chứng minh contract)' : ''}: ${q.probe_id} (${q.spec_rule}) — ${q.ten}`);
     }
     console.log(`════════════════════════════════════════`);
   } else if (e.type === 'error') console.error(`✗ LỖI: ${e.msg}`);
@@ -96,10 +99,12 @@ async function main(): Promise<void> {
     let findings: Finding[];
     let artifactRef: ArtifactRef;
     let probeStats: Verdict['probe_stats'];
+    let quanSat: Verdict['quan_sat_ngoai_pr'];
     if (skill === 'code') {
       const kq = await chaySkillCode(model, repo!, branch!, base, ghiPhat);
       findings = kq.findings;
       probeStats = kq.probeStats;
+      quanSat = kq.quanSat.length > 0 ? kq.quanSat : undefined;
       artifactRef = { type: 'pr', name: branch!, sha_or_hash: kq.target.branchSha };
     } else if (repo && branch) {
       // docs-as-code: đọc file ở đúng bản của nhánh/PR qua worktree
@@ -126,6 +131,7 @@ async function main(): Promise<void> {
       result: findings.some((f) => chuanMuc(f.severity) === 'high') ? 'FAIL' : 'PASS',
       findings,
       probe_stats: probeStats,
+      quan_sat_ngoai_pr: quanSat,
       model: model.ten,
       mode: 'live',
       started_at: batDau,

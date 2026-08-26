@@ -69,12 +69,22 @@ export interface Verdict {
     ghi_nhan: number; // số probe thực chạy và được ghi nhận
     pass: number;
     hoi_quy: number;
-    hong: number;
+    ngoai_pham_vi: number; // fail cả hai nhánh cùng nguyên nhân — không quy tội PR
+    nghi_loi_co_san: number; // probe THƯ VIỆN fail cả hai nhánh — đã chứng minh contract nên nghi lỗi có sẵn/spec đổi
     nghi_van: number;
     cai_thien: number;
     bo_qua: number;
     that_lac: string[]; // id probe trong kế hoạch nhưng không thấy khi chạy
   };
+  // Quan sát NGOÀI phạm vi PR: probe fail trên cả hai nhánh — verdict không đổi vì cổng chỉ trả lời
+  // "PR này có làm hỏng gì không", nhưng lỗi-có-sẵn không được im lặng: báo tách để đội mở việc riêng.
+  quan_sat_ngoai_pr?: Array<{
+    probe_id: string;
+    ten: string;
+    spec_rule: string;
+    loai: 'nghi_loi_co_san' | 'ngoai_pham_vi';
+    message: string; // dòng đầu lỗi trên nhánh gốc
+  }>;
   mode: 'live' | 'replay';
   started_at: string;
   finished_at: string;

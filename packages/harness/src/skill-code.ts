@@ -22,6 +22,7 @@ interface KetQuaSkillCode {
   target: TargetInfo;
   soProbe: number;
   probeStats: NonNullable<Verdict['probe_stats']>;
+  quanSat: NonNullable<Verdict['quan_sat_ngoai_pr']>;
 }
 
 type PhatEvent = (e: RunEvent) => void;
@@ -31,7 +32,7 @@ const FILE_PROBE_MOI = 'checker.probe.test.ts';
 
 // ---------- Phân loại MÁY (spec §11-A): model không được tự giác luật này ----------
 
-export type TrangThaiProbe = 'pass' | 'hoi_quy' | 'hong' | 'nghi_van' | 'cai_thien' | 'bo_qua' | 'khong_chay';
+export type TrangThaiProbe = 'pass' | 'hoi_quy' | 'ngoai_pham_vi' | 'nghi_loi_co_san' | 'nghi_van' | 'cai_thien' | 'bo_qua' | 'khong_chay';
 
 // Vân tay lỗi: dòng đầu message, chuẩn hoá số/hex/khoảng trắng — hai nhánh cùng vân tay = cùng nguyên nhân
 function vanTayLoi(msg: string): string {
@@ -70,7 +71,9 @@ function phanLoaiMay(br: KetQuaProbe | undefined, bs: KetQuaProbe | undefined): 
   }
   // C4: vân tay thô trùng NHƯNG vân tay chặt khác → có thể khác nguyên nhân — đẩy model phân xử, không vứt
   if (vanTayLoi(br.message) !== vanTayLoi(bs?.message ?? '')) return 'nghi_van';
-  return vanTayChat(br.message) === vanTayChat(bs?.message ?? '') ? 'hong' : 'nghi_van';
+  // Fail cả hai nhánh cùng nguyên nhân: KHÔNG quy tội PR — nhưng cũng không dám kết luận "probe hỏng":
+  // có thể là probe sai contract, có thể là LỖI CÓ SẴN của repo. Nhãn trung thực: ngoài phạm vi PR.
+  return vanTayChat(br.message) === vanTayChat(bs?.message ?? '') ? 'ngoai_pham_vi' : 'nghi_van';
 }
 
 interface UngVien {
@@ -302,14 +305,14 @@ export async function chaySkillCode(
 
   // gom ứng viên + phân loại máy; retry sinh lại 1 lần nếu file mới lỗi thu thập HOẶC >50% probe mới hỏng
   let ungVienTatCa: UngVien[] = [];
-  const thongKe = { ke_hoach: keHoach.length, ghi_nhan: 0, pass: 0, hoi_quy: 0, hong: 0, nghi_van: 0, cai_thien: 0, bo_qua: 0, that_lac: [] as string[] };
+  const thongKe = { ke_hoach: keHoach.length, ghi_nhan: 0, pass: 0, hoi_quy: 0, ngoai_pham_vi: 0, nghi_loi_co_san: 0, nghi_van: 0, cai_thien: 0, bo_qua: 0, that_lac: [] as string[] };
   for (let lan = 1; lan <= 2; lan++) {
     const { branchKq, baseKq, loiThu, treoBranch } = chayCaHaiNhanh(code);
     if (treoBranch) {
       const f = findingTreo();
       phat({ type: 'log', msg: 'C7: nhánh PR làm TREO lệnh test — kết luận thẳng finding high, không sinh lại probe' });
       phat({ type: 'finding', finding: f });
-      return { findings: [f], target: t, soProbe: 0, probeStats: { ...thongKe, that_lac: keHoach.map((p) => p.id) } };
+      return { findings: [f], target: t, soProbe: 0, probeStats: { ...thongKe, that_lac: keHoach.map((p) => p.id) }, quanSat: [] };
     }
     if (loiThu !== undefined) {
       if (lan === 2) throw new Error(`Probe không thu thập được sau 2 lần sinh: ${loiThu}`);
@@ -340,18 +343,23 @@ export async function chaySkillCode(
         const bs = timKq(baseKq, file, probe.id);
         if (!br) return [];
         dem++;
-        return [{ ma: `U${dem}`, file, nguon, probe, trangThai: phanLoaiMay(br, bs), br, bs }];
+        let trangThai = phanLoaiMay(br, bs);
+        // Probe THƯ VIỆN đã pass trên nhánh gốc ở lượt trước (điều kiện admission) — nay fail cả hai nhánh
+        // thì KHÔNG THỂ là "probe sai contract": tín hiệu tất định của lỗi có sẵn mới lộ / spec-code đã đổi.
+        if (nguon === 'thu_vien' && trangThai === 'ngoai_pham_vi') trangThai = 'nghi_loi_co_san';
+        return [{ ma: `U${dem}`, file, nguon, probe, trangThai, br, bs }];
       }),
     );
 
     const tomTat = (loai: TrangThaiProbe) => ungVienTatCa.filter((u) => u.trangThai === loai);
     phat({
       type: 'log',
-      msg: `Phân loại máy: ${tomTat('pass').length} pass · ${tomTat('hoi_quy').length} hồi quy · ${tomTat('hong').length} hỏng · ${tomTat('nghi_van').length} nghi vấn · ${tomTat('cai_thien').length} cải thiện · ${tomTat('bo_qua').length} bỏ qua (skip)`,
+      msg: `Phân loại máy: ${tomTat('pass').length} pass · ${tomTat('hoi_quy').length} hồi quy · ${tomTat('ngoai_pham_vi').length} ngoài phạm vi (fail cả 2 nhánh) · ${tomTat('nghi_loi_co_san').length} nghi lỗi có sẵn (thư viện) · ${tomTat('nghi_van').length} nghi vấn · ${tomTat('cai_thien').length} cải thiện · ${tomTat('bo_qua').length} bỏ qua (skip)`,
     });
     // C5: thống kê độ phủ đưa vào verdict + truy vết probe thất lạc
     thongKe.ghi_nhan = ungVienTatCa.length;
-    thongKe.pass = tomTat('pass').length; thongKe.hoi_quy = tomTat('hoi_quy').length; thongKe.hong = tomTat('hong').length;
+    thongKe.pass = tomTat('pass').length; thongKe.hoi_quy = tomTat('hoi_quy').length;
+    thongKe.ngoai_pham_vi = tomTat('ngoai_pham_vi').length; thongKe.nghi_loi_co_san = tomTat('nghi_loi_co_san').length;
     thongKe.nghi_van = tomTat('nghi_van').length; thongKe.cai_thien = tomTat('cai_thien').length; thongKe.bo_qua = tomTat('bo_qua').length;
     const idGhiNhan = new Set(ungVienTatCa.filter((u) => u.nguon === 'moi').map((u) => u.probe.id));
     thongKe.that_lac = keHoach.filter((p) => !idGhiNhan.has(p.id)).map((p) => p.id);
@@ -368,11 +376,11 @@ export async function chaySkillCode(
       code = bocCode(await model.complete(promptSinhCode(t, keHoach, rao, `File trước không collect được test nào khớp id probe (P1, P2...). Testcase thấy được: ${mau}. Đặt tên test ĐÚNG bắt đầu bằng id probe và sửa lỗi import/cú pháp nếu có.`, runner)));
       continue;
     }
-    const hongMoi = ungVienTatCa.filter((u) => u.nguon === 'moi' && u.trangThai === 'hong');
+    const hongMoi = ungVienTatCa.filter((u) => u.nguon === 'moi' && u.trangThai === 'ngoai_pham_vi');
     if (hongMoi.length > 0) {
       phat({
         type: 'log',
-        msg: `Sanity: loại ${hongMoi.length} probe hỏng — fail cùng nguyên nhân trên CẢ HAI nhánh (${hongMoi.map((u) => u.probe.id).join(', ')}): probe sai contract hoặc lỗi có sẵn, không phải lỗi của PR`,
+        msg: `Sanity: ${hongMoi.length} probe mới fail cùng nguyên nhân trên CẢ HAI nhánh (${hongMoi.map((u) => u.probe.id).join(', ')}) — ngoài phạm vi PR: probe sai contract HOẶC lỗi có sẵn; không thành finding, sẽ báo ở mục quan sát`,
       });
     }
     if (lan === 1 && hongMoi.length * 2 > keHoach.length) {
@@ -488,6 +496,20 @@ export async function chaySkillCode(
     phat({ type: 'log', msg: `Thư viện: KHÔNG nhận (chỉ còn ${planNhan.length} probe pass-gốc, dưới ngưỡng 2)` });
   }
 
+  // Quan sát ngoài phạm vi PR — lỗi-có-sẵn/probe fail-2-nhánh không im lặng: vào verdict, không đổi PASS/FAIL
+  const quanSat = ungVienTatCa
+    .filter((u) => u.trangThai === 'ngoai_pham_vi' || u.trangThai === 'nghi_loi_co_san')
+    .map((u) => ({
+      probe_id: u.probe.id,
+      ten: u.probe.ten,
+      spec_rule: u.probe.spec_rule,
+      loai: u.trangThai as 'nghi_loi_co_san' | 'ngoai_pham_vi',
+      message: (u.bs?.message ?? u.br.message).split('\n')[0].slice(0, 300),
+    }));
+  if (quanSat.some((q) => q.loai === 'nghi_loi_co_san')) {
+    phat({ type: 'log', msg: `⚠ Nghi LỖI CÓ SẴN: ${quanSat.filter((q) => q.loai === 'nghi_loi_co_san').length} probe thư viện (đã chứng minh contract lượt trước) nay fail cả hai nhánh — repo có lỗi mới lộ hoặc spec/code đã đổi; xem mục quan sát trong verdict` });
+  }
+
   for (const f of findings) phat({ type: 'finding', finding: f });
-  return { findings, target: t, soProbe: ungVienTatCa.length, probeStats: thongKe };
+  return { findings, target: t, soProbe: ungVienTatCa.length, probeStats: thongKe, quanSat };
 }

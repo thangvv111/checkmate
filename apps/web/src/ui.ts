@@ -313,6 +313,11 @@ function ve(e){
   const dm=m=>v.findings.filter(f=>(f.severity==='blocking'?'high':(f.severity==='non_blocking'?'medium':f.severity))===m).length;
   kv.querySelector('.chitiet').textContent=v.artifact_ref.name+' @ '+v.artifact_ref.sha_or_hash.slice(0,10)+
    ' · '+v.findings.length+' finding ('+dm('high')+' high · '+dm('medium')+' medium · '+dm('low')+' low) · '+v.model;
+  const qs=v.quan_sat_ngoai_pr||[];
+  if(qs.length){const box=document.createElement('div');box.className='ev';box.style.marginTop='10px';
+   box.innerHTML='<div class="loc">Quan sát NGOÀI phạm vi PR — không tính vào verdict (lỗi tồn tại trên cả nhánh gốc, nên mở việc riêng)</div>'+
+   qs.map(q=>'<div class="logline" style="padding-left:0">'+(q.loai==='nghi_loi_co_san'?'⚠ nghi LỖI CÓ SẴN':'· ngoài phạm vi')+' — '+esc(q.probe_id)+' ('+esc(q.spec_rule)+'): '+esc(q.ten)+'</div>').join('');
+   kv.after(box);}
   if(!document.querySelector('.cong')&&${meta.pr ? 'true' : 'false'}){const a=document.createElement('p');
    a.innerHTML='<a class="btn" href="">↻ Tải lại trang để mở cổng Merge / Trả về dev</a>';kv.after(a);}}
  else if(e.type==='error'){const er=document.getElementById('err');er.style.display='block';const d=document.createElement('div');d.style.marginBottom='6px';d.innerHTML='<b>LỖI:</b> '+esc(e.msg);er.appendChild(d);}
