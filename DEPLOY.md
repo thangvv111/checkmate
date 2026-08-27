@@ -7,7 +7,7 @@ URL: https://checkmate.botswain.net (Lightsail 47.131.132.95, dùng chung máy v
 - nginx vhost `/etc/nginx/sites-available/checkmate` → proxy 4001, **tắt buffering** cho SSE (log chấm chảy realtime), timeout 600s.
 - SSL Let's Encrypt (certbot --nginx), tự gia hạn, hết hạn 25/11/2026. HTTP tự chuyển HTTPS.
 - Source: `/home/ubuntu/checkmate-app/{checkmate,demo-credit-approval,demo-python}`; log: `~/checkmate-app/checkmate.log`.
-- `CHECKMATE_MODE=demo` → khoá /settings và cổng merge/reject (chỉ xem).
+- `CHECKMATE_MODE=org` → mở /settings và cổng merge/reject (đã an toàn nhờ lớp Basic Auth nginx bên dưới; đổi về `demo` trong unit systemd nếu muốn khoá chỉ-đọc).
 - **HTTP Basic Auth** ở tầng nginx: user `checkmate`, mật khẩu do chủ máy chọn (hash apr1 tại
   `/etc/nginx/.htpasswd-checkmate`, quyền 640 root:www-data). Đường `/.well-known/acme-challenge/`
   được **miễn trừ auth** — nếu không, certbot renew sẽ thất bại và SSL chết sau 90 ngày.
@@ -30,6 +30,26 @@ sudo systemctl reload nginx
 
 **Token GitHub với repo private:** phải là fine-grained có repo đó trong *Only select repositories*.
 Nếu chưa cấp, GitHub trả **404 (không phải 403)** để giấu sự tồn tại của repo — đừng tưởng sai tên repo.
+
+## Chọn nguồn model: gói Claude Code hay API — đổi ngay trong Cấu hình
+
+Trang **⚙ Cấu hình → Agent review** hiện trạng thái cả hai đường trên chính máy chủ này, và có nút
+**Thử nguồn đang chọn** (gọi một câu cực ngắn, vài giây, gần như không tốn gì) để biết ngay dùng được chưa.
+
+| Nguồn | Khi nào chọn | Điều kiện trên máy chủ |
+|---|---|---|
+| **Anthropic API** | Muốn chạy ngay, không phụ thuộc phiên đăng nhập | `ANTHROPIC_API_KEY` trong `/etc/checkmate.env` + ví credit **đúng tổ chức/workspace của key** |
+| **Claude Code CLI** | Muốn dùng gói thuê bao sẵn có, không tốn credit API | Đã cài `claude` (xong) **và** đã đăng nhập bằng **user `ubuntu`** — user chạy dịch vụ |
+
+### Đăng nhập CLI trên máy chủ (chủ máy tự làm)
+```
+ssh ubuntu@47.131.132.95
+claude login          # hoặc: claude setup-token   (mở link, dán mã trên máy có trình duyệt)
+claude --version && claude -p --tools "" --no-session-persistence <<< "Trả lời OK"
+```
+Đăng nhập bằng **đúng user `ubuntu`** (đừng dùng `sudo`), vì systemd chạy dịch vụ dưới user đó và
+đọc thông tin đăng nhập trong `/home/ubuntu`. Xong thì vào Cấu hình chọn **Claude Code CLI** → *Lưu* →
+bấm **Thử nguồn đang chọn**: xanh là dùng được, đỏ sẽ nói rõ thiếu gì.
 
 ## Hai thứ CHỦ MÁY phải tự điền (không ai điền hộ được)
 ```
