@@ -19,6 +19,7 @@ import { backfillSoCai, docSoCai } from './ledger.js';
 import { tinhHoSo } from './tincay.js';
 import { trangHoSoTacGia, trangTinCay } from './ui-tincay.js';
 import { trangLedger } from './ui-ledger.js';
+import { trangLichSu, type LocLichSu } from './ui-lich-su.js';
 import { trangDocs } from './ui-docs.js';
 import { docTrangThaiNcc, thuNcc, type TrangThaiNcc } from './nguon-model.js';
 import { chuanMuc } from '../../../packages/shared/src/types.js';
@@ -64,11 +65,11 @@ async function chamPr(cfg: ReturnType<typeof docConfig>, soPr: number): Promise<
   const meta = { so: pr.so, headSha: pr.headSha, tacGia };
   if (pr.loai === 'doc') {
     return { id: rm.batDau(`PR #${pr.so} · tài liệu ${pr.fileDoc}`, 'doc',
-      ['--skill', 'doc', '--repo', cfg.repo.local_path, '--branch', pr.headSha, '--file', pr.fileDoc!], envAgent(cfg), meta) };
+      ['--skill', 'doc', '--repo', cfg.repo.local_path, '--branch', pr.headSha, '--file', pr.fileDoc!], envAgent(cfg), meta, cfg.repo.github) };
   }
   // W2: truyền SHA đã pin thay vì tên ref dùng chung — ref bị force-move giữa chừng không đổi được commit bị chấm
   return { id: rm.batDau(`PR #${pr.so} · code (${pr.filesDoi.length} file đổi)`, 'code',
-    ['--skill', 'code', '--repo', cfg.repo.local_path, '--branch', pr.headSha, '--base', pr.baseRef], envAgent(cfg), meta) };
+    ['--skill', 'code', '--repo', cfg.repo.local_path, '--branch', pr.headSha, '--base', pr.baseRef], envAgent(cfg), meta, cfg.repo.github) };
 }
 
 let dangQuet = false;
@@ -124,6 +125,20 @@ app.get('/', async (_req, res) => {
 
 app.get('/docs', (_req, res) => {
   res.send(trangDocs());
+});
+
+app.get('/lich-su', (req, res) => {
+  const q = req.query as Record<string, string | undefined>;
+  const loc: LocLichSu = {
+    repo: q.repo || undefined,
+    verdict: q.verdict || undefined,
+    skill: q.skill || undefined,
+    ncc: q.ncc || undefined,
+    q: q.q || undefined,
+    trang: Math.max(1, Number(q.trang) || 1),
+  };
+  const c = docConfig();
+  res.send(trangLichSu(rm.danhSach(), loc, c.repos.map((r) => r.github)));
 });
 
 app.get('/ledger', (_req, res) => {
@@ -380,6 +395,7 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
           ['--skill', 'doc', '--repo', cfg.repo.local_path, '--branch', pr.headSha, '--file', pr.fileDoc!],
           envAgent(cfg),
           { so: pr.so, headSha: pr.headSha, tacGia },
+          cfg.repo.github,
         );
       } else {
         id = rm.batDau(
@@ -388,6 +404,7 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
           ['--skill', 'code', '--repo', cfg.repo.local_path, '--branch', pr.headSha, '--base', pr.baseRef],
           envAgent(cfg),
           { so: pr.so, headSha: pr.headSha, tacGia },
+          cfg.repo.github,
         );
       }
     } catch (e) {
@@ -398,7 +415,7 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
     if (nd.length < 200) return res.status(422).send(khung('CheckMate', '<h1>Tài liệu quá ngắn</h1><p class="sub">Cần tối thiểu 200 ký tự để kiểm có nghĩa. <a href="/">← quay lại</a></p>'));
     const f = join(TMP_DOC, `doc-${Date.now()}.md`);
     writeFileSync(f, nd, 'utf8');
-    id = rm.batDau('Tài liệu dán tay', 'doc', ['--skill', 'doc', '--file', f], envAgent(cfg));
+    id = rm.batDau('Tài liệu dán tay', 'doc', ['--skill', 'doc', '--file', f], envAgent(cfg), undefined, cfg.repo.github);
   } else if (kieu === 'upload') {
     if (!req.file) return res.status(422).send(khung('CheckMate', '<h1>Chưa chọn file</h1><p class="sub"><a href="/">← quay lại</a></p>'));
     let text: string;
@@ -412,7 +429,7 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
     }
     const f = join(TMP_DOC, `up-${Date.now()}.md`);
     writeFileSync(f, text, 'utf8');
-    id = rm.batDau(`Tài liệu tải lên · ${req.file.originalname}`, 'doc', ['--skill', 'doc', '--file', f], envAgent(cfg));
+    id = rm.batDau(`Tài liệu tải lên · ${req.file.originalname}`, 'doc', ['--skill', 'doc', '--file', f], envAgent(cfg), undefined, cfg.repo.github);
   } else {
     return res.status(422).send('Thiếu loại artifact');
   }

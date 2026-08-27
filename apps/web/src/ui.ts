@@ -173,13 +173,14 @@ export function oToken(v?: { chi_phi?: { calls: number; token_vao: number; token
 
 // verdict.model có dạng "<provider>/<model>" — tách ra hai cột để nhìn phát biết lượt đó
 // chạy bằng nguồn nào (gói thuê bao hay ví API) và model gì.
-export function tachNguon(model?: string): { nguon: string; ten: string } {
-  if (!model) return { nguon: '—', ten: '—' };
+export function tachNguon(model?: string): { nguon: string; ten: string; nguonMa: string } {
+  if (!model) return { nguon: '—', ten: '—', nguonMa: '' };
   const i = model.indexOf('/');
-  if (i < 0) return { nguon: '—', ten: model };
+  if (i < 0) return { nguon: '—', ten: model, nguonMa: '' };
   const p = model.slice(0, i);
-  const nhan = p === 'claude-cli' ? 'Gói thuê bao' : p === 'anthropic-api' ? 'API' : p;
-  return { nguon: nhan, ten: model.slice(i + 1) };
+  const nhan =
+    p === 'claude-cli' ? 'Gói thuê bao' : p === 'anthropic-api' ? 'Anthropic API' : p === 'google-gemini' ? 'Google Gemini' : p === 'openai' ? 'OpenAI' : p;
+  return { nguon: nhan, ten: model.slice(i + 1), nguonMa: p };
 }
 
 // Thời gian chạy — nguồn sự thật là mốc bắt đầu/kết thúc của tiến trình, không phải mốc trong verdict
@@ -229,6 +230,7 @@ export function trangChu(runs: RunMeta[], prBlock = '', daTraVeBlock = ''): stri
 <p class="sub">Chọn PR từ repo đã kết nối, hoặc kiểm nhanh một tài liệu rời. CheckMate đọc spec, tự sinh phép thử, chạy bằng chứng thật rồi mới phán.</p>
 ${prBlock}
 ${daTraVeBlock}
+<p class="sub" style="margin:-6px 0 16px"><a href="/lich-su">Xem toàn bộ lịch sử chạy →</a></p>
 <h2>Kiểm nhanh một tài liệu rời (PRD / BA doc / spec)</h2>
 <p class="sub">Đường phụ quick-check — tài liệu sống trong repo thì đi qua PR (bên trên) để có ngữ cảnh đầy đủ hơn.</p>
 <form method="post" action="/api/runs" enctype="multipart/form-data" style="margin-bottom:14px">
