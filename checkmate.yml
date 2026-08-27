@@ -13,10 +13,24 @@ runner:
     Test chạy trong môi trường node, KHÔNG có server nào đang chạy và KHÔNG được gọi mạng.
     Đừng viết probe cần khoá model, cần GitHub token, hay cần clone repo — chúng sẽ đỏ cả hai nhánh
     và chỉ ra nhãn ngoai_pham_vi, không chứng minh được gì.
-    Các hàm thuần đáng nhắm: phanLoaiMay / vanTayLoi / vanTayChat (skill-code), parseJUnit /
-    docRunnerCfg / docReviewCfg (runner), bocJson / bocCode (jsonx), taoRao (rao), locRuns /
-    tachNguon / escHtml (web), kiemConHieuLuc / cheKhoa (ncc).
+    ĐỪNG ĐOÁN module chứa hàm — import sai module là cách hỏng probe thường gặp nhất ở repo này.
+    Bảng đường dẫn chính xác (đuôi .js, tính từ thư mục test/):
+      ../packages/harness/src/skill-code.js  → phanLoaiMay · vanTayLoi · vanTayChat · khopIdProbe
+      ../packages/harness/src/target.js      → dungDiff
+      ../packages/harness/src/runner.js      → parseJUnit · docRunnerCfg · docReviewCfg · mauBoQuaDiff
+      ../packages/harness/src/sandbox.js     → loiNapFile
+      ../packages/harness/src/thu-vien.js    → nhanVaoThuVien · docThuVien · voiKhoaThuVien · slugRepo
+      ../packages/harness/src/jsonx.js       → bocJson · bocCode · LoiModelDungTool
+      ../packages/harness/src/rao.js         → taoRao · LOI_RAO
+      ../apps/web/src/ui.js                  → escHtml · tachNguon
+      ../apps/web/src/ui-lich-su.js          → locRuns
+      ../apps/web/src/ncc.js                 → cheKhoa · dinhNghia · DANH_MUC_NCC · kiemConHieuLuc
+    Import TRỰC TIẾP ở đầu file. Đừng bọc import trong try/catch rồi assert typeof — làm thế thì lỗi
+    import biến thành assertion thường, probe trông như đã chạy trong khi nó chưa chạy được gì.
+    Hàm nào mà diff của PR mới thêm thì lấy đường dẫn từ chính diff, đừng suy từ bảng trên.
     Cần file tạm thì dùng mkdtempSync vào thư mục tạm của hệ, dọn trong afterAll.
+    Thư viện probe đọc thư mục qua biến môi trường CHECKER_LIB_DIR — đặt biến này trước khi import
+    thu-vien.js nếu probe cần ghi vào thư viện giả.
 
 review:
   # Ngoài bộ mẫu sinh-tự-động mặc định (lockfile, dist/, nhị phân) — xem specs/R7

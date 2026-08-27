@@ -13,6 +13,17 @@ hết hiệu lực khi commit đổi.
   bao nhiêu probe được lên kế hoạch, bao nhiêu thực chạy, phân bố các trạng thái ở [R1](R1-phan-loai-probe.md).
 - **R6.5** — Số probe **lên kế hoạch** và số **thực chạy** phải được nêu tách bạch. `PASS` với 0 probe chạy
   được không phải là `PASS` có giá trị, và người đọc phải thấy điều đó ngay trong verdict.
+- **R6.13** — Lượt chấm PHẢI có ít nhất một probe ở trạng thái `pass`, `hoi_quy` hoặc `cai_thien` thì mới
+  đủ cơ sở ra verdict. Đây là ba trạng thái duy nhất nói lên điều gì đó về PR. Không có cái nào thì lượt
+  chấm PHẢI kết thúc bằng lỗi, KHÔNG được ra `PASS`.
+
+  Lý do phải có luật riêng: lưới chống `PASS` rỗng chỉ hỏi "có probe nào được **ghi nhận** không", mà
+  probe có thể được ghi nhận đầy đủ vẫn không chứng minh được gì. `ngoai_pham_vi` là **trạng thái hút**:
+  cả bộ probe import sai module sẽ đỏ trên cả hai nhánh với cùng nguyên nhân, bị dán nhãn `ngoai_pham_vi`,
+  bị loại khỏi finding — và verdict ra `PASS` trên một lượt chấm không có lấy một phép thử chạy được.
+  Đúng loại xanh giả mà cả công cụ này sinh ra để chống.
+- **R6.14** — Trước khi bỏ cuộc, lượt chấm PHẢI sinh lại file probe một lần, và lượt sinh lại PHẢI được
+  cho biết nguyên nhân thật kèm nhắc rằng import sai module là ca thường gặp nhất.
 
 ## Cổng merge
 

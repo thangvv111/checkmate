@@ -450,6 +450,46 @@ export async function chaySkillCode(
       code = await goiCode(model, promptSinhCode(t, keHoach, rao, `Các probe sau fail trên CẢ nhánh gốc lẫn PR — tức probe viết sai contract API, hãy sửa cách assert:\n${moTaLoi}`, runner));
       continue;
     }
+
+    // LƯỚI "PASS PHẢI CÓ BẰNG CHỨNG" (spec §R6.13).
+    // Lưới PASS-rỗng ở trên chỉ hỏi "có probe nào được GHI NHẬN không". Chưa đủ: probe có thể được ghi
+    // nhận đầy đủ mà vẫn không chứng minh được gì — điển hình là cả bộ probe import sai module nên đỏ
+    // trên cả hai nhánh, bị dán nhãn ngoai_pham_vi rồi loại khỏi finding. Kết quả là verdict PASS trên
+    // một lượt chấm KHÔNG có lấy một phép thử chạy được. `ngoai_pham_vi` là trạng thái hút: nó nuốt
+    // được TOÀN BỘ probe mà vẫn ra xanh.
+    // Chỉ ba trạng thái nói lên điều gì đó về PR: pass (hành vi đúng), hoi_quy (PR làm hỏng),
+    // cai_thien (PR sửa được lỗi cũ). Không có cái nào thì lượt chấm không đủ cơ sở kết luận.
+    const coBangChung = ungVienTatCa.filter((u) => u.trangThai === 'pass' || u.trangThai === 'hoi_quy' || u.trangThai === 'cai_thien');
+    if (coBangChung.length === 0) {
+      const viSao = ungVienTatCa
+        .slice(0, 3)
+        .map((u) => `${u.probe.id} (${u.trangThai}): ${u.br.message.split('\n')[0].slice(0, 200)}`)
+        .join('\n');
+      if (lan === 2) {
+        throw new Error(
+          `Không đủ cơ sở kết luận: ${ungVienTatCa.length} probe đều KHÔNG chứng minh được gì ` +
+            `(không probe nào pass, hồi quy hay cải thiện) sau 2 lần sinh. Verdict PASS ở đây sẽ là xanh giả.\n${viSao}`,
+        );
+      }
+      phat({
+        type: 'log',
+        msg: `Lưới PASS-phải-có-bằng-chứng: ${ungVienTatCa.length} probe không probe nào chạy được đến nơi — sinh lại file probe`,
+      });
+      code = await goiCode(
+        model,
+        promptSinhCode(
+          t,
+          keHoach,
+          rao,
+          `KHÔNG probe nào chứng minh được gì: tất cả đều đỏ trên cả hai nhánh hoặc không chạy tới nơi. ` +
+            `Thường là do IMPORT SAI MODULE — hàm nằm ở file khác file bạn đoán. Đối chiếu lại phần diff để lấy ĐÚNG ` +
+            `đường dẫn file chứa hàm, và import trực tiếp (không bọc try/catch rồi assert typeof, vì như thế lỗi import ` +
+            `biến thành assertion thường và che mất nguyên nhân thật).\n${viSao}`,
+          runner,
+        ),
+      );
+      continue;
+    }
     break;
   }
 
