@@ -28,6 +28,11 @@ export function tomTatChiPhi(): string {
 
 const MODEL_MAC_DINH = process.env.CHECKER_MODEL ?? 'claude-sonnet-5';
 
+// Checker phải làm việc CHỈ với dữ liệu trong prompt — không được đọc/ghi file hay chạy lệnh trên máy chủ.
+// ⚠ `--tools ""` và `--allowed-tools ""` đều KHÔNG có tác dụng (cờ sai / chuỗi rỗng bị bỏ qua): CLI vẫn bật
+// đủ tool, model đi chạy `ls` thật rồi trả về lời gọi tool thay vì code. Chỉ liệt kê tường minh mới chặn được.
+const TOOL_CAM = 'Bash Read Write Edit Glob Grep WebFetch WebSearch Task NotebookEdit TodoWrite Agent Artifact SlashCommand KillShell BashOutput';
+
 // Dev local: đi qua Claude Code CLI (đăng nhập sẵn), prompt truyền qua stdin để né giới hạn arg Windows.
 export class ClaudeCliProvider implements ModelProvider {
   ten = `claude-cli/${MODEL_MAC_DINH}`;
@@ -53,7 +58,7 @@ export class ClaudeCliProvider implements ModelProvider {
       // thuê bao mà thực ra đang đốt credit. Cắt key khỏi env để hai nguồn không lẫn vào nhau.
       const envCli: NodeJS.ProcessEnv = { ...process.env, CLAUDECODE: '' };
       delete envCli.ANTHROPIC_API_KEY;
-      const child = spawn('claude', ['-p', '--model', MODEL_MAC_DINH, '--tools', '""', '--no-session-persistence'], {
+      const child = spawn('claude', ['-p', '--model', MODEL_MAC_DINH, '--disallowed-tools', `"${TOOL_CAM}"`, '--no-session-persistence'], {
         shell: true,
         cwd: tmpdir(),
         stdio: ['pipe', 'pipe', 'pipe'],

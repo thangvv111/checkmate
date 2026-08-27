@@ -131,7 +131,7 @@ export async function thuNcc(ma: MaNcc, cfg: CauHinhNcc): Promise<KetQuaThu> {
     delete env.ANTHROPIC_API_KEY;
     const tokenTb = docTokenThueBao();
     if (tokenTb) env.CLAUDE_CODE_OAUTH_TOKEN = tokenTb;
-    const r = spawnSync('claude', ['-p', '--model', cfg.model, '--tools', '""', '--no-session-persistence'], {
+    const r = spawnSync('claude', ['-p', '--model', cfg.model, '--disallowed-tools', '"Bash Read Write Edit Glob Grep WebFetch WebSearch Task NotebookEdit TodoWrite Agent Artifact"', '--no-session-persistence'], {
       input: CAU_THU,
       shell: true,
       encoding: 'utf8',

@@ -1,6 +1,6 @@
 import { chuanMuc, type Finding, type RunEvent, type Severity } from '../../shared/src/types.js';
 import type { ModelProvider } from './model.js';
-import { bocCode, goiJson } from './jsonx.js';
+import { goiCode, goiJson } from './jsonx.js';
 import { docTarget, type TargetInfo } from './target.js';
 import { Sandbox, type KetQuaProbe } from './sandbox.js';
 import { docThuVien, nhanVaoThuVien, slugRepo } from './thu-vien.js';
@@ -245,7 +245,7 @@ export async function chaySkillCode(
     phat({ type: 'log', msg: `+ ${thuVien.reduce((s, f) => s + f.plan.length, 0)} probe THƯ VIỆN từ ${thuVien.length} lượt trước (regression, không tốn model)` });
   }
 
-  let code = bocCode(await model.complete(promptSinhCode(t, keHoach, rao, undefined, runner)));
+  let code = await goiCode(model, promptSinhCode(t, keHoach, rao, undefined, runner));
 
   // S1 (lưới máy chiều VẮNG-finding): probe phải có assert THẬT — file toàn expect(true)/assert True
   // là chữ ký của injection "viết probe vô hại". Đếm cơ học, thiếu thì bắt sinh lại.
@@ -256,7 +256,7 @@ export async function chaySkillCode(
   };
   if (demAssertThat(code) < keHoach.length) {
     phat({ type: 'log', msg: `Lưới S1: file probe chỉ có ${demAssertThat(code)} assert thật cho ${keHoach.length} probe — sinh lại (nghi vấn probe rỗng/expect(true))` });
-    code = bocCode(await model.complete(promptSinhCode(t, keHoach, rao, `File trước có quá ít assert thật (${demAssertThat(code)}/${keHoach.length} probe). MỖI probe phải có ít nhất một assert kiểm giá trị thật theo spec — không được expect(true) hay assert khống.`, runner)));
+    code = await goiCode(model, promptSinhCode(t, keHoach, rao, `File trước có quá ít assert thật (${demAssertThat(code)}/${keHoach.length} probe). MỖI probe phải có ít nhất một assert kiểm giá trị thật theo spec — không được expect(true) hay assert khống.`, runner));
   }
 
   phat({ type: 'stage', stage: 4, ten: 'Chạy probe trong sandbox — nhánh PR và nhánh gốc đối chứng + cổng sanity' });
@@ -317,7 +317,7 @@ export async function chaySkillCode(
     if (loiThu !== undefined) {
       if (lan === 2) throw new Error(`Probe không thu thập được sau 2 lần sinh: ${loiThu}`);
       phat({ type: 'log', msg: 'File probe lỗi thu thập — sinh lại lần 2 kèm thông báo lỗi' });
-      code = bocCode(await model.complete(promptSinhCode(t, keHoach, rao, loiThu, runner)));
+      code = await goiCode(model, promptSinhCode(t, keHoach, rao, loiThu, runner));
       continue;
     }
 
@@ -373,7 +373,7 @@ export async function chaySkillCode(
       const mau = branchKq.slice(0, 4).map((p) => p.title).join(' · ') || 'không có testcase nào';
       if (lan === 2) throw new Error(`Không ghi nhận được probe mới nào sau 2 lần sinh (tên test không khớp id hoặc lỗi thu thập). Testcase thấy được: ${mau}`);
       phat({ type: 'log', msg: `Lưới PASS-rỗng: 0/${keHoach.length} probe mới được ghi nhận (testcase: ${mau}) — sinh lại file probe` });
-      code = bocCode(await model.complete(promptSinhCode(t, keHoach, rao, `File trước không collect được test nào khớp id probe (P1, P2...). Testcase thấy được: ${mau}. Đặt tên test ĐÚNG bắt đầu bằng id probe và sửa lỗi import/cú pháp nếu có.`, runner)));
+      code = await goiCode(model, promptSinhCode(t, keHoach, rao, `File trước không collect được test nào khớp id probe (P1, P2...). Testcase thấy được: ${mau}. Đặt tên test ĐÚNG bắt đầu bằng id probe và sửa lỗi import/cú pháp nếu có.`, runner));
       continue;
     }
     const hongMoi = ungVienTatCa.filter((u) => u.nguon === 'moi' && u.trangThai === 'ngoai_pham_vi');
@@ -386,7 +386,7 @@ export async function chaySkillCode(
     if (lan === 1 && hongMoi.length * 2 > keHoach.length) {
       phat({ type: 'log', msg: `Quá nửa probe mới hỏng (${hongMoi.length}/${keHoach.length}) — sinh lại file probe kèm lỗi từng probe` });
       const moTaLoi = hongMoi.map((u) => `${u.probe.id}: ${u.br.message.split('\n')[0]}`).join('\n');
-      code = bocCode(await model.complete(promptSinhCode(t, keHoach, rao, `Các probe sau fail trên CẢ nhánh gốc lẫn PR — tức probe viết sai contract API, hãy sửa cách assert:\n${moTaLoi}`, runner)));
+      code = await goiCode(model, promptSinhCode(t, keHoach, rao, `Các probe sau fail trên CẢ nhánh gốc lẫn PR — tức probe viết sai contract API, hãy sửa cách assert:\n${moTaLoi}`, runner));
       continue;
     }
     break;
