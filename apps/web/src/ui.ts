@@ -168,6 +168,19 @@ export function tachNguon(model?: string): { nguon: string; ten: string } {
   return { nguon: nhan, ten: model.slice(i + 1) };
 }
 
+// Thời gian chạy — nguồn sự thật là mốc bắt đầu/kết thúc của tiến trình, không phải mốc trong verdict
+// (run lỗi không có verdict nhưng vẫn tốn thời gian, vẫn cần đo).
+function thoiGianChay(batDau: string, ketThuc?: string): string {
+  if (!ketThuc) return '';
+  const giay = Math.max(0, Math.round((Date.parse(ketThuc) - Date.parse(batDau)) / 1000));
+  if (!Number.isFinite(giay)) return '';
+  return giay < 60 ? `${giay}s` : `${Math.floor(giay / 60)}p${String(giay % 60).padStart(2, '0')}`;
+}
+
+function gio(iso?: string): string {
+  return iso ? iso.slice(0, 16).replace('T', ' ') : '<span style="color:var(--muted)">—</span>';
+}
+
 function nguonO(model?: string): string {
   const n = tachNguon(model);
   if (n.nguon === '—') return '<span style="color:var(--muted)">—</span>';
@@ -177,14 +190,24 @@ function nguonO(model?: string): string {
 
 export function trangChu(runs: RunMeta[], prBlock = '', daTraVeBlock = ''): string {
   const rows = runs
-    .map(
-      (r) => `<tr><td><a href="/runs/${r.id}">${escHtml(r.tieuDe)}</a></td><td>${r.skill}</td>
-<td>${r.trangThai === 'dang_chay' ? 'đang chạy…' : r.verdict ? `<span class="vd-pill vd-${r.verdict.result}">${r.verdict.result}</span> · ${r.verdict.findings.length} finding` : 'lỗi'}</td>
+    .map((r) => {
+      // run cũ (trước khi có trường ketThuc) vẫn lấy được mốc kết thúc từ verdict
+      const kt = r.ketThuc ?? r.verdict?.finished_at;
+      const tg = thoiGianChay(r.batDau, kt);
+      const ketQua =
+        r.trangThai === 'dang_chay'
+          ? 'đang chạy…'
+          : `${r.verdict ? `<span class="vd-pill vd-${r.verdict.result}">${r.verdict.result}</span> · ${r.verdict.findings.length} finding` : 'lỗi'}${
+              tg ? ` <span style="color:var(--muted);font-size:12px">· ${tg}</span>` : ''
+            }`;
+      return `<tr><td><a href="/runs/${r.id}">${escHtml(r.tieuDe)}</a></td><td>${r.skill}</td>
+<td>${ketQua}</td>
 <td style="font-size:12.5px">${nguonO(r.verdict?.model)}</td>
 <td class="mono" style="font-size:12px;color:var(--muted)">${tachNguon(r.verdict?.model).ten}</td>
 <td>${oToken(r.verdict)}</td>
-<td style="color:var(--muted)">${r.batDau.slice(0, 16).replace('T', ' ')}</td></tr>`,
-    )
+<td style="color:var(--muted);white-space:nowrap;font-size:12.5px">${gio(r.batDau)}</td>
+<td style="color:var(--muted);white-space:nowrap;font-size:12.5px">${gio(kt)}</td></tr>`;
+    })
     .join('');
   return khung(
     'CheckMate',
@@ -205,7 +228,7 @@ ${daTraVeBlock}
 <p class="goiy" id="goiy">Router: dán vào để nhận diện loại artifact.</p>
 <button>Chạy kiểm tài liệu</button></form>
 <p class="goiy">Code chỉ được kiểm qua PR của repo đã kết nối (skill A thực thi code thật). Dán diff code tự do không hỗ trợ.</p>
-${rows ? `<h2>Lượt chạy gần đây</h2><table class="runs"><tr><th>Artifact</th><th>Skill</th><th>Kết quả</th><th title="nguồn model: gói thuê bao Claude Code hay ví API">Provider</th><th>Model</th><th title="token vào / token ra mỗi lượt chấm">Token (vào/ra)</th><th>Lúc</th></tr>${rows}</table>` : ''}`,
+${rows ? `<h2>Lượt chạy gần đây</h2><table class="runs"><tr><th>Artifact</th><th>Skill</th><th>Kết quả</th><th title="nguồn model: gói thuê bao Claude Code hay ví API">Provider</th><th>Model</th><th title="token vào / token ra mỗi lượt chấm">Token (vào/ra)</th><th>Bắt đầu</th><th>Kết thúc</th></tr>${rows}</table>` : ''}`,
     `const ta=document.getElementById('noidung'),gy=document.getElementById('goiy');
 ta.addEventListener('input',()=>{const v=ta.value;
 if(/^diff --git|^@@|^index [0-9a-f]+\\.\\./m.test(v)) gy.textContent='Router: nội dung giống DIFF CODE — code chỉ kiểm qua PR trong danh sách bên trên.';

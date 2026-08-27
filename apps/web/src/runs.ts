@@ -17,6 +17,7 @@ export interface RunMeta {
   skill: 'code' | 'doc';
   trangThai: 'dang_chay' | 'xong' | 'loi';
   batDau: string;
+  ketThuc?: string; // set khi tiến trình kết thúc — cả lượt xong lẫn lượt lỗi, để tính thời gian chạy
   verdict?: Verdict;
   pr?: { so: number; headSha: string; tacGia?: string };
   ketQuaCong?: { hanhDong: 'merge' | 'reject'; luc: string; nguoi: string; chiTiet: string };
@@ -82,6 +83,7 @@ export class RunManager {
       if (/model/i.test(line)) ghi({ type: 'log', msg: line.trim() });
     });
     child.on('close', (code) => {
+      meta.ketThuc = new Date().toISOString();
       const daCoLoi = state.events.some((x) => x.e.type === 'error');
       if (meta.verdict) {
         meta.trangThai = 'xong';
