@@ -43,9 +43,9 @@ export const DANH_MUC_NCC: DinhNghiaNcc[] = [
     ma: 'google',
     ten: 'Google Gemini',
     phuong_thuc: ['api'],
-    models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'],
+    models: ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.5-flash-lite'],
     khoa: { ten_bien: 'GOOGLE_API_KEY', nhan: 'API key Google AI Studio', goi_y: 'AQ.… hoặc AIza…' },
-    ghi_chu: 'Chạy qua Google Generative Language API (đường tương thích chuẩn chat/completions). Lấy key ở aistudio.google.com — có hạn mức miễn phí.',
+    ghi_chu: 'Chạy qua Google Generative Language API (đường tương thích chuẩn chat/completions). Lấy key ở aistudio.google.com — có hạn mức miễn phí. Google hay khoá model đời cũ với tài khoản mới, nếu báo 404 thì đổi sang model mới hơn trong danh sách.',
   },
   {
     ma: 'openai',
