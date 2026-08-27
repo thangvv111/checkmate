@@ -89,7 +89,10 @@ export class AnthropicApiProvider implements ModelProvider {
         body: JSON.stringify({
           model: MODEL_MAC_DINH,
           max_tokens: 8000,
-          temperature: 0, // C10: verdict phải tái lập được trên cùng commit
+          // C10 (tái lập verdict): KHÔNG gửi temperature — model đời mới từ chối tham số này
+          // ("temperature is deprecated for this model"). Tính tái lập của CheckMate không dựa vào
+          // temperature mà dựa vào lưới máy tất định (đường CLI vốn cũng không set temperature,
+          // benchmark vẫn cho verdict trùng 18/18 lượt).
           messages: [{ role: 'user', content: prompt }],
         }),
       });
