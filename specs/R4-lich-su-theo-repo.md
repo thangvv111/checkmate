@@ -31,6 +31,10 @@ chấm được ghim vào repo sinh ra nó.
 - **R4.11** — Lọc theo nhà cung cấp dựa vào **tiền tố** của chuỗi model đã ghim (`claude-cli/…`), không
   dựa vào tên model.
 - **R4.12** — Nhiều bộ lọc cùng lúc kết hợp theo kiểu VÀ.
+- **R4.16** — Sổ cái verdict cũng là một dạng lịch sử: PHẢI có cột repo và lọc được theo repo, và con
+  số tổng ở đầu trang PHẢI tính trên phần đã lọc.
+- **R4.17** — Thang tin cậy tác giả PHẢI lọc theo repo **trước khi** tính hồ sơ. Track record của một
+  người ở repo này không nói thay cho repo khác. Không lọc thì trang phải nói rõ là đang gộp mọi repo.
 - **R4.13** — Model không mang tiền tố nhà cung cấp thì để trống cột nguồn, KHÔNG được đoán bừa.
 
 ## Hiển thị
