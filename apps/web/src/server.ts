@@ -12,6 +12,7 @@ import { GOC_REPO, slugRepoGithub, timRepo, type RepoConfig } from './config.js'
 import { existsSync as coFile } from 'node:fs';
 import { join as noiDuong } from 'node:path';
 import { khoiNcc } from './ui-ncc.js';
+import { khoiRepo } from './ui-repo.js';
 import { cloneRepo, danhSachPr, danhSachRepoCuaToken, dongPr, fetchVaRouter, ganTrangThaiCommit, layPrHienTai, mergePr, binhLuanPr, traVeDev } from './github.js';
 import { banPhanQuyet, banReceipt, banVerdictTuDong, demMuc, ghiSo, nguoiThaoTac } from './cong.js';
 import { backfillSoCai, docSoCai } from './ledger.js';
@@ -155,6 +156,7 @@ app.get('/settings', (req, res) => {
       baseBranch: c.repo.base_branch,
       localPath: c.repo.local_path,
       tokenChe: cheToken(c.github_token),
+      khoiRepoHtml: khoiRepo({ repos: c.repos, dangChon: c.repo_dang_chon, coToken: !!c.github_token, moKhoa: MODE === 'org' }),
       khoiNccHtml: khoiNcc({
         dangDung: c.agent.ncc,
         cauHinh: c.agent.ncc_cau_hinh,
@@ -232,15 +234,18 @@ app.post('/settings', (req, res) => {
 // Liệt kê repo mà token nhìn thấy — người dùng CHỌN từ danh sách thay vì gõ tay owner/repo
 app.get('/api/github/repos', async (_req, res) => {
   const c = docConfig();
-  if (!c.github_token) {
-    return res.status(422).json({ loi: 'Chưa có GitHub token — điền token ở mục Repo trong Cấu hình rồi thử lại.' });
-  }
   try {
     const ds = await danhSachRepoCuaToken(c);
     const daCo = new Set(c.repos.map((r) => r.github.toLowerCase()));
     res.json(ds.map((r) => ({ ...r, da_them: daCo.has(r.full_name.toLowerCase()) })));
   } catch (e) {
-    res.status(500).json({ loi: (e as Error).message.slice(0, 300) });
+    // Không token + không gh CLI: nói thẳng cách sửa thay vì ném lỗi kỹ thuật
+    const m = (e as Error).message;
+    res.status(500).json({
+      loi: /ENOENT|not found/i.test(m)
+        ? 'Chưa có GitHub token, và máy này cũng không có lệnh `gh`. Điền token ở khối GitHub token phía trên rồi Lưu, sau đó nạp lại danh sách.'
+        : m.slice(0, 300),
+    });
   }
 });
 

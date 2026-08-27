@@ -1,6 +1,8 @@
 import { chuanMuc } from '../../../packages/shared/src/types.js';
+import { docConfig } from './config.js';
 import type { RunMeta } from './runs.js';
 import { JS_NCC } from './ui-ncc.js';
+import { JS_REPO } from './ui-repo.js';
 
 const CSS = `
   :root { --bg:#F2F5F4; --surface:#fff; --ink:#15242A; --muted:#5C6E74; --line:#DDE4E2;
@@ -90,12 +92,23 @@ export function escHtml(s: unknown): string {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 }
 
-export function khung(tieuDe: string, than: string, js = ''): string {
+export function khung(tieuDe: string, than: string, js = '', repoNhanEp = ''): string {
+  // Badge repo đang chọn hiện trên MỌI trang — đọc thẳng config thay vì bắt từng trang truyền xuống
+  let repoNhan = repoNhanEp;
+  if (!repoNhan) {
+    try {
+      const c = docConfig();
+      repoNhan = c.repos.length > 1 ? `${c.repo_dang_chon} ▾` : c.repo_dang_chon;
+    } catch {
+      repoNhan = '';
+    }
+  }
   return `<!doctype html><html lang="vi"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>${tieuDe}</title><style>${CSS}</style></head>
 <body><div class="top"><div class="wrap"><a class="logo" href="/" title="Về trang chính">Check<span class="mate">Mate</span> ♞</a>
 <span class="tag">maker–checker cho code và tài liệu — checker không tin ai, chỉ tin bằng chứng</span>
-<a class="navlink" href="/docs" style="margin-left:auto">Nguyên tắc</a>
+${repoNhan ? `<span class="mono" style="margin-left:auto;font-size:12px;color:#9db8b3;border:1px solid rgba(255,255,255,.14);border-radius:99px;padding:3px 11px" title="repo đang chọn — đổi trong Cấu hình">${escHtml(repoNhan)}</span>` : ''}
+<a class="navlink" href="/docs" ${repoNhan ? '' : 'style="margin-left:auto"'}>Nguyên tắc</a>
 <a class="gear" href="/tin-cay" title="Thang tin cậy tác giả" aria-label="Thang tin cậy tác giả" style="margin-left:0">👤</a>
 <a class="gear" href="/ledger" title="Sổ cái verdict" aria-label="Sổ cái verdict" style="margin-left:0">📒</a>
 <a class="gear" href="/settings" title="Cài đặt" aria-label="Cài đặt" style="margin-left:0">⚙</a></div></div>
@@ -245,6 +258,7 @@ export interface SettingsView {
   localPath: string;
   tokenChe: string;
   khoiNccHtml: string; // khối nhà cung cấp (ui-ncc.ts) — dựng sẵn để trang này chỉ lắp
+  khoiRepoHtml: string; // khối repo đã kết nối (ui-repo.ts)
   maxProbe: number;
   skeptic: boolean;
   trucBat: boolean;
@@ -261,18 +275,23 @@ export function trangSettings(v: SettingsView): string {
 <p class="sub">Chế độ: <b>${v.mode === 'demo' ? 'DEMO (chỉ đọc — bản public khoá vào repo demo)' : 'ORG (self-host, chỉnh được)'}</b> · <a href="/">← về trang chính</a></p>
 ${v.daLuu ? '<div class="card" style="border-color:var(--teal);margin-bottom:14px">✓ Đã lưu cấu hình.</div>' : ''}
 <form method="post" action="/settings">
-<div class="card" style="max-width:640px;margin-bottom:14px">
-  <h3>Kết nối repo GitHub</h3>
-  <p style="font-size:12.5px;color:var(--muted)">Tool review PR nhắm vào nhánh đích của repo này. Token dạng PAT chỉ cần quyền đọc repo + pull request.</p>
-  <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Repo (owner/tên)</label>
-  <input name="repo_github" value="${v.repoGithub}" ${ro} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
-  <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Nhánh đích (PR merge vào đây thì cần review)</label>
-  <input name="base_branch" value="${v.baseBranch}" ${ro} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
-  <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Đường dẫn clone local (harness chạy trên đây)</label>
-  <input name="local_path" value="${v.localPath}" ${ro} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
-  <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">GitHub token — hiện tại: <span class="mono">${v.tokenChe}</span></label>
+<div class="card" style="max-width:760px;margin-bottom:14px">
+  <h3>GitHub token</h3>
+  <p style="font-size:12.5px;color:var(--muted)">Một token dùng chung cho mọi repo đã kết nối. Fine-grained PAT cần: Pull requests (read &amp; write) · Contents (read) · Commit statuses (write) trên các repo muốn review.</p>
+  <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Token — hiện tại: <span class="mono">${v.tokenChe}</span></label>
   <input name="github_token" type="password" placeholder="dán token mới để thay, bỏ trống để giữ nguyên" ${ro} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
+  <p style="font-size:11.5px;color:var(--muted);margin:6px 0 0">Lưu token trước, rồi bấm <b>Nạp danh sách repo từ token</b> ở khối dưới để chọn repo — khỏi gõ tay owner/tên.</p>
+  <details style="margin-top:10px">
+    <summary style="font-size:12.5px;cursor:pointer;color:var(--muted)">Sửa tay repo đang chọn (nâng cao)</summary>
+    <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Repo (owner/tên)</label>
+    <input name="repo_github" value="${v.repoGithub}" ${ro} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
+    <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Nhánh đích</label>
+    <input name="base_branch" value="${v.baseBranch}" ${ro} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
+    <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Đường dẫn clone local</label>
+    <input name="local_path" value="${v.localPath}" ${ro} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
+  </details>
 </div>
+${v.khoiRepoHtml}
 ${v.khoiNccHtml}
 <div class="card" style="max-width:760px;margin-bottom:14px">
   <h3>Độ sâu review</h3>
@@ -290,7 +309,7 @@ ${v.khoiNccHtml}
 </div>
 ${v.mode === 'org' ? '<button>Lưu cấu hình</button>' : '<p class="goiy">Bản demo public không cho sửa — self-host với cờ <code>--org</code> để mở cấu hình.</p>'}
 </form>`,
-    JS_NCC,
+    JS_NCC + JS_REPO,
   );
 }
 
