@@ -8,6 +8,16 @@ URL: https://checkmate.botswain.net (Lightsail 47.131.132.95, dùng chung máy v
 - SSL Let's Encrypt (certbot --nginx), tự gia hạn, hết hạn 25/11/2026. HTTP tự chuyển HTTPS.
 - Source: `/home/ubuntu/checkmate-app/{checkmate,demo-credit-approval,demo-python}`; log: `~/checkmate-app/checkmate.log`.
 - `CHECKMATE_MODE=demo` → khoá /settings và cổng merge/reject (chỉ xem).
+- **HTTP Basic Auth** ở tầng nginx: user `checkmate`, mật khẩu do chủ máy chọn (hash apr1 tại
+  `/etc/nginx/.htpasswd-checkmate`, quyền 640 root:www-data). Đường `/.well-known/acme-challenge/`
+  được **miễn trừ auth** — nếu không, certbot renew sẽ thất bại và SSL chết sau 90 ngày.
+
+### Đổi mật khẩu về sau
+```
+printf '%s' 'MAT-KHAU-MOI' | openssl passwd -apr1 -stdin   # ra hash
+sudo nano /etc/nginx/.htpasswd-checkmate                    # sửa thành  checkmate:HASH
+sudo systemctl reload nginx
+```
 
 ## Hai thứ CHỦ MÁY phải tự điền (không ai điền hộ được)
 ```
