@@ -19,6 +19,11 @@ runner:
     Cần file tạm thì dùng mkdtempSync vào thư mục tạm của hệ, dọn trong afterAll.
 
 review:
+  # Ngoài bộ mẫu sinh-tự-động mặc định (lockfile, dist/, nhị phân) — xem specs/R7
+  bo_qua_diff:
+    - '^_ref/' # bản design CCS bàn giao: tài liệu tham chiếu, không phải mã của repo
+    - '^bench/kq/' # kết quả benchmark, sinh ra từ lượt chạy
+    - '^probes-lib(-bench)?/' # thư viện probe tích luỹ, do model sinh
   khuon_loi:
     - >-
       NHÃN MÁY SAI CHỖ: một nhánh trong bảng chân trị phân loại probe bị trả sai nhãn — nhất là
