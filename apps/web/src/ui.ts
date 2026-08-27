@@ -188,6 +188,7 @@ export interface SettingsView {
   localPath: string;
   tokenChe: string;
   provider: string;
+  nguon?: { cli: { san_sang: boolean; chi_tiet: string }; api: { san_sang: boolean; chi_tiet: string } };
   model: string;
   maxProbe: number;
   skeptic: boolean;
@@ -199,6 +200,16 @@ export interface SettingsView {
 
 export function trangSettings(v: SettingsView): string {
   const ro = v.mode === 'demo' ? 'disabled' : '';
+  const jsThu = `
+  var nut=document.getElementById('nut-thu'), o=document.getElementById('kq-thu');
+  if(nut) nut.addEventListener('click', function(){
+    nut.disabled=true; o.style.color='var(--muted)'; o.textContent='Dang goi thu nguon...';
+    fetch('/api/thu-nguon',{method:'POST'}).then(function(r){return r.json();}).then(function(d){
+      o.style.color = d.ok ? 'var(--teal)' : 'var(--fail)';
+      o.textContent = (d.ok?'✓ ':'✗ ') + d.thong_diep + ' — ' + d.giay + 's';
+    }).catch(function(e){ o.style.color='var(--fail)'; o.textContent='Khong goi duoc: '+e; })
+      .finally(function(){ nut.disabled=false; });
+  });`;
   return khung(
     'Cấu hình — CheckMate',
     `<h1>Cấu hình</h1>
@@ -219,7 +230,17 @@ ${v.daLuu ? '<div class="card" style="border-color:var(--teal);margin-bottom:14p
 </div>
 <div class="card" style="max-width:640px;margin-bottom:14px">
   <h3>Agent review</h3>
-  <p style="font-size:12.5px;color:var(--muted)">Trước mắt hỗ trợ Claude Code (CLI của máy) và Anthropic API. Độ sâu review là proxy cho effort — effort nội bộ của agent sẽ cắm thêm khi CLI/API mở tham số.</p>
+  <p style="font-size:12.5px;color:var(--muted)">Hai nguồn model chạy song song được — đổi bất cứ lúc nào, không phải sửa file trên máy chủ. Độ sâu review là proxy cho effort.</p>
+  ${
+    v.nguon
+      ? `<div style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:10px 0;font-size:12.5px;background:var(--surface)">
+    <div style="font-weight:600;margin-bottom:6px">Trạng thái nguồn model trên máy chủ này</div>
+    <div style="margin:3px 0">${v.nguon.cli.san_sang ? '<b style="color:var(--teal)">✓</b>' : '<b style="color:var(--fail)">✗</b>'} <b>Claude Code CLI</b> — ${escHtml(v.nguon.cli.chi_tiet)}</div>
+    <div style="margin:3px 0">${v.nguon.api.san_sang ? '<b style="color:var(--teal)">✓</b>' : '<b style="color:var(--fail)">✗</b>'} <b>Anthropic API</b> — ${escHtml(v.nguon.api.chi_tiet)}</div>
+    <div style="color:var(--muted);margin-top:6px">Dấu ✓ ở CLI mới chỉ nghĩa là <i>đã cài</i>; đăng nhập hay chưa thì bấm <b>Thử nguồn đang chọn</b> mới biết.</div>
+  </div>`
+      : ''
+  }
   <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Provider</label>
   <select name="provider" ${ro} style="padding:7px 10px;border:1px solid var(--line);border-radius:7px">
     <option value="cli" ${v.provider === 'cli' ? 'selected' : ''}>Claude Code CLI (đăng nhập của máy)</option>
@@ -232,6 +253,11 @@ ${v.daLuu ? '<div class="card" style="border-color:var(--teal);margin-bottom:14p
   <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Độ sâu review — số phép thử tối đa mỗi lượt (2–12)</label>
   <input name="max_probe" type="number" min="2" max="12" value="${v.maxProbe}" ${ro} style="width:90px;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
   <label style="display:block;font-size:12.5px;margin:10px 0 4px"><input type="checkbox" name="skeptic" value="1" ${v.skeptic ? 'checked' : ''} ${ro}> Bật vòng phản biện (skeptic) cho review tài liệu</label>
+  <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
+    <button type="button" id="nut-thu" class="phu-nho">Thử nguồn đang chọn</button>
+    <span id="kq-thu" style="font-size:12.5px;margin-left:10px;color:var(--muted)">gọi một câu cực ngắn để xem nguồn đã dùng được chưa (vài giây, gần như không tốn gì)</span>
+    <p style="font-size:12px;color:var(--muted);margin:8px 0 0">Đổi Provider ở trên rồi <b>Lưu cấu hình</b> trước khi thử — nút này thử đúng nguồn đã lưu.</p>
+  </div>
 </div>
 <div class="card" style="max-width:640px;margin-bottom:14px">
   <h3>Chế độ trực (PR-bot)</h3>
@@ -243,6 +269,7 @@ ${v.daLuu ? '<div class="card" style="border-color:var(--teal);margin-bottom:14p
 </div>
 ${v.mode === 'org' ? '<button>Lưu cấu hình</button>' : '<p class="goiy">Bản demo public không cho sửa — self-host với cờ <code>--org</code> để mở cấu hình.</p>'}
 </form>`,
+    jsThu,
   );
 }
 

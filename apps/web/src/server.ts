@@ -14,6 +14,7 @@ import { tinhHoSo } from './tincay.js';
 import { trangHoSoTacGia, trangTinCay } from './ui-tincay.js';
 import { trangLedger } from './ui-ledger.js';
 import { trangDocs } from './ui-docs.js';
+import { docTrangThaiNguon, thuNguon } from './nguon-model.js';
 import { chuanMuc } from '../../../packages/shared/src/types.js';
 
 const app = express();
@@ -154,6 +155,7 @@ app.get('/settings', (req, res) => {
       trucBat: c.truc.bat,
       trucChuKy: c.truc.chu_ky_giay,
       trucComment: c.truc.tu_dong_comment,
+      nguon: docTrangThaiNguon(c),
       daLuu: req.query.luu === '1',
     }),
   );
@@ -185,6 +187,16 @@ app.post('/settings', (req, res) => {
   if (!/^[\w.-]+\/[\w.-]+$/.test(moi.repo.github)) return res.status(422).send('Repo phải dạng owner/tên');
   ghiConfig(moi);
   res.redirect(303, '/settings?luu=1');
+});
+
+// Thử nguồn model đang chọn — bấm nút trong Cấu hình, biết ngay thay vì chạy cả lượt chấm mới lộ lỗi
+app.post('/api/thu-nguon', async (_req, res) => {
+  if (MODE === 'demo') return res.status(403).json({ ok: false, thong_diep: 'Chế độ demo không cho thử nguồn model.', giay: 0 });
+  try {
+    res.json(await thuNguon(docConfig()));
+  } catch (e) {
+    res.status(500).json({ ok: false, giay: 0, thong_diep: (e as Error).message.slice(0, 300) });
+  }
 });
 
 app.post('/api/runs', upload.single('tep'), async (req, res) => {
