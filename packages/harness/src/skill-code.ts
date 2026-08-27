@@ -407,9 +407,34 @@ export async function chaySkillCode(
     const soMoiGhiNhan = ungVienTatCa.filter((u) => u.nguon === 'moi' && u.trangThai !== 'bo_qua').length;
     if (soMoiGhiNhan === 0) {
       const mau = branchKq.slice(0, 4).map((p) => p.title).join(' · ') || 'không có testcase nào';
-      if (lan === 2) throw new Error(`Không ghi nhận được probe mới nào sau 2 lần sinh (tên test không khớp id hoặc lỗi thu thập). Testcase thấy được: ${mau}`);
+      // Khi bộ chạy KHÔNG NẠP ĐƯỢC file probe, nó thường xuất đúng một testcase mang tên file và nhét
+      // nguyên nhân vào message. Vứt message đi là vứt đúng thứ cần để sửa — người vận hành nhận một
+      // dòng chung chung, còn lượt sinh lại thì bị bảo "đặt tên test cho đúng" trong khi lỗi là import.
+      const loiNap = branchKq
+        .filter((p) => p.status === 'failed' && p.message.trim())
+        .slice(0, 2)
+        .map((p) => `${p.title}: ${p.message.trim().slice(0, 700)}`)
+        .join('\n');
+      if (lan === 2) {
+        throw new Error(
+          `Không ghi nhận được probe mới nào sau 2 lần sinh (tên test không khớp id hoặc file probe không chạy được). ` +
+            `Testcase thấy được: ${mau}${loiNap ? `\nBộ chạy test báo:\n${loiNap}` : ''}`,
+        );
+      }
       phat({ type: 'log', msg: `Lưới PASS-rỗng: 0/${keHoach.length} probe mới được ghi nhận (testcase: ${mau}) — sinh lại file probe` });
-      code = await goiCode(model, promptSinhCode(t, keHoach, rao, `File trước không collect được test nào khớp id probe (P1, P2...). Testcase thấy được: ${mau}. Đặt tên test ĐÚNG bắt đầu bằng id probe và sửa lỗi import/cú pháp nếu có.`, runner));
+      if (loiNap) phat({ type: 'log', msg: `Bộ chạy test báo: ${loiNap.slice(0, 400)}` });
+      code = await goiCode(
+        model,
+        promptSinhCode(
+          t,
+          keHoach,
+          rao,
+          `File trước không collect được test nào khớp id probe (P1, P2...). Testcase thấy được: ${mau}.` +
+            (loiNap ? `\nBộ chạy test báo lỗi sau — SỬA ĐÚNG LỖI NÀY trước đã:\n${loiNap}` : '') +
+            `\nĐặt tên test bắt đầu bằng id probe, và sửa lỗi import/cú pháp nếu có.`,
+          runner,
+        ),
+      );
       continue;
     }
     const hongMoi = ungVienTatCa.filter((u) => u.nguon === 'moi' && u.trangThai === 'ngoai_pham_vi');

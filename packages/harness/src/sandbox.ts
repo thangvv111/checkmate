@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync, readFileSync, rmSync, rmdirSync, existsSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 export interface KetQuaProbe {
   title: string;
@@ -45,6 +45,22 @@ function git(repo: string, args: string[]): string {
   return execFileSync('git', args, { cwd: repo, encoding: 'utf8' }).trim();
 }
 
+/**
+ * File probe không nạp được (lỗi import, lỗi cú pháp) thì bộ chạy vẫn xuất JUnit XML hợp lệ, nhưng bên
+ * trong chỉ có ĐÚNG MỘT testcase mang tên chính file đó và mang trạng thái failed. Đếm nó như một test
+ * đã chạy là tự báo xanh trên một lượt chưa chạy gì — nhận ra và trả về nguyên nhân thay vì đếm.
+ * Trả về thông điệp lỗi nếu đúng là ca này, null nếu file chạy bình thường.
+ */
+export function loiNapFile(probes: KetQuaProbe[], duongDanRel: string): string | null {
+  if (probes.length !== 1) return null;
+  const p = probes[0];
+  if (p.status !== 'failed') return null;
+  const ten = duongDanRel.replace(/\\/g, '/');
+  const title = p.title.replace(/\\/g, '/').trim();
+  if (title !== ten && title !== (ten.split('/').pop() ?? ten)) return null;
+  return p.message.trim() || 'bộ chạy test không nói lý do';
+}
+
 export class Sandbox {
   readonly dir: string;
 
@@ -54,8 +70,12 @@ export class Sandbox {
   ) {
     this.dir = mkdtempSync(join(tmpdir(), 'checker-sb-'));
     git(repo, ['worktree', 'add', '--detach', this.dir, sha]);
-    // dùng chung node_modules của repo đích qua junction (repo không phải Node thì bỏ qua)
-    const nm = join(repo, 'node_modules');
+    // Dùng chung node_modules của repo đích qua junction (repo không phải Node thì bỏ qua).
+    // ⚠ ĐÍCH PHẢI TUYỆT ĐỐI. Gọi checker với `--repo .` thì đích thành 'node_modules' tương đối, và
+    // junction trỏ ngược vào chính thư mục sandbox — hỏng mà KHÔNG báo lỗi. Hậu quả rất khó lần: npx
+    // vẫn chạy được vitest (nó tự tải về cache) nên nhìn như đang chạy bình thường, nhưng mọi `import`
+    // gói từ trong worktree đều "Cannot find package", cả file probe lẫn file cấu hình của repo.
+    const nm = resolve(repo, 'node_modules');
     if (existsSync(nm)) symlinkSync(nm, join(this.dir, 'node_modules'), 'junction');
   }
 
@@ -140,6 +160,15 @@ export class Sandbox {
       }
       const cua = parseJUnit(readFileSync(out, 'utf8'), relSach.split('/').pop() ?? relSach);
       try { unlinkSync(out); } catch { /* không sao */ }
+      const loiNap = loiNapFile(cua, relSach);
+      if (loiNap) {
+        return {
+          ok: false,
+          tongTest: tong,
+          probes,
+          loiThu: `File probe ${relSach} KHÔNG nạp được (không test nào chạy): ${loiNap.slice(0, 1800)}`,
+        };
+      }
       probes.push(...cua);
       tong += cua.length;
     }

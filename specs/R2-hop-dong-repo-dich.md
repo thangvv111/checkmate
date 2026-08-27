@@ -30,6 +30,20 @@ khai bằng file `checkmate.yml` ở gốc repo. Không khai thì rơi về đư
   trong `describe` bị tính `khong_chay` dù đã chạy thật.
 - **R2.14** — Việc nối id PHẢI kiểm ranh giới: ký tự ngay sau id không được là chữ số. Thiếu luật này
   thì `P1` nuốt kết quả của `P10` khi lượt chấm chạy từ 10 probe trở lên.
+- **R2.15** — File probe **không nạp được** (lỗi import, lỗi cú pháp) vẫn cho ra JUnit XML hợp lệ, nhưng
+  bên trong chỉ có đúng một testcase mang tên chính file đó và mang trạng thái failed. Trường hợp này
+  PHẢI bị nhận ra và trả về nguyên nhân, KHÔNG được đếm như một test đã chạy — đếm nó là tự báo xanh
+  trên một lượt chưa chạy gì.
+- **R2.16** — Khi không ghi nhận được probe nào, thông điệp lỗi PHẢI kèm nguyên nhân mà bộ chạy test đã
+  nói, và lượt sinh lại PHẢI được đưa nguyên nhân đó. Chỉ báo "tên test không khớp id" trong khi lỗi
+  thật là import hỏng thì người vận hành lẫn model đều sửa nhầm chỗ.
+
+## Đường dẫn repo
+
+- **R2.17** — Đường dẫn tới repo đích PHẢI được đưa về tuyệt đối trước khi dùng làm đích của symlink hay
+  junction. Đích tương đối tạo ra một liên kết trỏ ngược vào chính sandbox: hỏng mà không báo lỗi, và
+  triệu chứng rất khó lần vì `npx` vẫn chạy được bộ test (nó tự tải về cache) nên nhìn như bình thường,
+  trong khi mọi `import` gói từ trong worktree đều "Cannot find package".
 
 ## Tri thức nghiệp vụ per-repo
 
