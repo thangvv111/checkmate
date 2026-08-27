@@ -1,9 +1,0 @@
-{
-  "anthropic": {
-    "ok": true,
-    "luc": "2026-08-27T04:03:19.351Z",
-    "thong_diep": "Gói thuê bao trả lời: “OK” (model claude-sonnet-5) — KHÔNG tiêu credit API",
-    "model": "claude-sonnet-5",
-    "phuong_thuc": "thue_bao"
-  }
-}

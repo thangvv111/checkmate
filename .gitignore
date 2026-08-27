@@ -6,3 +6,4 @@ config.json
 probes-lib/
 *.tmp.ts
 .secrets.json
+.ncc-verify.json
