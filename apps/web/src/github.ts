@@ -123,8 +123,20 @@ async function goiApi(cfg: CheckmateConfig, path: string): Promise<unknown> {
   }
   // không có token trong config → thử gh CLI của máy (dev local)
   // gh là .exe — không dùng shell kẻo '&' trong query bị cmd nuốt
-  const out = execFileSync('gh', ['api', path], { encoding: 'utf8', timeout: 30_000 });
-  return JSON.parse(out);
+  try {
+    const out = execFileSync('gh', ['api', path], { encoding: 'utf8', timeout: 30_000 });
+    return JSON.parse(out);
+  } catch (e) {
+    const err = e as NodeJS.ErrnoException;
+    if (err.code === 'ENOENT') {
+      throw new Error(
+        'Chưa có GitHub token và máy này không có lệnh `gh` (bản chạy trên server thường vậy). ' +
+          'Chủ máy điền GITHUB_TOKEN vào /etc/checkmate.env (quyền 600) rồi `sudo systemctl restart checkmate`, ' +
+          'hoặc điền token trong ⚙ Cài đặt khi chạy chế độ org.',
+      );
+    }
+    throw e;
+  }
 }
 
 // L5: cache danh sách PR 30s — trang chủ + poller không dội GitHub mỗi lượt (rate limit 60/h khi không token)

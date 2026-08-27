@@ -47,11 +47,18 @@ const MAC_DINH: CheckmateConfig = {
 };
 
 export function docConfig(): CheckmateConfig {
-  if (!existsSync(FILE)) return structuredClone(MAC_DINH);
+  // Deploy trên server: secrets nên nằm ở file env quyền 600 (EnvironmentFile của systemd),
+  // không nằm trong config.json cạnh source. Env THẮNG config để chủ máy đổi một chỗ rồi restart.
+  const tokenEnv = process.env.GITHUB_TOKEN?.trim() ?? '';
+  if (!existsSync(FILE)) {
+    const c = structuredClone(MAC_DINH);
+    if (tokenEnv) c.github_token = tokenEnv;
+    return c;
+  }
   const luu = JSON.parse(readFileSync(FILE, 'utf8')) as Partial<CheckmateConfig>;
   return {
     repo: { ...MAC_DINH.repo, ...luu.repo },
-    github_token: luu.github_token ?? '',
+    github_token: tokenEnv || (luu.github_token ?? ''),
     agent: { ...MAC_DINH.agent, ...luu.agent },
     truc: { ...MAC_DINH.truc, ...luu.truc },
   };
