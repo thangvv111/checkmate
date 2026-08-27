@@ -15,7 +15,9 @@ const CSS = `
   .navlink { color:#9db8b3; font-size:13px; font-weight:600; text-decoration:none; padding:5px 10px; border-radius:7px; }
   .navlink:hover { color:#fff; background:rgba(255,255,255,.08); }
   .navlink:focus-visible { outline:2px solid #5FC7B4; outline-offset:2px; }
-  .logo { font-size:19px; font-weight:700; letter-spacing:.02em; }
+  .logo { font-size:19px; font-weight:700; letter-spacing:.02em; color:#fff; text-decoration:none; }
+  a.logo:hover .mate { color:#8FE9D5; }
+  a.logo:focus-visible { outline:2px solid #5FC7B4; outline-offset:3px; border-radius:4px; }
   .logo .mate { color:#5FC7B4; }
   .tag { font-size:12.5px; color:#9db8b3; }
   .wrap { max-width:980px; margin:0 auto; padding:0 20px; }
@@ -90,7 +92,7 @@ export function escHtml(s: unknown): string {
 export function khung(tieuDe: string, than: string, js = ''): string {
   return `<!doctype html><html lang="vi"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>${tieuDe}</title><style>${CSS}</style></head>
-<body><div class="top"><div class="wrap"><span class="logo">Check<span class="mate">Mate</span> ♞</span>
+<body><div class="top"><div class="wrap"><a class="logo" href="/" title="Về trang chính">Check<span class="mate">Mate</span> ♞</a>
 <span class="tag">maker–checker cho code và tài liệu — checker không tin ai, chỉ tin bằng chứng</span>
 <a class="navlink" href="/docs" style="margin-left:auto">Nguyên tắc</a>
 <a class="gear" href="/tin-cay" title="Thang tin cậy tác giả" aria-label="Thang tin cậy tác giả" style="margin-left:0">👤</a>
