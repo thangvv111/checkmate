@@ -191,3 +191,50 @@ export function fetchVaRouter(cfg: CheckmateConfig, so: number): PrDaFetch {
     .sort((a, b) => b.doi - a.doi);
   return { so, headSha, baseRef, headRef, filesDoi, loai: 'doc', fileDoc: numstat[0].file };
 }
+
+// ---- Kết nối repo: liệt kê repo mà token nhìn thấy, rồi clone về máy chủ ----
+
+export interface RepoGithub {
+  full_name: string; // owner/repo
+  private: boolean;
+  default_branch: string;
+  updated_at: string;
+  mo_ta?: string;
+}
+
+/** Repo mà token hiện tại truy cập được — dùng cho màn "chọn repo" thay vì bắt gõ tay owner/repo. */
+export async function danhSachRepoCuaToken(cfg: CheckmateConfig): Promise<RepoGithub[]> {
+  const ra: RepoGithub[] = [];
+  for (let trang = 1; trang <= 3; trang++) {
+    const lo = (await goiApi(cfg, `/user/repos?per_page=100&sort=updated&page=${trang}`)) as Array<{
+      full_name: string;
+      private: boolean;
+      default_branch: string;
+      updated_at: string;
+      description?: string;
+    }>;
+    ra.push(
+      ...lo.map((r) => ({
+        full_name: r.full_name,
+        private: r.private,
+        default_branch: r.default_branch,
+        updated_at: r.updated_at,
+        mo_ta: r.description ?? undefined,
+      })),
+    );
+    if (lo.length < 100) break;
+  }
+  return ra;
+}
+
+/**
+ * Clone repo về thư mục do CheckMate quản (harness cần một clone local để dựng sandbox).
+ * Token chỉ dùng LÚC clone rồi gỡ khỏi remote URL — không để token nằm lại trong .git/config.
+ */
+export function cloneRepo(cfg: CheckmateConfig, github: string, dich: string): void {
+  const sach = `https://github.com/${github}.git`;
+  const coToken = cfg.github_token ? `https://x-access-token:${cfg.github_token}@github.com/${github}.git` : sach;
+  execFileSync('git', ['clone', '--no-single-branch', coToken, dich], { encoding: 'utf8', timeout: 600_000 });
+  // gỡ token khỏi remote ngay: lần fetch sau dùng credential helper / token trong môi trường
+  execFileSync('git', ['remote', 'set-url', 'origin', sach], { cwd: dich, encoding: 'utf8', timeout: 30_000 });
+}

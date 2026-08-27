@@ -8,8 +8,11 @@ import { RunManager } from './runs.js';
 import { khung, khoiDaTraVe, khoiPrList, trangChu, trangRun, trangSettings } from './ui.js';
 import { MODE, cauHinhHienTai, cheToken, cheToken2, docConfig, docTokenThueBao, envAgent, ghiConfig, ghiTokenThueBao } from './config.js';
 import { DANH_MUC_NCC, dinhNghia, docSoKiem, ghiKhoa, kiemConHieuLuc, type CauHinhNcc, type MaNcc, type PhuongThuc } from './ncc.js';
+import { GOC_REPO, slugRepoGithub, timRepo, type RepoConfig } from './config.js';
+import { existsSync as coFile } from 'node:fs';
+import { join as noiDuong } from 'node:path';
 import { khoiNcc } from './ui-ncc.js';
-import { danhSachPr, dongPr, fetchVaRouter, ganTrangThaiCommit, layPrHienTai, mergePr, binhLuanPr, traVeDev } from './github.js';
+import { cloneRepo, danhSachPr, danhSachRepoCuaToken, dongPr, fetchVaRouter, ganTrangThaiCommit, layPrHienTai, mergePr, binhLuanPr, traVeDev } from './github.js';
 import { banPhanQuyet, banReceipt, banVerdictTuDong, demMuc, ghiSo, nguoiThaoTac } from './cong.js';
 import { backfillSoCai, docSoCai } from './ledger.js';
 import { tinhHoSo } from './tincay.js';
@@ -174,12 +177,17 @@ app.post('/settings', (req, res) => {
   if (MODE === 'demo') return res.status(403).send(khung('CheckMate', '<h1>403</h1><p class="sub">Chế độ demo không cho sửa cấu hình. <a href="/settings">← quay lại</a></p>'));
   const b = req.body as Record<string, string>;
   const c = docConfig();
+  // Sửa thông tin của repo ĐANG CHỌN; thêm/gỡ repo đi đường riêng (/api/repo/*)
+  const repoSua: RepoConfig = {
+    ...c.repo,
+    github: (b.repo_github ?? c.repo.github).trim(),
+    base_branch: (b.base_branch ?? c.repo.base_branch).trim(),
+    local_path: (b.local_path ?? c.repo.local_path).trim(),
+  };
   const moi = {
-    repo: {
-      github: (b.repo_github ?? c.repo.github).trim(),
-      base_branch: (b.base_branch ?? c.repo.base_branch).trim(),
-      local_path: (b.local_path ?? c.repo.local_path).trim(),
-    },
+    repos: c.repos.map((r) => (r.github === c.repo.github ? repoSua : r)),
+    repo_dang_chon: repoSua.github,
+    repo: repoSua,
     github_token: b.github_token?.trim() ? b.github_token.trim() : c.github_token,
     agent: {
       // Đổi nhà cung cấp ĐANG DÙNG phải đi qua cổng verify (/api/chon-ncc) — form này chỉ lưu cấu hình.
@@ -206,7 +214,7 @@ app.post('/settings', (req, res) => {
       tu_dong_comment: b.truc_comment === '1',
     },
   };
-  if (!/^[\w.-]+\/[\w.-]+$/.test(moi.repo.github)) return res.status(422).send('Repo phải dạng owner/tên');
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repoSua.github)) return res.status(422).send('Repo phải dạng owner/tên');
   // Token gói thuê bao: dán mới thì lưu, bỏ trống thì giữ nguyên cái cũ
   const tokenTb = (b.claude_oauth_token ?? '').trim();
   if (tokenTb) ghiTokenThueBao(tokenTb);
@@ -217,6 +225,75 @@ app.post('/settings', (req, res) => {
   }
   ghiConfig(moi);
   res.redirect(303, '/settings?luu=1');
+});
+
+// ---- Quản lý repo (đa repo) ----
+
+// Liệt kê repo mà token nhìn thấy — người dùng CHỌN từ danh sách thay vì gõ tay owner/repo
+app.get('/api/github/repos', async (_req, res) => {
+  const c = docConfig();
+  if (!c.github_token) {
+    return res.status(422).json({ loi: 'Chưa có GitHub token — điền token ở mục Repo trong Cấu hình rồi thử lại.' });
+  }
+  try {
+    const ds = await danhSachRepoCuaToken(c);
+    const daCo = new Set(c.repos.map((r) => r.github.toLowerCase()));
+    res.json(ds.map((r) => ({ ...r, da_them: daCo.has(r.full_name.toLowerCase()) })));
+  } catch (e) {
+    res.status(500).json({ loi: (e as Error).message.slice(0, 300) });
+  }
+});
+
+// Thêm repo: clone về thư mục CheckMate quản rồi ghi vào danh sách
+app.post('/api/repo/them', async (req, res) => {
+  if (MODE === 'demo') return res.status(403).json({ ok: false, loi: 'Chế độ demo không cho thêm repo.' });
+  const b = req.body as { github?: string; base_branch?: string };
+  const github = (b.github ?? '').trim();
+  if (!/^[\w.-]+\/[\w.-]+$/.test(github)) return res.status(422).json({ ok: false, loi: 'Repo phải dạng owner/tên' });
+  const c = docConfig();
+  if (timRepo(c, github)) return res.status(409).json({ ok: false, loi: `${github} đã có trong danh sách.` });
+  const dich = noiDuong(GOC_REPO, slugRepoGithub(github));
+  try {
+    if (!coFile(dich)) {
+      mkdirSync(GOC_REPO, { recursive: true });
+      cloneRepo(c, github, dich);
+    }
+    const moi: RepoConfig = {
+      github,
+      base_branch: (b.base_branch ?? 'main').trim() || 'main',
+      local_path: dich,
+      truc: false,
+      them_luc: new Date().toISOString(),
+    };
+    ghiConfig({ ...c, repos: [...c.repos, moi], repo_dang_chon: github, repo: moi });
+    res.json({ ok: true, repo: moi });
+  } catch (e) {
+    res.status(500).json({ ok: false, loi: `Không clone được ${github}: ${(e as Error).message.slice(0, 300)}` });
+  }
+});
+
+// Đổi repo đang chọn (repo switcher)
+app.post('/api/repo/chon', (req, res) => {
+  const github = ((req.body as { github?: string }).github ?? '').trim();
+  const c = docConfig();
+  const r = timRepo(c, github);
+  if (!r) return res.status(404).json({ ok: false, loi: 'Repo không có trong danh sách' });
+  if (MODE === 'demo') return res.status(403).json({ ok: false, loi: 'Chế độ demo không cho đổi repo.' });
+  ghiConfig({ ...c, repo_dang_chon: r.github, repo: r });
+  res.json({ ok: true, repo: r });
+});
+
+// Gỡ repo khỏi danh sách (KHÔNG xoá clone trên đĩa — dữ liệu lịch sử vẫn tra được)
+app.post('/api/repo/go', (req, res) => {
+  if (MODE === 'demo') return res.status(403).json({ ok: false, loi: 'Chế độ demo không cho gỡ repo.' });
+  const github = ((req.body as { github?: string }).github ?? '').trim();
+  const c = docConfig();
+  if (c.repos.length <= 1) return res.status(409).json({ ok: false, loi: 'Phải giữ ít nhất một repo.' });
+  const conLai = c.repos.filter((r) => r.github !== github);
+  if (conLai.length === c.repos.length) return res.status(404).json({ ok: false, loi: 'Repo không có trong danh sách' });
+  const chon = c.repo_dang_chon === github ? conLai[0].github : c.repo_dang_chon;
+  ghiConfig({ ...c, repos: conLai, repo_dang_chon: chon, repo: conLai.find((r) => r.github === chon) ?? conLai[0] });
+  res.json({ ok: true });
 });
 
 // Kiểm một nhà cung cấp — bấm nút trong Cấu hình, biết ngay thay vì chạy cả lượt chấm mới lộ lỗi.

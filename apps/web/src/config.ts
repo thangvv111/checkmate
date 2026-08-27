@@ -24,6 +24,9 @@ export interface RepoConfig {
   github: string; // owner/repo
   base_branch: string;
   local_path: string; // clone local mà harness chạy trên đó
+  /** Chế độ trực riêng từng repo — repo này tự chấm PR mới hay không */
+  truc?: boolean;
+  them_luc?: string;
 }
 
 export interface TrucConfig {
@@ -33,10 +36,26 @@ export interface TrucConfig {
 }
 
 export interface CheckmateConfig {
+  /** Danh sách repo đã kết nối. Nguồn sự thật kể từ bản đa repo. */
+  repos: RepoConfig[];
+  /** owner/repo đang chọn — quyết định ngữ cảnh của Dashboard/Lịch sử */
+  repo_dang_chon: string;
+  /** View của repo đang chọn — giữ để code cũ (`cfg.repo`) chạy nguyên, không phải sửa rải rác */
   repo: RepoConfig;
   github_token: string; // rỗng = thử dùng gh CLI của máy
   agent: AgentConfig;
   truc: TrucConfig;
+}
+
+/** Thư mục chứa các clone local do CheckMate tự quản */
+export const GOC_REPO = process.env.CHECKMATE_REPO_DIR ?? join(resolve('.'), 'repos');
+
+export function slugRepoGithub(github: string): string {
+  return github.replace('/', '-').toLowerCase().replace(/[^a-z0-9._-]/g, '-');
+}
+
+export function timRepo(c: CheckmateConfig, github: string): RepoConfig | undefined {
+  return c.repos.find((r) => r.github.toLowerCase() === github.toLowerCase());
 }
 
 const GOC = resolve('.');
@@ -45,12 +64,16 @@ const FILE = join(GOC, 'config.json');
 // (chụp màn hình, gửi log) không kéo theo chìa khoá.
 const FILE_SECRET = join(GOC, '.secrets.json');
 
+const REPO_DEMO: RepoConfig = {
+  github: 'thangvv111/demo-credit-approval',
+  base_branch: 'main',
+  local_path: process.env.CHECKMATE_DEMO_REPO ?? resolve(GOC, '../demo-credit-approval'),
+};
+
 const MAC_DINH: CheckmateConfig = {
-  repo: {
-    github: 'thangvv111/demo-credit-approval',
-    base_branch: 'main',
-    local_path: process.env.CHECKMATE_DEMO_REPO ?? resolve(GOC, '../demo-credit-approval'),
-  },
+  repos: [REPO_DEMO],
+  repo_dang_chon: REPO_DEMO.github,
+  repo: REPO_DEMO,
   github_token: '',
   agent: {
     ncc: 'anthropic',
@@ -71,8 +94,13 @@ export function docConfig(): CheckmateConfig {
     return c;
   }
   const luu = JSON.parse(readFileSync(FILE, 'utf8')) as Partial<CheckmateConfig>;
+  // Config đời cũ chỉ có MỘT repo — nâng thành danh sách mà không mất thiết lập nào
+  const repos: RepoConfig[] = luu.repos?.length ? luu.repos : [{ ...MAC_DINH.repos[0], ...(luu.repo ?? {}) }];
+  const chon = luu.repo_dang_chon && repos.some((r) => r.github === luu.repo_dang_chon) ? luu.repo_dang_chon : repos[0].github;
   return {
-    repo: { ...MAC_DINH.repo, ...luu.repo },
+    repos,
+    repo_dang_chon: chon,
+    repo: repos.find((r) => r.github === chon) ?? repos[0],
     github_token: tokenEnv || (luu.github_token ?? ''),
     agent: nangCapAgent(luu.agent),
     truc: { ...MAC_DINH.truc, ...luu.truc },
@@ -103,7 +131,9 @@ export function cauHinhHienTai(c: CheckmateConfig): CauHinhNcc {
 
 export function ghiConfig(c: CheckmateConfig): void {
   if (MODE === 'demo') throw new Error('Chế độ demo không cho sửa cấu hình');
-  writeFileSync(FILE, JSON.stringify(c, null, 2) + '\n', 'utf8');
+  // `repo` chỉ là VIEW của repo đang chọn — không ghi xuống đĩa, kẻo có hai nguồn sự thật lệch nhau
+  const { repo: _view, ...luu } = c;
+  writeFileSync(FILE, JSON.stringify(luu, null, 2) + '\n', 'utf8');
 }
 
 export function cheToken(token: string): string {
