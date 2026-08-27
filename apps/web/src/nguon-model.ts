@@ -50,7 +50,18 @@ export function docTrangThaiNcc(ma: MaNcc): TrangThaiNcc {
 
 const CAU_THU = 'Trả lời đúng hai ký tự: OK';
 
-async function goiChatCompletions(endpoint: string, khoa: string, model: string, nhan: string): Promise<{ ok: boolean; thong_diep: string }> {
+// Khoá của nhà cung cấp nào cũng có hình dạng riêng — nhận ra ngay khi người dùng dán nhầm thẻ,
+// thay vì để họ đọc "Incorrect API key" rồi tưởng khoá hỏng.
+function doanChuNha(khoa: string): string | null {
+  if (/^AQ\.|^AIza/.test(khoa)) return 'Google AI Studio';
+  if (/^sk-ant-api/.test(khoa)) return 'Anthropic';
+  if (/^sk-ant-oat/.test(khoa)) return 'token gói thuê bao Claude Code';
+  if (/^gh[pousr]_|^github_pat_/.test(khoa)) return 'GitHub';
+  if (/^sk-proj-|^sk-[A-Za-z0-9]{20,}/.test(khoa)) return 'OpenAI';
+  return null;
+}
+
+async function goiChatCompletions(endpoint: string, khoa: string, model: string, nhan: string, tenNcc: string): Promise<{ ok: boolean; thong_diep: string }> {
   try {
     const res = await fetch(endpoint, {
       method: 'POST',
@@ -65,7 +76,14 @@ async function goiChatCompletions(endpoint: string, khoa: string, model: string,
     }
     const msg = raw.slice(0, 240);
     if (res.status === 401 || res.status === 403) {
-      return { ok: false, thong_diep: `${nhan} từ chối xác thực (HTTP ${res.status}) — khoá sai, hết hạn hoặc thiếu quyền (GitHub cần scope models:read). Chi tiết: ${msg}` };
+      const chuNha = doanChuNha(khoa);
+      if (chuNha && chuNha !== tenNcc) {
+        return {
+          ok: false,
+          thong_diep: `Khoá này trông giống khoá của ${chuNha}, không phải của ${nhan} — nhiều khả năng dán nhầm thẻ nhà cung cấp. Mở thẻ ${chuNha} và dán vào đó.`,
+        };
+      }
+      return { ok: false, thong_diep: `${nhan} từ chối xác thực (HTTP ${res.status}) — khoá sai, hết hạn hoặc thiếu quyền. Chi tiết: ${msg}` };
     }
     if (res.status === 404) {
       return { ok: false, thong_diep: `${nhan} không có model “${model}” (HTTP 404) — chọn model khác trong danh sách. Chi tiết: ${msg}` };
@@ -144,7 +162,12 @@ export async function thuNcc(ma: MaNcc, cfg: CauHinhNcc): Promise<KetQuaThu> {
         /credit balance/i.test(msg)
           ? 'Ví credit của tổ chức chứa key này đang hết. Nạp tại console.anthropic.com → Plans & Billing (credit phải nằm ĐÚNG tổ chức/workspace của key).'
           : /authentication|invalid x-api-key/i.test(msg)
-            ? 'API từ chối xác thực: key sai hoặc đã bị thu hồi.'
+            ? (() => {
+                const chuNha = doanChuNha(khoa);
+                return chuNha && chuNha !== 'Anthropic'
+                  ? `Khoá này trông giống khoá của ${chuNha}, không phải API key Anthropic — nhiều khả năng dán nhầm thẻ nhà cung cấp.`
+                  : 'API từ chối xác thực: key sai hoặc đã bị thu hồi.';
+              })()
             : `Anthropic API lỗi ${res.status}: ${msg}`,
       );
     } catch (e) {
@@ -156,8 +179,10 @@ export async function thuNcc(ma: MaNcc, cfg: CauHinhNcc): Promise<KetQuaThu> {
   if (!khoa) return xong(false, `Chưa có ${dinhNghia(ma).khoa?.nhan ?? 'khoá'} — dán vào ô bên dưới rồi kiểm lại.`);
   const { ok, thong_diep } =
     ma === 'github'
-      ? await goiChatCompletions('https://models.github.ai/inference/chat/completions', khoa, cfg.model, 'GitHub Models')
-      : await goiChatCompletions('https://api.openai.com/v1/chat/completions', khoa, cfg.model, 'OpenAI');
+      ? await goiChatCompletions('https://models.github.ai/inference/chat/completions', khoa, cfg.model, 'GitHub Models', 'GitHub')
+      : ma === 'google'
+        ? await goiChatCompletions('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', khoa, cfg.model, 'Google Gemini', 'Google AI Studio')
+        : await goiChatCompletions('https://api.openai.com/v1/chat/completions', khoa, cfg.model, 'OpenAI', 'OpenAI');
   return xong(ok, thong_diep);
 }
 

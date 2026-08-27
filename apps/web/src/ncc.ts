@@ -44,7 +44,7 @@ export const DANH_MUC_NCC: DinhNghiaNcc[] = [
     ten: 'Google Gemini',
     phuong_thuc: ['api'],
     models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'],
-    khoa: { ten_bien: 'GOOGLE_API_KEY', nhan: 'API key Google AI Studio', goi_y: 'AIza…' },
+    khoa: { ten_bien: 'GOOGLE_API_KEY', nhan: 'API key Google AI Studio', goi_y: 'AQ.… hoặc AIza…' },
     ghi_chu: 'Chạy qua Google Generative Language API (đường tương thích chuẩn chat/completions). Lấy key ở aistudio.google.com — có hạn mức miễn phí.',
   },
   {
