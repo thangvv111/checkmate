@@ -41,6 +41,23 @@ Trang **⚙ Cấu hình → Agent review** hiện trạng thái cả hai đườ
 | **Anthropic API** | Muốn chạy ngay, không phụ thuộc phiên đăng nhập | `ANTHROPIC_API_KEY` trong `/etc/checkmate.env` + ví credit **đúng tổ chức/workspace của key** |
 | **Claude Code CLI** | Muốn dùng gói thuê bao sẵn có, không tốn credit API | Đã cài `claude` (xong) **và** đã đăng nhập bằng **user `ubuntu`** — user chạy dịch vụ |
 
+> ⚠ **Bẫy tiền đã chặn:** theo tài liệu Claude Code, `ANTHROPIC_API_KEY` **thắng** cả token gói thuê bao
+> lẫn phiên `claude login`. Nghĩa là nếu để nguyên key trong môi trường rồi chọn "Claude Code CLI",
+> lượt chấm **vẫn tiêu credit API** trong khi màn hình báo xanh. CheckMate nay **cắt `ANTHROPIC_API_KEY`
+> khỏi tiến trình CLI** — chọn CLI là thật sự dùng gói thuê bao, hoặc báo đỏ "chưa đăng nhập". Hai nguồn
+> tiền không bao giờ lẫn nhau.
+
+### Ba cách cho CLI dùng gói thuê bao
+
+1. **`claude login` trên máy chủ** — cần terminal, chạy bằng **đúng user `ubuntu`** (đừng `sudo`).
+2. **Dán token qua giao diện** (không cần SSH): chạy `claude setup-token` trên **máy có trình duyệt**,
+   copy token, dán vào ⚙ Cấu hình → *Token gói thuê bao Claude Code* → Lưu. Token vào `.secrets.json`
+   quyền 600 (gitignore), không nằm trong `config.json`.
+3. **Đặt `CLAUDE_CODE_OAUTH_TOKEN` trong `/etc/checkmate.env`** rồi restart — hợp khi quản trị bằng script.
+
+`claude setup-token` **không chạy được qua web**: nó cần terminal thật (thử `echo | claude setup-token`
+thì không in gì), nên không có cách bấm-một-nút-là-đăng-nhập-xong ngay trong tool.
+
 ### Đăng nhập CLI trên máy chủ (chủ máy tự làm)
 ```
 ssh ubuntu@47.131.132.95
