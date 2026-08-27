@@ -31,6 +31,27 @@ sudo systemctl reload nginx
 **Token GitHub với repo private:** phải là fine-grained có repo đó trong *Only select repositories*.
 Nếu chưa cấp, GitHub trả **404 (không phải 403)** để giấu sự tồn tại của repo — đừng tưởng sai tên repo.
 
+## Nhà cung cấp model — nhiều nguồn, đổi trong Cấu hình, có cổng kiểm
+
+Từ 27/08, **nhà cung cấp** (ai chạy model) và **phương thức** (tiền ra từ đâu) là hai thứ tách bạch:
+
+| Nhà cung cấp | Phương thức hỗ trợ | Khoá cần | Ghi chú |
+|---|---|---|---|
+| Anthropic (Claude) | Gói thuê bao · API | `ANTHROPIC_API_KEY` (chỉ cho phương thức API) | Gói thuê bao chạy qua Claude Code CLI, không tiêu credit |
+| GitHub Models | API | `GITHUB_MODELS_TOKEN` (scope `models:read`) | Có hạn mức miễn phí — hợp làm đường dự phòng |
+| OpenAI | API | `OPENAI_API_KEY` | Tính tiền theo tài khoản OpenAI |
+
+Mỗi nhà cung cấp là một **thẻ gập** trong ⚙ Cấu hình, giữ cấu hình riêng (phương thức + model + khoá)
+nên đổi qua đổi lại không mất thiết lập.
+
+**Cổng kiểm (không bỏ qua được):** nút *Dùng nhà cung cấp này* chỉ bật sau khi *Kiểm tra* thành công
+**với đúng model + phương thức đang chọn**. Đổi model hay phương thức sau khi kiểm → huy hiệu chuyển
+"cần kiểm lại" và cổng từ chối (HTTP 409). Lý do: nguồn model chạy được với model này chưa chắc chạy
+được với model kia, và một verdict sai vì chọn nhầm nguồn thì tốn hơn nhiều so với 3 giây bấm kiểm.
+
+Khoá của từng nhà cung cấp lưu ở `.secrets.json` quyền 600 (gitignore); trạng thái kiểm ở
+`.ncc-verify.json`. Biến môi trường của dịch vụ luôn **thắng** khoá dán qua giao diện.
+
 ## Chọn nguồn model: gói Claude Code hay API — đổi ngay trong Cấu hình
 
 Trang **⚙ Cấu hình → Agent review** hiện trạng thái cả hai đường trên chính máy chủ này, và có nút
