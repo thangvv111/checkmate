@@ -171,7 +171,9 @@ function git(repo: string, args: string[]): string {
 export function fetchVaRouter(cfg: CheckmateConfig, so: number): PrDaFetch {
   const lp = cfg.repo.local_path;
   const headRef = `refs/checkmate/pr${so}`;
-  const baseRef = 'refs/checkmate/base';
+  // Ref riêng theo PR: hai lượt song song cùng dùng chung một ref base thì lượt sau force-update ref
+  // đó, và lượt trước có thể đối chứng nhầm sang commit base mới hơn commit nó định so.
+  const baseRef = `refs/checkmate/base-pr${so}`;
   git(lp, ['fetch', '-f', 'origin', `+refs/pull/${so}/head:${headRef}`, `+refs/heads/${cfg.repo.base_branch}:${baseRef}`]);
   const headSha = git(lp, ['rev-parse', headRef]);
   const filesDoi = git(lp, ['diff', '--name-only', `${baseRef}...${headRef}`]).split('\n').filter(Boolean);
