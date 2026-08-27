@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import type { CheckmateConfig } from './config.js';
+import { docTokenThueBao, type CheckmateConfig } from './config.js';
 
 // Trạng thái hai nguồn model. Người vận hành cần biết nguồn nào DÙNG ĐƯỢC trước khi chọn,
 // thay vì chọn xong chạy cả lượt chấm mấy phút mới biết là hỏng.
@@ -20,7 +20,7 @@ export function docTrangThaiNguon(cfg: CheckmateConfig): TrangThaiNguon {
     if (r.status === 0) {
       const ver = (r.stdout || '').trim().split('\n')[0].slice(0, 40);
       // Đã CÀI khác đã ĐĂNG NHẬP — chỉ cái sau mới quyết định lượt chấm tiêu gói thuê bao hay credit API.
-      const coToken = !!process.env.CLAUDE_CODE_OAUTH_TOKEN?.trim();
+      const coToken = !!docTokenThueBao(); // env HOẶC token đã dán qua giao diện (.secrets.json)
       const nha = process.env.HOME ?? process.env.USERPROFILE ?? '';
       const daLogin = coToken || (nha ? existsSync(join(nha, '.claude', '.credentials.json')) : false);
       cli = daLogin
@@ -58,6 +58,10 @@ export async function thuNguon(cfg: CheckmateConfig): Promise<KetQuaThu> {
     // gói thuê bao lẫn phiên đăng nhập — để nguyên thì phép thử báo xanh trong khi tiền vẫn ra từ ví API.
     const envThu: NodeJS.ProcessEnv = { ...process.env };
     delete envThu.ANTHROPIC_API_KEY;
+    // Token dán qua giao diện nằm trong .secrets.json, KHÔNG có sẵn trong process.env của web —
+    // phải bơm vào tiến trình con, nếu không phép thử luôn báo "chưa đăng nhập" dù đã dán token.
+    const tokenTb = docTokenThueBao();
+    if (tokenTb) envThu.CLAUDE_CODE_OAUTH_TOKEN = tokenTb;
     const r = spawnSync('claude', ['-p', '--model', model, '--tools', '""', '--no-session-persistence'], {
       input: 'Trả lời đúng hai ký tự: OK',
       shell: true,
