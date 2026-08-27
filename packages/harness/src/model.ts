@@ -31,7 +31,19 @@ const MODEL_MAC_DINH = process.env.CHECKER_MODEL ?? 'claude-sonnet-5';
 // Checker phải làm việc CHỈ với dữ liệu trong prompt — không được đọc/ghi file hay chạy lệnh trên máy chủ.
 // ⚠ `--tools ""` và `--allowed-tools ""` đều KHÔNG có tác dụng (cờ sai / chuỗi rỗng bị bỏ qua): CLI vẫn bật
 // đủ tool, model đi chạy `ls` thật rồi trả về lời gọi tool thay vì code. Chỉ liệt kê tường minh mới chặn được.
-const TOOL_CAM = 'Bash Read Write Edit Glob Grep WebFetch WebSearch Task NotebookEdit TodoWrite Agent Artifact SlashCommand KillShell BashOutput';
+// ⚠ Tên tool phải CÓ THẬT trong bản CLI đang cài: một tên lạ làm CLI bỏ chạy với
+// «Permission deny rule "X" matches no known tool», tức cả đường gói thuê bao chết. `SlashCommand`
+// từng nằm trong danh sách này và là thủ phạm — đã kiểm từng tên với CLI hiện tại trước khi bỏ nó ra.
+const TOOL_CAM = 'Bash Read Write Edit Glob Grep WebFetch WebSearch Task NotebookEdit TodoWrite Agent Artifact KillShell BashOutput';
+
+// Trần thời gian cho MỘT lời gọi model. Đừng nhầm với `truc.chu_ky_giay` (chu kỳ quét PR mới) — hai
+// con số khác hẳn nhau. Một lượt chấm chạy vài chục phút là bình thường: prompt mang cả spec lẫn diff,
+// model phải đọc hết rồi mới sinh probe. Trần ở đây chỉ để cứu khỏi treo vĩnh viễn, không phải để
+// giục model. Đặt quá chặt thì giết oan lượt chạy đang tiến triển bình thường.
+const TRAN_GOI_MS = Math.max(60_000, Number(process.env.CHECKER_TRAN_GOI_S ?? 1800) * 1000);
+
+/** Lỗi do CẤU HÌNH của chính checker, không phải trục trặc thoáng qua — thử lại vô nghĩa. */
+export class LoiCauHinhCli extends Error {}
 
 // Dev local: đi qua Claude Code CLI (đăng nhập sẵn), prompt truyền qua stdin để né giới hạn arg Windows.
 export class ClaudeCliProvider implements ModelProvider {
@@ -43,6 +55,8 @@ export class ClaudeCliProvider implements ModelProvider {
     try {
       return await this.goiMotLan(prompt);
     } catch (e) {
+      // Lỗi CẤU HÌNH thì thử lại chỉ tốn thêm một lượt y hệt — ném thẳng để người vận hành đi sửa
+      if (e instanceof LoiCauHinhCli) throw e;
       // transient (mạng/CLI) — thử lại đúng một lần, thông báo thân thiện cho người xem run
       console.error(`   Lượt gọi model gặp trục trặc (${(e as Error).message.slice(0, 60)}) — hệ thống tự thử lại, lần 2/2…`);
       return this.goiMotLan(prompt);
@@ -73,10 +87,36 @@ export class ClaudeCliProvider implements ModelProvider {
         } else {
           child.kill('SIGKILL');
         }
-        reject(new Error('model không phản hồi sau 300 giây'));
-      }, 300_000);
-      child.stdout.on('data', (d) => (out += d));
-      child.stderr.on('data', (d) => (err += d));
+        const daNoi = err.trim() || out.trim();
+        reject(
+          new Error(
+            `model không phản hồi sau ${Math.round(TRAN_GOI_MS / 60_000)} phút${daNoi ? ` — CLI có nói: ${daNoi.slice(0, 300)}` : ''}`,
+          ),
+        );
+      }, TRAN_GOI_MS);
+      // Có loại lời kêu mà chờ thêm cũng vô ích: cấu hình sai thì lần thử nào cũng sai như nhau.
+      // CLI vẫn giữ ống mở sau khi kêu, nên không cắt sớm là ngồi chờ hết trần rồi mới biết.
+      const chetNgay = (van: string): void => {
+        const ten = van.match(/deny rule "([^"]+)" matches no known tool/i)?.[1];
+        if (!ten) return;
+        clearTimeout(timer);
+        if (process.platform === 'win32' && child.pid) spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { shell: true });
+        else child.kill('SIGKILL');
+        reject(
+          new LoiCauHinhCli(
+            `Claude Code CLI không biết tool "${ten}" nên từ chối chạy. Danh sách tool bị cấm trong CHECKER ` +
+              `(model.ts · TOOL_CAM) có tên không tồn tại ở bản CLI đang cài — bỏ tên đó ra, hoặc nâng cấp CLI.`,
+          ),
+        );
+      };
+      child.stdout.on('data', (d) => {
+        out += d;
+        chetNgay(String(d));
+      });
+      child.stderr.on('data', (d) => {
+        err += d;
+        chetNgay(String(d));
+      });
       child.on('error', reject);
       child.on('close', (code) => {
         clearTimeout(timer);

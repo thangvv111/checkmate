@@ -22,6 +22,7 @@ export interface RunnerCfg {
 export interface ReviewCfg {
   khuon_loi?: string[]; // các góc tấn công ưu tiên cho domain này
   severity_map?: { high?: string; medium?: string; low?: string }; // cái gì là high VỚI REPO NÀY
+  bo_qua_diff?: string[]; // mẫu regex file sinh tự động của RIÊNG repo này — loại khỏi diff đưa vào prompt
 }
 
 export function docReviewCfg(repoPath: string): ReviewCfg | null {
@@ -30,11 +31,28 @@ export function docReviewCfg(repoPath: string): ReviewCfg | null {
   try {
     const raw = parseYaml(readFileSync(f, 'utf8')) as { review?: ReviewCfg };
     const r = raw?.review;
-    if (!r || (!Array.isArray(r.khuon_loi) && !r.severity_map)) return null;
-    return { khuon_loi: Array.isArray(r.khuon_loi) ? r.khuon_loi.map(String) : undefined, severity_map: r.severity_map };
+    if (!r || (!Array.isArray(r.khuon_loi) && !r.severity_map && !Array.isArray(r.bo_qua_diff))) return null;
+    return {
+      khuon_loi: Array.isArray(r.khuon_loi) ? r.khuon_loi.map(String) : undefined,
+      severity_map: r.severity_map,
+      bo_qua_diff: Array.isArray(r.bo_qua_diff) ? r.bo_qua_diff.map(String) : undefined,
+    };
   } catch {
     return null; // yml hỏng: đường runner sẽ tự báo; review cfg thì fail-safe về default
   }
+}
+
+// Mẫu repo khai có thể sai cú pháp regex — mẫu hỏng bị bỏ qua chứ không được làm sập lượt chấm.
+export function mauBoQuaDiff(review: ReviewCfg | null): RegExp[] {
+  const ra: RegExp[] = [];
+  for (const m of review?.bo_qua_diff ?? []) {
+    try {
+      ra.push(new RegExp(m));
+    } catch {
+      /* mẫu hỏng: bỏ qua */
+    }
+  }
+  return ra;
 }
 
 export function docRunnerCfg(repoPath: string): RunnerCfg | null {

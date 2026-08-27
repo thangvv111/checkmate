@@ -141,23 +141,30 @@ app.get('/lich-su', (req, res) => {
   res.send(trangLichSu(rm.danhSach(), loc, c.repos.map((r) => r.github)));
 });
 
-app.get('/ledger', (_req, res) => {
+// Danh sách repo để đổ vào ô lọc của sổ cái / tin cậy / lịch sử
+const dsRepo = (): string[] => docConfig().repos.map((r) => r.github);
+
+app.get('/ledger', (req, res) => {
   const congTheoRun = new Map<string, string>();
   for (const m of rm.danhSach()) {
     if (m.ketQuaCong) congTheoRun.set(m.id, `${m.ketQuaCong.hanhDong === 'merge' ? 'đã merge' : 'trả về dev'} · ${m.ketQuaCong.nguoi}`);
   }
-  res.send(trangLedger(docSoCai(), congTheoRun));
+  res.send(trangLedger(docSoCai(), congTheoRun, dsRepo(), String(req.query.repo ?? '') || undefined));
 });
 
-app.get('/tin-cay', (_req, res) => {
-  res.send(trangTinCay(tinhHoSo(docSoCai())));
+app.get('/tin-cay', (req, res) => {
+  // Lọc theo repo TRƯỚC khi tính hồ sơ: track record của một người ở repo này không nói thay cho repo khác
+  const locRepo = String(req.query.repo ?? '') || undefined;
+  const soCai = locRepo ? docSoCai().filter((m) => (m.repo ?? '') === locRepo) : docSoCai();
+  res.send(trangTinCay(tinhHoSo(soCai), dsRepo(), locRepo));
 });
 
 app.get('/tin-cay/:tacGia', (req, res) => {
-  const soCai = docSoCai();
+  const locRepo = String(req.query.repo ?? '') || undefined;
+  const soCai = locRepo ? docSoCai().filter((m) => (m.repo ?? '') === locRepo) : docSoCai();
   const tacGia = req.params.tacGia;
   const hoSo = tinhHoSo(soCai).find((h) => h.tacGia === tacGia);
-  res.send(trangHoSoTacGia(tacGia, hoSo, soCai.filter((m) => m.tac_gia === tacGia && m.pr)));
+  res.send(trangHoSoTacGia(tacGia, hoSo, soCai.filter((m) => m.tac_gia === tacGia && m.pr), locRepo));
 });
 
 app.get('/settings', (req, res) => {

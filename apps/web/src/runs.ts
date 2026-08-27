@@ -17,9 +17,9 @@ export interface RunMeta {
   skill: 'code' | 'doc';
   trangThai: 'dang_chay' | 'xong' | 'loi';
   batDau: string;
-  ketThuc?: string;
+  ketThuc?: string; // set khi tiến trình kết thúc — cả lượt xong lẫn lượt lỗi, để tính thời gian chạy
   /** owner/repo của lượt chấm — lịch sử và sổ cái lọc theo trường này */
-  repo?: string; // set khi tiến trình kết thúc — cả lượt xong lẫn lượt lỗi, để tính thời gian chạy
+  repo?: string;
   verdict?: Verdict;
   pr?: { so: number; headSha: string; tacGia?: string };
   ketQuaCong?: { hanhDong: 'merge' | 'reject'; luc: string; nguoi: string; chiTiet: string };

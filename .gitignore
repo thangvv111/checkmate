@@ -8,3 +8,6 @@ probes-lib/
 .secrets.json
 .ncc-verify.json
 repos/
+
+# Bản design CCS bàn giao — tài liệu tham chiếu, không phải mã của repo
+_ref/
