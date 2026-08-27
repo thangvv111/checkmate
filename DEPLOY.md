@@ -19,6 +19,18 @@ sudo nano /etc/nginx/.htpasswd-checkmate                    # sửa thành  chec
 sudo systemctl reload nginx
 ```
 
+## Bốn khác biệt so với chạy trên máy dev (đều đã xử, ghi để lần sau khỏi mò)
+
+| # | Trên máy dev | Trên server | Đã xử thế nào |
+|---|---|---|---|
+| 1 | Model gọi qua **Claude Code CLI** (đã đăng nhập) | Headless, không đăng nhập CLI được | Dùng **API key** trong `/etc/checkmate.env`. ⚠ Tài khoản API tính **credit riêng**, không dùng chung gói Claude Code — hết credit thì API trả 400 "credit balance is too low" |
+| 2 | Không token thì lùi về lệnh **`gh`** của máy | Không có `gh` | Bắt buộc `GITHUB_TOKEN`; code đọc env (env thắng config.json) |
+| 3 | `git fetch` repo private dùng credential manager của Windows | Không có credential nào | Git credential helper đọc thẳng `$GITHUB_TOKEN` — **token không ghi ra đĩa lần hai** |
+| 4 | `HOME` luôn có | systemd không tự set | `Environment=HOME=/home/ubuntu` trong unit (nếu thiếu, git không đọc `~/.gitconfig` → mất helper ở mục 3) |
+
+**Token GitHub với repo private:** phải là fine-grained có repo đó trong *Only select repositories*.
+Nếu chưa cấp, GitHub trả **404 (không phải 403)** để giấu sự tồn tại của repo — đừng tưởng sai tên repo.
+
 ## Hai thứ CHỦ MÁY phải tự điền (không ai điền hộ được)
 ```
 sudo nano /etc/checkmate.env      # quyền 600
