@@ -143,8 +143,10 @@ export function cheToken2(t: string): string {
 export function envAgent(c: CheckmateConfig): NodeJS.ProcessEnv {
   const cfg = cauHinhHienTai(c);
   const ncc = c.agent.ncc;
+  const dn = dinhNghia(ncc);
   const tokenTb = docTokenThueBao();
   const khoa = docKhoa(ncc);
+  const dungThueBao = ncc === 'anthropic' && cfg.phuong_thuc === 'thue_bao';
   return {
     CHECKER_NCC: ncc,
     // anthropic giữ hai đường cũ (cli = gói thuê bao, api = ví API); nhà cung cấp khác luôn đi API
@@ -152,9 +154,9 @@ export function envAgent(c: CheckmateConfig): NodeJS.ProcessEnv {
     CHECKER_MODEL: cfg.model,
     CHECKER_MAX_PROBE: String(c.agent.max_probe),
     CHECKER_SKEPTIC: c.agent.skeptic ? '1' : '0',
-    ...(ncc === 'anthropic' && cfg.phuong_thuc === 'thue_bao' && tokenTb ? { CLAUDE_CODE_OAUTH_TOKEN: tokenTb } : {}),
-    ...(ncc === 'anthropic' && cfg.phuong_thuc === 'api' && khoa ? { ANTHROPIC_API_KEY: khoa } : {}),
-    ...(ncc === 'github' && khoa ? { GITHUB_MODELS_TOKEN: khoa } : {}),
-    ...(ncc === 'openai' && khoa ? { OPENAI_API_KEY: khoa } : {}),
+    ...(dungThueBao && tokenTb ? { CLAUDE_CODE_OAUTH_TOKEN: tokenTb } : {}),
+    // Tên biến khoá lấy TỪ ĐỊNH NGHĨA nhà cung cấp — thêm nhà cung cấp mới không phải nhớ sửa chỗ này nữa
+    // (bài học: trước đây liệt kê tay từng ncc nên quên google, harness báo "chưa có GOOGLE_API_KEY").
+    ...(!dungThueBao && dn.khoa && khoa ? { [dn.khoa.ten_bien]: khoa, CHECKER_KHOA: khoa } : {}),
   };
 }

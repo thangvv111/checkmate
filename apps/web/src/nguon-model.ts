@@ -66,12 +66,25 @@ async function goiChatCompletions(endpoint: string, khoa: string, model: string,
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: { authorization: `Bearer ${khoa}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ model, max_tokens: 16, messages: [{ role: 'user', content: CAU_THU }] }),
+      // 512 chứ không phải 16: model đời mới (Gemini 3.x, o-series…) tiêu token cho phần suy nghĩ nội bộ,
+      // hạn mức quá thấp làm nó trả về RỖNG mà vẫn HTTP 200 — một kiểu "xanh giả".
+      body: JSON.stringify({ model, max_tokens: 512, messages: [{ role: 'user', content: CAU_THU }] }),
     });
     const raw = await res.text();
     if (res.ok) {
-      const d = JSON.parse(raw) as { choices: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens: number; completion_tokens: number } };
+      const d = JSON.parse(raw) as {
+        choices: Array<{ message?: { content?: string }; finish_reason?: string }>;
+        usage?: { prompt_tokens: number; completion_tokens: number };
+      };
       const ra = (d.choices?.[0]?.message?.content ?? '').trim().slice(0, 40);
+      const dungVi = d.choices?.[0]?.finish_reason ?? '';
+      if (!ra) {
+        // Gọi được nhưng không có chữ nào — chưa chứng minh được là dùng chấm được, KHÔNG cho qua cổng.
+        return {
+          ok: false,
+          thong_diep: `${nhan} nhận request nhưng trả về RỖNG (model ${model}${dungVi ? `, finish_reason=${dungVi}` : ''}${d.usage ? `, ${d.usage.prompt_tokens}+${d.usage.completion_tokens} token` : ''}). Khoá hợp lệ, nhưng model này chưa sinh được nội dung — thử model khác trong danh sách.`,
+        };
+      }
       return { ok: true, thong_diep: `${nhan} trả lời: “${ra}” (model ${model}${d.usage ? `, ${d.usage.prompt_tokens}+${d.usage.completion_tokens} token` : ''})` };
     }
     const msg = raw.slice(0, 240);

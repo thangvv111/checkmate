@@ -158,8 +158,8 @@ export function kiemTraProvider(): void {
   const ncc = process.env.CHECKER_NCC;
   if (ncc && ncc !== 'anthropic') {
     const bien = ncc === 'github' ? 'GITHUB_MODELS_TOKEN' : ncc === 'google' ? 'GOOGLE_API_KEY' : 'OPENAI_API_KEY';
-    if (!process.env[bien]?.trim()) {
-      throw new LoiCauHinhProvider(`Cấu hình nhà cung cấp không hợp lệ: đang chọn ${ncc} nhưng chưa có ${bien}. Vào ⚙ Cài đặt điền khoá cho nhà cung cấp này rồi kiểm lại.`);
+    if (!process.env.CHECKER_KHOA?.trim() && !process.env[bien]?.trim()) {
+      throw new LoiCauHinhProvider(`Cấu hình nhà cung cấp không hợp lệ: đang chọn ${ncc} nhưng chưa có khoá (${bien}). Vào ⚙ Cài đặt điền khoá cho nhà cung cấp này rồi kiểm lại.`);
     }
     return;
   }
@@ -210,7 +210,9 @@ class ChatCompletionsProvider implements ModelProvider {
       res = await fetch(this.endpoint, {
         method: 'POST',
         headers: { authorization: `Bearer ${this.khoa}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ model: MODEL_MAC_DINH, max_tokens: 8000, messages: [{ role: 'user', content: prompt }] }),
+        // 16000: model đời mới tiêu một phần token cho suy nghĩ nội bộ trước khi sinh chữ —
+        // để 8000 như trước thì probe/finding dễ bị cắt cụt giữa chừng.
+        body: JSON.stringify({ model: MODEL_MAC_DINH, max_tokens: 16000, messages: [{ role: 'user', content: prompt }] }),
       });
       if (res.ok || ![429, 500, 502, 503].includes(res.status) || lan === 2) break;
       await new Promise((r) => setTimeout(r, (lan + 1) * 4000));
@@ -239,15 +241,18 @@ class ChatCompletionsProvider implements ModelProvider {
 export function chonProvider(): ModelProvider {
   // Nhà cung cấp mới (github/openai) đi đường chat/completions; anthropic giữ hai đường cũ.
   const ncc = process.env.CHECKER_NCC;
+  // CHECKER_KHOA là khoá do web bơm xuống theo nhà cung cấp đang chọn; biến riêng chỉ là đường lùi
+  // cho ai chạy harness thẳng bằng dòng lệnh.
+  const khoaChung = process.env.CHECKER_KHOA?.trim();
   if (ncc === 'github') {
-    return new ChatCompletionsProvider('github-models', 'https://models.github.ai/inference/chat/completions', process.env.GITHUB_MODELS_TOKEN?.trim() ?? '');
+    return new ChatCompletionsProvider('github-models', 'https://models.github.ai/inference/chat/completions', khoaChung || (process.env.GITHUB_MODELS_TOKEN?.trim() ?? ''));
   }
   if (ncc === 'openai') {
-    return new ChatCompletionsProvider('openai', 'https://api.openai.com/v1/chat/completions', process.env.OPENAI_API_KEY?.trim() ?? '');
+    return new ChatCompletionsProvider('openai', 'https://api.openai.com/v1/chat/completions', khoaChung || (process.env.OPENAI_API_KEY?.trim() ?? ''));
   }
   if (ncc === 'google') {
     // Google có đường tương thích chuẩn chat/completions nên dùng chung lớp, không cần adapter riêng
-    return new ChatCompletionsProvider('google-gemini', 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', process.env.GOOGLE_API_KEY?.trim() ?? '');
+    return new ChatCompletionsProvider('google-gemini', 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', khoaChung || (process.env.GOOGLE_API_KEY?.trim() ?? ''));
   }
   const ep = process.env.CHECKER_PROVIDER;
   if (ep === 'api') return new AnthropicApiProvider();
