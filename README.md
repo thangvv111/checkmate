@@ -9,7 +9,9 @@ ghim commit SHA; mọi finding kèm bằng chứng chạy-thật hoặc trích d
 
 - `packages/shared` — schema Finding / Verdict / RunEvent dùng chung CLI ↔ web ↔ replay
 - `packages/harness` — lõi checker: CLI, model provider, sandbox, skill
-- `apps/web` — (bước sau) web app bọc harness, stream run + verdict card
+- `apps/web` — web app bọc harness: hàng đợi PR đa repo, stream run, verdict card, cổng merge, sổ cái
+- `specs/` — luật hành vi của chính CheckMate, có mã R để probe neo vào
+- `test/` — lưới test cho các hàm lõi, cũng là file mẫu cho probe sinh ra
 
 ## Chạy skill A (code-PR)
 
@@ -22,6 +24,20 @@ Pipeline 5 bước: nhận diff PR → đọc `specs/` của repo đích → mod
 (kiểm qua HTTP inject, neo vào từng luật spec) → chạy probe trong **sandbox git-worktree** trên cả
 nhánh PR **lẫn nhánh gốc làm đối chứng** → phân loại finding (chỉ nhận finding trỏ vào probe fail
 thật; PR fail + gốc pass = hồi quy). FAIL ⟺ có ≥1 finding mức chặn. Exit code: 0 = PASS, 1 = FAIL.
+
+## CheckMate tự chấm chính mình
+
+Repo này có `specs/` (R1–R7 — luật hành vi của chính CheckMate) và `checkmate.yml` (hợp đồng runner +
+khuôn lỗi và thang severity riêng), nên nó là một repo đích hợp lệ của chính nó:
+
+```bash
+npm test
+npm run checker -- run --skill code --repo . --branch <nhánh> --base main
+```
+
+Bộ test trong `test/` vừa là lưới an toàn cho refactor, vừa là **file mẫu** mà model đọc để biết cách
+viết probe cho repo này. Hai lỗi thật đã lộ ra nhờ vòng tự chấm: nối id probe với testcase bỏ sót dạng
+tên JUnit có tiền tố `describe`, và diff không có trần kích thước nên model treo trên PR lớn.
 
 ## Model provider
 
