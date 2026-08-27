@@ -155,6 +155,14 @@ export class LoiCauHinhProvider extends Error {
 
 // Kiểm cấu hình TRƯỚC khi tốn thời gian dựng sandbox — sai thì báo ngay, kèm cách sửa
 export function kiemTraProvider(): void {
+  const ncc = process.env.CHECKER_NCC;
+  if (ncc && ncc !== 'anthropic') {
+    const bien = ncc === 'github' ? 'GITHUB_MODELS_TOKEN' : 'OPENAI_API_KEY';
+    if (!process.env[bien]?.trim()) {
+      throw new LoiCauHinhProvider(`Cấu hình nhà cung cấp không hợp lệ: đang chọn ${ncc} nhưng chưa có ${bien}. Vào ⚙ Cài đặt điền khoá cho nhà cung cấp này rồi kiểm lại.`);
+    }
+    return;
+  }
   const ep = process.env.CHECKER_PROVIDER;
   const model = MODEL_MAC_DINH;
   if (ep === 'api' || (!ep && process.env.ANTHROPIC_API_KEY)) {
@@ -180,7 +188,63 @@ export function kiemTraProvider(): void {
   }
 }
 
+// Nhà cung cấp dùng chuẩn chat/completions (GitHub Models, OpenAI) — cùng một hình dạng request/response,
+// chỉ khác endpoint + tên biến khoá, nên gộp một lớp thay vì chép hai lần.
+class ChatCompletionsProvider implements ModelProvider {
+  ten: string;
+
+  constructor(
+    private readonly nhan: string,
+    private readonly endpoint: string,
+    private readonly khoa: string,
+  ) {
+    this.ten = `${nhan}/${MODEL_MAC_DINH}`;
+  }
+
+  async complete(prompt: string): Promise<string> {
+    doChiPhi.calls += 1;
+    doChiPhi.kyTuVao += prompt.length;
+    if (!this.khoa) throw new LoiCauHinhProvider(`Chưa có khoá cho nhà cung cấp ${this.nhan} — điền trong ⚙ Cài đặt.`);
+    let res!: Response;
+    for (let lan = 0; lan < 3; lan++) {
+      res = await fetch(this.endpoint, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${this.khoa}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ model: MODEL_MAC_DINH, max_tokens: 8000, messages: [{ role: 'user', content: prompt }] }),
+      });
+      if (res.ok || ![429, 500, 502, 503].includes(res.status) || lan === 2) break;
+      await new Promise((r) => setTimeout(r, (lan + 1) * 4000));
+    }
+    if (!res.ok) {
+      const chiTiet = (await res.text()).slice(0, 300);
+      if (res.status === 401 || res.status === 403) {
+        throw new LoiCauHinhProvider(`${this.nhan} từ chối xác thực (HTTP ${res.status}) — khoá sai, hết hạn hoặc thiếu quyền. Chi tiết: ${chiTiet}`);
+      }
+      throw new Error(`${this.nhan} ${res.status}: ${chiTiet}`);
+    }
+    const data = (await res.json()) as {
+      choices: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens: number; completion_tokens: number };
+    };
+    if (data.usage) {
+      doChiPhi.tokenVao += data.usage.prompt_tokens;
+      doChiPhi.tokenRa += data.usage.completion_tokens;
+    }
+    const ra = (data.choices?.[0]?.message?.content ?? '').trim();
+    doChiPhi.kyTuRa += ra.length;
+    return ra;
+  }
+}
+
 export function chonProvider(): ModelProvider {
+  // Nhà cung cấp mới (github/openai) đi đường chat/completions; anthropic giữ hai đường cũ.
+  const ncc = process.env.CHECKER_NCC;
+  if (ncc === 'github') {
+    return new ChatCompletionsProvider('github-models', 'https://models.github.ai/inference/chat/completions', process.env.GITHUB_MODELS_TOKEN?.trim() ?? '');
+  }
+  if (ncc === 'openai') {
+    return new ChatCompletionsProvider('openai', 'https://api.openai.com/v1/chat/completions', process.env.OPENAI_API_KEY?.trim() ?? '');
+  }
   const ep = process.env.CHECKER_PROVIDER;
   if (ep === 'api') return new AnthropicApiProvider();
   if (ep === 'cli') return new ClaudeCliProvider();

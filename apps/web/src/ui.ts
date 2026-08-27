@@ -1,5 +1,6 @@
 import { chuanMuc } from '../../../packages/shared/src/types.js';
 import type { RunMeta } from './runs.js';
+import { JS_NCC } from './ui-ncc.js';
 
 const CSS = `
   :root { --bg:#F2F5F4; --surface:#fff; --ink:#15242A; --muted:#5C6E74; --line:#DDE4E2;
@@ -243,10 +244,7 @@ export interface SettingsView {
   baseBranch: string;
   localPath: string;
   tokenChe: string;
-  provider: string;
-  nguon?: { cli: { san_sang: boolean; chi_tiet: string }; api: { san_sang: boolean; chi_tiet: string } };
-  tokenThueBaoChe?: string;
-  model: string;
+  khoiNccHtml: string; // khối nhà cung cấp (ui-ncc.ts) — dựng sẵn để trang này chỉ lắp
   maxProbe: number;
   skeptic: boolean;
   trucBat: boolean;
@@ -257,16 +255,6 @@ export interface SettingsView {
 
 export function trangSettings(v: SettingsView): string {
   const ro = v.mode === 'demo' ? 'disabled' : '';
-  const jsThu = `
-  var nut=document.getElementById('nut-thu'), o=document.getElementById('kq-thu');
-  if(nut) nut.addEventListener('click', function(){
-    nut.disabled=true; o.style.color='var(--muted)'; o.textContent='Dang goi thu nguon...';
-    fetch('/api/thu-nguon',{method:'POST'}).then(function(r){return r.json();}).then(function(d){
-      o.style.color = d.ok ? 'var(--teal)' : 'var(--fail)';
-      o.textContent = (d.ok?'✓ ':'✗ ') + d.thong_diep + ' — ' + d.giay + 's';
-    }).catch(function(e){ o.style.color='var(--fail)'; o.textContent='Khong goi duoc: '+e; })
-      .finally(function(){ nut.disabled=false; });
-  });`;
   return khung(
     'Cấu hình — CheckMate',
     `<h1>Cấu hình</h1>
@@ -285,39 +273,12 @@ ${v.daLuu ? '<div class="card" style="border-color:var(--teal);margin-bottom:14p
   <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">GitHub token — hiện tại: <span class="mono">${v.tokenChe}</span></label>
   <input name="github_token" type="password" placeholder="dán token mới để thay, bỏ trống để giữ nguyên" ${ro} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
 </div>
-<div class="card" style="max-width:640px;margin-bottom:14px">
-  <h3>Agent review</h3>
-  <p style="font-size:12.5px;color:var(--muted)">Hai nguồn model chạy song song được — đổi bất cứ lúc nào, không phải sửa file trên máy chủ. Độ sâu review là proxy cho effort.</p>
-  ${
-    v.nguon
-      ? `<div style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:10px 0;font-size:12.5px;background:var(--surface)">
-    <div style="font-weight:600;margin-bottom:6px">Trạng thái nguồn model trên máy chủ này</div>
-    <div style="margin:3px 0">${v.nguon.cli.san_sang ? '<b style="color:var(--teal)">✓</b>' : '<b style="color:var(--fail)">✗</b>'} <b>Claude Code CLI</b> — ${escHtml(v.nguon.cli.chi_tiet)}</div>
-    <div style="margin:3px 0">${v.nguon.api.san_sang ? '<b style="color:var(--teal)">✓</b>' : '<b style="color:var(--fail)">✗</b>'} <b>Anthropic API</b> — ${escHtml(v.nguon.api.chi_tiet)}</div>
-    <div style="color:var(--muted);margin-top:6px">Dấu ✓ ở CLI mới chỉ nghĩa là <i>đã cài</i>; đăng nhập hay chưa thì bấm <b>Thử nguồn đang chọn</b> mới biết.</div>
-  </div>`
-      : ''
-  }
-  <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Provider</label>
-  <select name="provider" ${ro} style="padding:7px 10px;border:1px solid var(--line);border-radius:7px">
-    <option value="cli" ${v.provider === 'cli' ? 'selected' : ''}>Claude Code CLI (đăng nhập của máy)</option>
-    <option value="api" ${v.provider === 'api' ? 'selected' : ''}>Anthropic API (cần ANTHROPIC_API_KEY)</option>
-  </select>
-  <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Token gói thuê bao Claude Code — hiện tại: <span class="mono">${escHtml(v.tokenThueBaoChe ?? 'chưa có')}</span></label>
-  <input name="claude_oauth_token" type="password" placeholder="dán token từ lệnh claude setup-token (bỏ trống để giữ nguyên)" ${ro} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
-  <p style="font-size:12px;color:var(--muted);margin:5px 0 0">Chỉ dùng khi Provider = Claude Code CLI. Lấy token: chạy <code>claude setup-token</code> trên máy CÓ trình duyệt (lệnh này cần cửa sổ dòng lệnh thật, không chạy qua web được), rồi dán vào đây — lượt chấm sẽ tiêu gói thuê bao thay vì credit API. Token lưu trong file riêng quyền 600, không nằm trong config.json.</p>
-  <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Model</label>
-  <select name="model" ${ro} style="padding:7px 10px;border:1px solid var(--line);border-radius:7px">
-    ${['claude-sonnet-5', 'claude-opus-5', 'claude-haiku-4-5-20251001'].map((m) => `<option value="${m}" ${v.model === m ? 'selected' : ''}>${m}</option>`).join('')}
-  </select>
-  <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Độ sâu review — số phép thử tối đa mỗi lượt (2–12)</label>
+${v.khoiNccHtml}
+<div class="card" style="max-width:760px;margin-bottom:14px">
+  <h3>Độ sâu review</h3>
+  <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Số phép thử tối đa mỗi lượt (2–12)</label>
   <input name="max_probe" type="number" min="2" max="12" value="${v.maxProbe}" ${ro} style="width:90px;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
   <label style="display:block;font-size:12.5px;margin:10px 0 4px"><input type="checkbox" name="skeptic" value="1" ${v.skeptic ? 'checked' : ''} ${ro}> Bật vòng phản biện (skeptic) cho review tài liệu</label>
-  <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
-    <button type="button" id="nut-thu" class="phu-nho">Thử nguồn đang chọn</button>
-    <span id="kq-thu" style="font-size:12.5px;margin-left:10px;color:var(--muted)">gọi một câu cực ngắn để xem nguồn đã dùng được chưa (vài giây, gần như không tốn gì)</span>
-    <p style="font-size:12px;color:var(--muted);margin:8px 0 0">Đổi Provider ở trên rồi <b>Lưu cấu hình</b> trước khi thử — nút này thử đúng nguồn đã lưu.</p>
-  </div>
 </div>
 <div class="card" style="max-width:640px;margin-bottom:14px">
   <h3>Chế độ trực (PR-bot)</h3>
@@ -329,7 +290,7 @@ ${v.daLuu ? '<div class="card" style="border-color:var(--teal);margin-bottom:14p
 </div>
 ${v.mode === 'org' ? '<button>Lưu cấu hình</button>' : '<p class="goiy">Bản demo public không cho sửa — self-host với cờ <code>--org</code> để mở cấu hình.</p>'}
 </form>`,
-    jsThu,
+    JS_NCC,
   );
 }
 

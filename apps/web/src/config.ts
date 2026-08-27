@@ -1,5 +1,6 @@
 import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { dinhNghia, docKhoa, type CauHinhNcc, type MaNcc } from './ncc.js';
 
 // Chế độ vận hành (spec §9): demo = deploy public, khoá repo demo, Settings chỉ-đọc (fail-closed);
 // org = self-host trong tổ chức, mở toàn bộ cấu hình. Bật org bằng --org hoặc CHECKMATE_MODE=org.
@@ -7,10 +8,16 @@ export const MODE: 'demo' | 'org' =
   process.argv.includes('--org') || process.env.CHECKMATE_MODE === 'org' ? 'org' : 'demo';
 
 export interface AgentConfig {
-  provider: 'cli' | 'api';
-  model: string;
+  /** Nhà cung cấp đang dùng để chấm — chỉ đặt được sau khi kiểm thành công */
+  ncc: MaNcc;
+  /** Cấu hình riêng của TỪNG nhà cung cấp, giữ lại khi đổi qua đổi lại */
+  ncc_cau_hinh: Partial<Record<MaNcc, CauHinhNcc>>;
   max_probe: number;
   skeptic: boolean;
+  /** @deprecated giữ để đọc được config đời cũ (provider cli|api + model phẳng) */
+  provider?: 'cli' | 'api';
+  /** @deprecated */
+  model?: string;
 }
 
 export interface RepoConfig {
@@ -45,7 +52,12 @@ const MAC_DINH: CheckmateConfig = {
     local_path: process.env.CHECKMATE_DEMO_REPO ?? resolve(GOC, '../demo-credit-approval'),
   },
   github_token: '',
-  agent: { provider: 'cli', model: 'claude-sonnet-5', max_probe: 6, skeptic: true },
+  agent: {
+    ncc: 'anthropic',
+    ncc_cau_hinh: { anthropic: { phuong_thuc: 'thue_bao', model: 'claude-sonnet-5' } },
+    max_probe: 6,
+    skeptic: true,
+  },
   truc: { bat: false, chu_ky_giay: 300, tu_dong_comment: true },
 };
 
@@ -62,9 +74,31 @@ export function docConfig(): CheckmateConfig {
   return {
     repo: { ...MAC_DINH.repo, ...luu.repo },
     github_token: tokenEnv || (luu.github_token ?? ''),
-    agent: { ...MAC_DINH.agent, ...luu.agent },
+    agent: nangCapAgent(luu.agent),
     truc: { ...MAC_DINH.truc, ...luu.truc },
   };
+}
+
+// Config đời cũ chỉ có provider 'cli'|'api' + model phẳng — nâng lên mô hình nhà-cung-cấp
+// mà không bắt người dùng cấu hình lại từ đầu.
+function nangCapAgent(a?: Partial<AgentConfig>): AgentConfig {
+  if (!a) return structuredClone(MAC_DINH.agent);
+  if (a.ncc && a.ncc_cau_hinh) {
+    return { ...MAC_DINH.agent, ...a, ncc_cau_hinh: { ...MAC_DINH.agent.ncc_cau_hinh, ...a.ncc_cau_hinh } } as AgentConfig;
+  }
+  return {
+    ncc: 'anthropic',
+    ncc_cau_hinh: {
+      anthropic: { phuong_thuc: a.provider === 'api' ? 'api' : 'thue_bao', model: a.model ?? 'claude-sonnet-5' },
+    },
+    max_probe: a.max_probe ?? 6,
+    skeptic: a.skeptic ?? true,
+  };
+}
+
+export function cauHinhHienTai(c: CheckmateConfig): CauHinhNcc {
+  const dn = dinhNghia(c.agent.ncc);
+  return c.agent.ncc_cau_hinh[c.agent.ncc] ?? { phuong_thuc: dn.phuong_thuc[0], model: dn.models[0] };
 }
 
 export function ghiConfig(c: CheckmateConfig): void {
@@ -107,12 +141,20 @@ export function cheToken2(t: string): string {
 }
 
 export function envAgent(c: CheckmateConfig): NodeJS.ProcessEnv {
+  const cfg = cauHinhHienTai(c);
+  const ncc = c.agent.ncc;
   const tokenTb = docTokenThueBao();
+  const khoa = docKhoa(ncc);
   return {
-    ...(c.agent.provider === 'cli' && tokenTb ? { CLAUDE_CODE_OAUTH_TOKEN: tokenTb } : {}),
-    CHECKER_PROVIDER: c.agent.provider,
-    CHECKER_MODEL: c.agent.model,
+    CHECKER_NCC: ncc,
+    // anthropic giữ hai đường cũ (cli = gói thuê bao, api = ví API); nhà cung cấp khác luôn đi API
+    CHECKER_PROVIDER: ncc === 'anthropic' ? (cfg.phuong_thuc === 'thue_bao' ? 'cli' : 'api') : 'api',
+    CHECKER_MODEL: cfg.model,
     CHECKER_MAX_PROBE: String(c.agent.max_probe),
     CHECKER_SKEPTIC: c.agent.skeptic ? '1' : '0',
+    ...(ncc === 'anthropic' && cfg.phuong_thuc === 'thue_bao' && tokenTb ? { CLAUDE_CODE_OAUTH_TOKEN: tokenTb } : {}),
+    ...(ncc === 'anthropic' && cfg.phuong_thuc === 'api' && khoa ? { ANTHROPIC_API_KEY: khoa } : {}),
+    ...(ncc === 'github' && khoa ? { GITHUB_MODELS_TOKEN: khoa } : {}),
+    ...(ncc === 'openai' && khoa ? { OPENAI_API_KEY: khoa } : {}),
   };
 }

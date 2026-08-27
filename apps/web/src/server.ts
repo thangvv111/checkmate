@@ -6,7 +6,9 @@ import { DINH_DANG_NHAN, trichText } from './extract.js';
 import { GOC } from './paths.js';
 import { RunManager } from './runs.js';
 import { khung, khoiDaTraVe, khoiPrList, trangChu, trangRun, trangSettings } from './ui.js';
-import { MODE, cheToken, cheToken2, docConfig, docTokenThueBao, envAgent, ghiConfig, ghiTokenThueBao } from './config.js';
+import { MODE, cauHinhHienTai, cheToken, cheToken2, docConfig, docTokenThueBao, envAgent, ghiConfig, ghiTokenThueBao } from './config.js';
+import { DANH_MUC_NCC, dinhNghia, docSoKiem, ghiKhoa, kiemConHieuLuc, type CauHinhNcc, type MaNcc, type PhuongThuc } from './ncc.js';
+import { khoiNcc } from './ui-ncc.js';
 import { danhSachPr, dongPr, fetchVaRouter, ganTrangThaiCommit, layPrHienTai, mergePr, binhLuanPr, traVeDev } from './github.js';
 import { banPhanQuyet, banReceipt, banVerdictTuDong, demMuc, ghiSo, nguoiThaoTac } from './cong.js';
 import { backfillSoCai, docSoCai } from './ledger.js';
@@ -14,7 +16,7 @@ import { tinhHoSo } from './tincay.js';
 import { trangHoSoTacGia, trangTinCay } from './ui-tincay.js';
 import { trangLedger } from './ui-ledger.js';
 import { trangDocs } from './ui-docs.js';
-import { docTrangThaiNguon, thuNguon } from './nguon-model.js';
+import { docTrangThaiNcc, thuNcc, type TrangThaiNcc } from './nguon-model.js';
 import { chuanMuc } from '../../../packages/shared/src/types.js';
 
 const app = express();
@@ -141,6 +143,8 @@ app.get('/tin-cay/:tacGia', (req, res) => {
 
 app.get('/settings', (req, res) => {
   const c = docConfig();
+  const trangThai: Record<string, TrangThaiNcc> = {};
+  for (const dn of DANH_MUC_NCC) trangThai[dn.ma] = docTrangThaiNcc(dn.ma);
   res.send(
     trangSettings({
       mode: MODE,
@@ -148,15 +152,19 @@ app.get('/settings', (req, res) => {
       baseBranch: c.repo.base_branch,
       localPath: c.repo.local_path,
       tokenChe: cheToken(c.github_token),
-      provider: c.agent.provider,
-      model: c.agent.model,
+      khoiNccHtml: khoiNcc({
+        dangDung: c.agent.ncc,
+        cauHinh: c.agent.ncc_cau_hinh,
+        trangThai,
+        soKiem: docSoKiem(),
+        tokenThueBaoChe: cheToken2(docTokenThueBao()),
+        moKhoa: MODE === 'org',
+      }),
       maxProbe: c.agent.max_probe,
       skeptic: c.agent.skeptic,
       trucBat: c.truc.bat,
       trucChuKy: c.truc.chu_ky_giay,
       trucComment: c.truc.tu_dong_comment,
-      nguon: docTrangThaiNguon(c),
-      tokenThueBaoChe: cheToken2(docTokenThueBao()),
       daLuu: req.query.luu === '1',
     }),
   );
@@ -174,8 +182,21 @@ app.post('/settings', (req, res) => {
     },
     github_token: b.github_token?.trim() ? b.github_token.trim() : c.github_token,
     agent: {
-      provider: (b.provider === 'api' ? 'api' : 'cli') as 'cli' | 'api',
-      model: (b.model ?? c.agent.model).trim(),
+      // Đổi nhà cung cấp ĐANG DÙNG phải đi qua cổng verify (/api/chon-ncc) — form này chỉ lưu cấu hình.
+      ncc: c.agent.ncc,
+      ncc_cau_hinh: (() => {
+        const ra: Partial<Record<MaNcc, CauHinhNcc>> = { ...c.agent.ncc_cau_hinh };
+        for (const dn of DANH_MUC_NCC) {
+          const pt = b[`pt_${dn.ma}`] as PhuongThuc | undefined;
+          const md = b[`model_${dn.ma}`];
+          const cu = ra[dn.ma] ?? { phuong_thuc: dn.phuong_thuc[0], model: dn.models[0] };
+          ra[dn.ma] = {
+            phuong_thuc: pt && dn.phuong_thuc.includes(pt) ? pt : cu.phuong_thuc,
+            model: md && dn.models.includes(md) ? md : cu.model,
+          };
+        }
+        return ra;
+      })(),
       max_probe: Math.min(12, Math.max(2, Number(b.max_probe) || 6)),
       skeptic: b.skeptic === '1',
     },
@@ -189,18 +210,47 @@ app.post('/settings', (req, res) => {
   // Token gói thuê bao: dán mới thì lưu, bỏ trống thì giữ nguyên cái cũ
   const tokenTb = (b.claude_oauth_token ?? '').trim();
   if (tokenTb) ghiTokenThueBao(tokenTb);
+  // Khoá riêng của từng nhà cung cấp: dán mới thì lưu, bỏ trống thì giữ nguyên
+  for (const dn of DANH_MUC_NCC) {
+    const k = (b[`khoa_${dn.ma}`] ?? '').trim();
+    if (k) ghiKhoa(dn.ma, k);
+  }
   ghiConfig(moi);
   res.redirect(303, '/settings?luu=1');
 });
 
-// Thử nguồn model đang chọn — bấm nút trong Cấu hình, biết ngay thay vì chạy cả lượt chấm mới lộ lỗi
-app.post('/api/thu-nguon', async (_req, res) => {
-  if (MODE === 'demo') return res.status(403).json({ ok: false, thong_diep: 'Chế độ demo không cho thử nguồn model.', giay: 0 });
+// Kiểm một nhà cung cấp — bấm nút trong Cấu hình, biết ngay thay vì chạy cả lượt chấm mới lộ lỗi.
+app.post('/api/thu-ncc', async (req, res) => {
+  if (MODE === 'demo') return res.status(403).json({ ok: false, thong_diep: 'Chế độ demo không cho kiểm nhà cung cấp.', giay: 0 });
+  const ma = (req.body as { ncc?: MaNcc }).ncc;
+  if (!ma || !DANH_MUC_NCC.some((d) => d.ma === ma)) return res.status(422).json({ ok: false, thong_diep: 'Nhà cung cấp không hợp lệ', giay: 0 });
+  const c = docConfig();
+  const dn = dinhNghia(ma);
+  const cfg = c.agent.ncc_cau_hinh[ma] ?? { phuong_thuc: dn.phuong_thuc[0], model: dn.models[0] };
   try {
-    res.json(await thuNguon(docConfig()));
+    res.json(await thuNcc(ma, cfg));
   } catch (e) {
     res.status(500).json({ ok: false, giay: 0, thong_diep: (e as Error).message.slice(0, 300) });
   }
+});
+
+// CỔNG: chỉ nhà cung cấp đã kiểm THÀNH CÔNG với đúng cấu hình hiện tại mới được chọn để chấm.
+app.post('/api/chon-ncc', (req, res) => {
+  if (MODE === 'demo') return res.status(403).json({ ok: false, thong_diep: 'Chế độ demo không cho đổi nhà cung cấp.' });
+  const ma = (req.body as { ncc?: MaNcc }).ncc;
+  if (!ma || !DANH_MUC_NCC.some((d) => d.ma === ma)) return res.status(422).json({ ok: false, thong_diep: 'Nhà cung cấp không hợp lệ' });
+  const c = docConfig();
+  const dn = dinhNghia(ma);
+  const cfg = c.agent.ncc_cau_hinh[ma] ?? { phuong_thuc: dn.phuong_thuc[0], model: dn.models[0] };
+  const kiem = kiemConHieuLuc(ma, cfg);
+  if (!kiem) {
+    return res.status(409).json({
+      ok: false,
+      thong_diep: `Chưa kiểm thành công ${dn.ten} với model ${cfg.model} / ${cfg.phuong_thuc === 'thue_bao' ? 'gói thuê bao' : 'API'} — bấm Kiểm tra trước đã.`,
+    });
+  }
+  ghiConfig({ ...c, agent: { ...c.agent, ncc: ma } });
+  res.json({ ok: true, thong_diep: `Đã chuyển sang ${dn.ten} (${cfg.model})` });
 });
 
 app.post('/api/runs', upload.single('tep'), async (req, res) => {
