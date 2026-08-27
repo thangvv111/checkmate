@@ -71,7 +71,9 @@ export class ClaudeCliProvider implements ModelProvider {
       child.on('close', (code) => {
         clearTimeout(timer);
         if (code !== 0 && !out.trim()) return reject(new Error(`claude CLI exit ${code}: ${err.slice(0, 500)}`));
-        resolve(out.trim());
+        const ra = out.trim();
+        doChiPhi.kyTuRa += ra.length; // CLI không trả usage — đếm ký tự để ước token ra
+        resolve(ra);
       });
       child.stdin.write(prompt);
       child.stdin.end();
