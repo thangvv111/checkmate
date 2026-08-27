@@ -157,7 +157,7 @@ export class LoiCauHinhProvider extends Error {
 export function kiemTraProvider(): void {
   const ncc = process.env.CHECKER_NCC;
   if (ncc && ncc !== 'anthropic') {
-    const bien = ncc === 'github' ? 'GITHUB_MODELS_TOKEN' : 'OPENAI_API_KEY';
+    const bien = ncc === 'github' ? 'GITHUB_MODELS_TOKEN' : ncc === 'google' ? 'GOOGLE_API_KEY' : 'OPENAI_API_KEY';
     if (!process.env[bien]?.trim()) {
       throw new LoiCauHinhProvider(`Cấu hình nhà cung cấp không hợp lệ: đang chọn ${ncc} nhưng chưa có ${bien}. Vào ⚙ Cài đặt điền khoá cho nhà cung cấp này rồi kiểm lại.`);
     }
@@ -244,6 +244,10 @@ export function chonProvider(): ModelProvider {
   }
   if (ncc === 'openai') {
     return new ChatCompletionsProvider('openai', 'https://api.openai.com/v1/chat/completions', process.env.OPENAI_API_KEY?.trim() ?? '');
+  }
+  if (ncc === 'google') {
+    // Google có đường tương thích chuẩn chat/completions nên dùng chung lớp, không cần adapter riêng
+    return new ChatCompletionsProvider('google-gemini', 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', process.env.GOOGLE_API_KEY?.trim() ?? '');
   }
   const ep = process.env.CHECKER_PROVIDER;
   if (ep === 'api') return new AnthropicApiProvider();

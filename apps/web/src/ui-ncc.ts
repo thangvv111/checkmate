@@ -32,6 +32,7 @@ function huyHieu(kiem: KetQuaKiem | undefined, cfg: CauHinhNcc): string {
 export function khoiNcc(v: KhoiNccView): string {
   const ro = v.moKhoa ? '' : 'disabled';
   const the = DANH_MUC_NCC.map((dn) => {
+    const ro2 = dn.ngung ? 'disabled' : ro; // dịch vụ đã ngừng thì khoá hẳn, không cho cấu hình vô ích
     const cfg: CauHinhNcc = v.cauHinh[dn.ma] ?? { phuong_thuc: dn.phuong_thuc[0], model: dn.models[0] };
     const tt = v.trangThai[dn.ma];
     const kiem = v.soKiem[dn.ma];
@@ -50,19 +51,20 @@ export function khoiNcc(v: KhoiNccView): string {
   <summary style="padding:9px 12px;cursor:pointer;font-size:13.5px;display:flex;align-items:center;gap:8px">
     <b>${escHtml(dn.ten)}</b>
     ${dangDung ? '<span style="font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;background:var(--teal-soft);color:var(--teal);padding:2px 7px;border-radius:99px">đang dùng</span>' : ''}
-    <span style="margin-left:auto">${huyHieu(kiem, cfg)}</span>
+    <span style="margin-left:auto">${dn.ngung ? '<span style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;background:var(--fail-soft);color:var(--fail);padding:2px 7px;border-radius:99px">đã ngừng</span>' : huyHieu(kiem, cfg)}</span>
   </summary>
   <div style="padding:2px 12px 12px">
+    ${dn.ngung ? `<div class="ev" style="border-left:3px solid var(--fail);margin:0 0 10px"><b>Dịch vụ đã ngừng.</b> ${escHtml(dn.ngung)}</div>` : ''}
     <p style="font-size:12px;color:var(--muted);margin:0 0 8px">${escHtml(dn.ghi_chu)}</p>
     ${dongTrangThai ? `<div style="font-size:12px;border:1px solid var(--line);border-radius:7px;padding:7px 10px;margin-bottom:8px">${dongTrangThai}</div>` : ''}
     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
       <label style="font-size:12.5px;font-weight:600">Phương thức<br>
-        <select name="pt_${dn.ma}" ${ro} ${dn.phuong_thuc.length < 2 ? 'disabled' : ''} style="margin-top:4px;padding:6px 9px;border:1px solid var(--line);border-radius:7px">
+        <select name="pt_${dn.ma}" ${ro2} ${dn.phuong_thuc.length < 2 ? 'disabled' : ''} style="margin-top:4px;padding:6px 9px;border:1px solid var(--line);border-radius:7px">
           ${dn.phuong_thuc.map((p) => `<option value="${p}" ${cfg.phuong_thuc === p ? 'selected' : ''}>${NHAN_PT[p]}</option>`).join('')}
         </select>
       </label>
       <label style="font-size:12.5px;font-weight:600">Model<br>
-        <select name="model_${dn.ma}" ${ro} style="margin-top:4px;padding:6px 9px;border:1px solid var(--line);border-radius:7px">
+        <select name="model_${dn.ma}" ${ro2} style="margin-top:4px;padding:6px 9px;border:1px solid var(--line);border-radius:7px">
           ${dn.models.map((m) => `<option value="${m}" ${cfg.model === m ? 'selected' : ''}>${m}</option>`).join('')}
         </select>
       </label>
@@ -70,7 +72,7 @@ export function khoiNcc(v: KhoiNccView): string {
     ${
       dn.khoa
         ? `<label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">${escHtml(dn.khoa.nhan)}</label>
-    <input name="khoa_${dn.ma}" type="password" placeholder="${escHtml(dn.khoa.goi_y)} — bỏ trống để giữ nguyên" ${ro} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px">`
+    <input name="khoa_${dn.ma}" type="password" placeholder="${escHtml(dn.khoa.goi_y)} — bỏ trống để giữ nguyên" ${ro2} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px">`
         : ''
     }
     ${
@@ -81,8 +83,8 @@ export function khoiNcc(v: KhoiNccView): string {
         : ''
     }
     <div style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <button type="button" class="phu-nho nut-kiem" data-ncc="${dn.ma}" ${ro}>Kiểm tra ${escHtml(dn.ten)}</button>
-      <button type="button" class="nut-dung" data-ncc="${dn.ma}" ${ro} ${daKiem && !dangDung ? '' : 'disabled'}>${dangDung ? 'Đang dùng' : 'Dùng nhà cung cấp này'}</button>
+      <button type="button" class="phu-nho nut-kiem" data-ncc="${dn.ma}" ${ro2}>Kiểm tra ${escHtml(dn.ten)}</button>
+      <button type="button" class="nut-dung" data-ncc="${dn.ma}" ${ro2} ${!dn.ngung && daKiem && !dangDung ? '' : 'disabled'}>${dangDung ? 'Đang dùng' : 'Dùng nhà cung cấp này'}</button>
       <span class="kq-kiem" data-ncc="${dn.ma}" style="font-size:12px;color:var(--muted);flex:1;min-width:220px">${kiem ? escHtml(kiem.thong_diep.slice(0, 160)) : 'chưa kiểm lần nào'}</span>
     </div>
     <p style="font-size:11.5px;color:var(--muted);margin:8px 0 0">Lưu cấu hình trước, rồi bấm <b>Kiểm tra</b>. Chỉ khi kiểm thành công với đúng model + phương thức này thì nút <b>Dùng nhà cung cấp này</b> mới bật — CheckMate không cho chọn nguồn model chưa chứng minh chạy được.</p>

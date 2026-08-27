@@ -6,12 +6,14 @@ import { join, resolve } from 'node:path';
 //   • Phương thức (gói thuê bao / API)            — tiền ra từ đâu
 // Mỗi nhà cung cấp cấu hình độc lập; chỉ nhà cung cấp đã KIỂM THÀNH CÔNG mới được chọn để chấm.
 
-export type MaNcc = 'anthropic' | 'github' | 'openai';
+export type MaNcc = 'anthropic' | 'github' | 'openai' | 'google';
 export type PhuongThuc = 'thue_bao' | 'api';
 
 export interface DinhNghiaNcc {
   ma: MaNcc;
   ten: string;
+  /** Dịch vụ đã ngừng hoạt động — giữ trong danh mục để giải thích, nhưng KHÔNG cho chọn */
+  ngung?: string;
   phuong_thuc: PhuongThuc[]; // những phương thức nhà cung cấp này hỗ trợ
   models: string[];
   khoa: { ten_bien: string; nhan: string; goi_y: string } | null; // khoá/token cần cho phương thức api
@@ -31,11 +33,19 @@ export const DANH_MUC_NCC: DinhNghiaNcc[] = [
   {
     ma: 'github',
     ten: 'GitHub Models',
+    ngung: 'GitHub đã khai tử dịch vụ này ngày 30/07/2026 — endpoint trả HTTP 410. Không còn dùng được, giữ ở đây để khỏi ai mất công cấu hình lại.',
     phuong_thuc: ['api'],
-    models: ['openai/gpt-4o', 'openai/gpt-4o-mini', 'meta/Llama-3.3-70B-Instruct', 'mistral-ai/Mistral-Large-2411'],
-    khoa: { ten_bien: 'GITHUB_MODELS_TOKEN', nhan: 'GitHub token (scope models:read)', goi_y: 'github_pat_… hoặc ghp_…' },
-    ghi_chu:
-      'Chạy qua GitHub Models (models.github.ai). Token cần quyền `models:read`. Có hạn mức miễn phí theo tài khoản — hợp để thử nghiệm hoặc làm đường dự phòng khi nhà cung cấp chính hết credit.',
+    models: ['openai/gpt-4o'],
+    khoa: { ten_bien: 'GITHUB_MODELS_TOKEN', nhan: 'GitHub token (scope models:read)', goi_y: 'không còn dùng được' },
+    ghi_chu: 'Đã ngừng hoạt động. Muốn chạy các model của OpenAI thì dùng thẳng nhà cung cấp OpenAI bên dưới.',
+  },
+  {
+    ma: 'google',
+    ten: 'Google Gemini',
+    phuong_thuc: ['api'],
+    models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'],
+    khoa: { ten_bien: 'GOOGLE_API_KEY', nhan: 'API key Google AI Studio', goi_y: 'AIza…' },
+    ghi_chu: 'Chạy qua Google Generative Language API (đường tương thích chuẩn chat/completions). Lấy key ở aistudio.google.com — có hạn mức miễn phí.',
   },
   {
     ma: 'openai',
