@@ -1,0 +1,54 @@
+# CheckMate tự chấm chính mình. File này là hợp đồng của repo checkmate với engine — xem specs/R2.
+
+runner:
+  test_cmd: 'npx vitest run {files} --reporter=junit --outputFile={out}'
+  framework: vitest
+  probe_dir: test
+  probe_ext: .probe.test.ts
+  timeout_s: 300
+  huong_dan_probe: |
+    Import thẳng từ mã nguồn, dùng đuôi .js trong đường dẫn (mã viết theo NodeNext):
+      import { phanLoaiMay } from '../packages/harness/src/skill-code.js';
+      import { locRuns } from '../apps/web/src/ui-lich-su.js';
+    Test chạy trong môi trường node, KHÔNG có server nào đang chạy và KHÔNG được gọi mạng.
+    Đừng viết probe cần khoá model, cần GitHub token, hay cần clone repo — chúng sẽ đỏ cả hai nhánh
+    và chỉ ra nhãn ngoai_pham_vi, không chứng minh được gì.
+    Các hàm thuần đáng nhắm: phanLoaiMay / vanTayLoi / vanTayChat (skill-code), parseJUnit /
+    docRunnerCfg / docReviewCfg (runner), bocJson / bocCode (jsonx), taoRao (rao), locRuns /
+    tachNguon / escHtml (web), kiemConHieuLuc / cheKhoa (ncc).
+    Cần file tạm thì dùng mkdtempSync vào thư mục tạm của hệ, dọn trong afterAll.
+
+review:
+  khuon_loi:
+    - >-
+      NHÃN MÁY SAI CHỖ: một nhánh trong bảng chân trị phân loại probe bị trả sai nhãn — nhất là
+      skipped bị tính pass, hoặc thiếu đối chứng mà vẫn phong hoi_quy. Sai ở đây làm verdict sai
+      mà không để lại dấu vết nào cho người đọc.
+    - >-
+      XANH GIẢ Ở CỔNG: một đường nào đó cho phép đi qua cổng mà chưa có bằng chứng — phản hồi rỗng
+      tính là kiểm thành công, verdict cũ vẫn merge được sau khi PR có commit mới, hoặc finding
+      medium được bỏ qua mà máy chủ không đối chiếu lại danh sách client gửi.
+    - >-
+      RÒ BÍ MẬT: token hay khoá lọt vào remote URL, vào log, vào HTML trả về, hoặc vào file cấu
+      hình ghi xuống đĩa mà không che.
+    - >-
+      LẪN LỊCH SỬ GIỮA CÁC REPO: lượt chấm của repo này lọt vào lịch sử hay sổ cái của repo khác,
+      hoặc lượt chưa gắn repo lọt vào danh sách của một repo cụ thể.
+    - >-
+      FAIL-SAFE NGƯỢC: đầu vào hỏng do người dùng (yml sai cú pháp, XML lạ, model trả rác) làm sập
+      cả lượt chấm thay vì rơi về mặc định an toàn — và ngược lại, lỗi thật bị nuốt thành im lặng.
+    - >-
+      VỠ HỢP ĐỒNG VỚI REPO ĐÍCH: bỏ qua placeholder {files}/{out}, không kẹp timeout_s vào dải an
+      toàn, hoặc đọc sót testcase trong testsuite lồng nhau.
+  severity_map:
+    high: >-
+      hành vi trái điều spec khai PHẢI/KHÔNG ĐƯỢC, và nhóm chí mạng của công cụ này: verdict sai
+      hoặc dán nhãn probe sai; đi qua được cổng merge/cổng kiểm mà chưa đủ bằng chứng; rò khoá,
+      token hay dữ liệu giữa các repo.
+    medium: >-
+      lệch spec nhưng chưa làm sai verdict: thông báo lỗi gộp thành dòng chung chung khiến người
+      dùng không biết sửa gì, thiếu con số cần cho việc theo dõi chi phí, hỏng an toàn không đúng
+      hướng ở đường phụ.
+    low: >-
+      lỗi khách quan nhỏ không đổi hành vi: chú thích trỏ sai trường, tên biến lệch nghĩa, chính tả
+      trong chuỗi hiển thị.

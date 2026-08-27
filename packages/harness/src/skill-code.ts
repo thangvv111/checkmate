@@ -35,7 +35,7 @@ const FILE_PROBE_MOI = 'checker.probe.test.ts';
 export type TrangThaiProbe = 'pass' | 'hoi_quy' | 'ngoai_pham_vi' | 'nghi_loi_co_san' | 'nghi_van' | 'cai_thien' | 'bo_qua' | 'khong_chay';
 
 // Vân tay lỗi: dòng đầu message, chuẩn hoá số/hex/khoảng trắng — hai nhánh cùng vân tay = cùng nguyên nhân
-function vanTayLoi(msg: string): string {
+export function vanTayLoi(msg: string): string {
   return (msg.split('\n')[0] ?? '')
     .toLowerCase()
     .replace(/[a-f0-9]{7,}/g, '#')
@@ -47,7 +47,7 @@ function vanTayLoi(msg: string): string {
 
 // C4: vân tay CHẶT — giữ chữ số ngắn (status code, số đếm) để "expected 500" ≠ "expected 404";
 // vẫn gột hex dài, số dài (id/timestamp) và thời lượng (ms) vì chúng đổi giữa hai lần chạy.
-function vanTayChat(msg: string): string {
+export function vanTayChat(msg: string): string {
   return (msg.split('\n')[0] ?? '')
     .toLowerCase()
     .replace(/[a-f0-9]{7,}/g, '#')
@@ -58,7 +58,23 @@ function vanTayChat(msg: string): string {
     .slice(0, 200);
 }
 
-function phanLoaiMay(br: KetQuaProbe | undefined, bs: KetQuaProbe | undefined): TrangThaiProbe {
+// Khớp id probe với tên testcase mà bộ chạy test trả về. Ba dạng phải nhận hết:
+//   'P1: ...'          vitest reporter json
+//   'test_P1_...'      pytest / junit
+//   'nhóm > P1: ...'   JUnit XML — vitest và surefire ghép tên describe/class vào trước tên test
+// Ranh giới sau id phải KHÔNG phải chữ số, kẻo P1 nuốt kết quả của P10 khi chạy trên 10 probe trở lên.
+export function khopIdProbe(title: string, id: string): boolean {
+  return title
+    .split('>')
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .some((doan) => {
+      const t = doan.startsWith('test_') ? doan.slice(5) : doan;
+      return t.startsWith(id) && !/^\d/.test(t.slice(id.length));
+    });
+}
+
+export function phanLoaiMay(br: KetQuaProbe | undefined, bs: KetQuaProbe | undefined): TrangThaiProbe {
   if (!br) return 'khong_chay';
   if (br.status === 'skipped') return 'bo_qua'; // C2: it.skip không được tính pass — lách lưới
   const brFail = br.status === 'failed';
@@ -321,16 +337,11 @@ export async function chaySkillCode(
       continue;
     }
 
-    // khớp id probe đa framework: 'P1: ...' (vitest) lẫn 'test_P1_...' (pytest/junit)
-    const khopId = (title: string, id: string) => {
-      const t = title.startsWith('test_') ? title.slice(5) : title;
-      return t.startsWith(id);
-    };
     const tomTatKq = (kq: KetQuaProbe[] | undefined) => (kq ?? []).map((p) => `${p.title.split(':')[0].slice(0, 24)}=${p.status[0]}`).join(' ') || '(rỗng)';
     phat({ type: 'log', msg: `Nhánh PR:  ${tomTatKq(branchKq)}` });
     phat({ type: 'log', msg: `Nhánh gốc: ${tomTatKq(baseKq)}` });
     const timKq = (kq: KetQuaProbe[] | undefined, file: string, id: string) =>
-      kq?.find((r) => r.file === file && khopId(r.title, id));
+      kq?.find((r) => r.file === file && khopIdProbe(r.title, id));
 
     const bo: Array<{ file: string; nguon: 'moi' | 'thu_vien'; plan: KeHoachProbe[] }> = [
       { file: fileProbeMoi, nguon: 'moi', plan: keHoach },
