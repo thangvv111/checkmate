@@ -22,6 +22,9 @@ export interface MucSoCai {
   pr?: number;
   tac_gia?: string;
   model: string;
+  token_vao?: number;
+  token_ra?: number;
+  token_uoc?: boolean;
   backfill?: boolean;
 }
 
@@ -45,6 +48,7 @@ export function mucTuMeta(meta: RunMeta, backfill = false): MucSoCai | null {
     pr: meta.pr?.so,
     tac_gia: meta.pr?.tacGia,
     model: v.model,
+    ...(v.chi_phi ? { token_vao: v.chi_phi.token_vao, token_ra: v.chi_phi.token_ra, token_uoc: v.chi_phi.uoc_tinh } : {}),
     ...(backfill ? { backfill: true } : {}),
   };
 }

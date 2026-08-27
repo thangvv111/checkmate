@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chuanMuc, type ArtifactRef, type Finding, type RunEvent, type Verdict } from '../../shared/src/types.js';
-import { LoiCauHinhProvider, chonProvider, kiemTraProvider, tomTatChiPhi } from './model.js';
+import { LoiCauHinhProvider, chonProvider, kiemTraProvider, soLieuChiPhi, tomTatChiPhi } from './model.js';
 import { chaySkillCode } from './skill-code.js';
 import { chaySkillDoc } from './skill-doc.js';
 
@@ -131,6 +131,7 @@ async function main(): Promise<void> {
       result: findings.some((f) => chuanMuc(f.severity) === 'high') ? 'FAIL' : 'PASS',
       findings,
       probe_stats: probeStats,
+      chi_phi: soLieuChiPhi(),
       quan_sat_ngoai_pr: quanSat,
       model: model.ten,
       mode: 'live',

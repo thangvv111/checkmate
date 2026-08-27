@@ -9,6 +9,16 @@ export interface ModelProvider {
 // L3: đo chi phí mỗi lượt chấm — CLI không trả usage nên ước theo ký tự (~3.5 ký tự/token với text Việt+code);
 // API dùng usage thật khi có. Đủ để trả lời "mỗi PR tốn bao nhiêu?" bằng số.
 export const doChiPhi = { calls: 0, kyTuVao: 0, kyTuRa: 0, tokenVao: 0, tokenRa: 0 };
+export function soLieuChiPhi(): { calls: number; token_vao: number; token_ra: number; uoc_tinh: boolean } {
+  const that = doChiPhi.tokenVao > 0 || doChiPhi.tokenRa > 0;
+  return {
+    calls: doChiPhi.calls,
+    token_vao: that ? doChiPhi.tokenVao : Math.round(doChiPhi.kyTuVao / 3.5),
+    token_ra: that ? doChiPhi.tokenRa : Math.round(doChiPhi.kyTuRa / 3.5),
+    uoc_tinh: !that,
+  };
+}
+
 export function tomTatChiPhi(): string {
   const inTok = doChiPhi.tokenVao || Math.round(doChiPhi.kyTuVao / 3.5);
   const outTok = doChiPhi.tokenRa || Math.round(doChiPhi.kyTuRa / 3.5);

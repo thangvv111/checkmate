@@ -147,11 +147,22 @@ export function khoiDaTraVe(runs: RunMeta[], repoGithub: string): string {
 <table class="runs"><tr><th>#</th><th>Artifact</th><th>Commit đã chấm</th><th>Trả về bởi</th></tr>${rows}</table>`;
 }
 
+// Token vào/ra mỗi lượt — theo dõi chi phí ngay trên bảng, không phải đào log.
+// Đường CLI không trả usage nên số là ước từ ký tự: đánh dấu ~ để không ai nhầm là số đo thật.
+export function oToken(v?: { chi_phi?: { calls: number; token_vao: number; token_ra: number; uoc_tinh: boolean } }): string {
+  const c = v?.chi_phi;
+  if (!c) return '<span style="color:var(--muted)">—</span>';
+  const k = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
+  const dau = c.uoc_tinh ? '~' : '';
+  return `<span class="mono" style="font-size:12px" title="${c.calls} call model · ${c.uoc_tinh ? 'ƯỚC TÍNH từ số ký tự (đường Claude Code CLI không trả usage)' : 'usage thật do API trả về'}">${dau}${k(c.token_vao)} / ${dau}${k(c.token_ra)}</span>`;
+}
+
 export function trangChu(runs: RunMeta[], prBlock = '', daTraVeBlock = ''): string {
   const rows = runs
     .map(
       (r) => `<tr><td><a href="/runs/${r.id}">${escHtml(r.tieuDe)}</a></td><td>${r.skill}</td>
 <td>${r.trangThai === 'dang_chay' ? 'đang chạy…' : r.verdict ? `<span class="vd-pill vd-${r.verdict.result}">${r.verdict.result}</span> · ${r.verdict.findings.length} finding` : 'lỗi'}</td>
+<td>${oToken(r.verdict)}</td>
 <td style="color:var(--muted)">${r.batDau.slice(0, 16).replace('T', ' ')}</td></tr>`,
     )
     .join('');
@@ -174,7 +185,7 @@ ${daTraVeBlock}
 <p class="goiy" id="goiy">Router: dán vào để nhận diện loại artifact.</p>
 <button>Chạy kiểm tài liệu</button></form>
 <p class="goiy">Code chỉ được kiểm qua PR của repo đã kết nối (skill A thực thi code thật). Dán diff code tự do không hỗ trợ.</p>
-${rows ? `<h2>Lượt chạy gần đây</h2><table class="runs"><tr><th>Artifact</th><th>Skill</th><th>Kết quả</th><th>Lúc</th></tr>${rows}</table>` : ''}`,
+${rows ? `<h2>Lượt chạy gần đây</h2><table class="runs"><tr><th>Artifact</th><th>Skill</th><th>Kết quả</th><th title="token vào / token ra mỗi lượt chấm">Token (vào/ra)</th><th>Lúc</th></tr>${rows}</table>` : ''}`,
     `const ta=document.getElementById('noidung'),gy=document.getElementById('goiy');
 ta.addEventListener('input',()=>{const v=ta.value;
 if(/^diff --git|^@@|^index [0-9a-f]+\\.\\./m.test(v)) gy.textContent='Router: nội dung giống DIFF CODE — code chỉ kiểm qua PR trong danh sách bên trên.';
@@ -340,8 +351,11 @@ function ve(e){
   const kv=document.getElementById('verdict');kv.className='verdict '+v.result;
   kv.querySelector('.kq').textContent=v.result==='FAIL'?'✗ FAIL — bị bác':'✓ PASS — qua cổng';
   const dm=m=>v.findings.filter(f=>(f.severity==='blocking'?'high':(f.severity==='non_blocking'?'medium':f.severity))===m).length;
+  var cp=v.chi_phi, sCp='';
+  if(cp){ var kk=function(n){return n>=1000?(n/1000).toFixed(1)+'k':String(n);};
+    sCp=' · '+(cp.uoc_tinh?'~':'')+kk(cp.token_vao)+' token vào / '+(cp.uoc_tinh?'~':'')+kk(cp.token_ra)+' ra ('+cp.calls+' call'+(cp.uoc_tinh?', ước tính':'')+')'; }
   kv.querySelector('.chitiet').textContent=v.artifact_ref.name+' @ '+v.artifact_ref.sha_or_hash.slice(0,10)+
-   ' · '+v.findings.length+' finding ('+dm('high')+' high · '+dm('medium')+' medium · '+dm('low')+' low) · '+v.model;
+   ' · '+v.findings.length+' finding ('+dm('high')+' high · '+dm('medium')+' medium · '+dm('low')+' low) · '+v.model+sCp;
   const qs=v.quan_sat_ngoai_pr||[];
   if(qs.length){const box=document.createElement('div');box.className='ev';box.style.marginTop='10px';
    box.innerHTML='<div class="loc">Quan sát NGOÀI phạm vi PR — không tính vào verdict (lỗi tồn tại trên cả nhánh gốc, nên mở việc riêng)</div>'+

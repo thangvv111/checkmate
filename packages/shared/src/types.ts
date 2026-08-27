@@ -63,6 +63,13 @@ export interface Verdict {
   result: 'PASS' | 'FAIL';
   findings: Finding[];
   model: string;
+  // Chi phí lượt chấm — để theo dõi tiền theo từng lượt, không phải suy từ log
+  chi_phi?: {
+    calls: number;
+    token_vao: number;
+    token_ra: number;
+    uoc_tinh: boolean; // true = ước từ số ký tự (đường CLI không trả usage), false = usage thật của API
+  };
   // C5: PASS/FAIL nói trên cơ sở nào — độ phủ probe đưa thẳng vào verdict
   probe_stats?: {
     ke_hoach: number; // số probe model đề ra
