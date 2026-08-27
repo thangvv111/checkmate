@@ -224,7 +224,17 @@ function promptVietFinding(ungVien: UngVien[], t: TargetInfo, review: ReviewCfg 
   }));
   return `Bạn là CHECKER ĐỐI KHÁNG. Máy đã phân loại xong kết quả probe — việc của bạn CHỈ là hai điều:
 1. Với ứng viên \`hoi_quy\` (PR fail + gốc pass — máy đã xác nhận là hồi quy): viết finding tiếng Việt nghiệp vụ + gán mức. BẮT BUỘC mỗi ứng viên hoi_quy có ĐÚNG MỘT finding — bạn không có quyền bỏ.
-2. Với ứng viên \`nghi_van\` (fail cả hai nhánh nhưng KHÁC nguyên nhân): quyết giữ/bỏ — GIỮ chỉ khi nhánh gốc fail vì tính năng chưa tồn tại (404 route, trường chưa có) còn nhánh PR fail vì sai nghiệp vụ; nếu giữ thì viết finding, nếu bỏ ghi lý do vào ghi_chu.
+2. Với ứng viên \`nghi_van\` (fail cả hai nhánh nhưng KHÁC nguyên nhân): quyết giữ/bỏ — GIỮ chỉ khi nhánh gốc fail vì tính năng chưa tồn tại (404 route, trường chưa có) còn nhánh PR fail vì SAI NGHIỆP VỤ; nếu giữ thì viết finding, nếu bỏ ghi lý do vào ghi_chu.
+
+   TRƯỚC KHI GIỮ, loại trừ khả năng thứ ba: **chính probe sai giả định về API**. Probe do bạn sinh ra ở
+   bước trước, nó có thể đoán sai hình dạng dữ liệu mà hàm trả về, đoán sai tên module, hoặc gọi sai chữ ký.
+   Đối chiếu kỳ vọng của probe với ĐÚNG đoạn code trong diff. Dấu hiệu mạnh của probe sai, không phải code sai:
+   - "Cannot read properties of undefined (reading 'X')" ở nhánh PR — probe đọc một trường lồng mà hàm
+     không hề trả về (ví dụ tưởng hàm trả {review: {...}} trong khi hàm trả thẳng {...});
+   - "X is not a function" / "expected 'undefined' to be 'function'" — probe import sai module;
+   - probe assert một trường response không thấy ở đâu trong diff lẫn tài liệu API.
+   Rơi vào các dấu hiệu này thì BỎ và ghi rõ vào ghi_chu là probe sai giả định. Một finding báo sai làm
+   người đọc mất niềm tin vào cả cổng chấm, đắt hơn nhiều so với việc bỏ sót một nghi vấn mờ.
 
 # MỨC (severity)
 ${xaySeverity(review)}

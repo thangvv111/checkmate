@@ -46,6 +46,19 @@ describe('docReviewCfg', () => {
     expect(docReviewCfg(viet('review:\n  khuon_loi: [\n'))).toBeNull();
   });
 
+  it('trả về ReviewCfg TRỰC TIẾP, không bọc trong {review}', () => {
+    // Hợp đồng này từng bị một probe hiểu nhầm và đẻ ra finding báo sai — ghim lại cho rõ.
+    const c = docReviewCfg(viet('review:\n  bo_qua_diff:\n    - "^_ref/"\n'));
+    expect((c as unknown as { review?: unknown })?.review).toBeUndefined();
+    expect(c?.bo_qua_diff).toEqual(['^_ref/']);
+  });
+
+  it('chỉ khai bo_qua_diff (không khuôn lỗi, không severity) vẫn đọc được, không trả null', () => {
+    const c = docReviewCfg(viet('review:\n  bo_qua_diff:\n    - "^_ref/"\n    - "[chua-dong-ngoac"\n'));
+    expect(c).not.toBeNull();
+    expect(c?.bo_qua_diff).toHaveLength(2);
+  });
+
   it('đọc được khuôn lỗi và thang severity riêng của repo', () => {
     const c = docReviewCfg(viet('review:\n  khuon_loi:\n    - "vượt quyền giữa hai chi nhánh"\n  severity_map:\n    high: "rò dữ liệu sang tenant khác"\n'));
     expect(c?.khuon_loi).toEqual(['vượt quyền giữa hai chi nhánh']);
