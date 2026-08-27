@@ -157,11 +157,31 @@ export function oToken(v?: { chi_phi?: { calls: number; token_vao: number; token
   return `<span class="mono" style="font-size:12px" title="${c.calls} call model · ${c.uoc_tinh ? 'ƯỚC TÍNH từ số ký tự (đường Claude Code CLI không trả usage)' : 'usage thật do API trả về'}">${dau}${k(c.token_vao)} / ${dau}${k(c.token_ra)}</span>`;
 }
 
+// verdict.model có dạng "<provider>/<model>" — tách ra hai cột để nhìn phát biết lượt đó
+// chạy bằng nguồn nào (gói thuê bao hay ví API) và model gì.
+export function tachNguon(model?: string): { nguon: string; ten: string } {
+  if (!model) return { nguon: '—', ten: '—' };
+  const i = model.indexOf('/');
+  if (i < 0) return { nguon: '—', ten: model };
+  const p = model.slice(0, i);
+  const nhan = p === 'claude-cli' ? 'Gói thuê bao' : p === 'anthropic-api' ? 'API' : p;
+  return { nguon: nhan, ten: model.slice(i + 1) };
+}
+
+function nguonO(model?: string): string {
+  const n = tachNguon(model);
+  if (n.nguon === '—') return '<span style="color:var(--muted)">—</span>';
+  const giaiThich = n.nguon === 'Gói thuê bao' ? 'Claude Code CLI — không tiêu credit API' : n.nguon === 'API' ? 'Anthropic API — tính tiền theo token' : n.nguon;
+  return `<span title="${giaiThich}">${n.nguon}</span>`;
+}
+
 export function trangChu(runs: RunMeta[], prBlock = '', daTraVeBlock = ''): string {
   const rows = runs
     .map(
       (r) => `<tr><td><a href="/runs/${r.id}">${escHtml(r.tieuDe)}</a></td><td>${r.skill}</td>
 <td>${r.trangThai === 'dang_chay' ? 'đang chạy…' : r.verdict ? `<span class="vd-pill vd-${r.verdict.result}">${r.verdict.result}</span> · ${r.verdict.findings.length} finding` : 'lỗi'}</td>
+<td style="font-size:12.5px">${nguonO(r.verdict?.model)}</td>
+<td class="mono" style="font-size:12px;color:var(--muted)">${tachNguon(r.verdict?.model).ten}</td>
 <td>${oToken(r.verdict)}</td>
 <td style="color:var(--muted)">${r.batDau.slice(0, 16).replace('T', ' ')}</td></tr>`,
     )
@@ -185,7 +205,7 @@ ${daTraVeBlock}
 <p class="goiy" id="goiy">Router: dán vào để nhận diện loại artifact.</p>
 <button>Chạy kiểm tài liệu</button></form>
 <p class="goiy">Code chỉ được kiểm qua PR của repo đã kết nối (skill A thực thi code thật). Dán diff code tự do không hỗ trợ.</p>
-${rows ? `<h2>Lượt chạy gần đây</h2><table class="runs"><tr><th>Artifact</th><th>Skill</th><th>Kết quả</th><th title="token vào / token ra mỗi lượt chấm">Token (vào/ra)</th><th>Lúc</th></tr>${rows}</table>` : ''}`,
+${rows ? `<h2>Lượt chạy gần đây</h2><table class="runs"><tr><th>Artifact</th><th>Skill</th><th>Kết quả</th><th title="nguồn model: gói thuê bao Claude Code hay ví API">Provider</th><th>Model</th><th title="token vào / token ra mỗi lượt chấm">Token (vào/ra)</th><th>Lúc</th></tr>${rows}</table>` : ''}`,
     `const ta=document.getElementById('noidung'),gy=document.getElementById('goiy');
 ta.addEventListener('input',()=>{const v=ta.value;
 if(/^diff --git|^@@|^index [0-9a-f]+\\.\\./m.test(v)) gy.textContent='Router: nội dung giống DIFF CODE — code chỉ kiểm qua PR trong danh sách bên trên.';
