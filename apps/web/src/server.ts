@@ -6,7 +6,7 @@ import { DINH_DANG_NHAN, trichText } from './extract.js';
 import { GOC } from './paths.js';
 import { RunManager } from './runs.js';
 import { khung, khoiDaTraVe, khoiPrList, trangChu, trangRun, trangSettings } from './ui.js';
-import { MODE, cheToken, docConfig, envAgent, ghiConfig } from './config.js';
+import { MODE, cheToken, cheToken2, docConfig, docTokenThueBao, envAgent, ghiConfig, ghiTokenThueBao } from './config.js';
 import { danhSachPr, dongPr, fetchVaRouter, ganTrangThaiCommit, layPrHienTai, mergePr, binhLuanPr, traVeDev } from './github.js';
 import { banPhanQuyet, banReceipt, banVerdictTuDong, demMuc, ghiSo, nguoiThaoTac } from './cong.js';
 import { backfillSoCai, docSoCai } from './ledger.js';
@@ -156,6 +156,7 @@ app.get('/settings', (req, res) => {
       trucChuKy: c.truc.chu_ky_giay,
       trucComment: c.truc.tu_dong_comment,
       nguon: docTrangThaiNguon(c),
+      tokenThueBaoChe: cheToken2(docTokenThueBao()),
       daLuu: req.query.luu === '1',
     }),
   );
@@ -185,6 +186,9 @@ app.post('/settings', (req, res) => {
     },
   };
   if (!/^[\w.-]+\/[\w.-]+$/.test(moi.repo.github)) return res.status(422).send('Repo phải dạng owner/tên');
+  // Token gói thuê bao: dán mới thì lưu, bỏ trống thì giữ nguyên cái cũ
+  const tokenTb = (b.claude_oauth_token ?? '').trim();
+  if (tokenTb) ghiTokenThueBao(tokenTb);
   ghiConfig(moi);
   res.redirect(303, '/settings?luu=1');
 });

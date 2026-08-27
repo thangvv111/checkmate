@@ -202,6 +202,7 @@ export interface SettingsView {
   tokenChe: string;
   provider: string;
   nguon?: { cli: { san_sang: boolean; chi_tiet: string }; api: { san_sang: boolean; chi_tiet: string } };
+  tokenThueBaoChe?: string;
   model: string;
   maxProbe: number;
   skeptic: boolean;
@@ -259,6 +260,9 @@ ${v.daLuu ? '<div class="card" style="border-color:var(--teal);margin-bottom:14p
     <option value="cli" ${v.provider === 'cli' ? 'selected' : ''}>Claude Code CLI (đăng nhập của máy)</option>
     <option value="api" ${v.provider === 'api' ? 'selected' : ''}>Anthropic API (cần ANTHROPIC_API_KEY)</option>
   </select>
+  <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Token gói thuê bao Claude Code — hiện tại: <span class="mono">${escHtml(v.tokenThueBaoChe ?? 'chưa có')}</span></label>
+  <input name="claude_oauth_token" type="password" placeholder="dán token từ lệnh claude setup-token (bỏ trống để giữ nguyên)" ${ro} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
+  <p style="font-size:12px;color:var(--muted);margin:5px 0 0">Chỉ dùng khi Provider = Claude Code CLI. Lấy token: chạy <code>claude setup-token</code> trên máy CÓ trình duyệt (lệnh này cần cửa sổ dòng lệnh thật, không chạy qua web được), rồi dán vào đây — lượt chấm sẽ tiêu gói thuê bao thay vì credit API. Token lưu trong file riêng quyền 600, không nằm trong config.json.</p>
   <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Model</label>
   <select name="model" ${ro} style="padding:7px 10px;border:1px solid var(--line);border-radius:7px">
     ${['claude-sonnet-5', 'claude-opus-5', 'claude-haiku-4-5-20251001'].map((m) => `<option value="${m}" ${v.model === m ? 'selected' : ''}>${m}</option>`).join('')}

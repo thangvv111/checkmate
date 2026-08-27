@@ -48,11 +48,16 @@ export class ClaudeCliProvider implements ModelProvider {
     return new Promise((resolve, reject) => {
       // --tools "": tắt toàn bộ tool — call là pure completion, model không tự đi đọc file
       // cwd = temp: kể cả có tool cũng không có gì để đọc; --no-session-persistence: không tích session rác
+      // Provider 'cli' nghĩa là DÙNG GÓI THUÊ BAO. Nếu để ANTHROPIC_API_KEY trong môi trường,
+      // Claude Code sẽ lặng lẽ dùng key đó và tính tiền API — người vận hành tưởng đang tiêu gói
+      // thuê bao mà thực ra đang đốt credit. Cắt key khỏi env để hai nguồn không lẫn vào nhau.
+      const envCli: NodeJS.ProcessEnv = { ...process.env, CLAUDECODE: '' };
+      delete envCli.ANTHROPIC_API_KEY;
       const child = spawn('claude', ['-p', '--model', MODEL_MAC_DINH, '--tools', '""', '--no-session-persistence'], {
         shell: true,
         cwd: tmpdir(),
         stdio: ['pipe', 'pipe', 'pipe'],
-        env: { ...process.env, CLAUDECODE: '' },
+        env: envCli,
       });
       let out = '';
       let err = '';
@@ -70,6 +75,15 @@ export class ClaudeCliProvider implements ModelProvider {
       child.on('error', reject);
       child.on('close', (code) => {
         clearTimeout(timer);
+        if (/not logged in|please run \/login/i.test(out) || /not logged in|please run \/login/i.test(err)) {
+          return reject(
+            new Error(
+              'Claude Code CLI chưa đăng nhập trên máy này nên không dùng được gói thuê bao. ' +
+                'Chủ máy chạy `claude login` (hoặc `claude setup-token` rồi đặt CLAUDE_CODE_OAUTH_TOKEN) bằng ĐÚNG user chạy dịch vụ; ' +
+                'hoặc chuyển Provider sang "Anthropic API" trong ⚙ Cài đặt nếu chấp nhận tính tiền theo API.',
+            ),
+          );
+        }
         if (code !== 0 && !out.trim()) return reject(new Error(`claude CLI exit ${code}: ${err.slice(0, 500)}`));
         const ra = out.trim();
         doChiPhi.kyTuRa += ra.length; // CLI không trả usage — đếm ký tự để ước token ra

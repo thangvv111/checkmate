@@ -1,4 +1,6 @@
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import type { CheckmateConfig } from './config.js';
 
 // Trạng thái hai nguồn model. Người vận hành cần biết nguồn nào DÙNG ĐƯỢC trước khi chọn,
@@ -16,7 +18,14 @@ export function docTrangThaiNguon(cfg: CheckmateConfig): TrangThaiNguon {
   try {
     const r = spawnSync('claude', ['--version'], { shell: true, encoding: 'utf8', timeout: 20_000 });
     if (r.status === 0) {
-      cli = { san_sang: true, chi_tiet: `Đã cài: ${(r.stdout || '').trim().split('\n')[0].slice(0, 60)}` };
+      const ver = (r.stdout || '').trim().split('\n')[0].slice(0, 40);
+      // Đã CÀI khác đã ĐĂNG NHẬP — chỉ cái sau mới quyết định lượt chấm tiêu gói thuê bao hay credit API.
+      const coToken = !!process.env.CLAUDE_CODE_OAUTH_TOKEN?.trim();
+      const nha = process.env.HOME ?? process.env.USERPROFILE ?? '';
+      const daLogin = coToken || (nha ? existsSync(join(nha, '.claude', '.credentials.json')) : false);
+      cli = daLogin
+        ? { san_sang: true, chi_tiet: `Đã cài ${ver} · ${coToken ? 'có token gói thuê bao trong biến môi trường' : 'đã đăng nhập trên máy'}` }
+        : { san_sang: false, chi_tiet: `Đã cài ${ver} nhưng CHƯA ĐĂNG NHẬP gói thuê bao — chạy \`claude login\` bằng đúng user chạy dịch vụ` };
     }
   } catch {
     /* giữ mặc định */
@@ -45,23 +54,29 @@ export async function thuNguon(cfg: CheckmateConfig): Promise<KetQuaThu> {
   const model = cfg.agent.model;
 
   if (cfg.agent.provider === 'cli') {
+    // Cắt ANTHROPIC_API_KEY y như lúc chấm thật: tài liệu Claude Code nói API key THẮNG cả token
+    // gói thuê bao lẫn phiên đăng nhập — để nguyên thì phép thử báo xanh trong khi tiền vẫn ra từ ví API.
+    const envThu: NodeJS.ProcessEnv = { ...process.env };
+    delete envThu.ANTHROPIC_API_KEY;
     const r = spawnSync('claude', ['-p', '--model', model, '--tools', '""', '--no-session-persistence'], {
       input: 'Trả lời đúng hai ký tự: OK',
       shell: true,
       encoding: 'utf8',
       timeout: 120_000,
       cwd: process.env.TEMP ?? '/tmp',
+      env: envThu,
     });
-    if (r.status === 0 && (r.stdout ?? '').trim()) {
-      return { ok: true, nguon: 'cli', giay: giay(), thong_diep: `Claude Code CLI trả lời: “${r.stdout.trim().slice(0, 40)}” (model ${model})` };
+    const raCli = (r.stdout ?? '').trim();
+    if (r.status === 0 && raCli && !/not logged in/i.test(raCli)) {
+      return { ok: true, nguon: 'cli', giay: giay(), thong_diep: `Gói thuê bao trả lời: “${raCli.slice(0, 40)}” (model ${model}) — KHÔNG tiêu credit API` };
     }
-    const loi = (r.stderr || r.stdout || r.error?.message || 'không rõ').trim().slice(0, 300);
+    const loi = (r.stderr || raCli || r.error?.message || 'không rõ').trim().slice(0, 300);
     return {
       ok: false,
       nguon: 'cli',
       giay: giay(),
       thong_diep: /login|auth|credential|not logged/i.test(loi)
-        ? `CLI chưa đăng nhập trên máy này. Chủ máy chạy \`claude login\` (hoặc \`claude setup-token\`) bằng user chạy dịch vụ. Chi tiết: ${loi}`
+        ? 'Claude Code CLI CHƯA đăng nhập gói thuê bao trên máy này. Chủ máy chạy `claude login` bằng ĐÚNG user chạy dịch vụ (không dùng sudo), hoặc chạy `claude setup-token` trên máy có trình duyệt rồi đặt CLAUDE_CODE_OAUTH_TOKEN vào file môi trường của dịch vụ. Lưu ý: nếu máy có ANTHROPIC_API_KEY thì CLI vẫn chạy được, nhưng khi đó tiền ra từ VÍ API — CheckMate cố ý không cho hai nguồn lẫn nhau.'
         : `CLI lỗi: ${loi}`,
     };
   }
