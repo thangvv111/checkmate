@@ -49,3 +49,9 @@ PR) có thể giấu chỉ thị trong chính artifact để lái checker.
   trả lời qua `stderr`); chuỗi ở `stdout` chỉ tính khi output KHÔNG mang hình dạng một câu trả lời —
   không khối fence, không JSON trọn vẹn, không dài.
 - **R3.14** — Mất xác thực là lỗi CẤU HÌNH: KHÔNG thử lại. Phiên hết hạn không tự sống lại ở lượt thứ hai.
+- **R3.15** — JSON của model không parse được thì lỗi ném ra PHẢI kèm **đoạn văn quanh vị trí hỏng**,
+  không chỉ vị trí. `Expected ',' at position 2914` là con số vô dụng với cả người đọc log lẫn lượt
+  sinh lại.
+- **R3.16** — Lượt nhắc lại PHẢI được đưa chính thông điệp lỗi đó. Nhắc chung chung ("trả JSON đúng
+  schema") không sửa được một dấu phẩy thiếu — model không thấy lỗi của mình thì lượt hai hỏng y hệt
+  lượt một.

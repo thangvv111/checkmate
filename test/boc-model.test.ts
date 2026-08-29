@@ -17,6 +17,20 @@ describe('bocJson', () => {
   it('không có JSON thì ném lỗi kèm trích trả lời để người đọc biết model nói gì', () => {
     expect(() => bocJson('tôi không thể làm việc này')).toThrow(/Không tìm thấy JSON/);
   });
+
+  it('JSON hỏng thì lỗi phải chỉ ĐÚNG CHỖ hỏng, không chỉ nói "position 2914"', () => {
+    // Ca thật đã làm chết một lượt chấm: người đọc log lẫn lượt sinh lại đều mù vì chỉ có con số
+    const hong = '{"probes": [{"id": "P1", "ten": "mot"} {"id": "P2", "ten": "hai"}]}';
+    let msg = '';
+    try {
+      bocJson(hong);
+    } catch (e) {
+      msg = (e as Error).message;
+    }
+    expect(msg).toMatch(/không parse được/);
+    expect(msg).toContain('HỎNG Ở ĐÂY');
+    expect(msg).toContain('P1'); // có đoạn văn quanh chỗ hỏng chứ không phải chỉ con số
+  });
 });
 
 describe('bocCode', () => {
