@@ -11,3 +11,8 @@ repos/
 
 # Bản design CCS bàn giao — tài liệu tham chiếu, không phải mã của repo
 _ref/
+
+# Co so du lieu SQLite + nhat ky WAL — du lieu chay, khong phai ma nguon
+web-runs/*.db
+web-runs/*.db-wal
+web-runs/*.db-shm
