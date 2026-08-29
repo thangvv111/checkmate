@@ -29,6 +29,15 @@ runner:
     Import TRỰC TIẾP ở đầu file. Đừng bọc import trong try/catch rồi assert typeof — làm thế thì lỗi
     import biến thành assertion thường, probe trông như đã chạy trong khi nó chưa chạy được gì.
     Hàm nào mà diff của PR mới thêm thì lấy đường dẫn từ chính diff, đừng suy từ bảng trên.
+    ⚠ CHUỖI KHÓ — repo này có nhiều luật NÓI VỀ việc xử lý chuỗi, khối fence và regex, nên probe cho
+    chúng rất dễ vỡ cú pháp. Đo được: hai lượt sinh liên tiếp cùng chết vì "Unterminated string".
+    Luật viết chuỗi trong probe của repo này:
+      - Cần ba dấu backtick thì GHÉP thay vì viết thẳng: const fence = '`' + '`' + '`';
+      - Cần chuỗi có nháy hoặc dấu chéo ngược thì dùng String.raw hoặc nối từng mảnh ngắn.
+      - KHÔNG lồng template literal trong template literal.
+      - Mỗi chuỗi viết gọn trên MỘT dòng; đừng xuống dòng ở giữa chuỗi.
+    Mỗi probe phải có ÍT NHẤT một expect() thật trên giá trị hàm trả về — file không assert gì sẽ bị
+    lưới chống probe-rỗng loại và bạn mất một lượt sinh.
     Cần file tạm thì dùng mkdtempSync vào thư mục tạm của hệ, dọn trong afterAll.
     Thư viện probe đọc thư mục qua biến môi trường CHECKER_LIB_DIR — đặt biến này trước khi import
     thu-vien.js nếu probe cần ghi vào thư viện giả.
