@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, readFileSync, writeFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { dinhNghia, docKhoa, type CauHinhNcc, type MaNcc } from './ncc.js';
 
@@ -84,6 +84,12 @@ const MAC_DINH: CheckmateConfig = {
   truc: { bat: false, chu_ky_giay: 300, tu_dong_comment: true },
 };
 
+// Cấu hình và kho khoá CỐ Ý không vào cơ sở dữ liệu (specs/R9.13): sửa file bằng tay là đường cứu hộ
+// khi cấu hình sai làm giao diện không lên, và bí mật nằm trong cơ sở dữ liệu thì mọi bản sao lưu đều
+// mang theo khoá. File này đóng vai lớp kho cho phần đó.
+// Cache theo thời điểm sửa file: đọc lại chỉ khi file thật sự đổi, nên sửa tay vẫn có hiệu lực ngay.
+let cache: { mtimeMs: number; token: string; c: CheckmateConfig } | null = null;
+
 export function docConfig(): CheckmateConfig {
   // Deploy trên server: secrets nên nằm ở file env quyền 600 (EnvironmentFile của systemd),
   // không nằm trong config.json cạnh source. Env THẮNG config để chủ máy đổi một chỗ rồi restart.
@@ -93,11 +99,13 @@ export function docConfig(): CheckmateConfig {
     if (tokenEnv) c.github_token = tokenEnv;
     return c;
   }
+  const mtimeMs = statSync(FILE).mtimeMs;
+  if (cache && cache.mtimeMs === mtimeMs && cache.token === tokenEnv) return cache.c;
   const luu = JSON.parse(readFileSync(FILE, 'utf8')) as Partial<CheckmateConfig>;
   // Config đời cũ chỉ có MỘT repo — nâng thành danh sách mà không mất thiết lập nào
   const repos: RepoConfig[] = luu.repos?.length ? luu.repos : [{ ...MAC_DINH.repos[0], ...(luu.repo ?? {}) }];
   const chon = luu.repo_dang_chon && repos.some((r) => r.github === luu.repo_dang_chon) ? luu.repo_dang_chon : repos[0].github;
-  return {
+  const c: CheckmateConfig = {
     repos,
     repo_dang_chon: chon,
     repo: repos.find((r) => r.github === chon) ?? repos[0],
@@ -105,6 +113,8 @@ export function docConfig(): CheckmateConfig {
     agent: nangCapAgent(luu.agent),
     truc: { ...MAC_DINH.truc, ...luu.truc },
   };
+  cache = { mtimeMs, token: tokenEnv, c };
+  return c;
 }
 
 // Config đời cũ chỉ có provider 'cli'|'api' + model phẳng — nâng lên mô hình nhà-cung-cấp
@@ -134,6 +144,7 @@ export function ghiConfig(c: CheckmateConfig): void {
   // `repo` chỉ là VIEW của repo đang chọn — không ghi xuống đĩa, kẻo có hai nguồn sự thật lệch nhau
   const { repo: _view, ...luu } = c;
   writeFileSync(FILE, JSON.stringify(luu, null, 2) + '\n', 'utf8');
+  cache = null; // bỏ cache ngay khi ghi, không dựa vào độ phân giải mili giây của mtime
 }
 
 export function cheToken(token: string): string {

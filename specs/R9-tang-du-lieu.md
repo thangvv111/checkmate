@@ -41,3 +41,22 @@ quy ước lập trình.
 - **R9.11** — Các cột dùng để lọc và sắp xếp thường xuyên phải có index: thời điểm, repo, run id, tác giả.
 - **R9.12** — Mọi giá trị do người dùng nhập vào câu truy vấn PHẢI đi qua tham số ràng buộc. Không ghép
   chuỗi SQL.
+
+## Cái gì KHÔNG vào cơ sở dữ liệu
+
+- **R9.13** — Cấu hình (`config.json`) và kho khoá (`.secrets.json`) cố ý **ở lại dạng file**, không vào
+  cơ sở dữ liệu, vì hai lý do: sửa file bằng tay là đường cứu hộ khi cấu hình sai làm giao diện không lên
+  được; và bí mật nằm trong cơ sở dữ liệu thì **mọi bản sao lưu đều mang theo khoá**. Chúng vẫn phải đi
+  qua một cửa duy nhất trong mã nguồn, không được đọc rải rác.
+- **R9.14** — Cấu hình được cache theo thời điểm sửa file, và cache bị bỏ ngay khi ghi. Sửa file bằng tay
+  vẫn phải có hiệu lực ở lượt đọc kế tiếp — cache không được che mất đường cứu hộ.
+- **R9.15** — File probe trong thư viện ở lại trên đĩa vì chúng là mã nguồn phải chạy được; chỉ phần
+  metadata vào bảng.
+
+## API JSON
+
+- **R9.16** — Các route `/api/*` chỉ đọc qua lớp kho và trả dữ liệu thuần: không dựng HTML, không chạm đĩa.
+- **R9.17** — KHÔNG route nào được trả về khoá, token hay bí mật — kể cả dạng đã che. Route cấu hình chỉ
+  trả trạng thái đủ để giao diện hiển thị (có token hay chưa), không trả giá trị.
+- **R9.18** — Lọc và phân trang chạy dưới cơ sở dữ liệu, không nạp cả bảng lên rồi cắt. Số bản ghi mỗi
+  trang phải có trần để một tham số truy vấn không kéo được cả bảng về.

@@ -16,6 +16,7 @@ import { khoiRepo } from './ui-repo.js';
 import { cloneRepo, danhSachPr, danhSachRepoCuaToken, dongPr, fetchVaRouter, ganTrangThaiCommit, layPrHienTai, mergePr, binhLuanPr, traVeDev } from './github.js';
 import { banPhanQuyet, banReceipt, banVerdictTuDong, demMuc, ghiSo, nguoiThaoTac } from './cong.js';
 import { backfillSoCai, docSoCai } from './ledger.js';
+import { docSoCai as docSoCaiKho, demSoCai as demSoCaiKho } from './kho/kho-socai.js';
 import { diTruTatCa, tomTatDiTru } from './kho/di-tru.js';
 import { tinhHoSo } from './tincay.js';
 import { trangHoSoTacGia, trangTinCay } from './ui-tincay.js';
@@ -448,6 +449,82 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
   }
   if (muonJson) return res.json({ run_id: id });
   res.redirect(303, `/runs/${id}`);
+});
+
+// ---- API JSON cho ứng dụng một trang (specs/R9) ----
+// Mọi route ở đây chỉ đọc qua lớp kho và trả dữ liệu thuần; không dựng HTML, không chạm đĩa.
+
+const soNguyen = (v: unknown, mac: number): number => {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : mac;
+};
+
+app.get('/api/lich-su', (req, res) => {
+  const q = req.query as Record<string, string | undefined>;
+  const trang = soNguyen(q.trang, 1);
+  const moiTrang = Math.min(200, soNguyen(q.moi_trang, 25));
+  const loc = { repo: q.repo || undefined, skill: (q.skill as 'code' | 'doc' | undefined) || undefined };
+  const tong = rm.dem(loc);
+  res.json({
+    trang,
+    moi_trang: moiTrang,
+    tong,
+    so_trang: Math.max(1, Math.ceil(tong / moiTrang)),
+    runs: rm.danhSach({ ...loc, gioi_han: moiTrang, bo_qua: (trang - 1) * moiTrang }),
+  });
+});
+
+app.get('/api/so-cai', (req, res) => {
+  const q = req.query as Record<string, string | undefined>;
+  const trang = soNguyen(q.trang, 1);
+  const moiTrang = Math.min(200, soNguyen(q.moi_trang, 50));
+  const loc = {
+    repo: q.repo || undefined,
+    verdict: (q.verdict as 'PASS' | 'FAIL' | undefined) || undefined,
+    skill: (q.skill as 'code' | 'doc' | undefined) || undefined,
+    tac_gia: q.tac_gia || undefined,
+    q: q.q || undefined,
+  };
+  const tong = demSoCaiKho(loc);
+  res.json({
+    trang,
+    moi_trang: moiTrang,
+    tong,
+    so_trang: Math.max(1, Math.ceil(tong / moiTrang)),
+    muc: docSoCaiKho({ ...loc, gioi_han: moiTrang, bo_qua: (trang - 1) * moiTrang }),
+  });
+});
+
+app.get('/api/tin-cay', (req, res) => {
+  const repo = String(req.query.repo ?? '') || undefined;
+  res.json({ repo: repo ?? null, ho_so: tinhHoSo(docSoCaiKho(repo ? { repo } : {})) });
+});
+
+app.get('/api/cau-hinh', (_req, res) => {
+  const c = docConfig();
+  const cfgNcc = cauHinhHienTai(c);
+  // KHÔNG trả khoá hay token — chỉ trả trạng thái đủ để giao diện hiển thị
+  res.json({
+    che_do: MODE,
+    repo_dang_chon: c.repo_dang_chon,
+    repos: c.repos.map((r) => ({ ...r, co_clone: coFile(r.local_path) })),
+    co_github_token: Boolean(c.github_token),
+    agent: { ncc: c.agent.ncc, phuong_thuc: cfgNcc.phuong_thuc, model: cfgNcc.model, max_probe: c.agent.max_probe, skeptic: c.agent.skeptic },
+    truc: c.truc,
+    so_dang_chay: rm.soDangChay(),
+  });
+});
+
+app.get('/api/repos', (_req, res) => {
+  const c = docConfig();
+  res.json(
+    c.repos.map((r) => ({
+      ...r,
+      dang_chon: r.github === c.repo_dang_chon,
+      co_clone: coFile(r.local_path),
+      so_luot_cham: rm.dem({ repo: r.github }),
+    })),
+  );
 });
 
 // JSON API (phục vụ MCP B4.4 + tích hợp ngoài)
