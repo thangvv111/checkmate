@@ -48,6 +48,26 @@ const TRAN_GOI_MS = Math.max(60_000, Number(process.env.CHECKER_TRAN_GOI_S ?? 18
 export const MAU_MAT_XAC_THUC =
   /not logged in|please run \/login|failed to authenticate|authentication failed|oauth[^.]*(expired|invalid|refresh)|session expired|invalid api key|unauthorized/i;
 
+/**
+ * Câu trả lời THẬT của model có hình dạng: khối fence, hoặc JSON, hoặc dài. Câu CLI báo lỗi thì ngắn
+ * và trơ. Phân biệt bằng HÌNH DẠNG chứ không bằng cách thu hẹp mẫu — repo nào có spec về xác thực thì
+ * probe sinh ra gần như luôn chứa 'unauthorized' hay 'session expired', và mẫu hẹp cỡ nào cũng dính.
+ */
+export function coVeLaTraLoiModel(out: string): boolean {
+  const t = out.trim();
+  if (t.length > 400 || t.includes('```')) return true;
+  return (t.startsWith('{') && t.endsWith('}')) || (t.startsWith('[') && t.endsWith(']'));
+}
+
+/**
+ * CLI có mất xác thực không. stderr khớp mẫu là chắc chắn — model không bao giờ trả lời qua stderr.
+ * stdout thì phải loại trừ khả năng chính nó là câu trả lời của model (R3.13).
+ */
+export function matXacThuc(out: string, err: string): boolean {
+  if (MAU_MAT_XAC_THUC.test(err)) return true;
+  return MAU_MAT_XAC_THUC.test(out) && !coVeLaTraLoiModel(out);
+}
+
 /** Lỗi do CẤU HÌNH của chính checker, không phải trục trặc thoáng qua — thử lại vô nghĩa. */
 export class LoiCauHinhCli extends Error {}
 
@@ -126,7 +146,7 @@ export class ClaudeCliProvider implements ModelProvider {
       child.on('error', reject);
       child.on('close', (code) => {
         clearTimeout(timer);
-        if (MAU_MAT_XAC_THUC.test(out) || MAU_MAT_XAC_THUC.test(err)) {
+        if (matXacThuc(out, err)) {
           // Lỗi CẤU HÌNH: thử lại chỉ tốn thêm một lượt y hệt, phiên hết hạn không tự sống lại
           return reject(
             new LoiCauHinhCli(

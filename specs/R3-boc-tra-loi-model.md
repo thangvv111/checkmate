@@ -40,6 +40,12 @@ PR) có thể giấu chỉ thị trong chính artifact để lái checker.
 - **R3.12** — Claude Code CLI báo mất xác thực bằng cách **in ra stdout rồi thoát 0**. Harness PHẢI nhận
   ra và báo đúng bản chất; không nhận ra thì nó coi câu báo lỗi là câu trả lời của model rồi ném tiếp
   "không tìm thấy JSON", và người đọc log đi sửa nhầm chỗ.
-- **R3.13** — Mẫu nhận diện phải phủ cả **phiên hết hạn**, không chỉ ca chưa đăng nhập bao giờ. Đồng thời
-  không được rộng tới mức bắt nhầm câu trả lời thật của model có nhắc tới xác thực.
+- **R3.13** — Mẫu nhận diện phải phủ cả **phiên hết hạn**, không chỉ ca chưa đăng nhập bao giờ. Nhưng
+  mẫu chữ chỉ là điều kiện CẦN: repo nào có spec về xác thực thì probe sinh ra gần như luôn chứa
+  `unauthorized`, `session expired`… và mẫu hẹp cỡ nào cũng dính. Đo được: 3/4 câu trả lời hợp lệ bị
+  bắt nhầm, một lượt chấm chết oan dù đăng nhập vừa chạy tốt.
+
+  Kết luận PHẢI dựa thêm vào **chỗ xuất hiện và hình dạng**: chuỗi ở `stderr` là chắc chắn (model không
+  trả lời qua `stderr`); chuỗi ở `stdout` chỉ tính khi output KHÔNG mang hình dạng một câu trả lời —
+  không khối fence, không JSON trọn vẹn, không dài.
 - **R3.14** — Mất xác thực là lỗi CẤU HÌNH: KHÔNG thử lại. Phiên hết hạn không tự sống lại ở lượt thứ hai.
