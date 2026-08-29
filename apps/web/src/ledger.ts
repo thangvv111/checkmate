@@ -1,13 +1,9 @@
-import { appendFileSync, existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { chuanMuc, type Verdict } from '../../../packages/shared/src/types.js';
-import { GOC } from './paths.js';
 import type { RunMeta } from './runs.js';
+import { docSoCai as khoDocSoCai, ghiSoCai as khoGhiSoCai, ghiSoCaiNeuChua, coTrongSoCai } from './kho/kho-socai.js';
 
 // Sổ cái verdict (spec §12 · B4.1): append-only MỌI verdict — bề mặt truy vết cho kiểm soát/kiểm toán.
 // Khác review-log.jsonl (sổ HÀNH ĐỘNG cổng merge/reject) — sổ này ghi KẾT LUẬN chấm.
-
-const SO = join(GOC, 'web-runs', 'verdict-ledger.jsonl');
 
 export interface MucSoCai {
   luc: string;
@@ -55,31 +51,18 @@ export function mucTuMeta(meta: RunMeta, backfill = false): MucSoCai | null {
   };
 }
 
-export function ghiSoCai(muc: MucSoCai): void {
-  appendFileSync(SO, JSON.stringify(muc) + '\n', 'utf8');
-}
+// Sổ cái nay sống trong cơ sở dữ liệu (specs/R9) — hai tên dưới chỉ còn là cửa vào lớp kho,
+// giữ lại để chỗ gọi cũ không phải đổi.
+export const ghiSoCai = khoGhiSoCai;
+export const docSoCai = khoDocSoCai;
 
-export function docSoCai(): MucSoCai[] {
-  if (!existsSync(SO)) return [];
-  return readFileSync(SO, 'utf8')
-    .split('\n')
-    .filter(Boolean)
-    .flatMap((l) => {
-      // W6: một dòng hỏng (sập giữa lúc ghi, sửa tay nhầm) không được brick cả trang sổ cái
-      try { return [JSON.parse(l) as MucSoCai]; } catch { return []; }
-    });
-}
-
-// Chạy một lần lúc server khởi động: run cũ có verdict mà chưa vào sổ → append (đánh dấu backfill)
+// Chạy một lần lúc server khởi động: lượt chấm cũ có verdict mà chưa vào sổ → ghi thêm (đánh dấu backfill)
 export function backfillSoCai(metas: RunMeta[]): number {
-  const daCo = new Set(docSoCai().map((m) => m.run_id));
   let them = 0;
-  for (const meta of metas.filter((m) => m.verdict && !daCo.has(m.id))) {
+  for (const meta of metas) {
+    if (!meta.verdict || coTrongSoCai(meta.id)) continue;
     const muc = mucTuMeta(meta, true);
-    if (muc) {
-      ghiSoCai(muc);
-      them++;
-    }
+    if (muc && ghiSoCaiNeuChua(muc)) them++;
   }
   return them;
 }

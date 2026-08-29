@@ -1,11 +1,6 @@
-import { appendFileSync } from 'node:fs';
 import { userInfo } from 'node:os';
-import { join } from 'node:path';
 import { chuanMuc, type Finding, type Verdict } from '../../../packages/shared/src/types.js';
-import { GOC } from './paths.js';
-
-// Sổ append-only mọi hành động qua cổng merge — nằm cạnh web-runs (ngoài git)
-const SO_LOG = join(GOC, 'web-runs', 'review-log.jsonl');
+import { ghiSoCong } from './kho/kho-socai.js';
 
 export function nguoiThaoTac(): string {
   try {
@@ -21,8 +16,23 @@ export function demMuc(findings: Finding[]): { high: number; medium: number; low
   return d;
 }
 
+// Sổ hành động cổng nay là bảng chỉ-ghi-thêm trong cơ sở dữ liệu (specs/R9.6).
 export function ghiSo(entry: Record<string, unknown>): void {
-  appendFileSync(SO_LOG, JSON.stringify({ luc: new Date().toISOString(), ...entry }) + '\n', 'utf8');
+  const hd = entry.hanhDong === 'merge' ? 'merge' : entry.hanhDong === 'reject' ? 'reject' : null;
+  if (!hd || typeof entry.run_id !== 'string') return; // không dựng được hàng thì không ghi rác vào sổ
+  const xacNhan = Array.isArray(entry.xac_nhan_medium) ? entry.xac_nhan_medium.length : 0;
+  ghiSoCong({
+    run_id: entry.run_id,
+    luc: new Date().toISOString(),
+    hanh_dong: hd,
+    nguoi: typeof entry.nguoi === 'string' ? entry.nguoi : 'không rõ',
+    chi_tiet:
+      typeof entry.ghi_chu === 'string' && entry.ghi_chu
+        ? entry.ghi_chu
+        : xacNhan
+          ? `${xacNhan} cảnh báo medium được chấp nhận`
+          : undefined,
+  });
 }
 
 function dongFinding(f: Finding): string {

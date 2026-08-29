@@ -16,6 +16,7 @@ import { khoiRepo } from './ui-repo.js';
 import { cloneRepo, danhSachPr, danhSachRepoCuaToken, dongPr, fetchVaRouter, ganTrangThaiCommit, layPrHienTai, mergePr, binhLuanPr, traVeDev } from './github.js';
 import { banPhanQuyet, banReceipt, banVerdictTuDong, demMuc, ghiSo, nguoiThaoTac } from './cong.js';
 import { backfillSoCai, docSoCai } from './ledger.js';
+import { diTruTatCa, tomTatDiTru } from './kho/di-tru.js';
 import { tinhHoSo } from './tincay.js';
 import { trangHoSoTacGia, trangTinCay } from './ui-tincay.js';
 import { trangLedger } from './ui-ledger.js';
@@ -33,8 +34,11 @@ const TMP_DOC = join(GOC, 'web-runs', 'tmp');
 mkdirSync(TMP_DOC, { recursive: true });
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 {
-  const them = backfillSoCai(rm.danhSach());
-  if (them > 0) console.log(`Sổ cái verdict: backfill ${them} run cũ vào sổ`);
+  // Di trú dữ liệu đời file sang cơ sở dữ liệu (specs/R9.7) — chạy đúng một lần, file gốc giữ nguyên
+  const tomTat = tomTatDiTru(diTruTatCa());
+  if (tomTat) console.log(`Di trú sang cơ sở dữ liệu — ${tomTat}`);
+  const them = backfillSoCai(rm.danhSach({ gioi_han: 500 }));
+  if (them > 0) console.log(`Sổ cái verdict: backfill ${them} lượt chấm cũ vào sổ`);
 }
 
 // ---- Chế độ trực (B4.3): hook run-xong + poller ----
@@ -138,7 +142,9 @@ app.get('/lich-su', (req, res) => {
     trang: Math.max(1, Number(q.trang) || 1),
   };
   const c = docConfig();
-  res.send(trangLichSu(rm.danhSach(), loc, c.repos.map((r) => r.github)));
+  // Trước đây trang này nhận danh sách đã bị cắt còn 30 lượt mà không khai ở đâu cả — giờ dữ liệu
+  // nằm trong cơ sở dữ liệu nên lấy rộng ra; lọc và phân trang xuống SQL là việc của lát sau.
+  res.send(trangLichSu(rm.danhSach({ gioi_han: 1000 }), loc, c.repos.map((r) => r.github)));
 });
 
 // Danh sách repo để đổ vào ô lọc của sổ cái / tin cậy / lịch sử
@@ -146,7 +152,7 @@ const dsRepo = (): string[] => docConfig().repos.map((r) => r.github);
 
 app.get('/ledger', (req, res) => {
   const congTheoRun = new Map<string, string>();
-  for (const m of rm.danhSach()) {
+  for (const m of rm.danhSach({ gioi_han: 1000 })) {
     if (m.ketQuaCong) congTheoRun.set(m.id, `${m.ketQuaCong.hanhDong === 'merge' ? 'đã merge' : 'trả về dev'} · ${m.ketQuaCong.nguoi}`);
   }
   res.send(trangLedger(docSoCai(), congTheoRun, dsRepo(), String(req.query.repo ?? '') || undefined));

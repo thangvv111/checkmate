@@ -65,6 +65,39 @@ CREATE TRIGGER IF NOT EXISTS so_cong_cam_xoa
 BEFORE DELETE ON so_cong
 BEGIN SELECT RAISE(ABORT, 'so cong chi ghi them: khong duoc XOA'); END;
 
+-- Lượt chấm. Khác sổ cái: bảng này SỬA ĐƯỢC (trạng thái đổi khi chạy xong, kết quả cổng ghi sau).
+-- Sổ cái mới là nơi kết luận đóng băng.
+CREATE TABLE IF NOT EXISTS run (
+  id             TEXT PRIMARY KEY,
+  tieu_de        TEXT NOT NULL,
+  skill          TEXT NOT NULL,
+  trang_thai     TEXT NOT NULL CHECK (trang_thai IN ('dang_chay','xong','loi')),
+  bat_dau        TEXT NOT NULL,
+  ket_thuc       TEXT,
+  repo           TEXT,
+  pr_so          INTEGER,
+  pr_head_sha    TEXT,
+  pr_tac_gia     TEXT,
+  verdict        TEXT,
+  cong_hanh_dong TEXT,
+  cong_luc       TEXT,
+  cong_nguoi     TEXT,
+  cong_chi_tiet  TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_run_bat_dau      ON run(bat_dau DESC);
+CREATE INDEX IF NOT EXISTS ix_run_repo_bat_dau ON run(repo, bat_dau DESC);
+CREATE INDEX IF NOT EXISTS ix_run_pr           ON run(pr_so, pr_head_sha);
+
+-- Dòng sự kiện của mỗi lượt, dùng để phát lại. Tách bảng riêng để danh sách lượt chấm không phải
+-- kéo theo hàng nghìn dòng log — đúng chỗ mà bản đời file trước đây làm sai.
+CREATE TABLE IF NOT EXISTS run_su_kien (
+  run_id  TEXT NOT NULL REFERENCES run(id) ON DELETE CASCADE,
+  thu_tu  INTEGER NOT NULL,
+  t       INTEGER NOT NULL,
+  e       TEXT NOT NULL,
+  PRIMARY KEY (run_id, thu_tu)
+);
+
 -- Sổ di trú: ghi nhận mỗi bước nạp dữ liệu cũ đã chạy, để lần khởi động sau không nạp lại.
 CREATE TABLE IF NOT EXISTS da_di_tru (
   buoc   TEXT PRIMARY KEY,

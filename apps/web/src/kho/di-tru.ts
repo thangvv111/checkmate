@@ -1,7 +1,9 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { moDb } from './db.js';
 import { ghiSoCaiNeuChua, ghiSoCong } from './kho-socai.js';
+import { docMeta, luuMeta, luuSuKien } from './kho-run.js';
+import type { RunMeta, StoredEvent } from '../runs.js';
 import { GOC } from '../paths.js';
 import type { MucSoCai } from '../ledger.js';
 
@@ -88,12 +90,45 @@ function diTruSoCong(): KetQuaDiTru {
   return { buoc, daChay: true, soDong: dem, boQua: hong };
 }
 
+
+function diTruRun(): KetQuaDiTru {
+  const buoc = 'run-json';
+  if (daLam(buoc)) return { buoc, daChay: false, soDong: 0, boQua: 0 };
+  const thuMuc = join(GOC, 'web-runs');
+  if (!existsSync(thuMuc)) {
+    ghiNhan(buoc, 0, 0);
+    return { buoc, daChay: true, soDong: 0, boQua: 0 };
+  }
+  let dem = 0;
+  let hong = 0;
+  for (const f of readdirSync(thuMuc).filter((x) => x.endsWith('.json'))) {
+    let data: { meta?: RunMeta; events?: StoredEvent[] };
+    try {
+      data = JSON.parse(readFileSync(join(thuMuc, f), 'utf8')) as { meta?: RunMeta; events?: StoredEvent[] };
+    } catch {
+      hong++; // file cụt vì máy chủ sập giữa lúc ghi — bỏ qua nhưng đếm ra
+      continue;
+    }
+    const meta = data.meta;
+    if (!meta?.id || !meta.batDau) {
+      hong++;
+      continue;
+    }
+    if (docMeta(meta.id)) continue; // đã nạp từ trước
+    luuMeta(meta);
+    if (data.events?.length) luuSuKien(meta.id, data.events);
+    dem++;
+  }
+  ghiNhan(buoc, dem, hong);
+  return { buoc, daChay: true, soDong: dem, boQua: hong };
+}
+
 /**
  * Chạy mọi bước di trú còn thiếu. Gọi ở lúc khởi động; các lần sau là không-làm-gì.
  * File gốc KHÔNG bị xoá — chúng ở lại làm bản đối chứng.
  */
 export function diTruTatCa(): KetQuaDiTru[] {
-  return [diTruSoCai(), diTruSoCong()];
+  return [diTruSoCai(), diTruSoCong(), diTruRun()];
 }
 
 export function tomTatDiTru(kq: KetQuaDiTru[]): string {

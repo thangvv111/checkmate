@@ -1,10 +1,10 @@
 import { spawn } from 'node:child_process';
-import { mkdirSync, writeFileSync, readdirSync, readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import type { RunEvent, Verdict } from '../../../packages/shared/src/types.js';
 import { GOC } from './paths.js';
-import { ghiSoCai, mucTuMeta } from './ledger.js';
+import { mucTuMeta } from './ledger.js';
+import * as kho from './kho/kho-run.js';
+import { ghiSoCaiNeuChua } from './kho/kho-socai.js';
 
 export interface StoredEvent {
   t: number; // ms từ lúc bắt đầu run
@@ -31,16 +31,13 @@ interface RunState {
   subs: Set<(ev: StoredEvent) => void>;
 }
 
-const KHO = join(GOC, 'web-runs');
-mkdirSync(KHO, { recursive: true });
-
 export class RunManager {
   private runs = new Map<string, RunState>();
   // hook chế độ trực: gọi khi một run kết thúc CÓ verdict (sau khi đã ghi sổ cái)
   onXong?: (meta: RunMeta) => void;
 
   soDangChay(): number {
-    return [...this.runs.values()].filter((r) => r.meta.trangThai === 'dang_chay').length;
+    return kho.soDangChay();
   }
 
   batDau(
@@ -55,6 +52,9 @@ export class RunManager {
     const meta: RunMeta = { id, tieuDe, skill, trangThai: 'dang_chay', batDau: new Date().toISOString(), pr, repo };
     const state: RunState = { meta, events: [], subs: new Set() };
     this.runs.set(id, state);
+    // Ghi vào kho NGAY khi bắt đầu: trần số lượt song song và cờ "PR này đang chấm" nay đọc từ cơ sở
+    // dữ liệu, nên một lượt chưa vào kho là một lượt vô hình với các cổng đó.
+    kho.luuMeta(meta);
 
     const t0 = Date.now();
     const ghi = (e: RunEvent): void => {
@@ -97,7 +97,9 @@ export class RunManager {
       if (meta.verdict) {
         meta.trangThai = 'xong';
         const muc = mucTuMeta(meta);
-        if (muc) ghiSoCai(muc); // sổ cái verdict (B4.1) — append-only mọi kết luận chấm
+        // Sổ cái chỉ ghi thêm (R9.4): chạy lại cùng một run không được ghi đè, và cũng không được
+        // làm sập lượt — dùng đường bỏ-qua-nếu-đã-có.
+        if (muc) ghiSoCaiNeuChua(muc);
         try {
           this.onXong?.(meta);
         } catch (e) {
@@ -123,52 +125,50 @@ export class RunManager {
 
   lay(id: string): RunState | undefined {
     if (this.runs.has(id)) return this.runs.get(id);
-    // nạp lại từ đĩa (sau restart) để replay
-    const f = join(KHO, `${id}.json`);
-    if (existsSync(f)) {
-      let data: { meta: RunMeta; events: StoredEvent[] };
-      try { data = JSON.parse(readFileSync(f, 'utf8')) as { meta: RunMeta; events: StoredEvent[] }; } catch { return undefined; } // L10: file run cụt (sập giữa lúc ghi) — bỏ qua
-      const state: RunState = { meta: data.meta, events: data.events, subs: new Set() };
-      this.runs.set(id, state);
-      return state;
-    }
-    return undefined;
+    // Lượt đã kết thúc (hoặc do tiến trình khác chạy): dựng lại từ kho để phát lại
+    const meta = kho.docMeta(id);
+    if (!meta) return undefined;
+    const state: RunState = { meta, events: kho.docSuKien(id), subs: new Set() };
+    this.runs.set(id, state);
+    return state;
   }
 
-  danhSach(): RunMeta[] {
-    const daNap = new Set(this.runs.keys());
-    for (const f of readdirSync(KHO).filter((x) => x.endsWith('.json'))) {
-      const id = f.replace(/\.json$/, '');
-      if (!daNap.has(id)) this.lay(id);
-    }
-    return [...this.runs.values()]
-      .map((r) => r.meta)
-      .sort((a, b) => b.batDau.localeCompare(a.batDau))
-      .slice(0, 30);
+  /**
+   * Danh sách lượt chấm. Trước đây hàm này đọc TOÀN BỘ thư mục và nạp cả dòng sự kiện lên bộ nhớ
+   * mỗi lần được gọi, rồi cắt còn 30 — nghĩa là trang lịch sử bị chặn ở 30 lượt mà không ai khai.
+   * Nay lọc và phân trang chạy dưới cơ sở dữ liệu, dòng sự kiện chỉ đọc khi thật sự phát lại.
+   */
+  danhSach(loc: kho.LocRun = {}): RunMeta[] {
+    return kho.danhSachRun({ gioi_han: 30, ...loc });
+  }
+
+  dem(loc: kho.LocRun = {}): number {
+    return kho.demRun(loc);
   }
 
   // Verdict đã chấm cho đúng cặp (PR, commit) — nền tảng cho idempotent theo SHA
   timTheoPr(so: number, sha: string): RunMeta | undefined {
-    return this.danhSach().find((m) => m.pr?.so === so && m.pr.headSha === sha && m.trangThai === 'xong');
+    return kho.timTheoPr(so, sha);
   }
 
-  // Các PR đã bị trả về dev (đọc từ meta đã lưu) — để hàng đợi không đánh mất việc
+  // Các PR đã bị trả về dev — để hàng đợi không đánh mất việc
   daTraVe(): RunMeta[] {
-    return this.danhSach().filter((m) => m.ketQuaCong?.hanhDong === 'reject');
+    return kho.daTraVe();
   }
 
   dangChayPr(so: number): boolean {
-    return [...this.runs.values()].some((r) => r.meta.pr?.so === so && r.meta.trangThai === 'dang_chay');
+    return kho.dangChayPr(so);
   }
 
   ghiKetQuaCong(id: string, kq: RunMeta['ketQuaCong']): void {
     const st = this.lay(id);
     if (!st) return;
     st.meta.ketQuaCong = kq;
-    this.luu(st);
+    kho.luuMeta(st.meta);
   }
 
   private luu(state: RunState): void {
-    writeFileSync(join(KHO, `${state.meta.id}.json`), JSON.stringify({ meta: state.meta, events: state.events }), 'utf8');
+    kho.luuMeta(state.meta);
+    kho.luuSuKien(state.meta.id, state.events);
   }
 }
