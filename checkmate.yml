@@ -19,7 +19,8 @@ runner:
       ../packages/harness/src/target.js      → dungDiff
       ../packages/harness/src/runner.js      → parseJUnit · docRunnerCfg · docReviewCfg · mauBoQuaDiff
       ../packages/harness/src/sandbox.js     → loiNapFile
-      ../packages/harness/src/thu-vien.js    → nhanVaoThuVien · docThuVien · voiKhoaThuVien · slugRepo
+      ../packages/harness/src/thu-vien.js    → nhanVaoThuVien · docThuVien · voiKhoaThuVien · slugRepo · tachMotProbe · catKhoiTest · coKhoiTest · kiemCanBang · tachRule · capNhatLichSu · timVaGoTrungHanhVi
+      ../packages/harness/src/dedup-probe.js → tachRule · timTrungChayLai · timNghiTrung · apDungPhanXu
       ../packages/harness/src/jsonx.js       → bocJson · bocCode · LoiModelDungTool
       ../packages/harness/src/rao.js         → taoRao · LOI_RAO
       ../apps/web/src/ui.js                  → escHtml · tachNguon
