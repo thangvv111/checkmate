@@ -495,7 +495,17 @@ export async function chaySkillCode(
           `KHÔNG probe nào chứng minh được gì: tất cả đều đỏ trên cả hai nhánh hoặc không chạy tới nơi. ` +
             `Thường là do IMPORT SAI MODULE — hàm nằm ở file khác file bạn đoán. Đối chiếu lại phần diff để lấy ĐÚNG ` +
             `đường dẫn file chứa hàm, và import trực tiếp (không bọc try/catch rồi assert typeof, vì như thế lỗi import ` +
-            `biến thành assertion thường và che mất nguyên nhân thật).\n${viSao}`,
+            `biến thành assertion thường và che mất nguyên nhân thật).` +
+            // PR thêm MODULE MỚI thì nhánh gốc không có file đó, nên nhánh gốc không chạy được probe nào.
+            // Không nói ra thì model tưởng mình sai đường import và đi sửa nhầm chỗ ở lượt sinh lại.
+            (baseKq === undefined || baseKq.length === 0
+              ? `\n\nLƯU Ý QUAN TRỌNG: nhánh gốc KHÔNG chạy được probe nào (thường vì PR này THÊM MODULE MỚI mà nhánh gốc chưa có). ` +
+                `Vậy không có đối chứng, và mọi probe đỏ đều thành nghi_van chứ không thành hồi quy. Muốn lượt chấm có cơ sở, ` +
+                `probe phải CHẠY ĐƯỢC VÀ PASS trên nhánh PR — tức là kiểm đúng chữ ký hàm như diff khai. ` +
+                `Đọc lại chữ ký trong diff: đúng tên tham số, đúng thứ tự, đúng kiểu trả về. Probe đỏ ở đây nhiều khả năng là ` +
+                `PROBE SAI GIẢ ĐỊNH chứ không phải code sai.`
+              : '') +
+            `\n${viSao}`,
           runner,
         ),
       );

@@ -40,3 +40,15 @@ Ký hiệu: `br` = kết quả trên nhánh PR, `bs` = kết quả trên nhánh 
 - **R1.12** — Có ít nhất một probe `hoi_quy` thì verdict PHẢI là `FAIL`.
 - **R1.13** — Probe `nghi_van` không tự nó làm nên `FAIL`, nhưng PHẢI được nêu trong verdict để người
   đọc biết vùng chưa kết luận được.
+
+## Khi nhánh gốc không chạy được probe nào
+
+- **R1.14** — Pull request **thêm module mới** thì nhánh gốc chưa có file đó, nên nhánh gốc không chạy
+  được probe nào. Đây là ca bình thường, không phải hỏng: máy vẫn dán nhãn đúng theo [R1.6](#luật)
+  (thiếu đối chứng → `nghi_van`, không phong hồi quy).
+- **R1.15** — Trong ca đó, lượt sinh lại probe PHẢI được cho biết rằng nhánh gốc không có đối chứng, và
+  rằng probe đỏ ở đây nhiều khả năng là **probe sai giả định** chứ không phải code sai. Không nói ra thì
+  model tưởng mình import sai đường và đi sửa nhầm chỗ — mất trọn lượt sinh lại.
+- **R1.16** — Hệ quả cần hiểu đúng: với pull request thêm tính năng mới, con đường DUY NHẤT để lượt chấm
+  có cơ sở kết luận là probe **chạy được và pass trên nhánh PR** — tức nó chứng minh tính năng mới hoạt
+  động đúng spec. Không có đường nào khác, và đó là điều đúng đắn.
