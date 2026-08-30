@@ -1,5 +1,6 @@
-import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { docKho, ghiKho } from './kho-bi-mat.js';
 
 // Lớp NHÀ CUNG CẤP MODEL — tách hai khái niệm vốn bị gộp làm một:
 //   • Nhà cung cấp (Anthropic / GitHub / OpenAI…) — ai chạy model
@@ -75,31 +76,7 @@ export interface KetQuaKiem {
 }
 
 const GOC = resolve('.');
-const FILE_SECRET = join(GOC, '.secrets.json');
 const FILE_KIEM = join(GOC, '.ncc-verify.json');
-
-interface KhoSecret {
-  claude_code_oauth_token?: string;
-  khoa?: Partial<Record<MaNcc, string>>;
-}
-
-function docKho(): KhoSecret {
-  try {
-    if (!existsSync(FILE_SECRET)) return {};
-    return JSON.parse(readFileSync(FILE_SECRET, 'utf8')) as KhoSecret;
-  } catch {
-    return {};
-  }
-}
-
-function ghiKho(kho: KhoSecret): void {
-  writeFileSync(FILE_SECRET, JSON.stringify(kho, null, 2), { encoding: 'utf8', mode: 0o600 });
-  try {
-    chmodSync(FILE_SECRET, 0o600);
-  } catch {
-    /* Windows không chmod được — bỏ qua */
-  }
-}
 
 // Khoá của một nhà cung cấp: ưu tiên biến môi trường của dịch vụ, sau đó tới khoá dán qua giao diện.
 export function docKhoa(ma: MaNcc): string {

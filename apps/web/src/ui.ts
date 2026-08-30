@@ -278,11 +278,11 @@ export function trangSettings(v: SettingsView): string {
 ${v.daLuu ? '<div class="card" style="border-color:var(--teal);margin-bottom:14px">✓ Đã lưu cấu hình.</div>' : ''}
 <form method="post" action="/settings">
 <div class="card" style="max-width:760px;margin-bottom:14px">
-  <h3>GitHub token</h3>
-  <p style="font-size:12.5px;color:var(--muted)">Một token dùng chung cho mọi repo đã kết nối. Fine-grained PAT cần: Pull requests (read &amp; write) · Contents (read) · Commit statuses (write) trên các repo muốn review.</p>
+  <h3>GitHub token — repo <span class="mono">${v.repoGithub}</span></h3>
+  <p style="font-size:12.5px;color:var(--muted)">Mỗi repo giữ chìa riêng. Token dán ở đây CHỈ áp cho repo đang chọn; repo khác đặt chìa của nó ở khối “Repo đã kết nối” bên dưới. Fine-grained PAT cần: Pull requests (read &amp; write) · Contents (read) · Commit statuses (write) trên chính repo đó.</p>
   <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Token — hiện tại: <span class="mono">${v.tokenChe}</span></label>
   <input name="github_token" type="password" placeholder="dán token mới để thay, bỏ trống để giữ nguyên" ${ro} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
-  <p style="font-size:11.5px;color:var(--muted);margin:6px 0 0">Lưu token trước, rồi bấm <b>Nạp danh sách repo từ token</b> ở khối dưới để chọn repo — khỏi gõ tay owner/tên.</p>
+  <p style="font-size:11.5px;color:var(--muted);margin:6px 0 0">Thêm repo mới thì đi bốn bước ở khối dưới — dán đường dẫn, dán chìa, kiểm kết nối, chọn nhánh.</p>
   <details style="margin-top:10px">
     <summary style="font-size:12.5px;cursor:pointer;color:var(--muted)">Sửa tay repo đang chọn (nâng cao)</summary>
     <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Repo (owner/tên)</label>

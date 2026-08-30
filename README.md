@@ -70,8 +70,10 @@ nếu chưa đặt token. Chế độ `org` bật bằng `--org`.
 
 **Cloud (deploy online):** code thuần Node + git, không phụ thuộc Windows. Yêu cầu môi trường:
 - `ANTHROPIC_API_KEY` — bắt buộc (cloud không có Claude Code CLI; provider tự chuyển sang API).
-- `github_token` trong cấu hình — bắt buộc (cloud không có `gh`); PAT quyền đọc repo + pull request,
-  thêm quyền ghi nếu dùng cổng Merge/Reject.
+- Token GitHub **theo từng repo** — bắt buộc (cloud không có `gh`). Dán ở ⚙ Cài đặt qua bốn bước
+  (đường dẫn → token → kiểm kết nối → chọn nhánh); PAT quyền đọc repo + pull request, thêm quyền ghi
+  nếu dùng cổng Merge/Reject. `GITHUB_TOKEN` trong môi trường vẫn dùng được làm chìa chung cho repo
+  chưa có chìa riêng.
 - `git` có trong image; repo đích clone sẵn vào `local_path` (hoặc mount volume).
 - Volume bền cho `web-runs/` (lịch sử run + sổ review-log) và `probes-lib/` (thư viện probe tích luỹ)
   — mất volume là mất tài sản regression. `CHECKER_LIB_DIR` đổi được chỗ chứa thư viện.
