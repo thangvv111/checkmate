@@ -73,6 +73,30 @@ describe('bảng đường dẫn module trong checkmate.yml khớp export thật
     expect(sai, `\n${sai.join('\n')}`).toEqual([]);
   });
 
+  it('module ĐÃ khai thì phải khai đủ HÀM của nó — chiều thứ ba, cũng đã lọt một lần', () => {
+    // Ca thật: target.js đã có trong bảng với đúng `dungDiff`, rồi lát sau thêm trichMaLuat/timLuatMoi
+    // mà không ai phải khai. Probe gọi vào, chết với «trichMaLuat is not a function», và lượt chấm biến
+    // hai probe hỏng thành hai finding HIGH chặn merge với lời văn sai hẳn bản chất.
+    //
+    // Chỉ soi `export function` và `export class` — đó là thứ probe gọi. Hằng số và kiểu thì không bắt,
+    // kẻo lưới nghiêm tới mức người ta khai cho xong thay vì khai cho đúng.
+    const thieu: string[] = [];
+    for (const [, duong, dsTen] of dong) {
+      const tuongDoi = duong.replace(/^\.\.\//, '').replace(/\.js$/, '.ts');
+      // Lớp dựng giao diện có mặt trong bảng vì vài hàm tiện ích (escHtml), nhưng probe kiểm hành vi
+      // chứ không kiểm HTML — ép khai đủ mọi hàm dựng trang chỉ làm bảng phình mà không ai dùng.
+      if (KHONG_CAN_KHAI.test(tuongDoi)) continue;
+      const fileTs = join(GOC, tuongDoi);
+      if (!existsSync(fileTs)) continue;
+      const daKhaiTen = new Set(dsTen.split('·').map((x) => x.trim()).filter(Boolean));
+      const src = readFileSync(fileTs, 'utf8');
+      for (const m of src.matchAll(/^export\s+(?:async\s+)?(?:function|class)\s+([A-Za-z0-9_]+)/gm)) {
+        if (!daKhaiTen.has(m[1])) thieu.push(`${duong} chưa khai hàm '${m[1]}'`);
+      }
+    }
+    expect(thieu, `\n${thieu.join('\n')}`).toEqual([]);
+  });
+
   it('module sản phẩm mới thêm PHẢI được khai vào bảng — chiều mà lưới bản đầu không soi', () => {
     // Ca thật: lát L3 thêm danh-tinh.ts nhưng quên khai. Model đoán đường import, probe chết với
     // «epBamCong is not a function» dù hàm đó có export thật — mất một probe của cả lượt chấm.

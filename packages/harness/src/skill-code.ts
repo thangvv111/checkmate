@@ -94,6 +94,24 @@ export function khopIdProbe(title: string, id: string): boolean {
  * Khớp cả hai chiều theo tiền tố: luật mới «R9» phủ probe neo «R9.4», và luật mới «R9.4» cũng làm probe
  * neo «R9» thành không-đối-chứng-được.
  */
+/**
+ * Lỗi này là dấu hiệu PROBE HỎNG, không phải sản phẩm sai.
+ *
+ * Probe do model sinh ra, nó có thể import sai module, gọi sai chữ ký, hay đoán sai hình dạng dữ liệu.
+ * Khi lỗi trông như vậy thì probe **chưa chạy tới hành vi cần kiểm**, nên không có cơ sở kết luận gì về
+ * sản phẩm — kể cả khi probe neo vào một luật mới.
+ *
+ * Bản đầu của nhãn `vi_pham_luat_moi` thiếu đúng lưới này, và một lượt chấm thật đã biến hai probe
+ * import sai đường thành hai finding HIGH chặn merge, kèm lời văn «PR công bố quy tắc rồi chưa viết
+ * code hiện thực nó» — trong khi code có đủ. Mọi nhãn khác đều có lưới không-kết-luận-khi-chưa-chứng
+ * -minh-được-gì; nhãn mới cũng phải có.
+ */
+export function coVeLaProbeHong(loi: string): boolean {
+  return /is not a function|Cannot find module|is not defined|Cannot read propert|expected 'undefined' to be|ERR_MODULE_NOT_FOUND|SyntaxError|Unterminated/i.test(
+    loi,
+  );
+}
+
 export function laLuatMoi(specRule: string | undefined, dsLuatMoi: string[]): boolean {
   if (!specRule || dsLuatMoi.length === 0) return false;
   const cua = [...trichMaLuat(specRule)];
@@ -116,7 +134,8 @@ export function phanLoaiMay(
   // Chặn ở đây KHÔNG phải vì «code sai so với một luật cũ» — thứ đó có thể là nợ kỹ thuật đã biết. Mà
   // vì pull request TỰ MÂU THUẪN: khai một luật rồi vi phạm ngay chính luật vừa khai, trong cùng một
   // lần thay đổi.
-  if (laLuatMoi && brFail) return 'vi_pham_luat_moi';
+  // Probe hỏng thì chưa chạy tới hành vi cần kiểm — không kết luận, dù nó neo vào luật mới
+  if (laLuatMoi && brFail && !coVeLaProbeHong(br.message)) return 'vi_pham_luat_moi';
   const bsFail = bs !== undefined && bs.status === 'failed';
   if (!brFail && !bsFail) return 'pass';
   if (!brFail && bsFail) return 'cai_thien';
