@@ -1,13 +1,25 @@
-import { userInfo } from 'node:os';
 import { chuanMuc, type Finding, type Verdict } from '../../../packages/shared/src/types.js';
 import { ghiSoCong } from './kho/kho-socai.js';
 
-export function nguoiThaoTac(): string {
-  try {
-    return userInfo().username;
-  } catch {
-    return 'operator';
-  }
+/**
+ * ĐÃ GỠ: `nguoiThaoTac()` lấy `userInfo().username` — tài khoản HỆ ĐIỀU HÀNH chạy tiến trình. Trên máy
+ * chủ đó là `ubuntu`, nên sổ kiểm toán ghi cùng một cái tên cho mọi hành động của mọi người, và một
+ * cổng phê duyệt không truy được ai phê duyệt thì không phải cổng.
+ *
+ * Người thao tác nay lấy từ PHIÊN ĐĂNG NHẬP qua `layDanhTinh(req)` — cửa duy nhất, R11.1 và R11.4.
+ * Không để lại hàm thay thế nào ở đây: có một hàm tiện tay trả về «một cái tên nào đó» là mời chỗ gọi
+ * sau này dùng lại đúng cái bệnh vừa chữa (R11.3).
+ */
+
+/**
+ * So tên người bấm với tác giả PR. Hai định danh đến từ hai hệ khác nhau (tài khoản CheckMate và định
+ * danh GitHub) nên KHÔNG khớp được chắc chắn — đây là phép so thô, cố ý bắt sót hơn là bắt oan. Bắt
+ * sót thì hai cái tên vẫn nằm cạnh nhau trong sổ cho người đọc tự thấy; bắt oan thì cảnh báo dựng lên
+ * ở đúng lúc người ta cần merge gấp, và lần sau không ai đọc cảnh báo nữa.
+ */
+export function trungNguoi(nguoiBam: string, tacGiaPr: string): boolean {
+  const gon = (x: string) => x.trim().toLowerCase().replace(/[._-]/g, '');
+  return gon(nguoiBam) !== '' && gon(nguoiBam) === gon(tacGiaPr);
 }
 
 export function demMuc(findings: Finding[]): { high: number; medium: number; low: number } {
@@ -32,6 +44,10 @@ export function ghiSo(entry: Record<string, unknown>): void {
   // bỏ qua cảnh báo NÀO» — một con số 3 không trả lời được câu đó, và bản thân nó cũng không kiểm chứng
   // lại được với verdict đã ghim.
   const ds = Array.isArray(entry.xac_nhan_medium) ? entry.xac_nhan_medium.map((x) => String(x)) : [];
+  const tacGiaPr = typeof entry.tac_gia_pr === 'string' && entry.tac_gia_pr ? entry.tac_gia_pr : undefined;
+  // R11.17 — người bấm trùng tác giả PR thì GHI DẤU, không chặn. Hai cái tên nằm cạnh nhau trên cùng
+  // một hàng thì người kiểm toán tự thấy, kể cả những ca hệ thống nhận diện sót.
+  const tuDuyet = tacGiaPr && typeof entry.nguoi === 'string' && trungNguoi(entry.nguoi, tacGiaPr);
   const moTaXacNhan = ds.length ? `chấp nhận ${ds.length} cảnh báo medium: ${ds.join(', ')}` : '';
   const ghiChu = typeof entry.ghi_chu === 'string' ? entry.ghi_chu.trim() : '';
   ghiSoCong({
@@ -40,7 +56,8 @@ export function ghiSo(entry: Record<string, unknown>): void {
     hanh_dong: hd,
     nguoi: typeof entry.nguoi === 'string' ? entry.nguoi : 'không rõ',
     // Cả hai vế đều giữ khi cùng có — ghi chú của người và danh sách đã chấp nhận trả lời hai câu khác nhau
-    chi_tiet: [ghiChu, moTaXacNhan].filter(Boolean).join(' · ') || undefined,
+    tac_gia_pr: tacGiaPr,
+    chi_tiet: [ghiChu, moTaXacNhan, tuDuyet ? '⚠ người bấm cổng TRÙNG tác giả PR (tự duyệt)' : ''].filter(Boolean).join(' · ') || undefined,
   });
 }
 

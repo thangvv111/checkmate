@@ -117,13 +117,15 @@ export interface MucSoCong {
   luc: string;
   hanh_dong: 'merge' | 'reject';
   nguoi: string;
+  /** R11.16 — tác giả PR ĐÓNG BĂNG tại thời điểm bấm; bảng `run` sửa được nên không nối sang đó để tra */
+  tac_gia_pr?: string;
   chi_tiet?: string;
 }
 
 export function ghiSoCong(m: MucSoCong): void {
   moDb()
-    .prepare('INSERT INTO so_cong (run_id, luc, hanh_dong, nguoi, chi_tiet) VALUES (?,?,?,?,?)')
-    .run(m.run_id, m.luc, m.hanh_dong, m.nguoi, m.chi_tiet ?? null);
+    .prepare('INSERT INTO so_cong (run_id, luc, hanh_dong, nguoi, tac_gia_pr, chi_tiet) VALUES (?,?,?,?,?,?)')
+    .run(m.run_id, m.luc, m.hanh_dong, m.nguoi, m.tac_gia_pr ?? null, m.chi_tiet ?? null);
 }
 
 export function docSoCong(runId?: string): MucSoCong[] {
@@ -132,6 +134,7 @@ export function docSoCong(runId?: string): MucSoCong[] {
     ? d.prepare('SELECT * FROM so_cong WHERE run_id = ? ORDER BY luc DESC').all(runId)
     : d.prepare('SELECT * FROM so_cong ORDER BY luc DESC').all()) as Hang[];
   return hang.map((h) => ({
+    tac_gia_pr: h.tac_gia_pr == null ? undefined : String(h.tac_gia_pr),
     run_id: String(h.run_id),
     luc: String(h.luc),
     hanh_dong: String(h.hanh_dong) as MucSoCong['hanh_dong'],

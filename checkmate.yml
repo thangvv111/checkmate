@@ -29,7 +29,7 @@ runner:
       ../apps/web/src/config.js              → cheToken · slugRepoGithub · timRepo · diTruTokenRepo · cauHinhHienTai
       ../apps/web/src/kho-bi-mat.js          → docTokenRepo · docTokenRieng · ghiTokenRepo · xoaTokenRepo · coToken · khoaRepo
       ../apps/web/src/github.js              → repoTuPath · tachOwnerRepo · kiemTraRepo · cheTokenTrongVan · coGhCli · coDuongVaoGithub
-      ../apps/web/src/cong.js                → ghiSo · demMuc · nguoiThaoTac · banReceipt · banVerdictTuDong · banPhanQuyet
+      ../apps/web/src/cong.js                → ghiSo · demMuc · trungNguoi · banReceipt · banVerdictTuDong · banPhanQuyet
       ../apps/web/src/kho/db.js              → moDb · dongDb
       ../apps/web/src/kho/kho-run.js         → luuMeta · luuSuKien · docMeta · docSuKien · danhSachRun · demRun · timTheoPr · dangChayPr · soDangChay · donLuotMoCoi · daTraVe
       ../apps/web/src/kho/kho-socai.js       → ghiSoCai · ghiSoCaiNeuChua · docSoCai · demSoCai · coTrongSoCai · ghiSoCong · docSoCong · LoiTrungRun

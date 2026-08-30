@@ -11,15 +11,14 @@ import {
   coTaiKhoanNao,
   danhTinhNeuCo,
   docCookie,
+  epBamCong,
+  layDanhTinh,
+  LoiDanhTinh,
   kiemMatKhau,
   taoPhien,
   xoaPhien,
-  type DanhTinh,
 } from './danh-tinh.js';
 import { trangLogin, type TrangThaiLogin } from './ui-login.js';
-
-/** Yêu cầu đã qua lớp chặn cửa thì chắc chắn có danh tính — khỏi phải đọc lại ở từng route */
-type ReqCoDanhTinh = express.Request & { danhTinh: DanhTinh };
 
 import { MODE, cauHinhHienTai, cheToken, cheToken2, docConfig, diTruTokenRepo, docTokenThueBao, envAgent, ghiConfig, ghiTokenThueBao } from './config.js';
 import { DANH_MUC_NCC, dinhNghia, docSoKiem, ghiKhoa, kiemConHieuLuc, type CauHinhNcc, type MaNcc, type PhuongThuc } from './ncc.js';
@@ -31,7 +30,7 @@ import { khoiRepo } from './ui-repo.js';
 import { cloneRepo, danhSachNhanh, danhSachPr, danhSachRepoCuaToken, dongPr, fetchVaRouter, ganTrangThaiCommit, kiemTraRepo, layPrHienTai, mergePr, binhLuanPr, tachOwnerRepo, traVeDev } from './github.js';
 import { coToken, docTokenRepo, docTokenRieng, ghiTokenRepo, xoaTokenRepo } from './kho-bi-mat.js';
 import { coDuongVaoGithub, coGhCli } from './github.js';
-import { banPhanQuyet, banReceipt, banVerdictTuDong, demMuc, ghiSo, nguoiThaoTac } from './cong.js';
+import { banPhanQuyet, banReceipt, banVerdictTuDong, demMuc, ghiSo } from './cong.js';
 import { backfillSoCai, docSoCai } from './ledger.js';
 import { docSoCai as docSoCaiKho, demSoCai as demSoCaiKho } from './kho/kho-socai.js';
 import { diTruTatCa, tomTatDiTru } from './kho/di-tru.js';
@@ -55,11 +54,7 @@ const DUONG_MO = new Set(['/login', '/logout', '/health']);
 /** R11.2 — không có phiên hợp lệ thì chặn, KỂ CẢ khi lớp xác thực bên ngoài đã cho qua. */
 app.use((req, res, next) => {
   if (DUONG_MO.has(req.path)) return next();
-  const dt = danhTinhNeuCo(req);
-  if (dt) {
-    (req as ReqCoDanhTinh).danhTinh = dt;
-    return next();
-  }
+  if (danhTinhNeuCo(req)) return next();
   // API trả JSON, trang trả chuyển hướng — client gọi API mà nhận HTML thì lỗi biến thành «JSON hỏng»,
   // tức lại một ca báo sai bản chất.
   if (req.path.startsWith('/api/')) {
@@ -767,6 +762,15 @@ app.post('/api/runs/:id/merge', async (req, res) => {
   const d = demMuc(v.findings);
   if (d.high > 0 || v.result === 'FAIL') return loiCong(res, 403, 'Verdict FAIL (có finding HIGH) — nút merge khoá theo luật cổng.');
   // W5: client gửi DANH SÁCH id finding đã tick — server so khớp tập với các finding medium thật của verdict
+  // R11.1 + R11.18 — đọc danh tính và ép quyền TRƯỚC khối try bắt lỗi GitHub: người thiếu quyền mà
+  // nhận thông báo «GitHub từ chối» là báo sai hẳn bản chất, và họ sẽ đi hỏi nhầm người.
+  let dtMerge;
+  try {
+    dtMerge = layDanhTinh(req);
+    epBamCong(dtMerge);
+  } catch (e) {
+    return loiCong(res, e instanceof LoiDanhTinh && e.ma === 'khong_du_quyen' ? 403 : 401, (e as Error).message);
+  }
   const tickIds = String((req.body as Record<string, string>).tick_ids ?? '').split(',').filter(Boolean);
   const mediumIds = v.findings.filter((f) => chuanMuc(f.severity) === 'medium').map((f) => f.id);
   const thieu = mediumIds.filter((id) => !tickIds.includes(id));
@@ -777,7 +781,7 @@ app.post('/api/runs/:id/merge', async (req, res) => {
     if (hienTai.headSha !== st.meta.pr.headSha) {
       return loiCong(res, 409, `PR đã có commit mới (${hienTai.headSha.slice(0, 7)} ≠ ${st.meta.pr.headSha.slice(0, 7)}) — verdict cũ hết hiệu lực, chạy kiểm lại rồi mới merge. <a href="/">← về trang chính</a>`);
     }
-    const nguoi = nguoiThaoTac();
+    const nguoi = dtMerge.ten;
     const xacNhan = v.findings.filter((f) => chuanMuc(f.severity) === 'medium').map((f) => f.title_vi);
     await binhLuanPr(cfg, st.meta.pr.so, banReceipt(v, nguoi, xacNhan));
     await mergePr(cfg, st.meta.pr.so, `${st.meta.tieuDe} (#${st.meta.pr.so})`,
@@ -785,7 +789,7 @@ app.post('/api/runs/:id/merge', async (req, res) => {
       st.meta.pr.headSha); // W1: GitHub tự 409 nếu head đã đổi — đóng nốt cửa sổ race sau lần layPrHienTai ở trên
     const kq = { hanhDong: 'merge' as const, luc: new Date().toISOString(), nguoi, chiTiet: `merge PR #${st.meta.pr.so} @ ${st.meta.pr.headSha.slice(0, 7)}` };
     rm.ghiKetQuaCong(st.meta.id, kq);
-    ghiSo({ hanhDong: 'merge', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.id, verdict: v.result, nguoi, xac_nhan_medium: xacNhan });
+    ghiSo({ hanhDong: 'merge', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.id, verdict: v.result, nguoi, tac_gia_pr: st.meta.pr.tacGia, xac_nhan_medium: xacNhan });
     res.redirect(303, `/runs/${st.meta.id}`);
   } catch (e) {
     loiCong(res, 500, `GitHub từ chối: ${(e as Error).message.slice(0, 300)}`);
@@ -798,9 +802,16 @@ app.post('/api/runs/:id/reject', async (req, res) => {
   const cfg = docConfig();
   if (!st || !st.meta.verdict || !st.meta.pr) return loiCong(res, 404, 'Run không tồn tại hoặc không gắn PR.');
   if (st.meta.ketQuaCong) return loiCong(res, 409, `Run này đã ${st.meta.ketQuaCong.hanhDong} lúc ${st.meta.ketQuaCong.luc}.`);
+  let dtReject;
+  try {
+    dtReject = layDanhTinh(req);
+    epBamCong(dtReject);
+  } catch (e) {
+    return loiCong(res, e instanceof LoiDanhTinh && e.ma === 'khong_du_quyen' ? 403 : 401, (e as Error).message);
+  }
   const b = req.body as Record<string, string>;
   try {
-    const nguoi = nguoiThaoTac();
+    const nguoi = dtReject.ten;
     // W4: đóng PR (không-hoàn-tác) TRƯỚC — comment nói "PR đã đóng" chỉ được đăng khi điều đó đã đúng
     await dongPr(cfg, st.meta.pr.so);
     let kenh: 'review' | 'comment' | 'loi_comment' = 'comment';
@@ -812,7 +823,7 @@ app.post('/api/runs/:id/reject', async (req, res) => {
     }
     const kq = { hanhDong: 'reject' as const, luc: new Date().toISOString(), nguoi, chiTiet: `đã đóng PR + phán quyết qua ${kenh === 'loi_comment' ? 'LỖI post (đóng vẫn hiệu lực)' : kenh} (chờ dev vá & reopen)` };
     rm.ghiKetQuaCong(st.meta.id, kq);
-    ghiSo({ hanhDong: 'reject', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.id, verdict: st.meta.verdict.result, nguoi, kenh, dong_pr: true });
+    ghiSo({ hanhDong: 'reject', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.id, verdict: st.meta.verdict.result, nguoi, tac_gia_pr: st.meta.pr.tacGia, kenh, dong_pr: true });
     res.redirect(303, `/runs/${st.meta.id}`);
   } catch (e) {
     loiCong(res, 500, `GitHub từ chối: ${(e as Error).message.slice(0, 300)}`);
