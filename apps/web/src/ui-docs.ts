@@ -85,6 +85,17 @@ export function trangDocs(): string {
       <p>Maker là ai cũng được: người, người + copilot, hay một AI agent khác. Checker không quan tâm ai viết —
       nó chỉ kiểm sản phẩm. Và checker <b>không thay người approve cuối</b>: chuỗi luôn là
       maker → checker → <b>người bấm merge</b>.</p>
+
+      <h3>Ý kiến của model không chặn được merge</h3>
+      <p>Đây là ranh giới quan trọng nhất của CheckMate, và nó là ranh giới <b>cơ học</b> chứ không phải lời hứa.
+      Model đề xuất probe (phép thử đối kháng) và viết diễn giải cho finding — nhưng model <b>không có tool nào</b>.
+      Máy chủ mới là bên chạy probe thật, trong sandbox, trên cả nhánh PR lẫn nhánh gốc để đối chứng.</p>
+      <p>Việc <b>phân loại kết quả</b> cũng do máy quyết theo bảng chân trị, model không được tự giác luật đó.
+      Và chỉ một nhãn duy nhất — <b>hồi quy</b>, tức đỏ ở nhánh PR nhưng xanh ở nhánh gốc — mới đủ tư cách chặn
+      merge. Model có viết hay đến đâu, nghi ngờ nhiều đến đâu, mà máy không dán được nhãn đó thì cổng vẫn mở.</p>
+      <p>Đi kèm là các lưới chống xanh giả theo chiều ngược lại: probe bị <code>skip</code> không được tính là pass;
+      thiếu dữ liệu đối chứng thì không được phong hồi quy; và nếu không probe nào chứng minh được gì thì lượt chấm
+      <b>kết thúc bằng lỗi, không ra PASS</b> — thà không kết luận còn hơn kết luận rỗng.</p>
     </section>
 
     <section id="verdict">
@@ -221,13 +232,33 @@ export function trangDocs(): string {
 
     <section id="thu-vien">
       <h2>Thư viện probe tích luỹ</h2>
-      <p class="tomtat">Càng dùng càng sắc: probe tốt của lượt trước được giữ lại, chạy lại miễn phí ở mọi lượt sau.</p>
+      <p class="tomtat">Mỗi lượt chấm để lại một lớp regression: probe đã chứng minh được giữ lại, chạy lại ở
+      mọi lượt sau mà không tốn thêm một lời gọi model nào.</p>
+      <p>Phần lớn thứ trong một lượt chấm là chi phí dùng một lần — prompt, lời gọi model, thời gian sandbox.
+      Thư viện probe thì khác: nó ở lại. Repo chạy càng nhiều lượt thì lớp regression càng dày, và lớp đó chạy
+      <b>miễn phí về mặt model</b> vì probe đã có sẵn, chỉ tốn thời gian sandbox.</p>
+      <p>Nói cho đúng phạm vi: cơ chế thì có và đo được — thư viện của một repo demo hiện có 41 probe, trong đó
+      11 là bản chạy-lại trùng lặp bị cơ chế lọc loại ra. Nhưng <b>đường cong tích luỹ thì chưa đo</b>: CheckMate
+      mới chạy trên repo demo, chưa phục vụ dự án thật nào, nên chưa có dữ liệu theo thời gian để nói "càng lâu
+      càng tốt". Đó là kỳ vọng của thiết kế, không phải kết quả đã quan sát.</p>
       <p>Sau mỗi lượt chấm, probe nào đã <b>chứng minh khớp contract</b> (hợp đồng vào/ra của API — chạy đạt
       trên nhánh gốc) được nhận vào thư viện theo repo. Lượt sau, checker chạy: probe mới sinh
       <b>+ toàn bộ thư viện</b> — lớp regression này không tốn thêm call model nào.</p>
       <ul>
-        <li>Nhận vào <b>từng probe một</b>, không nhận cả gói — cái fail-gốc bị cắt ra, phần còn lại phải chạy lại chứng minh sạch mới được nhận.</li>
-        <li>Trùng nội dung (hash) thì không nhận lại; thư viện có trần, đầy thì loại cái cũ nhất.</li>
+        <li>Nhận vào <b>từng probe một</b>: mỗi probe được tách thành một file độc lập chạy được một mình,
+        và file tách đó phải chạy sạch trên nhánh gốc mới được nhận — nó là artifact mới chưa từng chạy.</li>
+        <li><b>Trùng lặp xử theo bốn tầng.</b> Hai tầng đầu cơ học, không tốn model: bản chạy-lại của cùng
+        một commit bị loại thẳng; probe neo vào cùng luật spec thì vào diện nghi. Tầng ba mới hỏi model,
+        và hỏi đúng một câu hẹp — <i>hai phép thử này có cho ra cùng một finding không</i> — chứ không hỏi
+        "có giống nhau không". Tầng bốn không hỏi ai: nó nhìn <b>hành vi đo được</b> — hai probe cùng luật
+        cho kết quả giống hệt nhau qua ít nhất ba lượt chấm chung, trong đó có ít nhất một lượt không phải
+        pass, thì mới bị coi là trùng.</li>
+        <li><b>Mọi đường mờ đều nghiêng về GIỮ.</b> Loại nhầm một probe thật là mất tài sản trong im lặng;
+        giữ nhầm một bản sao chỉ tốn chỗ. Model phân vân, trả lời thiếu, hay tự mâu thuẫn đều thành giữ
+        lại — và mọi lần loại đều ghi rõ probe nào, trùng với cái nào, vì sao.</li>
+        <li>Hai probe cùng xanh suốt <b>không</b> bị coi là trùng: đồng thuận khi không có gì xảy ra thì
+        không phải bằng chứng.</li>
+        <li>Thư viện có trần đếm theo probe; đầy thì loại cái cũ nhất và xoá cả file, không để lại file mồ côi.</li>
         <li>Probe thư viện cũng đi qua đúng ba lưới máy như probe mới — không có "ghế VIP".</li>
       </ul>
     </section>
@@ -267,6 +298,13 @@ export function trangDocs(): string {
         CheckMate đứng trên nền test của repo, không thay thế giám sát production.</li>
         <li><b>Verdict là của máy, quyết định là của người.</b> Merge một PR có cảnh báo Medium là lựa chọn
         có ghi danh — CheckMate bảo đảm lựa chọn đó tỉnh táo và có vết, không bảo đảm nó đúng.</li>
+        <li><b>Probe do model sinh, và model có lúc viết hỏng.</b> Có lượt nó viết vỡ cú pháp, có lượt nó
+        đoán sai module chứa hàm. Hệ có lưới đỡ — sinh lại kèm đúng thông báo lỗi, và không đủ cơ sở thì
+        lượt chấm kết thúc bằng lỗi chứ không ra PASS — nhưng đây là chỗ mong manh nhất, và repo nào có
+        spec nói về chính việc xử lý chuỗi hay xác thực thì probe cho nó càng khó viết đúng.</li>
+        <li><b>Mỗi lượt chấm tốn vài phút và vài chục nghìn token.</b> Đó là cái giá của việc chạy thật
+        trên hai nhánh thay vì đọc diff rồi đoán. Chi phí từng lượt được ghi ngay trong verdict để không
+        ai phải suy từ log.</li>
       </ul>
     </section>
   </div>`;
