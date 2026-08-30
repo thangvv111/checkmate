@@ -91,8 +91,11 @@ export function khopIdProbe(title: string, id: string): boolean {
  * hỏi từng cái. Chỉ cần MỘT mã là luật mới thì probe đó không được lấy nhánh gốc làm đối chứng — probe
  * neo vào luật mới lẫn luật cũ thì phần «mới» vẫn là phần chưa từng có đối chứng.
  *
- * Khớp cả hai chiều theo tiền tố: luật mới «R9» phủ probe neo «R9.4», và luật mới «R9.4» cũng làm probe
- * neo «R9» thành không-đối-chứng-được.
+ * Khớp theo tiền tố MỘT CHIỀU: luật mới «R9» phủ probe neo «R9.4» (mục con của một luật hoàn toàn mới
+ * thì cũng mới). Nhưng chiều ngược lại thì KHÔNG: «R1.18» mới không làm probe neo «R1» thành neo-luật
+ * -mới, vì R1 đã tồn tại ở nhánh gốc với mười mấy mục. Khớp hai chiều nghĩa là chỉ cần thêm một mục con
+ * là cả họ mã cha bị coi là mới — probe khai lỏng `spec_rule: 'R1'` trong khi thực chất kiểm R1.5 sẽ bị
+ * gán nhầm nhóm rồi chặn oan.
  */
 /**
  * Lỗi này là dấu hiệu PROBE HỎNG, không phải sản phẩm sai.
@@ -116,7 +119,7 @@ export function coVeLaProbeHong(loi: string): boolean {
   return (
     /\bis not a function\b/i.test(loi) ||
     /Cannot find module|ERR_MODULE_NOT_FOUND|Failed to load|Transform failed/i.test(loi) ||
-    /\b(ReferenceError|SyntaxError):/.test(loi) ||
+    /\b(ReferenceError|SyntaxError|TypeError|RangeError):/.test(loi) ||
     /Cannot read propert(?:y|ies) of (?:undefined|null)/i.test(loi) ||
     /expected '?undefined'? to be a? ?function/i.test(loi)
   );
@@ -125,7 +128,7 @@ export function coVeLaProbeHong(loi: string): boolean {
 export function laLuatMoi(specRule: string | undefined, dsLuatMoi: string[]): boolean {
   if (!specRule || dsLuatMoi.length === 0) return false;
   const cua = [...trichMaLuat(specRule)];
-  return cua.some((m) => dsLuatMoi.some((n) => m === n || m.startsWith(n + '.') || n.startsWith(m + '.')));
+  return cua.some((m) => dsLuatMoi.some((n) => m === n || m.startsWith(n + '.')));
 }
 
 export function phanLoaiMay(

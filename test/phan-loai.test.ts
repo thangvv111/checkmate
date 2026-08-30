@@ -123,7 +123,9 @@ describe('nhận diện probe neo vào luật mới', () => {
   it('khớp cả khi model khai mã cha hoặc mã con', () => {
     expect(laLuatMoi('R9', ['R9'])).toBe(true);
     expect(laLuatMoi('R9.4', ['R9'])).toBe(true);   // luật mới cả cụm R9 thì phủ mục con
-    expect(laLuatMoi('R9', ['R9.4'])).toBe(true);   // và ngược lại: mục con mới thì cụm cha chưa đối chứng được
+    // Chiều ngược lại KHÔNG đúng, và lượt chấm thứ ba đã bác giả định ban đầu: một mục con mới không
+    // làm cả họ mã cha thành mới, vì mã cha thường đã có sẵn hàng chục mục ở nhánh gốc.
+    expect(laLuatMoi('R9', ['R9.4'])).toBe(false);
   });
 
   it('probe neo nhiều luật thì chỉ cần MỘT luật mới là đủ', () => {
@@ -181,5 +183,22 @@ describe('nhánh gốc PASS thật thắng nhãn luật-mới (R1.20)', () => {
   it('đỏ cả hai + luật mới NHƯNG probe hỏng → không kết luận', () => {
     const hong = 'trichMaLuat is not a function';
     expect(phanLoaiMay(p('failed', hong), p('failed', hong), true)).toBe('ngoai_pham_vi');
+  });
+});
+
+describe('hai ca biên do lượt chấm thứ ba tìm ra', () => {
+  it('nhận mọi tên lớp lỗi runtime, đúng như chú thích code tự khai', () => {
+    // Chú thích viết «tên lớp lỗi runtime JavaScript» mà cài đặt chỉ liệt hai — lời khai lệch cài đặt.
+    for (const l of ['TypeError: Assignment to constant variable.', 'RangeError: Maximum call stack size exceeded']) {
+      expect(coVeLaProbeHong(l), `phải nhận: ${l}`).toBe(true);
+    }
+  });
+
+  it('mã cha KHÔNG thành luật mới chỉ vì có một mục con mới', () => {
+    // R1 đã có ở nhánh gốc với R1.1–R1.16. Probe khai lỏng spec_rule='R1' mà thực chất kiểm R1.5 thì
+    // không được gán nhầm sang nhóm luật-mới rồi chặn oan.
+    expect(laLuatMoi('R1', ['R1.18'])).toBe(false);
+    // Chiều còn lại vẫn đúng: cả cụm R12 mới thì mục con R12.3 cũng mới
+    expect(laLuatMoi('R12.3', ['R12'])).toBe(true);
   });
 });
