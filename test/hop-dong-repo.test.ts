@@ -1,16 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { resolve, join } from 'node:path';
 
 /**
- * Bảng đường dẫn module trong `checkmate.yml` phải KHỚP với export thật của repo.
+ * Bảng đường dẫn module trong `checkmate.yml` phải KHỚP với export thật của repo — cả hai chiều.
  *
- * Bảng đó là thứ model đọc để biết import cái gì từ đâu. Nó được khai bằng tay, và ba lượt chấm liên
- * tiếp đã hỏng vì nó sai theo ba kiểu khác nhau: thiếu một thư mục (`kho/`), khai thiếu chữ ký, và
- * khai một tên hàm ở nhầm file cộng một tên chỉ là alias cục bộ. Mỗi lần hỏng tốn một lượt chấm đầy
- * đủ và trả về "không đủ cơ sở kết luận".
+ * Bảng đó là thứ model đọc để biết import cái gì từ đâu. Nó được khai bằng tay, và bốn lượt chấm đã
+ * hỏng vì nó sai theo bốn kiểu khác nhau: thiếu một thư mục (`kho/`), không khai chữ ký hàm, khai tên
+ * hàm ở nhầm file cộng một alias cục bộ, và — ca mới nhất — module mới thêm mà quên khai hẳn.
  *
- * Tài liệu khai tay thì sai bằng tay. Lưới này biến nó thành tài liệu được kiểm tự động.
+ * Ba ca đầu là «tên đã khai nhưng sai». Ca thứ tư là «module có thật nhưng chưa khai» — chiều mà bản
+ * đầu của lưới này không soi tới. Một lưới chỉ soi chiều mình nhớ soi thì bỏ đúng chiều kia.
  */
 
 const GOC = resolve('.');
@@ -18,6 +19,16 @@ const YML = readFileSync(join(GOC, 'checkmate.yml'), 'utf8');
 
 // Dòng bảng có dạng:  ../duong/dan/mod.js   → tenA · tenB · tenC
 const DONG_BANG = /^\s*(\.\.\/[\w./-]+\.js)\s+→\s+(.+)$/gm;
+
+/**
+ * File KHÔNG cần khai trong bảng:
+ *  · test và khai báo kiểu — model không import chúng để viết probe;
+ *  · `server.ts` (điểm khởi động, probe không gọi trực tiếp), `paths.ts` (hằng số đường dẫn);
+ *  · lớp dựng giao diện `ui*.ts` — probe kiểm hành vi, không kiểm HTML;
+ *  · `apps/mcp/` — bề mặt khác, có hợp đồng riêng.
+ */
+const KHONG_CAN_KHAI =
+  /\.(test|d)\.ts$|^apps\/web\/src\/(server|paths)\.ts$|^apps\/web\/src\/ui[\w-]*\.ts$|^apps\/mcp\/|(^|\/)cli[\w-]*\.ts$/;
 
 function exportThat(fileTs: string): Set<string> {
   const src = readFileSync(fileTs, 'utf8');
@@ -60,5 +71,20 @@ describe('bảng đường dẫn module trong checkmate.yml khớp export thật
       }
     }
     expect(sai, `\n${sai.join('\n')}`).toEqual([]);
+  });
+
+  it('module sản phẩm mới thêm PHẢI được khai vào bảng — chiều mà lưới bản đầu không soi', () => {
+    // Ca thật: lát L3 thêm danh-tinh.ts nhưng quên khai. Model đoán đường import, probe chết với
+    // «epBamCong is not a function» dù hàm đó có export thật — mất một probe của cả lượt chấm.
+    const daKhai = new Set(dong.map(([, d]) => d.replace(/^\.\.\//, '')));
+    const dsFile = execSync('git ls-files "apps/web/src/*.ts" "apps/web/src/kho/*.ts" "packages/harness/src/*.ts"', {
+      cwd: GOC,
+      encoding: 'utf8',
+    })
+      .split('\n')
+      .map((x) => x.trim())
+      .filter(Boolean);
+    const thieu = dsFile.filter((f) => !KHONG_CAN_KHAI.test(f)).filter((f) => !daKhai.has(f.replace(/\.ts$/, '.js')));
+    expect(thieu, `module chưa khai trong bảng checkmate.yml: ${thieu.join(', ')}`).toEqual([]);
   });
 });

@@ -28,6 +28,15 @@ runner:
       ../apps/web/src/ncc.js                 → cheKhoa · dinhNghia · DANH_MUC_NCC · kiemConHieuLuc
       ../apps/web/src/config.js              → cheToken · slugRepoGithub · timRepo · diTruTokenRepo · cauHinhHienTai
       ../apps/web/src/kho-bi-mat.js          → docTokenRepo · docTokenRieng · ghiTokenRepo · xoaTokenRepo · coToken · khoaRepo
+      ../apps/web/src/danh-tinh.js           → layDanhTinh · danhTinhNeuCo · kiemMatKhau · taoPhien · xoaPhien · donPhienHetHan · taoTaiKhoan · doiMatKhau · doiVai · xoaTaiKhoan · dsTaiKhoan · coTaiKhoanNao · hopLeTen · docCookie · duocBamCong · epBamCong · duocVanHanh · LoiDanhTinh · TEN_COOKIE_PHIEN
+      ../apps/web/src/ui-login.js            → trangLogin
+      ../apps/web/src/ledger.js              → mucTuMeta · ghiSoCai · docSoCai · backfillSoCai
+      ../apps/web/src/tincay.js              → tinhHoSo
+      ../apps/web/src/nguon-model.js         → docTrangThaiNcc · thuNcc · thuNguon
+      ../apps/web/src/extract.js             → DINH_DANG_NHAN · trichText
+      ../apps/web/src/runs.js                → RunManager
+      ../packages/harness/src/model.js       → envChoCli · soLieuChiPhi · tomTatChiPhi · coVeLaTraLoiModel · matXacThuc · MAU_MAT_XAC_THUC · LoiCauHinhCli · kiemTraProvider · chonProvider
+      ../packages/harness/src/skill-doc.js   → chaySkillDoc
       ../apps/web/src/github.js              → repoTuPath · tachOwnerRepo · kiemTraRepo · cheTokenTrongVan · coGhCli · coDuongVaoGithub
       ../apps/web/src/cong.js                → ghiSo · demMuc · trungNguoi · banReceipt · banVerdictTuDong · banPhanQuyet
       ../apps/web/src/kho/db.js              → moDb · dongDb
