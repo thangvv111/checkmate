@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { MaNcc } from './ncc.js';
 
@@ -22,10 +22,26 @@ export interface KhoSecret {
 }
 
 export function docKho(): KhoSecret {
+  if (!existsSync(FILE_SECRET)) return {};
   try {
-    if (!existsSync(FILE_SECRET)) return {};
     return JSON.parse(readFileSync(FILE_SECRET, 'utf8')) as KhoSecret;
-  } catch {
+  } catch (e) {
+    // Trả {} im lặng ở đây là án tử cho mọi khoá còn lại: lượt ghi kế tiếp làm `ghiKho({...docKho(), …})`
+    // nên nó ghi đè file bằng object RỖNG cộng đúng một khoá mới — toàn bộ chìa cũ bốc hơi vĩnh viễn và
+    // không ai biết. File rách vì ghi dở, đĩa đầy hay sửa tay hỏng đều dẫn tới đây.
+    //
+    // Dời file rách sang tên khác (cùng khuôn đã dùng cho meta thư viện probe): bản cũ còn nguyên để
+    // cứu bằng tay, lượt ghi sau tạo file mới sạch chứ không đè lên nó, và người vận hành có dấu vết.
+    const dich = `${FILE_SECRET}.hong-${Date.now()}`;
+    try {
+      renameSync(FILE_SECRET, dich);
+      console.error(
+        `Kho bí mật ${FILE_SECRET} không đọc được (${(e as Error).message.slice(0, 120)}). Đã giữ bản hỏng ở ${dich} — ` +
+          'mọi khoá và token repo coi như CHƯA CÓ cho tới khi dán lại. Muốn cứu thì sửa tay file đó rồi đổi tên về chỗ cũ.',
+      );
+    } catch {
+      /* không dời được thì thôi — vẫn không được để lượt ghi sau đè lên bản hỏng */
+    }
     return {};
   }
 }

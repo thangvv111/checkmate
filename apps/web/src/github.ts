@@ -309,7 +309,15 @@ export function cloneRepo(github: string, dich: string, tokenEp?: string): void 
   const sach = `https://github.com/${github}.git`;
   const token = tokenEp ?? docTokenRepo(github);
   const coToken = token ? `https://x-access-token:${token}@github.com/${github}.git` : sach;
-  execFileSync('git', ['clone', '--no-single-branch', coToken, dich], { encoding: 'utf8', timeout: 600_000 });
+  try {
+    execFileSync('git', ['clone', '--no-single-branch', coToken, dich], { encoding: 'utf8', timeout: 600_000 });
+  } catch (e) {
+    // Hàm này gọi execFileSync THẲNG, không qua helper `git()`, nên lưới gột token ở đó KHÔNG che nó.
+    // Clone hỏng thì git nhắc lại nguyên URL — mà URL đang mang chìa — và chỗ gọi trả thẳng chuỗi lỗi
+    // về trình duyệt. Chìa thật lên màn hình, vào log truy cập, vào ảnh chụp màn hình người dùng gửi đi.
+    // Vi phạm chính R4.29. Gột ngay tại đây, trước khi lỗi rời khỏi hàm.
+    throw new Error(cheTokenTrongVan((e as Error).message));
+  }
   // gỡ token khỏi remote ngay: lần fetch sau dùng credential helper / token trong môi trường
   execFileSync('git', ['remote', 'set-url', 'origin', sach], { cwd: dich, encoding: 'utf8', timeout: 30_000 });
 }

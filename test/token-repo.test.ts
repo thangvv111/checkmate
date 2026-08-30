@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, readdirSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -101,6 +101,24 @@ describe('kho chìa theo repo (R4.19, R4.20)', () => {
     expect(s.claude_code_oauth_token).toBe('sk-cu');
     expect(s.khoa.anthropic).toBe('sk-ant');
     expect(s.repo_token['acme/web']).toBe('ghp_A');
+  });
+});
+
+describe('kho bí mật rách KHÔNG được nuốt im lặng rồi bị đè mất (R4.19)', () => {
+  it('file rách được giữ lại làm bằng chứng, lượt ghi sau không đè lên nó', () => {
+    // Trả {} im lặng là án tử cho mọi khoá còn lại: `ghiKho({...docKho(), …})` sẽ ghi đè file bằng
+    // object rỗng cộng đúng một khoá mới. Toàn bộ chìa cũ bốc hơi, không ai biết.
+    writeFileSync(FILE_SECRET, '{"repo_token": {"acme/web": "ghp_A"}, HỎNG', 'utf8');
+    expect(kho.docKho()).toEqual({});
+    const banHong = readdirSync(goc).filter((f) => f.startsWith('.secrets.json.hong-'));
+    expect(banHong).toHaveLength(1);
+    // bản hỏng còn NGUYÊN nội dung để cứu tay
+    expect(readFileSync(join(goc, banHong[0]), 'utf8')).toContain('ghp_A');
+    // và lượt ghi kế tiếp tạo file mới sạch, không đụng bản hỏng
+    kho.ghiTokenRepo('acme/moi', 'ghp_B');
+    expect(kho.docTokenRieng('acme/moi')).toBe('ghp_B');
+    expect(readFileSync(join(goc, banHong[0]), 'utf8')).toContain('ghp_A');
+    for (const f of readdirSync(goc).filter((x) => x.includes('.hong-'))) rmSync(join(goc, f), { force: true });
   });
 });
 

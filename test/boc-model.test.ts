@@ -71,3 +71,19 @@ describe('rào chống prompt injection', () => {
     expect(LOI_RAO.toLowerCase()).toMatch(/dữ liệu|không phải lệnh|không được làm theo/);
   });
 });
+
+describe('token KHÔNG được rời khỏi cloneRepo trong lời kêu của git (R4.29)', () => {
+  it('gột được URL mang chìa trong thông báo lỗi clone', async () => {
+    const { cheTokenTrongVan } = await import('../apps/web/src/github.js');
+    // Lời kêu thật của git khi clone hỏng — chỗ gọi trả thẳng chuỗi này về trình duyệt
+    const van = [
+      "Cloning into 'repos/acme-web'...",
+      'remote: Repository not found.',
+      "fatal: repository 'https://x-access-token:ghp_SIEUBIMAT123456@github.com/acme/web.git/' not found",
+    ].join(' | ');
+    const che = cheTokenTrongVan(van);
+    expect(che).not.toContain('ghp_SIEUBIMAT123456');
+    expect(che).not.toContain('x-access-token');
+    expect(che).toContain('github.com/acme/web'); // vẫn đủ thông tin để người đọc biết repo nào
+  });
+});
