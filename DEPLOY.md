@@ -105,11 +105,54 @@ tail -f ~/checkmate-app/checkmate.log    # log chạy
 ```
 
 ## Cập nhật code
+
+> ⚠ **Bản hướng dẫn cũ ở mục này XOÁ SỔ DỮ LIỆU PROD.** Lệnh `tar --exclude=node_modules` gói theo cả
+> `config.json`, `.secrets.json`, `web-runs/` và `probes-lib/` của MÁY DEV rồi giải nén đè lên server —
+> tức thay sổ cái, lịch sử chấm và thư viện probe của prod bằng dữ liệu máy dev. Chính tài liệu này có
+> câu «mất volume là mất tài sản regression»; lệnh cũ là cách nhanh nhất để làm đúng điều đó.
+> Không dùng lại. Quy trình đúng bên dưới.
+
+**Bước 1 — sao lưu trên server TRƯỚC (không có bước này thì không có đường lùi):**
 ```
-# trên máy dev
-tar --exclude=node_modules -czf checkmate-deploy.tar.gz checkmate demo-credit-approval demo-python
+ssh -i ~/.ssh/lightsail-key.pem ubuntu@47.131.132.95
+cd ~/checkmate-app/checkmate
+MOC=$(date +%Y%m%d-%H%M%S); SL=~/checkmate-backup-$MOC; mkdir -p $SL
+cp -p .secrets.json config.json .ncc-verify.json $SL/ 2>/dev/null
+cp -rp web-runs probes-lib runs $SL/ 2>/dev/null
+du -sh $SL          # ghi lại số này
+```
+
+**Bước 2 — đóng gói CHỈ SOURCE trên máy dev:**
+```
+cd <thư mục cha của checkmate>
+tar --exclude=node_modules --exclude=.git \
+    --exclude=config.json --exclude=.secrets.json --exclude=.ncc-verify.json \
+    --exclude=web-runs --exclude=probes-lib --exclude='probes-lib-*' \
+    --exclude=runs --exclude=repos --exclude='*.log' --exclude='bench/kq' \
+    --exclude=.worktrees --exclude='*.tar.gz' \
+    -czf checkmate-deploy.tar.gz checkmate demo-credit-approval demo-python
+# KIỂM gói trước khi gửi — lệnh dưới phải KHÔNG in ra dòng nào:
+tar -tzf checkmate-deploy.tar.gz | grep -E "secrets|/config\.json|ncc-verify|web-runs/|probes-lib/|checkmate/runs/"
 scp checkmate-deploy.tar.gz ubuntu@47.131.132.95:~
-# trên server
-tar -xzf checkmate-deploy.tar.gz -C ~/checkmate-app && cd ~/checkmate-app/checkmate && npm install
+```
+
+**Bước 3 — giải nén, cài, khởi động lại:**
+```
+tar -xzf ~/checkmate-deploy.tar.gz -C ~/checkmate-app
+cd ~/checkmate-app/checkmate && npm install --no-audit --no-fund
 sudo systemctl restart checkmate
 ```
+
+**Bước 4 — xác nhận dữ liệu còn nguyên (đối chiếu với số ở bước 1):**
+```
+systemctl is-active checkmate
+tail -20 ~/checkmate-app/checkmate.log     # tìm dòng di trú và dòng chuyển token
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:4001/     # phải 200
+```
+Đếm lại số hàng `so_cai` / `so_cong` / `run` trong `web-runs/checkmate.db` và số probe trong
+`probes-lib/`; chúng phải bằng hoặc lớn hơn trước khi deploy. Nhỏ đi là đã mất dữ liệu — khôi phục
+ngay từ `~/checkmate-backup-<mốc>`.
+
+**Vì sao không `git pull`:** repo là private và trên server không có token cho git, `git fetch` trả
+`Authentication failed`. Cây trên server cũng đã lệch khỏi lịch sử git vì các lần deploy tar trước ghi
+đè lên nó — nên «deploy» ở đây là ghi đè source, không phải cập nhật theo git.

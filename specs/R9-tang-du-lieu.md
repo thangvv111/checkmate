@@ -20,6 +20,13 @@ quy ước lập trình.
 - **R9.4** — Bảng sổ cái chỉ nhận `INSERT`. `UPDATE` và `DELETE` lên bảng đó PHẢI bị **cơ sở dữ liệu** từ
   chối bằng trigger, không phải bằng kỷ luật của người viết code. Đây là điểm chặt hơn file JSONL trước
   đây: file thì mở trình soạn thảo lên là sửa được và không để lại dấu vết.
+- **R9.4b** — `PRAGMA recursive_triggers` là thiết lập **theo từng kết nối**, không lưu trong file cơ sở
+  dữ liệu. Nghĩa là lưới chặn `INSERT OR REPLACE` của R9.4 chỉ có hiệu lực trên kết nối do `moDb()` mở.
+  Ai mở thẳng file bằng `sqlite3` CLI hay một script khác vẫn ghi đè được, và trigger sẽ không kêu.
+  Đo được trên máy chủ thật: cùng một câu REPLACE, đi qua `moDb()` thì bị chặn, mở kết nối riêng thì lọt.
+  ⇒ Tính chỉ-ghi-thêm của sổ cái là **bất biến của ứng dụng**, KHÔNG phải bất biến của file. Bảo vệ ở
+  tầng ngoài (quyền tệp, ai được chạm máy chủ) là phần không thể thay bằng code, và tài liệu vận hành
+  PHẢI nói rõ điều đó thay vì để người đọc tưởng cơ sở dữ liệu tự khoá được chính nó.
 - **R9.5** — Một verdict chỉ vào sổ đúng một lần. Ghi lại cùng `run_id` PHẢI bị từ chối, không âm thầm
   ghi đè cũng không âm thầm bỏ qua.
 - **R9.6** — Sổ hành động cổng (ai merge, ai trả về dev, chấp nhận cảnh báo nào) là một bảng riêng, cũng
