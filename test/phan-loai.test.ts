@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { phanLoaiMay, vanTayLoi, vanTayChat, khopIdProbe } from '../packages/harness/src/skill-code.js';
+import { phanLoaiMay, vanTayLoi, vanTayChat, khopIdProbe, laLuatMoi } from '../packages/harness/src/skill-code.js';
 import type { KetQuaProbe } from '../packages/harness/src/sandbox.js';
 
 // Lưới test cho TẦNG MÁY của skill code (specs/R1-phan-loai-probe.md).
@@ -94,5 +94,45 @@ describe('vân tay lỗi hai tầng', () => {
   it('vân tay chặt vẫn gột thời lượng ms và id dài — thứ đổi giữa hai lần chạy', () => {
     expect(vanTayChat('timeout after 5000 ms')).toBe(vanTayChat('timeout after 6200 ms'));
     expect(vanTayChat('order 100493827 rejected')).toBe(vanTayChat('order 200114558 rejected'));
+  });
+});
+
+describe('luật CHỈ có ở nhánh PR (R1.17–R1.20)', () => {
+  const p = (status: 'passed' | 'failed', message = '') => ({ file: 'f', title: 'P1: x', status, message }) as never;
+
+  it('probe neo luật MỚI mà đỏ ở nhánh PR thì CHẶN, dù cũng đỏ ở nhánh gốc', () => {
+    // Ca đo được: cùng một luật và cùng dòng code hỏng. Lượt có luật sẵn ở gốc ra FAIL; lượt mà PR mang
+    // cả luật lẫn code thì probe bị dán ngoai_pham_vi và verdict ra PASS — bằng chứng nằm sẵn trong tay
+    // máy mà cổng vẫn xanh.
+    const cung = 'expected 200 to be 422';
+    expect(phanLoaiMay(p('failed', cung), p('failed', cung), false)).toBe('ngoai_pham_vi');
+    expect(phanLoaiMay(p('failed', cung), p('failed', cung), true)).toBe('vi_pham_luat_moi');
+  });
+
+  it('luật mới mà probe XANH ở nhánh PR thì vẫn là pass — luật mới không tự nó thành lỗi', () => {
+    expect(phanLoaiMay(p('passed'), p('failed', 'x'), true)).toBe('cai_thien');
+    expect(phanLoaiMay(p('passed'), p('passed'), true)).toBe('pass');
+  });
+
+  it('probe bị skip vẫn là bo_qua, luật mới không được lấn lưới chống lách', () => {
+    expect(phanLoaiMay({ file: 'f', title: 'P1: x', status: 'skipped', message: '' } as never, undefined, true)).toBe('bo_qua');
+  });
+});
+
+describe('nhận diện probe neo vào luật mới', () => {
+  it('khớp cả khi model khai mã cha hoặc mã con', () => {
+    expect(laLuatMoi('R9', ['R9'])).toBe(true);
+    expect(laLuatMoi('R9.4', ['R9'])).toBe(true);   // luật mới cả cụm R9 thì phủ mục con
+    expect(laLuatMoi('R9', ['R9.4'])).toBe(true);   // và ngược lại: mục con mới thì cụm cha chưa đối chứng được
+  });
+
+  it('probe neo nhiều luật thì chỉ cần MỘT luật mới là đủ', () => {
+    expect(laLuatMoi('R4.21+R4.27', ['R4.27'])).toBe(true);
+  });
+
+  it('không nhầm sang luật khác, và không có luật mới thì không bật', () => {
+    expect(laLuatMoi('R9', ['R10'])).toBe(false);
+    expect(laLuatMoi('R9', [])).toBe(false);
+    expect(laLuatMoi(undefined, ['R9'])).toBe(false);
   });
 });
