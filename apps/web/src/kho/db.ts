@@ -117,6 +117,12 @@ export function moDb(): DatabaseSync {
   d.exec('PRAGMA journal_mode = WAL');
   d.exec('PRAGMA foreign_keys = ON');
   d.exec('PRAGMA busy_timeout = 5000');
+  // recursive_triggers mặc định TẮT, và khi tắt thì lệnh xoá NGẦM do `INSERT OR REPLACE` sinh ra KHÔNG
+  // kích hoạt trigger DELETE. Nghĩa là `so_cai_cam_xoa` chặn được DELETE viết thẳng nhưng thủng với
+  // REPLACE — hàng FAIL bị ghi đè thành PASS, không ném lỗi, không để lại bản cũ. Đã dựng lại được.
+  // R9.4 nói tính chỉ-ghi-thêm phải do CƠ SỞ DỮ LIỆU thi hành, nên bịt bằng pragma chứ không bằng
+  // kỷ luật "đừng ai viết REPLACE".
+  d.exec('PRAGMA recursive_triggers = ON');
   d.exec(SCHEMA);
   db = d;
   return d;

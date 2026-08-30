@@ -144,7 +144,8 @@ export const JS_REPO = String.raw`
   var nutNap=document.getElementById('nut-nap-repo');
   if(nutNap) nutNap.addEventListener('click', function(){
     nutNap.disabled=true; oKiem.style.color='var(--muted)'; oKiem.textContent='Đang hỏi GitHub…';
-    fetch('/api/github/repos?token='+encodeURIComponent(iToken?iToken.value:'')).then(function(r){return r.json();}).then(function(d){
+    fetch('/api/github/repos',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({token:iToken?iToken.value:''})}).then(function(r){return r.json();}).then(function(d){
       if(d.loi){ bao(oKiem,false,d.loi); return; }
       oKiem.style.color='var(--muted)'; oKiem.textContent='Chìa này mở được '+d.length+' repo — bấm để điền vào bước 1:';
       oDs.innerHTML='<div style="max-height:280px;overflow:auto;border:1px solid var(--line);border-radius:8px">'+

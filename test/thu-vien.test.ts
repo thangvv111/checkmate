@@ -118,10 +118,10 @@ describe('tầng 4 — lịch sử hành vi và gỡ trùng đo được', () =>
     expect(d.lich_su[0].trang_thai).toBe('hoi_quy');
   });
 
-  it('gỡ probe MỚI hơn khi ≥3 lượt chung giống hệt và có ít nhất một lượt không-pass', () => {
+  it('gỡ probe MỚI hơn khi ≥3 lượt chung giống hệt và có lượt cả hai cùng bắt được hồi quy', () => {
     const a = nap('P1', 'R2', '');
     const b = nap('P2', 'R2', '');
-    for (const [sha, tt] of [['s1', 'pass'], ['s2', 'ngoai_pham_vi'], ['s3', 'pass']] as const) {
+    for (const [sha, tt] of [['s1', 'pass'], ['s2', 'hoi_quy'], ['s3', 'pass']] as const) {
       tv.capNhatLichSu(SLUG, sha, [{ ten: a, trangThai: tt }, { ten: b, trangThai: tt }]);
     }
     const go = tv.timVaGoTrungHanhVi(SLUG);
@@ -131,6 +131,39 @@ describe('tầng 4 — lịch sử hành vi và gỡ trùng đo được', () =>
     expect(go[0].bangChung).toMatch(/3 lượt chung/);
     expect(tv.docThuVien(SLUG).map((d) => d.ten)).toEqual([a]);
     expect(existsSync(join(goc, SLUG, b))).toBe(false);
+  });
+
+  it('cùng hỏng vì MỘT NGUYÊN NHÂN CHUNG thì KHÔNG gỡ — đó là chuyện của môi trường, không phải của probe', () => {
+    // Ca thật: repo đích đổi mã lỗi nghiệp vụ 400 → 422. Mọi probe neo cùng luật đều đỏ cả hai nhánh
+    // với cùng vân tay lỗi ⇒ đồng loạt mang `ngoai_pham_vi` / `nghi_loi_co_san`. Chúng giống nhau vì
+    // spec đổi, không phải vì chúng kiểm cùng một thứ — gỡ là xoá vĩnh viễn cả nhóm phép thử tốt.
+    const a = nap('P1', 'R2', '');
+    const b = nap('P2', 'R2', '');
+    for (const [sha, tt] of [
+      ['s1', 'ngoai_pham_vi'],
+      ['s2', 'nghi_loi_co_san'],
+      ['s3', 'ngoai_pham_vi'],
+      ['s4', 'nghi_van'],
+    ] as const) {
+      tv.capNhatLichSu(SLUG, sha, [{ ten: a, trangThai: tt }, { ten: b, trangThai: tt }]);
+    }
+    expect(tv.timVaGoTrungHanhVi(SLUG)).toHaveLength(0);
+    expect(tv.docThuVien(SLUG)).toHaveLength(2);
+  });
+
+  it('nhãn hoàn cảnh chung KHÔNG được tính vào số lượt chung tối thiểu', () => {
+    // Hai lượt hành vi thật + hai lượt hoàn cảnh chung = vẫn chưa đủ ba lượt có thông tin
+    const a = nap('P1', 'R2', '');
+    const b = nap('P2', 'R2', '');
+    for (const [sha, tt] of [
+      ['s1', 'hoi_quy'],
+      ['s2', 'pass'],
+      ['s3', 'ngoai_pham_vi'],
+      ['s4', 'nghi_loi_co_san'],
+    ] as const) {
+      tv.capNhatLichSu(SLUG, sha, [{ ten: a, trangThai: tt }, { ten: b, trangThai: tt }]);
+    }
+    expect(tv.timVaGoTrungHanhVi(SLUG)).toHaveLength(0);
   });
 
   it('cùng XANH suốt thì KHÔNG gỡ — đồng thuận khi không có gì xảy ra không phải bằng chứng', () => {

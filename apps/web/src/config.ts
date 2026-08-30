@@ -174,9 +174,14 @@ export function diTruTokenRepo(): { chuyen: string[] } {
   return { chuyen };
 }
 
+/**
+ * Che token để hiển thị. KHÔNG lộ ký tự nào của chìa (R4.26): bảy ký tự đầu và bốn ký tự cuối không
+ * giúp người dùng phân biệt hai token — `ghp_` chiếm sẵn bốn ký tự đầu — nhưng lại là một phần chìa
+ * thật nằm trên ảnh chụp màn hình và trong log. Độ dài là đủ để nhận ra "mình đã dán đúng chỗ chưa".
+ */
 export function cheToken(token: string): string {
   if (!token) return '(chưa đặt — dùng đăng nhập gh của máy nếu có)';
-  return token.slice(0, 7) + '****' + token.slice(-4);
+  return `đã có (${token.length} ký tự)`;
 }
 
 // Env truyền xuống harness CLI theo cấu hình agent

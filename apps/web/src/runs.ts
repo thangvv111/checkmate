@@ -36,6 +36,11 @@ export class RunManager {
   // hook chế độ trực: gọi khi một run kết thúc CÓ verdict (sau khi đã ghi sổ cái)
   onXong?: (meta: RunMeta) => void;
 
+  /** Dọn xác lượt chấm của lần chạy trước — gọi MỘT lần lúc khởi động, xem kho-run.donLuotMoCoi */
+  donLuotMoCoi(): string[] {
+    return kho.donLuotMoCoi();
+  }
+
   soDangChay(): number {
     return kho.soDangChay();
   }

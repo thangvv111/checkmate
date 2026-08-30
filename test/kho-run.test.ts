@@ -124,3 +124,35 @@ describe('tra cứu theo PR — nền của luật chấm lại', () => {
     expect(k.daTraVe().map((m) => m.id)).toEqual(['b']);
   });
 });
+
+describe('dọn lượt chấm mồ côi khi khởi động lại (R8.1, đối chiếu R8.7)', () => {
+  it('hàng dang_chay của lần chạy trước bị đánh dấu lỗi, trần song song được giải phóng', () => {
+    // Ca thật: Ctrl-C server lúc đang chấm 2 PR ⇒ hai hàng nằm lại dang_chay VĨNH VIỄN ⇒ soDangChay()
+    // trả 2 mãi mãi ⇒ mọi lượt bấm tay nhận 429 và chế độ trực dừng ngay vòng đầu. Không log gì bất
+    // thường, chỉ sửa được bằng cách mở SQL.
+    k.donLuotMoCoi(); // các ca trước trong file này cũng để lại hàng dang_chay — về mốc 0 rồi mới đo
+    k.luuMeta(meta({ id: 'mc-1', trangThai: 'dang_chay', pr: { so: 12, headSha: 'aaa1' } }));
+    k.luuMeta(meta({ id: 'mc-2', trangThai: 'dang_chay', pr: { so: 15, headSha: 'bbb2' } }));
+    expect(k.soDangChay()).toBe(2);
+    expect(k.dangChayPr(12)).toBe(true);
+
+    const daDon = k.donLuotMoCoi();
+    expect(daDon.sort()).toEqual(['mc-1', 'mc-2']);
+    expect(k.soDangChay()).toBe(0);
+    expect(k.dangChayPr(12)).toBe(false);
+    expect(k.docMeta('mc-1')?.trangThai).toBe('loi');
+  });
+
+  it('nói RÕ vì sao lượt đó thành lỗi, không để người đọc tự đoán', () => {
+    k.luuMeta(meta({ id: 'mc-3', trangThai: 'dang_chay' }));
+    k.donLuotMoCoi();
+    const sk = k.docSuKien('mc-3');
+    expect(JSON.stringify(sk)).toMatch(/bỏ dở|dừng giữa chừng/);
+  });
+
+  it('không có lượt mồ côi thì không đụng gì tới lượt đã xong', () => {
+    k.luuMeta(meta({ id: 'mc-4', trangThai: 'xong' }));
+    expect(k.donLuotMoCoi()).toEqual([]);
+    expect(k.docMeta('mc-4')?.trangThai).toBe('xong');
+  });
+});

@@ -146,6 +146,36 @@ export function soDangChay(): number {
 }
 
 /** Các PR đã bị trả về dev — để hàng đợi không đánh mất việc. */
+/**
+ * Dọn lượt chấm MỒ CÔI — hàng còn `dang_chay` từ một tiến trình đã chết (Ctrl-C, deploy, crash).
+ *
+ * Trước khi trạng thái xuống cơ sở dữ liệu, nó sống trong bộ nhớ tiến trình nên restart là sạch. Nay nó
+ * BỀN VỮNG qua restart mà không có đường tự phục hồi: hai hàng mồ côi là `soDangChay()` trả 2 vĩnh
+ * viễn ⇒ mọi lượt bấm tay nhận 429 và chế độ trực dừng ngay vòng đầu. CheckMate đứng hình, không log
+ * gì bất thường, chỉ sửa được bằng cách mở SQL. Cùng bệnh mà R8.7 đã đặt luật cho khoá thư viện probe.
+ *
+ * Gọi lúc khởi động: tiến trình web là chủ duy nhất của các lượt nó khởi chạy — nó vừa mới lên thì
+ * không có lượt nào của nó đang chạy, nên mọi hàng `dang_chay` còn sót đều là xác của lần chạy trước.
+ */
+export function donLuotMoCoi(): string[] {
+  const db = moDb();
+  const moCoi = db.prepare("SELECT id FROM run WHERE trang_thai = 'dang_chay'").all() as Array<{ id: string }>;
+  if (!moCoi.length) return [];
+  const luc = new Date().toISOString();
+  db.prepare("UPDATE run SET trang_thai = 'loi', ket_thuc = ? WHERE trang_thai = 'dang_chay'").run(luc);
+  // Ghi lý do vào dòng sự kiện: một lượt chuyển sang 'loi' mà không nói vì sao cũng là báo thiếu bản chất
+  for (const { id } of moCoi) {
+    const n = (db.prepare('SELECT COALESCE(MAX(thu_tu), -1) AS m FROM run_su_kien WHERE run_id = ?').get(id) as { m: number }).m;
+    db.prepare('INSERT INTO run_su_kien (run_id, thu_tu, t, e) VALUES (?, ?, ?, ?)').run(
+      id,
+      n + 1,
+      Date.now(),
+      JSON.stringify({ type: 'log', msg: 'Lượt chấm bị bỏ dở: tiến trình CheckMate dừng giữa chừng (khởi động lại, deploy hoặc crash). Đánh dấu lỗi khi khởi động lại để trần chạy song song không bị khoá.' }),
+    );
+  }
+  return moCoi.map((r) => r.id);
+}
+
 export function daTraVe(gioiHan = 30): RunMeta[] {
   return (moDb()
     .prepare("SELECT * FROM run WHERE cong_hanh_dong = 'reject' ORDER BY bat_dau DESC LIMIT ?")

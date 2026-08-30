@@ -529,6 +529,12 @@ export interface GoTrungHanhVi {
  * ở mọi lượt chung, và ít nhất một lượt không phải pass. Hai probe cùng xanh suốt KHÔNG bị coi là
  * trùng: đồng thuận khi không có gì xảy ra không phải bằng chứng.
  */
+/**
+ * Nhãn nói về hành vi RIÊNG của một probe — nó chạy được, và kết quả là do chính nó quyết định.
+ * Mọi nhãn khác nói về hoàn cảnh chung của lượt chấm, không phân biệt được probe này với probe kia.
+ */
+const NHAN_HANH_VI_RIENG = new Set<string>(['pass', 'hoi_quy', 'cai_thien']);
+
 export function timVaGoTrungHanhVi(slug: string): GoTrungHanhVi[] {
   return voiKhoaThuVien(slug, () => {
     const meta = napMetaTrongKhoa(slug);
@@ -543,10 +549,21 @@ export function timVaGoTrungHanhVi(slug: string): GoTrungHanhVi[] {
         if (daGo.has(moi.ten)) continue;
         if (chuanRule(cu.plan.spec_rule) !== chuanRule(moi.plan.spec_rule)) continue;
         const theoSha = new Map((cu.lich_su ?? []).map((h) => [h.sha, h.trang_thai]));
-        const chung = (moi.lich_su ?? []).filter((h) => theoSha.has(h.sha));
+        // Chỉ so trên những lượt mà trạng thái nói về HÀNH VI RIÊNG của probe. `ngoai_pham_vi`,
+        // `nghi_loi_co_san`, `nghi_van`, `khong_chay`, `bo_qua` phản ánh nguyên nhân CHUNG của môi
+        // trường (spec-code đã đổi, API đổi mã lỗi, fixture đổi) — mọi probe neo cùng một luật sẽ
+        // đồng loạt mang nhãn đó dù chúng kiểm những biên hoàn toàn khác nhau. Đem chúng ra so là
+        // kết luận "trùng" từ một sự kiện không liên quan tới probe nào cả, rồi xoá VĨNH VIỄN cả
+        // nhóm. Rủi ro không đối xứng: giữ nhầm một probe thừa thì tốn vài giây mỗi lượt, gỡ nhầm
+        // một probe thật thì mất một phép thử đã từng bắt được hồi quy.
+        const chung = (moi.lich_su ?? []).filter(
+          (h) => NHAN_HANH_VI_RIENG.has(h.trang_thai) && NHAN_HANH_VI_RIENG.has(theoSha.get(h.sha) ?? ''),
+        );
         if (chung.length < 3) continue;
         if (!chung.every((h) => theoSha.get(h.sha) === h.trang_thai)) continue;
-        if (!chung.some((h) => h.trang_thai !== 'pass')) continue;
+        // Cùng im lặng không chứng minh trùng nhau — chỉ chứng minh chưa có gì để bắt. Phải có ít nhất
+        // một lượt CẢ HAI cùng bắt được một thứ.
+        if (!chung.some((h) => h.trang_thai === 'hoi_quy' || h.trang_thai === 'cai_thien')) continue;
         daGo.add(moi.ten);
         ra.push({
           go: moi.ten,

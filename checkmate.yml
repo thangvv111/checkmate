@@ -26,6 +26,16 @@ runner:
       ../apps/web/src/ui.js                  → escHtml · tachNguon
       ../apps/web/src/ui-lich-su.js          → locRuns
       ../apps/web/src/ncc.js                 → cheKhoa · dinhNghia · DANH_MUC_NCC · kiemConHieuLuc
+      ../apps/web/src/config.js              → cheToken · slugRepoGithub · timRepo · diTruTokenRepo · cauHinhHienTai
+      ../apps/web/src/kho-bi-mat.js          → docTokenRepo · docTokenRieng · ghiTokenRepo · xoaTokenRepo · coToken · khoaRepo
+      ../apps/web/src/github.js              → repoTuPath · tachOwnerRepo · kiemTraRepo · cheTokenTrongVan · coGhCli · coDuongVaoGithub
+      ../apps/web/src/cong.js                → ghiSo · docSoCong
+      ../apps/web/src/kho/db.js              → moDb · dongDb
+      ../apps/web/src/kho/kho-run.js         → luuMeta · danhSach · demRun · timTheoPr · dangChayPr · soDangChay · daTraVe
+      ../apps/web/src/kho/kho-socai.js       → ghiSoCai · ghiSoCaiNeuChua · docSoCaiKho · ghiSoCong · LoiTrungRun
+      ../apps/web/src/kho/di-tru.js          → diTruTatCa · diTruSoCai · docJsonl
+      ⚠ Lớp kho nằm trong THƯ MỤC CON `kho/`, không nằm thẳng dưới `src/` — đây là chỗ đã làm hỏng
+        một lượt chấm thật: probe import '../apps/web/src/di-tru.js' và chết vì thiếu đúng một thư mục.
     Import TRỰC TIẾP ở đầu file. Đừng bọc import trong try/catch rồi assert typeof — làm thế thì lỗi
     import biến thành assertion thường, probe trông như đã chạy trong khi nó chưa chạy được gì.
     Hàm nào mà diff của PR mới thêm thì lấy đường dẫn từ chính diff, đừng suy từ bảng trên.

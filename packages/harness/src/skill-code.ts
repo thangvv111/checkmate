@@ -1,7 +1,7 @@
 import { chuanMuc, type Finding, type RunEvent, type Severity } from '../../shared/src/types.js';
 import type { ModelProvider } from './model.js';
 import { goiCode, goiJson } from './jsonx.js';
-import { docTarget, type TargetInfo } from './target.js';
+import { docTarget, goiYDuongDanModule, type TargetInfo } from './target.js';
 import { Sandbox, type KetQuaProbe } from './sandbox.js';
 import { capNhatLichSu, docThuVien, nhanVaoThuVien, slugRepo, tachMotProbe, timVaGoTrungHanhVi } from './thu-vien.js';
 import { apDungPhanXu, promptPhanXuTrung, timNghiTrung, timTrungChayLai, type PhanXu, type UngPhanXu } from './dedup-probe.js';
@@ -369,7 +369,8 @@ export async function chaySkillCode(
     if (loiThu !== undefined) {
       if (lan === 2) throw new Error(`Probe không thu thập được sau 2 lần sinh: ${loiThu}`);
       phat({ type: 'log', msg: 'File probe lỗi thu thập — sinh lại lần 2 kèm thông báo lỗi' });
-      code = await goiCode(model, promptSinhCode(t, keHoach, rao, loiThu, runner));
+      // Kèm ĐƯỜNG ĐÚNG chứ không chỉ kèm lời kêu: lượt sinh lại mù đường thì nó đoán lại y hệt
+      code = await goiCode(model, promptSinhCode(t, keHoach, rao, loiThu + goiYDuongDanModule(loiThu, t.repo), runner));
       continue;
     }
 

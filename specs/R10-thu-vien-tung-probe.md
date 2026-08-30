@@ -65,3 +65,13 @@ phải ghi log: probe nào, trùng với probe nào, vì sao.
   mất giữa chừng: mất file nào bỏ qua file đó, không được đổ cả lượt chấm.
 - **R10.16** — Máy tách phải nhận diện regex literal khi đếm ngoặc (ngoặc trong `/x\)/` không phải
   cấu trúc), và bản cắt làm lệch cân bằng ngoặc của file PHẢI bị coi là tách hỏng.
+
+- **R10.20** — Tầng 4 chỉ được so trên những lượt mà trạng thái nói về **hành vi riêng** của probe
+  (`pass` · `hoi_quy` · `cai_thien`). Các nhãn `ngoai_pham_vi` · `nghi_loi_co_san` · `nghi_van` ·
+  `khong_chay` · `bo_qua` phản ánh hoàn cảnh CHUNG của lượt chấm — spec-code đã đổi, API đổi mã lỗi,
+  fixture đổi — nên mọi probe neo cùng một luật sẽ đồng loạt mang nhãn đó dù chúng kiểm những biên
+  khác hẳn nhau. So trên chúng là kết luận "trùng" từ một sự kiện không liên quan tới probe nào.
+- **R10.21** — Hai probe cùng `pass` mãi KHÔNG chứng minh chúng trùng nhau, chỉ chứng minh chưa có gì
+  để bắt. Tầng 4 PHẢI thấy ít nhất một lượt cả hai cùng `hoi_quy` hoặc cùng `cai_thien` mới được gỡ.
+  Rủi ro ở đây không đối xứng: giữ nhầm một probe thừa tốn vài giây mỗi lượt, gỡ nhầm một probe thật
+  là mất vĩnh viễn một phép thử đã từng bắt được hồi quy.

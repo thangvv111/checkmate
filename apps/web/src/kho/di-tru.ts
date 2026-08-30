@@ -50,15 +50,28 @@ function diTruSoCai(): KetQuaDiTru {
   if (daLam(buoc)) return { buoc, daChay: false, soDong: 0, boQua: 0 };
   const { muc, boQua } = docJsonl<MucSoCai>(join(GOC, 'web-runs', 'verdict-ledger.jsonl'));
   let dem = 0;
+  let hong = 0;
   for (const m of muc) {
     if (!m?.run_id || !m.verdict) {
       continue; // bản ghi thiếu khoá thì không dựng được hàng — đếm vào phần bỏ qua bên dưới
     }
-    if (ghiSoCaiNeuChua(m)) dem++;
+    try {
+      if (ghiSoCaiNeuChua(m)) dem++;
+    } catch (e) {
+      // MỘT dòng hỏng không được giết cả lượt di trú. Sổ JSONL cũ nằm ở file người ta sửa tay được
+      // (chính R9.4 nêu điều đó là lý do phải bỏ nó), nên một dòng thiếu cột NOT NULL hoặc mang
+      // verdict viết thường là chuyện thường. Trước đây lỗi ràng buộc thoát khỏi đây, làm sập
+      // `diTruTatCa()` NGAY LÚC KHỞI ĐỘNG — server không lên, và lặp lại y hệt mỗi lần restart.
+      //
+      // Không nuốt im lặng: nói rõ dòng nào, vì sao, để người vận hành sửa được đúng dòng đó.
+      hong++;
+      console.error(`Di trú sổ cái: bỏ qua bản ghi run_id=${m.run_id} — ${(e as Error).message.slice(0, 200)}`);
+    }
   }
   const thieuKhoa = muc.filter((m) => !m?.run_id || !m.verdict).length;
-  ghiNhan(buoc, dem, boQua + thieuKhoa);
-  return { buoc, daChay: true, soDong: dem, boQua: boQua + thieuKhoa };
+  const boSot = boQua + thieuKhoa + hong;
+  ghiNhan(buoc, dem, boSot);
+  return { buoc, daChay: true, soDong: dem, boQua: boSot };
 }
 
 interface DongReviewLog {

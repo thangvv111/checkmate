@@ -78,4 +78,6 @@ chìa thì mất cả chùm.
 
 - **R4.14** — Mọi chuỗi do người ngoài viết (tiêu đề PR, tên tác giả, tên repo) PHẢI được escape trước
   khi ghép vào HTML.
-- **R4.15** — Khoá/token hiển thị lại trên giao diện PHẢI bị che: chỉ nêu độ dài và vài ký tự đầu.
+- **R4.15** — Khoá/token hiển thị lại trên giao diện PHẢI bị che. Từ R4.26, che nghĩa là KHÔNG lộ ký
+  tự nào của chìa — chỉ nêu độ dài. Bản trước cho lộ vài ký tự đầu; điều đó bị R4.26 siết lại, vì mấy
+  ký tự ấy không giúp phân biệt hai token nhưng vẫn là một phần chìa thật nằm trên ảnh chụp màn hình.

@@ -145,20 +145,31 @@ app.get('/lich-su', (req, res) => {
     trang: Math.max(1, Number(q.trang) || 1),
   };
   const c = docConfig();
-  // Trước đây trang này nhận danh sách đã bị cắt còn 30 lượt mà không khai ở đâu cả — giờ dữ liệu
-  // nằm trong cơ sở dữ liệu nên lấy rộng ra; lọc và phân trang xuống SQL là việc của lát sau.
-  res.send(trangLichSu(rm.danhSach({ gioi_han: 1000 }), loc, c.repos.map((r) => r.github)));
+  // Bộ lọc nào CÓ CỘT trong bảng thì phải xuống SQL, đừng lọc sau khi đã cắt: nâng trần từ 30 lên
+  // 1000 rồi vẫn lọc trong bộ nhớ nghĩa là repo có 300 lượt cũ bị 1000 lượt của repo khác che khuất —
+  // trang báo "không có lượt chấm nào" trong khi dữ liệu vẫn nằm nguyên trong cơ sở dữ liệu (R9.10).
+  // Các bộ lọc còn lại (verdict, nhà cung cấp, tìm chữ) không có cột riêng nên vẫn lọc sau, nhưng nay
+  // là lọc trên tập ĐÃ thu hẹp đúng repo.
+  res.send(
+    trangLichSu(
+      rm.danhSach({ repo: loc.repo || undefined, skill: loc.skill === 'code' || loc.skill === 'doc' ? loc.skill : undefined, gioi_han: 1000 }),
+      loc,
+      c.repos.map((r) => r.github),
+    ),
+  );
 });
 
 // Danh sách repo để đổ vào ô lọc của sổ cái / tin cậy / lịch sử
 const dsRepo = (): string[] => docConfig().repos.map((r) => r.github);
 
 app.get('/ledger', (req, res) => {
+  const repo = String(req.query.repo ?? '') || undefined;
   const congTheoRun = new Map<string, string>();
-  for (const m of rm.danhSach({ gioi_han: 1000 })) {
+  // Lọc repo xuống SQL ở CẢ hai nguồn, kẻo trang lọc ra rỗng khi repo cần xem nằm ngoài 1000 lượt mới nhất
+  for (const m of rm.danhSach({ repo, gioi_han: 1000 })) {
     if (m.ketQuaCong) congTheoRun.set(m.id, `${m.ketQuaCong.hanhDong === 'merge' ? 'đã merge' : 'trả về dev'} · ${m.ketQuaCong.nguoi}`);
   }
-  res.send(trangLedger(docSoCai(), congTheoRun, dsRepo(), String(req.query.repo ?? '') || undefined));
+  res.send(trangLedger(docSoCaiKho(repo ? { repo } : {}), congTheoRun, dsRepo(), repo));
 });
 
 app.get('/tin-cay', (req, res) => {
@@ -270,10 +281,12 @@ app.post('/settings', (req, res) => {
 // ---- Quản lý repo (đa repo) ----
 
 // Liệt kê repo mà token nhìn thấy — người dùng CHỌN từ danh sách thay vì gõ tay owner/repo
-app.get('/api/github/repos', async (req, res) => {
+// POST chứ không GET: chìa đi trong THÂN yêu cầu, không đi trong URL. Query string nằm lại trong
+// access log của nginx, trong lịch sử trình duyệt và trong Referer gửi sang trang khác — dán token
+// vào đó là rò chìa ra ba chỗ mà không ai kịp thấy (R4.19, R9.17).
+app.post('/api/github/repos', async (req, res) => {
   const c = docConfig();
-  // Token lấy từ query (chìa người dùng vừa dán ở bước 2) — không có thì mượn chìa của repo đang chọn
-  const token = String(req.query.token ?? '').trim() || docTokenRepo(c.repo.github);
+  const token = String((req.body as { token?: string }).token ?? '').trim() || docTokenRepo(c.repo.github);
   try {
     const ds = await danhSachRepoCuaToken(token);
     const daCo = new Set(c.repos.map((r) => r.github.toLowerCase()));
@@ -322,6 +335,7 @@ app.post('/api/repo/them', async (req, res) => {
   const c = docConfig();
   if (timRepo(c, github)) return res.status(409).json({ ok: false, loi: `${github} đã có trong danh sách.` });
   const token = (b.token ?? '').trim();
+  const daCoChiaTruoc = Boolean(docTokenRieng(github));
   const dich = noiDuong(GOC_REPO, slugRepoGithub(github));
   try {
     // Ghi chìa TRƯỚC khi clone: clone repo riêng tư cần chìa, và nếu clone hỏng thì bước sau vẫn có
@@ -341,6 +355,9 @@ app.post('/api/repo/them', async (req, res) => {
     ghiConfig({ ...c, repos: [...c.repos, moi], repo_dang_chon: github, repo: moi });
     res.json({ ok: true, repo: moi });
   } catch (e) {
+    // Clone hỏng thì repo KHÔNG vào danh sách — chìa vừa ghi ở trên trở thành chìa của một repo không
+    // tồn tại trong cấu hình, không giao diện nào thấy để mà gỡ. Trả kho về đúng trạng thái trước đó.
+    if (token && !daCoChiaTruoc) xoaTokenRepo(github);
     res.status(500).json({ ok: false, loi: `Không clone được ${github}: ${(e as Error).message.slice(0, 300)}` });
   }
 });
@@ -655,7 +672,7 @@ app.post('/api/runs/:id/merge', async (req, res) => {
       st.meta.pr.headSha); // W1: GitHub tự 409 nếu head đã đổi — đóng nốt cửa sổ race sau lần layPrHienTai ở trên
     const kq = { hanhDong: 'merge' as const, luc: new Date().toISOString(), nguoi, chiTiet: `merge PR #${st.meta.pr.so} @ ${st.meta.pr.headSha.slice(0, 7)}` };
     rm.ghiKetQuaCong(st.meta.id, kq);
-    ghiSo({ hanhDong: 'merge', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: v.run_id, verdict: v.result, nguoi, xac_nhan_medium: xacNhan });
+    ghiSo({ hanhDong: 'merge', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.id, verdict: v.result, nguoi, xac_nhan_medium: xacNhan });
     res.redirect(303, `/runs/${st.meta.id}`);
   } catch (e) {
     loiCong(res, 500, `GitHub từ chối: ${(e as Error).message.slice(0, 300)}`);
@@ -682,7 +699,7 @@ app.post('/api/runs/:id/reject', async (req, res) => {
     }
     const kq = { hanhDong: 'reject' as const, luc: new Date().toISOString(), nguoi, chiTiet: `đã đóng PR + phán quyết qua ${kenh === 'loi_comment' ? 'LỖI post (đóng vẫn hiệu lực)' : kenh} (chờ dev vá & reopen)` };
     rm.ghiKetQuaCong(st.meta.id, kq);
-    ghiSo({ hanhDong: 'reject', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.verdict.run_id, verdict: st.meta.verdict.result, nguoi, kenh, dong_pr: true });
+    ghiSo({ hanhDong: 'reject', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.id, verdict: st.meta.verdict.result, nguoi, kenh, dong_pr: true });
     res.redirect(303, `/runs/${st.meta.id}`);
   } catch (e) {
     loiCong(res, 500, `GitHub từ chối: ${(e as Error).message.slice(0, 300)}`);
@@ -723,5 +740,8 @@ app.listen(port, '127.0.0.1', () => {
   // lượt chấm nào chạy, kẻo repo mất kết nối giữa chừng. Chạy lại lần hai không đổi gì.
   const { chuyen } = diTruTokenRepo();
   if (chuyen.length) console.log(`Đã chuyển token dùng chung thành token riêng cho ${chuyen.length} repo: ${chuyen.join(', ')}`);
+  // Xác của lần chạy trước: hàng `dang_chay` mồ côi khoá trần song song vĩnh viễn nếu không dọn
+  const moCoi = rm.donLuotMoCoi();
+  if (moCoi.length) console.log(`Đã dọn ${moCoi.length} lượt chấm bỏ dở của lần chạy trước: ${moCoi.join(', ')}`);
   console.log(`CheckMate web: http://127.0.0.1:${port}`);
 });

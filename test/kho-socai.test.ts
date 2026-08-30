@@ -115,3 +115,21 @@ describe('sổ hành động cổng', () => {
     expect(() => moDb().exec("INSERT INTO so_cong (run_id, luc, hanh_dong, nguoi) VALUES ('r1','x','xoa_het','ke_gian')")).toThrow();
   });
 });
+
+describe('sổ cái thủng đường REPLACE nếu thiếu recursive_triggers (R9.4, R9.5)', () => {
+  it('INSERT OR REPLACE lên sổ cái bị TỪ CHỐI, không âm thầm ghi đè', () => {
+    // Ca thật dựng lại được: trigger cấm-xoá là BEFORE DELETE, mà lệnh xoá NGẦM do REPLACE sinh ra
+    // không kích hoạt trigger khi recursive_triggers TẮT (mặc định của SQLite). Hàng FAIL biến thành
+    // PASS, không ném lỗi, không còn bản cũ — đúng thứ R9.5 gọi là "âm thầm ghi đè".
+    ghiSoCai(muc({ run_id: 'r-replace', verdict: 'FAIL', high: 3 }));
+    expect(() =>
+      moDb().exec(
+        "INSERT OR REPLACE INTO so_cai (run_id, luc, skill, artifact, sha, verdict, high, medium, low, model) " +
+          "VALUES ('r-replace', '2026-08-30T00:00:00.000Z', 'code', 'PR #8 - code', 'e711ced0a1', 'PASS', 0, 0, 0, 'x')",
+      ),
+    ).toThrow(/chi ghi them|khong duoc XOA|khong duoc SUA/i);
+    const con = docSoCai().find((m) => m.run_id === 'r-replace');
+    expect(con?.verdict).toBe('FAIL');
+    expect(con?.high).toBe(3);
+  });
+});
