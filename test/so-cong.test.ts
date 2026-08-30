@@ -48,3 +48,37 @@ describe('sổ hành động cổng giữ đủ dấu vết', () => {
     expect(kêu.join('\n')).toMatch(/KHÔNG ghi được|mất khỏi sổ/i);
   });
 });
+
+describe('tự duyệt: ghi dấu, không chặn (R11.17)', () => {
+  it('người bấm trùng tác giả PR thì sổ ghi dấu cảnh báo — nhưng vẫn ghi được hàng', () => {
+    ghiSo({ hanhDong: 'merge', run_id: 'r-tu', nguoi: 'thang.vv', tac_gia_pr: 'thang.vv' });
+    const h = docSoCong('r-tu')[0];
+    expect(h?.chi_tiet ?? '').toMatch(/tự duyệt/i);
+    expect(h?.tac_gia_pr).toBe('thang.vv');
+  });
+
+  it('người bấm KHÁC tác giả PR thì không dựng cảnh báo oan', () => {
+    ghiSo({ hanhDong: 'merge', run_id: 'r-khac', nguoi: 'thang.vv', tac_gia_pr: 'nguoi-khac' });
+    expect(docSoCong('r-khac')[0]?.chi_tiet ?? '').not.toMatch(/tự duyệt/i);
+  });
+
+  it('đóng băng tác giả PR vào chính hàng sổ, không phải tra sang bảng run (R11.16)', () => {
+    ghiSo({ hanhDong: 'reject', run_id: 'r-bang', nguoi: 'ai-do', tac_gia_pr: 'tac-gia-x' });
+    expect(docSoCong('r-bang')[0]?.tac_gia_pr).toBe('tac-gia-x');
+  });
+});
+
+describe('so tên người bấm với tác giả PR', () => {
+  it('bỏ qua khác biệt dấu chấm/gạch và hoa thường', async () => {
+    const { trungNguoi } = await import('../apps/web/src/cong.js');
+    expect(trungNguoi('thang.vv', 'thang-vv')).toBe(true);
+    expect(trungNguoi('Thang_VV', 'thangvv')).toBe(true);
+  });
+
+  it('cố ý bắt SÓT hơn bắt OAN — hai người khác nhau không bị gộp', async () => {
+    const { trungNguoi } = await import('../apps/web/src/cong.js');
+    // Bắt oan thì cảnh báo dựng lên đúng lúc cần merge gấp, và lần sau không ai đọc cảnh báo nữa
+    expect(trungNguoi('thang.vv', 'thang.vy')).toBe(false);
+    expect(trungNguoi('', 'thang.vv')).toBe(false);
+  });
+});

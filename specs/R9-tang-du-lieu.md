@@ -55,6 +55,10 @@ quy ước lập trình.
   cơ sở dữ liệu, vì hai lý do: sửa file bằng tay là đường cứu hộ khi cấu hình sai làm giao diện không lên
   được; và bí mật nằm trong cơ sở dữ liệu thì **mọi bản sao lưu đều mang theo khoá**. Chúng vẫn phải đi
   qua một cửa duy nhất trong mã nguồn, không được đọc rải rác.
+  **Ngoại lệ có chủ đích: tài khoản người dùng (R11.7).** Hash mật khẩu không mở được thứ gì bên ngoài
+  hệ này nên lý do «bản sao lưu mang theo khoá» không áp, còn tài khoản thì cần truy vấn và nối. Cái giá
+  của ngoại lệ này được ghi ở R11.8: file cơ sở dữ liệu từ nay là dữ liệu nhạy cảm, phải siết quyền và
+  phải nói rõ trong tài liệu vận hành.
 - **R9.14** — Cấu hình được cache theo thời điểm sửa file, và cache bị bỏ ngay khi ghi. Sửa file bằng tay
   vẫn phải có hiệu lực ở lượt đọc kế tiếp — cache không được che mất đường cứu hộ.
 - **R9.15** — File probe trong thư viện ở lại trên đĩa vì chúng là mã nguồn phải chạy được; chỉ phần

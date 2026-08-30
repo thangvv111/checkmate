@@ -38,5 +38,7 @@ hết hiệu lực khi commit đổi.
 - **R6.10** — Chấm lại đúng một commit đã có verdict thì PHẢI cảnh báo trước rằng kết quả gần như chắc
   chắn lặp lại, để người dùng không đốt thời gian và token vô ích.
 - **R6.11** — Mọi hành động qua cổng (merge / trả về dev) PHẢI ghi vào sổ cái kèm người thực hiện, thời
-  điểm, và các finding medium đã được chấp nhận.
+  điểm, và các finding medium đã được chấp nhận. **«Người thực hiện» lấy từ đâu do R11.1 quy định** —
+  luật này một mình không đủ: nó từng được thoả bằng tài khoản hệ điều hành chạy tiến trình, tức sổ có
+  hàng nhưng mọi hàng mang cùng một cái tên.
 - **R6.12** — Chế độ demo KHÔNG ĐƯỢC cho thao tác cổng merge và KHÔNG ĐƯỢC cho sửa cấu hình.

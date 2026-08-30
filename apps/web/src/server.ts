@@ -6,6 +6,20 @@ import { DINH_DANG_NHAN, trichText } from './extract.js';
 import { GOC } from './paths.js';
 import { RunManager } from './runs.js';
 import { escHtml, khung, khoiDaTraVe, khoiPrList, trangChu, trangRun, trangSettings } from './ui.js';
+import {
+  TEN_COOKIE_PHIEN,
+  coTaiKhoanNao,
+  danhTinhNeuCo,
+  docCookie,
+  epBamCong,
+  layDanhTinh,
+  LoiDanhTinh,
+  kiemMatKhau,
+  taoPhien,
+  xoaPhien,
+} from './danh-tinh.js';
+import { trangLogin, type TrangThaiLogin } from './ui-login.js';
+
 import { MODE, cauHinhHienTai, cheToken, cheToken2, docConfig, diTruTokenRepo, docTokenThueBao, envAgent, ghiConfig, ghiTokenThueBao } from './config.js';
 import { DANH_MUC_NCC, dinhNghia, docSoKiem, ghiKhoa, kiemConHieuLuc, type CauHinhNcc, type MaNcc, type PhuongThuc } from './ncc.js';
 import { GOC_REPO, slugRepoGithub, timRepo, type RepoConfig } from './config.js';
@@ -16,7 +30,7 @@ import { khoiRepo } from './ui-repo.js';
 import { cloneRepo, danhSachNhanh, danhSachPr, danhSachRepoCuaToken, dongPr, fetchVaRouter, ganTrangThaiCommit, kiemTraRepo, layPrHienTai, mergePr, binhLuanPr, tachOwnerRepo, traVeDev } from './github.js';
 import { coToken, docTokenRepo, docTokenRieng, ghiTokenRepo, xoaTokenRepo } from './kho-bi-mat.js';
 import { coDuongVaoGithub, coGhCli } from './github.js';
-import { banPhanQuyet, banReceipt, banVerdictTuDong, demMuc, ghiSo, nguoiThaoTac } from './cong.js';
+import { banPhanQuyet, banReceipt, banVerdictTuDong, demMuc, ghiSo } from './cong.js';
 import { backfillSoCai, docSoCai } from './ledger.js';
 import { docSoCai as docSoCaiKho, demSoCai as demSoCaiKho } from './kho/kho-socai.js';
 import { diTruTatCa, tomTatDiTru } from './kho/di-tru.js';
@@ -31,6 +45,84 @@ import { chuanMuc } from '../../../packages/shared/src/types.js';
 const app = express();
 app.use(express.urlencoded({ extended: false, limit: '300kb' }));
 app.use(express.json({ limit: '300kb' }));
+
+// ---- Đăng nhập và chặn cửa (specs/R11) ----
+
+/** Đường KHÔNG cần phiên. Danh sách CHO PHÉP: route mới mặc định phải đăng nhập, không phải nhớ bổ sung. */
+const DUONG_MO = new Set(['/login', '/logout', '/health']);
+
+/** R11.2 — không có phiên hợp lệ thì chặn, KỂ CẢ khi lớp xác thực bên ngoài đã cho qua. */
+app.use((req, res, next) => {
+  if (DUONG_MO.has(req.path)) return next();
+  if (danhTinhNeuCo(req)) return next();
+  // API trả JSON, trang trả chuyển hướng — client gọi API mà nhận HTML thì lỗi biến thành «JSON hỏng»,
+  // tức lại một ca báo sai bản chất.
+  if (req.path.startsWith('/api/')) {
+    return res.status(401).json({ loi: 'Chưa đăng nhập hoặc phiên đã hết hạn.', can_dang_nhap: true });
+  }
+  const tiep = req.method === 'GET' && req.originalUrl !== '/' ? `?tiep=${encodeURIComponent(req.originalUrl)}` : '';
+  return res.redirect(303, `/login${tiep}`);
+});
+
+app.get('/health', (_req, res) => res.json({ ok: true }));
+
+app.get('/login', (req, res) => {
+  if (danhTinhNeuCo(req)) return res.redirect(303, '/');
+  const q = req.query as Record<string, string>;
+  const trangThai: TrangThaiLogin = !coTaiKhoanNao()
+    ? 'chua_co_tai_khoan'
+    : q.het === '1'
+      ? 'phien_het_han'
+      : q.sai === '1'
+        ? 'sai_mat_khau'
+        : 'moi';
+  res.send(trangLogin({ trangThai, tiep: duongNoiBo(q.tiep) }));
+});
+
+app.post('/login', (req, res) => {
+  const b = req.body as Record<string, string>;
+  const dt = kiemMatKhau((b.ten ?? '').trim(), b.mk ?? '');
+  if (!dt) {
+    // Cùng một câu cho sai tên lẫn sai mật khẩu (R11.10)
+    const tiep = duongNoiBo(b.tiep);
+    return res.redirect(303, `/login?sai=1${tiep ? `&tiep=${encodeURIComponent(tiep)}` : ''}`);
+  }
+  const { token, hetHan } = taoPhien(dt.ten);
+  res.setHeader('set-cookie', dungCookiePhien(req, token, hetHan));
+  res.redirect(303, duongNoiBo(b.tiep) || '/');
+});
+
+app.post('/logout', (req, res) => {
+  // R11.13 — xoá phiên ở PHÍA MÁY CHỦ; xoá mỗi cookie là để lại một token còn sống
+  const token = docCookie(req, TEN_COOKIE_PHIEN);
+  if (token) xoaPhien(token);
+  res.setHeader('set-cookie', dungCookiePhien(req, '', new Date(0)));
+  res.redirect(303, '/login');
+});
+
+/**
+ * Chỉ nhận đường NỘI BỘ cho tham số quay-lại. Không lọc thì `?tiep=https://kẻ-xấu` biến trang đăng
+ * nhập của chính mình thành bàn đạp chuyển hướng — người dùng thấy tên miền quen, bấm, rồi bị đá đi nơi khác.
+ */
+export function duongNoiBo(x: unknown): string {
+  const s = typeof x === 'string' ? x.trim() : '';
+  return /^\/[^/\\]/.test(s) ? s : '';
+}
+
+/** R11.14 — HttpOnly + SameSite luôn; Secure khi đi qua HTTPS (nginx báo bằng x-forwarded-proto) */
+function dungCookiePhien(req: express.Request, token: string, hetHan: Date): string {
+  const https = (req.headers['x-forwarded-proto'] ?? '').toString().split(',')[0].trim() === 'https';
+  return [
+    `${TEN_COOKIE_PHIEN}=${encodeURIComponent(token)}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    https ? 'Secure' : '',
+    `Expires=${hetHan.toUTCString()}`,
+  ]
+    .filter(Boolean)
+    .join('; ');
+}
 
 const rm = new RunManager();
 const TMP_DOC = join(GOC, 'web-runs', 'tmp');
@@ -670,6 +762,15 @@ app.post('/api/runs/:id/merge', async (req, res) => {
   const d = demMuc(v.findings);
   if (d.high > 0 || v.result === 'FAIL') return loiCong(res, 403, 'Verdict FAIL (có finding HIGH) — nút merge khoá theo luật cổng.');
   // W5: client gửi DANH SÁCH id finding đã tick — server so khớp tập với các finding medium thật của verdict
+  // R11.1 + R11.18 — đọc danh tính và ép quyền TRƯỚC khối try bắt lỗi GitHub: người thiếu quyền mà
+  // nhận thông báo «GitHub từ chối» là báo sai hẳn bản chất, và họ sẽ đi hỏi nhầm người.
+  let dtMerge;
+  try {
+    dtMerge = layDanhTinh(req);
+    epBamCong(dtMerge);
+  } catch (e) {
+    return loiCong(res, e instanceof LoiDanhTinh && e.ma === 'khong_du_quyen' ? 403 : 401, (e as Error).message);
+  }
   const tickIds = String((req.body as Record<string, string>).tick_ids ?? '').split(',').filter(Boolean);
   const mediumIds = v.findings.filter((f) => chuanMuc(f.severity) === 'medium').map((f) => f.id);
   const thieu = mediumIds.filter((id) => !tickIds.includes(id));
@@ -680,7 +781,7 @@ app.post('/api/runs/:id/merge', async (req, res) => {
     if (hienTai.headSha !== st.meta.pr.headSha) {
       return loiCong(res, 409, `PR đã có commit mới (${hienTai.headSha.slice(0, 7)} ≠ ${st.meta.pr.headSha.slice(0, 7)}) — verdict cũ hết hiệu lực, chạy kiểm lại rồi mới merge. <a href="/">← về trang chính</a>`);
     }
-    const nguoi = nguoiThaoTac();
+    const nguoi = dtMerge.ten;
     const xacNhan = v.findings.filter((f) => chuanMuc(f.severity) === 'medium').map((f) => f.title_vi);
     await binhLuanPr(cfg, st.meta.pr.so, banReceipt(v, nguoi, xacNhan));
     await mergePr(cfg, st.meta.pr.so, `${st.meta.tieuDe} (#${st.meta.pr.so})`,
@@ -688,7 +789,7 @@ app.post('/api/runs/:id/merge', async (req, res) => {
       st.meta.pr.headSha); // W1: GitHub tự 409 nếu head đã đổi — đóng nốt cửa sổ race sau lần layPrHienTai ở trên
     const kq = { hanhDong: 'merge' as const, luc: new Date().toISOString(), nguoi, chiTiet: `merge PR #${st.meta.pr.so} @ ${st.meta.pr.headSha.slice(0, 7)}` };
     rm.ghiKetQuaCong(st.meta.id, kq);
-    ghiSo({ hanhDong: 'merge', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.id, verdict: v.result, nguoi, xac_nhan_medium: xacNhan });
+    ghiSo({ hanhDong: 'merge', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.id, verdict: v.result, nguoi, tac_gia_pr: st.meta.pr.tacGia, xac_nhan_medium: xacNhan });
     res.redirect(303, `/runs/${st.meta.id}`);
   } catch (e) {
     loiCong(res, 500, `GitHub từ chối: ${(e as Error).message.slice(0, 300)}`);
@@ -701,9 +802,16 @@ app.post('/api/runs/:id/reject', async (req, res) => {
   const cfg = docConfig();
   if (!st || !st.meta.verdict || !st.meta.pr) return loiCong(res, 404, 'Run không tồn tại hoặc không gắn PR.');
   if (st.meta.ketQuaCong) return loiCong(res, 409, `Run này đã ${st.meta.ketQuaCong.hanhDong} lúc ${st.meta.ketQuaCong.luc}.`);
+  let dtReject;
+  try {
+    dtReject = layDanhTinh(req);
+    epBamCong(dtReject);
+  } catch (e) {
+    return loiCong(res, e instanceof LoiDanhTinh && e.ma === 'khong_du_quyen' ? 403 : 401, (e as Error).message);
+  }
   const b = req.body as Record<string, string>;
   try {
-    const nguoi = nguoiThaoTac();
+    const nguoi = dtReject.ten;
     // W4: đóng PR (không-hoàn-tác) TRƯỚC — comment nói "PR đã đóng" chỉ được đăng khi điều đó đã đúng
     await dongPr(cfg, st.meta.pr.so);
     let kenh: 'review' | 'comment' | 'loi_comment' = 'comment';
@@ -715,7 +823,7 @@ app.post('/api/runs/:id/reject', async (req, res) => {
     }
     const kq = { hanhDong: 'reject' as const, luc: new Date().toISOString(), nguoi, chiTiet: `đã đóng PR + phán quyết qua ${kenh === 'loi_comment' ? 'LỖI post (đóng vẫn hiệu lực)' : kenh} (chờ dev vá & reopen)` };
     rm.ghiKetQuaCong(st.meta.id, kq);
-    ghiSo({ hanhDong: 'reject', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.id, verdict: st.meta.verdict.result, nguoi, kenh, dong_pr: true });
+    ghiSo({ hanhDong: 'reject', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.id, verdict: st.meta.verdict.result, nguoi, tac_gia_pr: st.meta.pr.tacGia, kenh, dong_pr: true });
     res.redirect(303, `/runs/${st.meta.id}`);
   } catch (e) {
     loiCong(res, 500, `GitHub từ chối: ${(e as Error).message.slice(0, 300)}`);
