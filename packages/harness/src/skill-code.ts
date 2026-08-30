@@ -487,7 +487,7 @@ export async function chaySkillCode(
     thongKe.luat_tong = trichMaLuat(t.specs.map((x) => x.noiDung).join('\n')).size;
     phat({
       type: 'log',
-      msg: `Độ phủ luật: ${thongKe.luat_da_phu.length}/${thongKe.luat_tong} luật có probe neo vào${
+      msg: `Độ phủ luật: ${thongKe.luat_da_phu.length}/${thongKe.luat_tong} mã luật đọc được từ specs/ có probe neo vào${
         t.luatMoi.length ? ` · ${t.luatMoi.length} luật CHỈ có ở nhánh PR: ${t.luatMoi.join(', ')}` : ''
       }`,
     });

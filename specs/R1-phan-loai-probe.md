@@ -68,7 +68,10 @@ và verdict ra PASS. Bằng chứng nằm sẵn trong tay máy, và cổng vẫn
 - **R1.21** — Mã luật mà mỗi probe neo vào PHẢI được ghi ra verdict, không chỉ sống trong lượt sinh
   probe. Không ghi ra thì sau lượt chấm **không ai kiểm được bằng máy** đã phủ những luật nào — và một
   cổng không tự đo được độ phủ của mình thì không nói được câu «đã kiểm xong».
-- **R1.22** — Verdict PHẢI nêu số luật đã có probe neo vào trên tổng số luật đọc được từ `specs/`. Đây
+- **R1.22** — Verdict PHẢI nêu số luật đã có probe neo vào trên tổng số **mã luật đọc được** từ `specs/`.
+  Mẫu số là con số ĐỌC ĐƯỢC, không phải con số đúng tuyệt đối: mã luật nhận diện bằng khuôn chữ-và-số
+  nên có thể lẫn vài mã không phải luật (đo trên repo này: 3 trên 206, tức 1,5%). Nói «mã luật đọc được»
+  thay vì «luật» là cố ý — một con số tự nhận là ước lượng đáng tin hơn một con số giả vờ chính xác. Đây
   là cùng một nguyên tắc với trần tầm nhìn diff ([R7](#)): **cắt được, nhưng không cắt âm thầm** — phủ
   một phần thì được, giấu chuyện chỉ phủ một phần thì không.
 
