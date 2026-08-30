@@ -609,15 +609,38 @@ export async function chaySkillCode(
         const filesV = sauChayLai.map((u, i) => sbV.ghiProbe(u.code, tenTam(i), runner?.probe_dir ?? 'test'));
         // Đường runner chạy TỪNG file một lời gọi riêng: chayTheoRunner return sớm khi một file hỏng
         // nạp, và mọi ứng viên đứng SAU file hỏng sẽ bị loại oan với log sai bản chất nếu gộp chung.
+        const loiHaTang: string[] = [];
         const kqV = runner
-          ? { probes: filesV.flatMap((f) => sbV.chayTheoRunner([f], runner, parseJUnit).probes) }
-          : sbV.chayVitest(filesV);
-        quaVerify = sauChayLai.filter((u, i) => {
-          const r = kqV.probes.find((x) => x.file === tenTam(i) && khopIdProbe(x.title, u.plan.id));
-          if (r?.status === 'passed') return true;
-          phat({ type: 'log', msg: `Thư viện: bỏ ${u.plan.id} — file tách không chạy sạch một mình trên nhánh gốc (${r ? r.status : 'không thấy kết quả'})` });
-          return false;
-        });
+          ? {
+              probes: filesV.flatMap((f) => {
+                const k = sbV.chayTheoRunner([f], runner, parseJUnit);
+                if (k.loiThu) loiHaTang.push(`${f}: ${k.loiThu.slice(0, 200)}`);
+                return k.probes;
+              }),
+            }
+          : (() => {
+              const k = sbV.chayVitest(filesV);
+              if (k.loiThu) loiHaTang.push(k.loiThu.slice(0, 300));
+              return k;
+            })();
+        // `loiThu` từng bị vứt trọn ở đây. Hậu quả: hạ tầng test hỏng (không cài được phụ thuộc, lệnh
+        // test sai, worktree thiếu node_modules) bị báo thành «file tách không chạy sạch» — tức đổ lỗi
+        // cho probe trong khi probe còn chưa được chạy. Người đọc log đi sửa probe, còn nguyên nhân thật
+        // nằm ở môi trường. Đúng họ lỗi báo-sai-bản-chất mà repo này sinh ra để chống.
+        if (loiHaTang.length) {
+          phat({
+            type: 'log',
+            msg: `Thư viện: KHÔNG nhận probe nào ở lượt này — hạ tầng test trên nhánh gốc không chạy được, không phải probe hỏng: ${loiHaTang.join(' · ')}`,
+          });
+        }
+        quaVerify = loiHaTang.length
+          ? [] // không kết luận gì về probe khi chưa chạy được probe nào
+          : sauChayLai.filter((u, i) => {
+              const r = kqV.probes.find((x) => x.file === tenTam(i) && khopIdProbe(x.title, u.plan.id));
+              if (r?.status === 'passed') return true;
+              phat({ type: 'log', msg: `Thư viện: bỏ ${u.plan.id} — file tách không chạy sạch một mình trên nhánh gốc (${r ? r.status : 'không thấy kết quả'})` });
+              return false;
+            });
       } finally {
         sbV.huy();
       }

@@ -43,6 +43,6 @@ export function trangLedger(muc: MucSoCai[], congTheoRun: Map<string, string>, r
 <p class="sub">Append-only — mọi kết luận chấm đều vào sổ, không sửa không xoá. ${sx.length} verdict${locRepo ? ` của ${escHtml(locRepo)} (lọc từ ${muc.length})` : ''} (${demPass} PASS · ${demFail} FAIL)${tongVao ? ` · tổng ${(tongVao / 1000).toFixed(0)}k token vào + ${(tongRa / 1000).toFixed(0)}k ra` : ''} · <a href="/">← về trang chính</a></p>
 ${locBox}
 ${sx.length ? `<div style="overflow-x:auto"><table class="runs"><tr><th>Lúc</th><th>Artifact</th><th>Repo</th><th>Commit</th><th>Tác giả</th><th>Verdict</th><th>Finding</th><th title="token vào / token ra — dấu ~ nghĩa là ước tính (đường Claude Code CLI không trả usage)">Token (vào/ra)</th><th>Cổng</th></tr>${rows}</table></div>` : '<p class="sub">Chưa có verdict nào.</p>'}
-<p class="goiy" style="margin-top:12px">Sổ hành động cổng (ai merge/trả-về, xác nhận cảnh báo nào) nằm ở <code>web-runs/review-log.jsonl</code>; sổ này ghi KẾT LUẬN chấm — hai sổ đối chiếu được với nhau qua run id.</p>`,
+<p class="goiy" style="margin-top:12px">Sổ hành động cổng (ai merge/trả-về, chấp nhận cảnh báo nào) nay nằm trong bảng <code>so_cong</code> của cơ sở dữ liệu, không còn ở <code>web-runs/review-log.jsonl</code> — file cũ chỉ giữ lại làm bản lưu trước khi di trú. Sổ trên trang này ghi KẾT LUẬN chấm; hai sổ đối chiếu với nhau qua <code>run_id</code>.</p>`,
   );
 }

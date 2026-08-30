@@ -19,19 +19,28 @@ export function demMuc(findings: Finding[]): { high: number; medium: number; low
 // Sổ hành động cổng nay là bảng chỉ-ghi-thêm trong cơ sở dữ liệu (specs/R9.6).
 export function ghiSo(entry: Record<string, unknown>): void {
   const hd = entry.hanhDong === 'merge' ? 'merge' : entry.hanhDong === 'reject' ? 'reject' : null;
-  if (!hd || typeof entry.run_id !== 'string') return; // không dựng được hàng thì không ghi rác vào sổ
-  const xacNhan = Array.isArray(entry.xac_nhan_medium) ? entry.xac_nhan_medium.length : 0;
+  if (!hd || typeof entry.run_id !== 'string') {
+    // Bỏ hàng trong im lặng là mất dấu vết một hành động cổng ĐÃ XẢY RA THẬT — người merge vẫn merge,
+    // chỉ có sổ là không biết. Sổ kiểm toán mất hàng mà không ai hay còn tệ hơn sổ có hàng xấu.
+    console.error(
+      `Sổ hành động cổng: KHÔNG ghi được một hành động vừa xảy ra (hanhDong=${String(entry.hanhDong)}, ` +
+        `run_id=${String(entry.run_id)}). Hàng này mất khỏi sổ kiểm toán — cần xem lại chỗ gọi.`,
+    );
+    return;
+  }
+  // Giữ DANH SÁCH cảnh báo medium được chấp nhận, không chỉ con số. Người kiểm toán hỏi «ai đã đồng ý
+  // bỏ qua cảnh báo NÀO» — một con số 3 không trả lời được câu đó, và bản thân nó cũng không kiểm chứng
+  // lại được với verdict đã ghim.
+  const ds = Array.isArray(entry.xac_nhan_medium) ? entry.xac_nhan_medium.map((x) => String(x)) : [];
+  const moTaXacNhan = ds.length ? `chấp nhận ${ds.length} cảnh báo medium: ${ds.join(', ')}` : '';
+  const ghiChu = typeof entry.ghi_chu === 'string' ? entry.ghi_chu.trim() : '';
   ghiSoCong({
     run_id: entry.run_id,
     luc: new Date().toISOString(),
     hanh_dong: hd,
     nguoi: typeof entry.nguoi === 'string' ? entry.nguoi : 'không rõ',
-    chi_tiet:
-      typeof entry.ghi_chu === 'string' && entry.ghi_chu
-        ? entry.ghi_chu
-        : xacNhan
-          ? `${xacNhan} cảnh báo medium được chấp nhận`
-          : undefined,
+    // Cả hai vế đều giữ khi cùng có — ghi chú của người và danh sách đã chấp nhận trả lời hai câu khác nhau
+    chi_tiet: [ghiChu, moTaXacNhan].filter(Boolean).join(' · ') || undefined,
   });
 }
 
