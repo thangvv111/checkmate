@@ -60,6 +60,9 @@ runner:
       ghiSo(entry) — sổ hành động cổng, entry: { hanhDong: 'merge' | 'reject', pr, sha, run_id, verdict, nguoi }.
 
       Cần dữ liệu mẫu thì chép nguyên hình dạng ở trên rồi đổi giá trị — đừng dựng object rút gọn.
+    ⚠ ALIAS CỤC BỘ TRONG DIFF KHÔNG PHẢI TÊN EXPORT. Đo được: hai probe cùng chết vì gọi `docSoCaiKho`
+      — tên đó chỉ là bí danh đặt lúc import trong server.ts (`import { docSoCai as docSoCaiKho }`),
+      hàm thật tên `docSoCai`. Thấy `X as Y` trong diff thì tên phải import là X, không phải Y.
     Import TRỰC TIẾP ở đầu file. Đừng bọc import trong try/catch rồi assert typeof — làm thế thì lỗi
     import biến thành assertion thường, probe trông như đã chạy trong khi nó chưa chạy được gì.
     Hàm nào mà diff của PR mới thêm thì lấy đường dẫn từ chính diff, đừng suy từ bảng trên.

@@ -21,13 +21,22 @@ export function repoTuPath(path: string): string {
  * Thiếu hàm này thì cổng chặn R4.25 chặn nhầm cả máy dev vốn chạy được bằng `gh` — đúng kiểu "báo sai
  * bản chất" mà repo này sinh ra để chống.
  */
-let ghSan: boolean | null = null;
+let ghSan = false;
+let ghHoiLuc = 0;
+const GH_HOI_LAI_MS = 60_000;
 export function coGhCli(): boolean {
-  if (ghSan !== null) return ghSan;
+  // Nhớ kết quả CÓ thì vĩnh viễn (gh đã đăng nhập không tự mất giữa chừng), nhưng kết quả KHÔNG thì chỉ
+  // nhớ một phút: `gh auth status` gọi mạng, nên một cú chập hay một lần quá hạn sẽ bị đóng đinh thành
+  // «máy này không có gh» cho tới khi khởi động lại — và mọi repo chưa có chìa riêng bị cổng R4.25 chặn
+  // với thông điệp «chưa có token», tức báo sai hẳn nguyên nhân.
+  if (ghSan) return true;
+  const gio = Date.now();
+  if (gio - ghHoiLuc < GH_HOI_LAI_MS) return false;
+  ghHoiLuc = gio;
   try {
     execFileSync('gh', ['auth', 'status'], { encoding: 'utf8', timeout: 10_000, stdio: 'pipe' });
     ghSan = true;
-  } catch (e) {
+  } catch {
     // `gh` có mà CHƯA đăng nhập cũng vô dụng như không có — exit khác 0 đều tính là không có đường vào
     ghSan = false;
   }
