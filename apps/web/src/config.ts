@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { dinhNghia, docKhoa, type CauHinhNcc, type MaNcc } from './ncc.js';
-import { docKho, ghiKho, docTokenRepo, ghiTokenRepo } from './kho-bi-mat.js';
+import { docKho, ghiKho, docTokenRieng, ghiTokenRepo } from './kho-bi-mat.js';
 
 // Chế độ vận hành (spec §9): demo = deploy public, khoá repo demo, Settings chỉ-đọc (fail-closed);
 // org = self-host trong tổ chức, mở toàn bộ cấu hình. Bật org bằng --org hoặc CHECKMATE_MODE=org.
@@ -163,8 +163,12 @@ export function diTruTokenRepo(): { chuyen: string[] } {
   if (!cu) return { chuyen: [] };
   const chuyen: string[] = [];
   for (const r of luu.repos ?? []) {
-    // repo nào đã có chìa riêng thì giữ nguyên — di trú không được đè chìa mới bằng chìa cũ
-    if (docTokenRepo(r.github) && docTokenRepo(r.github) !== cu) continue;
+    // Hỏi CHÌA RIÊNG, không hỏi docTokenRepo: hàm kia có bậc dự phòng đọc GITHUB_TOKEN của môi trường
+    // (R4.20), nên trên máy chủ có biến đó thì MỌI repo chưa có chìa riêng đều trông như "đã có chìa"
+    // và bị bỏ qua — token dùng chung cũ không bao giờ được di trú, trái chữ PHẢI của R4.21. Thứ tự ưu
+    // tiên R4.20 chỉ áp lúc ĐỌC token để gọi API, không phải lúc quyết định có nên di trú hay không.
+    const rieng = docTokenRieng(r.github);
+    if (rieng && rieng !== cu) continue;
     ghiTokenRepo(r.github, cu);
     chuyen.push(r.github);
   }

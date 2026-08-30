@@ -140,6 +140,21 @@ describe('di trú token dùng chung (R4.21)', () => {
     expect(kho.docTokenRepo('acme/web')).toBe('ghp_CHUNG');
   });
 
+  it('VẪN di trú khi máy chủ có GITHUB_TOKEN — biến môi trường không phải chìa riêng của repo nào', () => {
+    // Lỗi thật CheckMate bắt được, cả lưới review lẫn bộ test này đều bỏ sót vì beforeEach xoá sạch
+    // GITHUB_TOKEN — tức đã tự dọn mất đúng điều kiện làm lộ lỗi.
+    //
+    // Hỏi `docTokenRepo` để biết "repo đã có chìa chưa" là sai: hàm đó có bậc dự phòng đọc biến môi
+    // trường, nên trên máy chủ có GITHUB_TOKEN thì mọi repo trông như đã có chìa và không repo nào
+    // được di trú. Thứ tự ưu tiên R4.20 chỉ áp lúc ĐỌC token, không phải lúc quyết định di trú.
+    process.env.GITHUB_TOKEN = 'ghp_CUA_MOI_TRUONG';
+    writeFileSync(FILE_CONFIG, JSON.stringify(configCu), 'utf8');
+    const { chuyen } = cfg.diTruTokenRepo();
+    expect(chuyen.sort()).toEqual(['acme/api', 'acme/web']);
+    expect(kho.docTokenRieng('acme/web')).toBe('ghp_CHUNG');
+    expect(kho.docTokenRieng('acme/api')).toBe('ghp_CHUNG');
+  });
+
   it('không có config.json hay không có token cũ thì không tạo ra file rác', () => {
     expect(cfg.diTruTokenRepo().chuyen).toEqual([]);
     expect(existsSync(FILE_SECRET)).toBe(false);
