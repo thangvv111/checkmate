@@ -40,6 +40,51 @@ const TOOL_CAM = 'Bash Read Write Edit Glob Grep WebFetch WebSearch Task Noteboo
 // con số khác hẳn nhau. Một lượt chấm chạy vài chục phút là bình thường: prompt mang cả spec lẫn diff,
 // model phải đọc hết rồi mới sinh probe. Trần ở đây chỉ để cứu khỏi treo vĩnh viễn, không phải để
 // giục model. Đặt quá chặt thì giết oan lượt chạy đang tiến triển bình thường.
+/**
+ * Biến môi trường được phép đi vào tiến trình `claude` CLI — DANH SÁCH CHO PHÉP, không phải danh sách cấm.
+ *
+ * Bản trước truyền `{ ...process.env }` rồi cắt đúng một tên (`ANTHROPIC_API_KEY`). Trên máy chủ,
+ * `/etc/checkmate.env` còn mang `GITHUB_TOKEN` — nghĩa là chìa GitHub của tổ chức chảy sang một tiến
+ * trình bên thứ ba ở MỌI lượt chấm, dù nó chẳng cần chìa đó để làm gì.
+ *
+ * Danh sách cấm sai về bản chất: nó đòi người viết phải biết trước mọi bí mật sẽ tồn tại trong tương
+ * lai. Thêm một khoá mới vào file env là rò thêm một bí mật, không ai phải sửa code nên không ai nhận
+ * ra. `sandbox.ts` — nơi chạy CODE CỦA PR, thứ đáng ngờ hơn nhiều — đã dùng danh sách cho phép từ đầu;
+ * chỗ này chỉ là vá lại cho khớp cùng một nguyên tắc.
+ */
+const ENV_CHO_CLI = [
+  // tìm và chạy được binary
+  'PATH', 'PATHEXT', 'COMSPEC', 'SYSTEMROOT', 'SYSTEMDRIVE', 'WINDIR', 'OS',
+  // CLI đọc cấu hình và phiên đăng nhập trong thư mục nhà
+  'HOME', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH', 'APPDATA', 'LOCALAPPDATA', 'PROGRAMDATA',
+  'TEMP', 'TMP', 'XDG_CONFIG_HOME', 'XDG_CACHE_HOME',
+  // chạy được node
+  'NODE', 'NODE_PATH', 'NPM_CONFIG_CACHE',
+  // hiển thị và mạng của doanh nghiệp
+  'LANG', 'LC_ALL', 'TZ', 'HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY', 'http_proxy', 'https_proxy', 'no_proxy',
+];
+
+/**
+ * Môi trường cho lời gọi model qua CLI. Chỉ những biến trong danh sách cho phép, cộng token gói thuê
+ * bao vì CLI cần đúng nó để đăng nhập.
+ *
+ * `ANTHROPIC_API_KEY` vẫn bị chặn có chủ đích: provider 'cli' nghĩa là DÙNG GÓI THUÊ BAO, mà Claude
+ * Code thấy key trong môi trường thì lặng lẽ dùng key đó và tính tiền API — người vận hành tưởng đang
+ * tiêu gói thuê bao trong khi đang đốt credit. Danh sách cho phép giữ nguyên tính chất đó mà không phải
+ * nhớ tên nó nữa.
+ */
+export function envChoCli(nguon: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const ra: NodeJS.ProcessEnv = { CLAUDECODE: '' };
+  for (const ten of ENV_CHO_CLI) {
+    const v = nguon[ten];
+    if (v !== undefined) ra[ten] = v;
+  }
+  // Token gói thuê bao là thứ DUY NHẤT thuộc loại bí mật mà CLI thật sự cần
+  const tb = nguon.CLAUDE_CODE_OAUTH_TOKEN?.trim();
+  if (tb) ra.CLAUDE_CODE_OAUTH_TOKEN = tb;
+  return ra;
+}
+
 const TRAN_GOI_MS = Math.max(60_000, Number(process.env.CHECKER_TRAN_GOI_S ?? 1800) * 1000);
 
 // CLI báo mất xác thực bằng cách IN RA STDOUT rồi thoát 0, nên nếu không nhận ra thì harness tưởng
@@ -96,8 +141,7 @@ export class ClaudeCliProvider implements ModelProvider {
       // Provider 'cli' nghĩa là DÙNG GÓI THUÊ BAO. Nếu để ANTHROPIC_API_KEY trong môi trường,
       // Claude Code sẽ lặng lẽ dùng key đó và tính tiền API — người vận hành tưởng đang tiêu gói
       // thuê bao mà thực ra đang đốt credit. Cắt key khỏi env để hai nguồn không lẫn vào nhau.
-      const envCli: NodeJS.ProcessEnv = { ...process.env, CLAUDECODE: '' };
-      delete envCli.ANTHROPIC_API_KEY;
+      const envCli = envChoCli();
       const child = spawn('claude', ['-p', '--model', MODEL_MAC_DINH, '--disallowed-tools', `"${TOOL_CAM}"`, '--no-session-persistence'], {
         shell: true,
         cwd: tmpdir(),
