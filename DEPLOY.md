@@ -125,7 +125,12 @@ du -sh $SL          # ghi lại số này
 **Bước 2 — đóng gói CHỈ SOURCE trên máy dev:**
 ```
 cd <thư mục cha của checkmate>
-tar --exclude=node_modules --exclude=.git     --exclude=config.json --exclude=.secrets.json --exclude=.ncc-verify.json     --exclude=web-runs --exclude=probes-lib --exclude='probes-lib-*'     --exclude=runs --exclude=repos --exclude='*.log' --exclude='bench/kq'     --exclude=.worktrees --exclude='*.tar.gz'     -czf checkmate-deploy.tar.gz checkmate demo-credit-approval demo-python
+tar --exclude=node_modules --exclude=.git \
+    --exclude=config.json --exclude=.secrets.json --exclude=.ncc-verify.json \
+    --exclude=web-runs --exclude=probes-lib --exclude='probes-lib-*' \
+    --exclude=runs --exclude=repos --exclude='*.log' --exclude='bench/kq' \
+    --exclude=.worktrees --exclude='*.tar.gz' \
+    -czf checkmate-deploy.tar.gz checkmate demo-credit-approval demo-python
 # KIỂM gói trước khi gửi — lệnh dưới phải KHÔNG in ra dòng nào:
 tar -tzf checkmate-deploy.tar.gz | grep -E "secrets|/config\.json|ncc-verify|web-runs/|probes-lib/|checkmate/runs/"
 scp checkmate-deploy.tar.gz ubuntu@47.131.132.95:~
@@ -142,8 +147,7 @@ sudo systemctl restart checkmate
 ```
 systemctl is-active checkmate
 tail -20 ~/checkmate-app/checkmate.log     # tìm dòng di trú và dòng chuyển token
-curl -s -o /dev/null -w '%{http_code}
-' http://127.0.0.1:4001/     # phải 200
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:4001/     # phải 200
 ```
 Đếm lại số hàng `so_cai` / `so_cong` / `run` trong `web-runs/checkmate.db` và số probe trong
 `probes-lib/`; chúng phải bằng hoặc lớn hơn trước khi deploy. Nhỏ đi là đã mất dữ liệu — khôi phục
