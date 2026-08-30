@@ -155,6 +155,34 @@ describe('di trú token dùng chung (R4.21)', () => {
     expect(kho.docTokenRieng('acme/api')).toBe('ghp_CHUNG');
   });
 
+  it('cấu hình ĐỜI CŨ chỉ có repo đơn vẫn được di trú, không mất token (R4.3 + R4.21)', () => {
+    // Lỗi thật CheckMate bắt được ở lượt chấm thứ hai: hàm lặp thẳng `luu.repos` nên với cấu hình đời
+    // cũ (chỉ có `repo`, không có mảng `repos`) vòng lặp không chạy lần nào — mà cuối hàm vẫn xoá
+    // `github_token`. Token biến mất khỏi CẢ config lẫn kho bí mật, repo mất kết nối trong im lặng.
+    writeFileSync(
+      FILE_CONFIG,
+      JSON.stringify({
+        repo: { github: 'acme/legacy-repo', base_branch: 'main', local_path: '/x/legacy' },
+        github_token: 'ghp_CHUNG',
+      }),
+      'utf8',
+    );
+    const { chuyen } = cfg.diTruTokenRepo();
+    expect(chuyen).toEqual(['acme/legacy-repo']);
+    expect(kho.docTokenRieng('acme/legacy-repo')).toBe('ghp_CHUNG');
+  });
+
+  it('chìa cũ chỉ rời config khi MỌI repo đã có chìa riêng nằm an toàn trong kho', () => {
+    // Lưới fail-closed. Kiểm bằng cách đọc lại kho chứ không tin vào việc vừa gọi hàm ghi: kho không
+    // ghi được (quyền sai, đĩa đầy) mà vẫn xoá token khỏi config là làm bốc hơi thứ duy nhất mở được
+    // các repo đó.
+    writeFileSync(FILE_CONFIG, JSON.stringify(configCu), 'utf8');
+    cfg.diTruTokenRepo();
+    expect(JSON.parse(readFileSync(FILE_CONFIG, 'utf8')).github_token).toBeUndefined();
+    expect(kho.docTokenRieng('acme/web')).toBe('ghp_CHUNG');
+    expect(kho.docTokenRieng('acme/api')).toBe('ghp_CHUNG');
+  });
+
   it('không có config.json hay không có token cũ thì không tạo ra file rác', () => {
     expect(cfg.diTruTokenRepo().chuyen).toEqual([]);
     expect(existsSync(FILE_SECRET)).toBe(false);

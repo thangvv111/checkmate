@@ -94,6 +94,16 @@ const MAC_DINH: CheckmateConfig = {
 // Cache theo thời điểm sửa file: đọc lại chỉ khi file thật sự đổi, nên sửa tay vẫn có hiệu lực ngay.
 let cache: { mtimeMs: number; token: string; c: CheckmateConfig } | null = null;
 
+/**
+ * Danh sách repo suy từ cấu hình đã lưu — R4.3: bản đời cũ chỉ có MỘT `repo` phải được nâng thành
+ * danh sách một phần tử. Tách thành hàm riêng vì có hơn một chỗ cần trả lời câu hỏi này, và hai chỗ
+ * trả lời khác nhau là cách sinh ra lỗi im lặng: di trú từng đọc thẳng `luu.repos` nên với cấu hình
+ * đời cũ nó không thấy repo nào, không di trú gì, mà vẫn xoá token dùng chung đi.
+ */
+function dsRepoTuLuu(luu: Partial<CheckmateConfig>): RepoConfig[] {
+  return luu.repos?.length ? luu.repos : [{ ...MAC_DINH.repos[0], ...(luu.repo ?? {}) }];
+}
+
 export function docConfig(): CheckmateConfig {
   // `GITHUB_TOKEN` của môi trường vẫn có hiệu lực, nhưng ở bậc 2 của R4.20 và do kho bí mật lo —
   // không còn nhồi vào `config.github_token` nữa. Giữ trong khoá cache để sửa env rồi restart vẫn ăn.
@@ -105,7 +115,7 @@ export function docConfig(): CheckmateConfig {
   if (cache && cache.mtimeMs === mtimeMs && cache.token === tokenEnv) return cache.c;
   const luu = JSON.parse(readFileSync(FILE, 'utf8')) as Partial<CheckmateConfig>;
   // Config đời cũ chỉ có MỘT repo — nâng thành danh sách mà không mất thiết lập nào
-  const repos: RepoConfig[] = luu.repos?.length ? luu.repos : [{ ...MAC_DINH.repos[0], ...(luu.repo ?? {}) }];
+  const repos = dsRepoTuLuu(luu);
   const chon = luu.repo_dang_chon && repos.some((r) => r.github === luu.repo_dang_chon) ? luu.repo_dang_chon : repos[0].github;
   const c: CheckmateConfig = {
     repos,
@@ -162,7 +172,7 @@ export function diTruTokenRepo(): { chuyen: string[] } {
   const cu = luu.github_token?.trim() ?? '';
   if (!cu) return { chuyen: [] };
   const chuyen: string[] = [];
-  for (const r of luu.repos ?? []) {
+  for (const r of dsRepoTuLuu(luu)) {
     // Hỏi CHÌA RIÊNG, không hỏi docTokenRepo: hàm kia có bậc dự phòng đọc GITHUB_TOKEN của môi trường
     // (R4.20), nên trên máy chủ có biến đó thì MỌI repo chưa có chìa riêng đều trông như "đã có chìa"
     // và bị bỏ qua — token dùng chung cũ không bao giờ được di trú, trái chữ PHẢI của R4.21. Thứ tự ưu
@@ -172,6 +182,11 @@ export function diTruTokenRepo(): { chuyen: string[] } {
     ghiTokenRepo(r.github, cu);
     chuyen.push(r.github);
   }
+  // Lưới fail-closed: chìa cũ chỉ được gỡ khỏi file khi KHÔNG CÒN repo nào cần tới nó — tức mọi repo
+  // trong danh sách đều đã có chìa riêng nằm an toàn trong kho bí mật. Kiểm bằng cách đọc lại kho chứ
+  // không tin vào việc vừa gọi hàm ghi: kho không ghi được (quyền sai, đĩa đầy) mà vẫn xoá token khỏi
+  // config là làm bốc hơi thứ duy nhất mở được các repo đó. Thà để token nằm sai chỗ còn hơn mất hẳn.
+  if (dsRepoTuLuu(luu).some((r) => !docTokenRieng(r.github))) return { chuyen };
   const { github_token: _bo, ...conLai } = luu;
   writeFileSync(FILE, JSON.stringify(conLai, null, 2) + '\n', 'utf8');
   cache = null;
