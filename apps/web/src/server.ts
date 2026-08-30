@@ -6,6 +6,21 @@ import { DINH_DANG_NHAN, trichText } from './extract.js';
 import { GOC } from './paths.js';
 import { RunManager } from './runs.js';
 import { escHtml, khung, khoiDaTraVe, khoiPrList, trangChu, trangRun, trangSettings } from './ui.js';
+import {
+  TEN_COOKIE_PHIEN,
+  coTaiKhoanNao,
+  danhTinhNeuCo,
+  docCookie,
+  kiemMatKhau,
+  taoPhien,
+  xoaPhien,
+  type DanhTinh,
+} from './danh-tinh.js';
+import { trangLogin, type TrangThaiLogin } from './ui-login.js';
+
+/** Yêu cầu đã qua lớp chặn cửa thì chắc chắn có danh tính — khỏi phải đọc lại ở từng route */
+type ReqCoDanhTinh = express.Request & { danhTinh: DanhTinh };
+
 import { MODE, cauHinhHienTai, cheToken, cheToken2, docConfig, diTruTokenRepo, docTokenThueBao, envAgent, ghiConfig, ghiTokenThueBao } from './config.js';
 import { DANH_MUC_NCC, dinhNghia, docSoKiem, ghiKhoa, kiemConHieuLuc, type CauHinhNcc, type MaNcc, type PhuongThuc } from './ncc.js';
 import { GOC_REPO, slugRepoGithub, timRepo, type RepoConfig } from './config.js';
@@ -31,6 +46,88 @@ import { chuanMuc } from '../../../packages/shared/src/types.js';
 const app = express();
 app.use(express.urlencoded({ extended: false, limit: '300kb' }));
 app.use(express.json({ limit: '300kb' }));
+
+// ---- Đăng nhập và chặn cửa (specs/R11) ----
+
+/** Đường KHÔNG cần phiên. Danh sách CHO PHÉP: route mới mặc định phải đăng nhập, không phải nhớ bổ sung. */
+const DUONG_MO = new Set(['/login', '/logout', '/health']);
+
+/** R11.2 — không có phiên hợp lệ thì chặn, KỂ CẢ khi lớp xác thực bên ngoài đã cho qua. */
+app.use((req, res, next) => {
+  if (DUONG_MO.has(req.path)) return next();
+  const dt = danhTinhNeuCo(req);
+  if (dt) {
+    (req as ReqCoDanhTinh).danhTinh = dt;
+    return next();
+  }
+  // API trả JSON, trang trả chuyển hướng — client gọi API mà nhận HTML thì lỗi biến thành «JSON hỏng»,
+  // tức lại một ca báo sai bản chất.
+  if (req.path.startsWith('/api/')) {
+    return res.status(401).json({ loi: 'Chưa đăng nhập hoặc phiên đã hết hạn.', can_dang_nhap: true });
+  }
+  const tiep = req.method === 'GET' && req.originalUrl !== '/' ? `?tiep=${encodeURIComponent(req.originalUrl)}` : '';
+  return res.redirect(303, `/login${tiep}`);
+});
+
+app.get('/health', (_req, res) => res.json({ ok: true }));
+
+app.get('/login', (req, res) => {
+  if (danhTinhNeuCo(req)) return res.redirect(303, '/');
+  const q = req.query as Record<string, string>;
+  const trangThai: TrangThaiLogin = !coTaiKhoanNao()
+    ? 'chua_co_tai_khoan'
+    : q.het === '1'
+      ? 'phien_het_han'
+      : q.sai === '1'
+        ? 'sai_mat_khau'
+        : 'moi';
+  res.send(trangLogin({ trangThai, tiep: duongNoiBo(q.tiep) }));
+});
+
+app.post('/login', (req, res) => {
+  const b = req.body as Record<string, string>;
+  const dt = kiemMatKhau((b.ten ?? '').trim(), b.mk ?? '');
+  if (!dt) {
+    // Cùng một câu cho sai tên lẫn sai mật khẩu (R11.10)
+    const tiep = duongNoiBo(b.tiep);
+    return res.redirect(303, `/login?sai=1${tiep ? `&tiep=${encodeURIComponent(tiep)}` : ''}`);
+  }
+  const { token, hetHan } = taoPhien(dt.ten);
+  res.setHeader('set-cookie', dungCookiePhien(req, token, hetHan));
+  res.redirect(303, duongNoiBo(b.tiep) || '/');
+});
+
+app.post('/logout', (req, res) => {
+  // R11.13 — xoá phiên ở PHÍA MÁY CHỦ; xoá mỗi cookie là để lại một token còn sống
+  const token = docCookie(req, TEN_COOKIE_PHIEN);
+  if (token) xoaPhien(token);
+  res.setHeader('set-cookie', dungCookiePhien(req, '', new Date(0)));
+  res.redirect(303, '/login');
+});
+
+/**
+ * Chỉ nhận đường NỘI BỘ cho tham số quay-lại. Không lọc thì `?tiep=https://kẻ-xấu` biến trang đăng
+ * nhập của chính mình thành bàn đạp chuyển hướng — người dùng thấy tên miền quen, bấm, rồi bị đá đi nơi khác.
+ */
+export function duongNoiBo(x: unknown): string {
+  const s = typeof x === 'string' ? x.trim() : '';
+  return /^\/[^/\\]/.test(s) ? s : '';
+}
+
+/** R11.14 — HttpOnly + SameSite luôn; Secure khi đi qua HTTPS (nginx báo bằng x-forwarded-proto) */
+function dungCookiePhien(req: express.Request, token: string, hetHan: Date): string {
+  const https = (req.headers['x-forwarded-proto'] ?? '').toString().split(',')[0].trim() === 'https';
+  return [
+    `${TEN_COOKIE_PHIEN}=${encodeURIComponent(token)}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    https ? 'Secure' : '',
+    `Expires=${hetHan.toUTCString()}`,
+  ]
+    .filter(Boolean)
+    .join('; ');
+}
 
 const rm = new RunManager();
 const TMP_DOC = join(GOC, 'web-runs', 'tmp');

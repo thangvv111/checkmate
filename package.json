@@ -8,6 +8,7 @@
     "checker": "tsx packages/harness/src/cli.ts",
     "web": "tsx apps/web/src/server.ts",
     "web:org": "tsx apps/web/src/server.ts --org",
+    "tai-khoan": "tsx apps/web/src/cli-tai-khoan.ts",
     "mcp": "tsx apps/mcp/src/server.ts",
     "test": "vitest run"
   },
