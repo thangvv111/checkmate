@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync } from 'node:fs';
+import { chmodSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { GOC } from '../paths.js';
 
@@ -53,6 +53,9 @@ CREATE TABLE IF NOT EXISTS so_cong (
   luc       TEXT NOT NULL,
   hanh_dong TEXT NOT NULL CHECK (hanh_dong IN ('merge','reject')),
   nguoi     TEXT NOT NULL,
+  -- R11.16: dong bang tai thoi diem bam. Bang run SUA DUOC, nen tra loi cau hoi kiem toan bang cach
+  -- noi sang do la pha dung tinh chat ma trigger chi-ghi-them sinh ra de giu.
+  tac_gia_pr TEXT,
   chi_tiet  TEXT
 );
 CREATE INDEX IF NOT EXISTS ix_so_cong_run ON so_cong(run_id);
@@ -105,6 +108,30 @@ CREATE TABLE IF NOT EXISTS da_di_tru (
   so_dong INTEGER NOT NULL DEFAULT 0,
   bo_qua  INTEGER NOT NULL DEFAULT 0
 );
+
+-- ============ Danh tính người thao tác (specs/R11) ============
+-- Ngoại lệ CÓ CHỦ ĐÍCH với R9.13: hash mật khẩu không mở được gì bên ngoài hệ này, còn tài khoản thì
+-- cần truy vấn và nối. Cái giá là R11.8 — file này từ nay là dữ liệu nhạy cảm, phải ở quyền 600.
+CREATE TABLE IF NOT EXISTS nguoi_dung (
+  ten       TEXT PRIMARY KEY,
+  hash      TEXT NOT NULL,
+  muoi      TEXT NOT NULL,
+  vai       TEXT NOT NULL CHECK (vai IN ('nguoi_xem','van_hanh','duyet_cong')),
+  tao_luc   TEXT NOT NULL,
+  doi_mk_luc TEXT
+);
+
+-- Chỉ lưu HASH của token phiên (R11.11): ai đọc được file này cũng không dựng lại được phiên đang sống.
+-- Hệ quả có chủ đích — hệ thống không có bí mật ký dùng chung nào, tức không có thứ để rò.
+CREATE TABLE IF NOT EXISTS phien (
+  token_hash TEXT PRIMARY KEY,
+  ten        TEXT NOT NULL REFERENCES nguoi_dung(ten) ON DELETE CASCADE,
+  tao_luc    TEXT NOT NULL,
+  het_han    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_phien_ten ON phien(ten);
+CREATE INDEX IF NOT EXISTS ix_phien_het_han ON phien(het_han);
+
 `;
 
 let db: DatabaseSync | null = null;
@@ -124,8 +151,44 @@ export function moDb(): DatabaseSync {
   // kỷ luật "đừng ai viết REPLACE".
   d.exec('PRAGMA recursive_triggers = ON');
   d.exec(SCHEMA);
+  napCotThieu(d);
+  d.exec('PRAGMA foreign_keys = ON'); // đặt lại sau ALTER, phòng khi bước trên tắt nó đi
+  sietQuyenDb();
   db = d;
   return d;
+}
+
+/**
+ * `CREATE TABLE IF NOT EXISTS` KHÔNG thêm cột vào bảng đã tồn tại — nó lặng lẽ bỏ qua cả câu lệnh.
+ * Nghĩa là thêm một cột vào SCHEMA chỉ có tác dụng trên máy có cơ sở dữ liệu RỖNG: máy dev chạy ngon,
+ * máy chủ đã có dữ liệu thì thiếu cột và chết lúc ghi. Đúng loại hỏng chỉ lộ ra ở production.
+ *
+ * Mỗi cột thêm về sau phải khai ở đây một dòng. Bảng mới thì không cần — `CREATE TABLE` lo được.
+ */
+function napCotThieu(d: DatabaseSync): void {
+  const them: Array<[string, string, string]> = [
+    // [bảng, cột, kiểu] — R11.16: đóng băng tên tác giả PR vào chính hàng sổ cổng
+    ['so_cong', 'tac_gia_pr', 'TEXT'],
+  ];
+  for (const [bang, cot, kieu] of them) {
+    const daCo = (d.prepare(`PRAGMA table_info(${bang})`).all() as Array<{ name: string }>).some((c) => c.name === cot);
+    if (!daCo) d.exec(`ALTER TABLE ${bang} ADD COLUMN ${cot} ${kieu}`);
+  }
+}
+
+/**
+ * R11.8 — từ khi tài khoản vào cơ sở dữ liệu (R11.7), file này mang hash mật khẩu, tức là dữ liệu nhạy
+ * cảm. Siết quyền cả ba file: `-wal` và `-shm` chứa dữ liệu chưa dồn vào file chính, để hở chúng thì
+ * siết mỗi file chính là siết nửa vời.
+ */
+function sietQuyenDb(): void {
+  for (const duoi of ['', '-wal', '-shm']) {
+    try {
+      chmodSync(DUONG_DB + duoi, 0o600);
+    } catch {
+      /* file chưa tồn tại, hoặc hệ không chmod được (Windows) — bỏ qua */
+    }
+  }
 }
 
 /** Đóng và quên kết nối — dùng cho test, và cho lệnh cần mở lại cơ sở dữ liệu khác. */
