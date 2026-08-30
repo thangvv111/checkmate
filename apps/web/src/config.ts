@@ -1,6 +1,7 @@
-import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { dinhNghia, docKhoa, type CauHinhNcc, type MaNcc } from './ncc.js';
+import { docKho, ghiKho, docTokenRieng, ghiTokenRepo } from './kho-bi-mat.js';
 
 // Chế độ vận hành (spec §9): demo = deploy public, khoá repo demo, Settings chỉ-đọc (fail-closed);
 // org = self-host trong tổ chức, mở toàn bộ cấu hình. Bật org bằng --org hoặc CHECKMATE_MODE=org.
@@ -42,7 +43,12 @@ export interface CheckmateConfig {
   repo_dang_chon: string;
   /** View của repo đang chọn — giữ để code cũ (`cfg.repo`) chạy nguyên, không phải sửa rải rác */
   repo: RepoConfig;
-  github_token: string; // rỗng = thử dùng gh CLI của máy
+  /**
+   * @deprecated Token dùng chung cho mọi repo — đã thay bằng token theo TỪNG repo (R4.18).
+   * Trường này chỉ còn sống để đọc cấu hình đời cũ và di trú (R4.21); code mới KHÔNG được đọc nó,
+   * hãy gọi `docTokenRepo(github)`.
+   */
+  github_token: string;
   agent: AgentConfig;
   truc: TrucConfig;
 }
@@ -58,11 +64,9 @@ export function timRepo(c: CheckmateConfig, github: string): RepoConfig | undefi
   return c.repos.find((r) => r.github.toLowerCase() === github.toLowerCase());
 }
 
-const GOC = resolve('.');
+const GOC = process.env.CHECKMATE_GOC ?? resolve('.');
 const FILE = join(GOC, 'config.json');
-// Secrets KHÔNG nằm chung config.json: file riêng quyền 600, gitignore, để lộ file cấu hình
-// (chụp màn hình, gửi log) không kéo theo chìa khoá.
-const FILE_SECRET = join(GOC, '.secrets.json');
+// Secrets KHÔNG nằm chung config.json (kho riêng quyền 600 — xem kho-bi-mat.ts)
 
 const REPO_DEMO: RepoConfig = {
   github: 'thangvv111/demo-credit-approval',
@@ -84,27 +88,45 @@ const MAC_DINH: CheckmateConfig = {
   truc: { bat: false, chu_ky_giay: 300, tu_dong_comment: true },
 };
 
+// Cấu hình và kho khoá CỐ Ý không vào cơ sở dữ liệu (specs/R9.13): sửa file bằng tay là đường cứu hộ
+// khi cấu hình sai làm giao diện không lên, và bí mật nằm trong cơ sở dữ liệu thì mọi bản sao lưu đều
+// mang theo khoá. File này đóng vai lớp kho cho phần đó.
+// Cache theo thời điểm sửa file: đọc lại chỉ khi file thật sự đổi, nên sửa tay vẫn có hiệu lực ngay.
+let cache: { mtimeMs: number; token: string; c: CheckmateConfig } | null = null;
+
+/**
+ * Danh sách repo suy từ cấu hình đã lưu — R4.3: bản đời cũ chỉ có MỘT `repo` phải được nâng thành
+ * danh sách một phần tử. Tách thành hàm riêng vì có hơn một chỗ cần trả lời câu hỏi này, và hai chỗ
+ * trả lời khác nhau là cách sinh ra lỗi im lặng: di trú từng đọc thẳng `luu.repos` nên với cấu hình
+ * đời cũ nó không thấy repo nào, không di trú gì, mà vẫn xoá token dùng chung đi.
+ */
+function dsRepoTuLuu(luu: Partial<CheckmateConfig>): RepoConfig[] {
+  return luu.repos?.length ? luu.repos : [{ ...MAC_DINH.repos[0], ...(luu.repo ?? {}) }];
+}
+
 export function docConfig(): CheckmateConfig {
-  // Deploy trên server: secrets nên nằm ở file env quyền 600 (EnvironmentFile của systemd),
-  // không nằm trong config.json cạnh source. Env THẮNG config để chủ máy đổi một chỗ rồi restart.
+  // `GITHUB_TOKEN` của môi trường vẫn có hiệu lực, nhưng ở bậc 2 của R4.20 và do kho bí mật lo —
+  // không còn nhồi vào `config.github_token` nữa. Giữ trong khoá cache để sửa env rồi restart vẫn ăn.
   const tokenEnv = process.env.GITHUB_TOKEN?.trim() ?? '';
   if (!existsSync(FILE)) {
-    const c = structuredClone(MAC_DINH);
-    if (tokenEnv) c.github_token = tokenEnv;
-    return c;
+    return structuredClone(MAC_DINH);
   }
+  const mtimeMs = statSync(FILE).mtimeMs;
+  if (cache && cache.mtimeMs === mtimeMs && cache.token === tokenEnv) return cache.c;
   const luu = JSON.parse(readFileSync(FILE, 'utf8')) as Partial<CheckmateConfig>;
   // Config đời cũ chỉ có MỘT repo — nâng thành danh sách mà không mất thiết lập nào
-  const repos: RepoConfig[] = luu.repos?.length ? luu.repos : [{ ...MAC_DINH.repos[0], ...(luu.repo ?? {}) }];
+  const repos = dsRepoTuLuu(luu);
   const chon = luu.repo_dang_chon && repos.some((r) => r.github === luu.repo_dang_chon) ? luu.repo_dang_chon : repos[0].github;
-  return {
+  const c: CheckmateConfig = {
     repos,
     repo_dang_chon: chon,
     repo: repos.find((r) => r.github === chon) ?? repos[0],
-    github_token: tokenEnv || (luu.github_token ?? ''),
+    github_token: luu.github_token ?? '',
     agent: nangCapAgent(luu.agent),
     truc: { ...MAC_DINH.truc, ...luu.truc },
   };
+  cache = { mtimeMs, token: tokenEnv, c };
+  return c;
 }
 
 // Config đời cũ chỉ có provider 'cli'|'api' + model phẳng — nâng lên mô hình nhà-cung-cấp
@@ -134,36 +156,62 @@ export function ghiConfig(c: CheckmateConfig): void {
   // `repo` chỉ là VIEW của repo đang chọn — không ghi xuống đĩa, kẻo có hai nguồn sự thật lệch nhau
   const { repo: _view, ...luu } = c;
   writeFileSync(FILE, JSON.stringify(luu, null, 2) + '\n', 'utf8');
+  cache = null; // bỏ cache ngay khi ghi, không dựa vào độ phân giải mili giây của mtime
 }
 
+/**
+ * R4.21 — di trú token dùng chung sang token theo từng repo. Chạy lúc khởi động, một lần là đủ, và
+ * chạy lại lần hai không đổi gì thêm (`github_token` đã bị gỡ khỏi file).
+ *
+ * Ghi THẲNG xuống file chứ không đi qua `ghiConfig`: đây là bảo trì dữ liệu của chính hệ thống, không
+ * phải người dùng sửa cấu hình — chặn nó ở chế độ demo chỉ để lại token nằm sai chỗ.
+ */
+export function diTruTokenRepo(): { chuyen: string[] } {
+  if (!existsSync(FILE)) return { chuyen: [] };
+  const luu = JSON.parse(readFileSync(FILE, 'utf8')) as Partial<CheckmateConfig>;
+  const cu = luu.github_token?.trim() ?? '';
+  if (!cu) return { chuyen: [] };
+  const chuyen: string[] = [];
+  for (const r of dsRepoTuLuu(luu)) {
+    // Hỏi CHÌA RIÊNG, không hỏi docTokenRepo: hàm kia có bậc dự phòng đọc GITHUB_TOKEN của môi trường
+    // (R4.20), nên trên máy chủ có biến đó thì MỌI repo chưa có chìa riêng đều trông như "đã có chìa"
+    // và bị bỏ qua — token dùng chung cũ không bao giờ được di trú, trái chữ PHẢI của R4.21. Thứ tự ưu
+    // tiên R4.20 chỉ áp lúc ĐỌC token để gọi API, không phải lúc quyết định có nên di trú hay không.
+    const rieng = docTokenRieng(r.github);
+    if (rieng && rieng !== cu) continue;
+    ghiTokenRepo(r.github, cu);
+    chuyen.push(r.github);
+  }
+  // Lưới fail-closed: chìa cũ chỉ được gỡ khỏi file khi KHÔNG CÒN repo nào cần tới nó — tức mọi repo
+  // trong danh sách đều đã có chìa riêng nằm an toàn trong kho bí mật. Kiểm bằng cách đọc lại kho chứ
+  // không tin vào việc vừa gọi hàm ghi: kho không ghi được (quyền sai, đĩa đầy) mà vẫn xoá token khỏi
+  // config là làm bốc hơi thứ duy nhất mở được các repo đó. Thà để token nằm sai chỗ còn hơn mất hẳn.
+  if (dsRepoTuLuu(luu).some((r) => !docTokenRieng(r.github))) return { chuyen };
+  const { github_token: _bo, ...conLai } = luu;
+  writeFileSync(FILE, JSON.stringify(conLai, null, 2) + '\n', 'utf8');
+  cache = null;
+  return { chuyen };
+}
+
+/**
+ * Che token để hiển thị. KHÔNG lộ ký tự nào của chìa (R4.26): bảy ký tự đầu và bốn ký tự cuối không
+ * giúp người dùng phân biệt hai token — `ghp_` chiếm sẵn bốn ký tự đầu — nhưng lại là một phần chìa
+ * thật nằm trên ảnh chụp màn hình và trong log. Độ dài là đủ để nhận ra "mình đã dán đúng chỗ chưa".
+ */
 export function cheToken(token: string): string {
   if (!token) return '(chưa đặt — dùng đăng nhập gh của máy nếu có)';
-  return token.slice(0, 7) + '****' + token.slice(-4);
+  return `đã có (${token.length} ký tự)`;
 }
 
 // Env truyền xuống harness CLI theo cấu hình agent
 // Token gói thuê bao Claude Code (tạo bằng `claude setup-token` trên máy có trình duyệt).
 // Ưu tiên biến môi trường của dịch vụ; không có thì lấy từ file secrets do người dùng dán qua giao diện.
 export function docTokenThueBao(): string {
-  const env = process.env.CLAUDE_CODE_OAUTH_TOKEN?.trim();
-  if (env) return env;
-  try {
-    if (!existsSync(FILE_SECRET)) return '';
-    const s = JSON.parse(readFileSync(FILE_SECRET, 'utf8')) as { claude_code_oauth_token?: string };
-    return s.claude_code_oauth_token?.trim() ?? '';
-  } catch {
-    return '';
-  }
+  return process.env.CLAUDE_CODE_OAUTH_TOKEN?.trim() || (docKho().claude_code_oauth_token?.trim() ?? '');
 }
 
 export function ghiTokenThueBao(token: string): void {
-  const cu = existsSync(FILE_SECRET) ? (JSON.parse(readFileSync(FILE_SECRET, 'utf8')) as Record<string, unknown>) : {};
-  writeFileSync(FILE_SECRET, JSON.stringify({ ...cu, claude_code_oauth_token: token }, null, 2), { encoding: 'utf8', mode: 0o600 });
-  try {
-    chmodSync(FILE_SECRET, 0o600); // file đã tồn tại thì mode ở writeFileSync không áp — siết lại cho chắc
-  } catch {
-    /* hệ thống không hỗ trợ chmod (Windows) — bỏ qua */
-  }
+  ghiKho({ ...docKho(), claude_code_oauth_token: token });
 }
 
 export function cheToken2(t: string): string {

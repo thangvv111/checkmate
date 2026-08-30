@@ -1,19 +1,22 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { mkdtempSync, rmSync, existsSync, mkdirSync, readdirSync, utimesSync } from 'node:fs';
+import { mkdtempSync, rmSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { KeHoachProbe } from '../packages/harness/src/skill-code.js';
 
-// Thư viện probe tích luỹ (specs/R8-chay-song-song.md).
-// Hai lượt chấm cùng repo chạy song song là bình thường, và mỗi lượt là một TIẾN TRÌNH riêng —
-// nên đọc→sửa→ghi vào sổ thư viện phải nằm trong khoá, kẻo lượt sau nuốt mất probe của lượt trước.
+// Thư viện probe hạt TỪNG-PROBE (specs/R10) + khoá liên tiến trình (specs/R8).
+// Hai điểm xương sống được kiểm ở đây: di trú đời bộ phải loại được bản chạy-lại (đo được 4 cặp
+// trong thư viện thật), và tầng 4 chỉ gỡ khi có BẰNG CHỨNG hành vi — cùng xanh suốt không phải bằng chứng.
 
 const goc = mkdtempSync(join(tmpdir(), 'checkmate-lib-'));
 process.env.CHECKER_LIB_DIR = goc;
 
-const { nhanVaoThuVien, docThuVien, voiKhoaThuVien } = await import('../packages/harness/src/thu-vien.js');
+const tv = await import('../packages/harness/src/thu-vien.js');
 
 const SLUG = 'repo-thu';
-const plan = [{ id: 'P1', ten: 't', muc_dich: 'm', spec_rule: 'R1', ky_vong: 'k' }];
+const plan = (id: string, rule = 'R1'): KeHoachProbe => ({ id, ten: `thử ${id}`, muc_dich: 'm', spec_rule: rule, ky_vong: 'k' });
+const codeProbe = (id: string, ruot = '1'): string =>
+  `import { it, expect } from 'vitest';\n\nit('${id}: thử', () => {\n  expect(${ruot}).toBe(${ruot});\n  });\n`;
 
 beforeEach(() => {
   rmSync(join(goc, SLUG), { recursive: true, force: true });
@@ -22,48 +25,186 @@ afterAll(() => {
   rmSync(goc, { recursive: true, force: true });
 });
 
-describe('nhanVaoThuVien', () => {
-  it('nhận probe mới và đọc lại được', () => {
-    const ten = nhanVaoThuVien(SLUG, 'const a = 1;', plan, 'abc1234def');
-    expect(ten).toBeTruthy();
-    expect(docThuVien(SLUG).map((b) => b.code)).toEqual(['const a = 1;']);
+describe('nhận theo từng probe', () => {
+  it('nhận probe mới và đọc lại được kèm code', () => {
+    const kq = tv.nhanVaoThuVien(SLUG, codeProbe('P1'), plan('P1'), 'abc1234def');
+    expect(kq.ten).toBeTruthy();
+    const ds = tv.docThuVien(SLUG);
+    expect(ds).toHaveLength(1);
+    expect(ds[0].plan.id).toBe('P1');
+    expect(ds[0].code).toContain("it('P1:");
   });
 
-  it('trùng nội dung thì từ chối, không đẻ file thứ hai', () => {
-    nhanVaoThuVien(SLUG, 'const a = 1;', plan, 'abc1234def');
-    expect(nhanVaoThuVien(SLUG, 'const a = 1;', plan, 'zzz9999aaa')).toBeNull();
-    expect(docThuVien(SLUG)).toHaveLength(1);
+  it('trùng nội dung thì từ chối kèm lý do và tên probe bị trùng', () => {
+    tv.nhanVaoThuVien(SLUG, codeProbe('P1'), plan('P1'), 'abc1234def');
+    const kq = tv.nhanVaoThuVien(SLUG, codeProbe('P1'), plan('P9', 'R5'), 'zzz9999aaa');
+    expect(kq.ten).toBeUndefined();
+    expect(kq.bo).toMatch(/trùng nội dung/);
+    expect(kq.voi).toBeTruthy();
   });
 
-  it('tên file lấy hậu tố từ hash nội dung, không từ số thứ tự', () => {
-    // Hai probe khác nội dung sinh ra TỪ CÙNG một commit vẫn phải ra hai tên khác nhau —
-    // số thứ tự thì hai lượt song song cùng tính ra một số rồi đạp lên file của nhau.
-    const a = nhanVaoThuVien(SLUG, 'const a = 1;', plan, 'abc1234def');
-    const b = nhanVaoThuVien(SLUG, 'const b = 2;', plan, 'abc1234def');
-    expect(a).not.toBe(b);
-    expect(docThuVien(SLUG)).toHaveLength(2);
+  it('bản chạy-lại cùng commit (sha + id + luật) bị chặn ngay trong khoá', () => {
+    tv.nhanVaoThuVien(SLUG, codeProbe('P1', '1'), plan('P1', 'R2'), 'abc1234def');
+    const kq = tv.nhanVaoThuVien(SLUG, codeProbe('P1', '2'), plan('P1', 'R2'), 'abc1234def');
+    expect(kq.bo).toMatch(/chạy-lại/);
   });
 
-  it('giữ trần 12 file, đẩy file cũ nhất ra và xoá khỏi đĩa', () => {
-    for (let i = 0; i < 15; i++) nhanVaoThuVien(SLUG, `const x = ${i};`, plan, `sha${i}0000`);
-    const con = docThuVien(SLUG);
-    expect(con).toHaveLength(12);
-    expect(con[0].code).toBe('const x = 3;'); // ba file đầu bị đẩy ra
+  it('cùng commit nhưng LUẬT khác thì vẫn nhận — chạy lại sâu hơn là thêm phủ, không phải bản sao', () => {
+    tv.nhanVaoThuVien(SLUG, codeProbe('P1', '1'), plan('P1', 'R2'), 'abc1234def');
+    const kq = tv.nhanVaoThuVien(SLUG, codeProbe('P1', '2'), plan('P1', 'R5'), 'abc1234def');
+    expect(kq.ten).toBeTruthy();
+    expect(tv.docThuVien(SLUG)).toHaveLength(2);
+  });
+
+  it('trần đếm theo PROBE, đào thải FIFO và xoá cả file trên đĩa', () => {
+    for (let i = 0; i < 45; i++) tv.nhanVaoThuVien(SLUG, codeProbe(`P${i}`, String(i)), plan(`P${i}`), `sha${i}0000`);
+    const con = tv.docThuVien(SLUG);
+    expect(con).toHaveLength(40);
+    expect(con[0].plan.id).toBe('P5'); // 5 probe đầu bị đẩy ra
     const trenDia = readdirSync(join(goc, SLUG)).filter((f) => f.endsWith('.probe.test.ts'));
-    expect(trenDia).toHaveLength(12); // không để lại file mồ côi
+    expect(trenDia).toHaveLength(40); // không để lại file mồ côi
+  });
+});
+
+describe('di trú đời bộ sang đời probe', () => {
+  const vietBoCu = (): void => {
+    mkdirSync(join(goc, SLUG), { recursive: true });
+    const bo1 = `import { it, expect } from 'vitest';\n\nit('P1: một', () => {\n  expect(1).toBe(1);\n  });\n\nit('P2: hai', () => {\n  expect(2).toBe(2);\n  });\n`;
+    // bộ 2 chấm CÙNG commit với bộ 1, P1 cùng luật (bản chạy-lại) còn P3 là probe mới thật
+    const bo2 = `import { it, expect } from 'vitest';\n\nit('P1: một bản hai', () => {\n  expect(1).toBe(1);\n  });\n\nit('P3: ba', () => {\n  expect(3).toBe(3);\n  });\n`;
+    writeFileSync(join(goc, SLUG, 'lib-abc1234-1.probe.test.ts'), bo1, 'utf8');
+    writeFileSync(join(goc, SLUG, 'lib_abc1234_2.probe.test.ts'), bo2, 'utf8');
+    writeFileSync(
+      join(goc, SLUG, 'meta.json'),
+      JSON.stringify({
+        files: [
+          { ten: 'lib-abc1234-1.probe.test.ts', sha_sinh: 'abc1234def', luc: '2026-08-20T01:00:00.000Z', hash: 'x1', plan: [plan('P1', 'R1'), plan('P2', 'R2')] },
+          { ten: 'lib_abc1234_2.probe.test.ts', sha_sinh: 'abc1234def', luc: '2026-08-21T01:00:00.000Z', hash: 'x2', plan: [plan('P1', 'R1'), plan('P3', 'R3')] },
+        ],
+      }),
+      'utf8',
+    );
+  };
+
+  it('tách từng probe, loại bản chạy-lại, xoá file bộ cũ', () => {
+    vietBoCu();
+    const ds = tv.docThuVien(SLUG);
+    expect(ds.map((d) => d.plan.id).sort()).toEqual(['P1', 'P2', 'P3']); // P1 bản hai bị loại
+    expect(existsSync(join(goc, SLUG, 'lib-abc1234-1.probe.test.ts'))).toBe(false);
+    // mỗi file tách chỉ còn ĐÚNG một it()
+    for (const d of ds) expect(d.code.match(/\bit\(/g)).toHaveLength(1);
+  });
+
+  it('di trú chạy đúng một lần — đọc lại không nhân đôi', () => {
+    vietBoCu();
+    tv.docThuVien(SLUG);
+    expect(tv.docThuVien(SLUG)).toHaveLength(3);
+  });
+});
+
+describe('tầng 4 — lịch sử hành vi và gỡ trùng đo được', () => {
+  const nap = (id: string, rule: string, luc: string): string => {
+    const kq = tv.nhanVaoThuVien(SLUG, codeProbe(id, `'${id}'`), plan(id, rule), `sha_${id}_0`);
+    // luc quyết định ai là "cũ hơn" — ghi đè trực tiếp qua lịch sử meta không cần, dùng thứ tự nạp
+    return kq.ten!;
+  };
+
+  it('lịch sử ghi theo lượt, cùng lượt chạy lại thì thay chứ không nhân đôi', () => {
+    const ten = nap('P1', 'R1', '');
+    tv.capNhatLichSu(SLUG, 'luot1sha', [{ ten, trangThai: 'pass' }]);
+    tv.capNhatLichSu(SLUG, 'luot1sha', [{ ten, trangThai: 'hoi_quy' }]);
+    const d = tv.docThuVien(SLUG)[0];
+    expect(d.lich_su).toHaveLength(1);
+    expect(d.lich_su[0].trang_thai).toBe('hoi_quy');
+  });
+
+  it('gỡ probe MỚI hơn khi ≥3 lượt chung giống hệt và có lượt cả hai cùng bắt được hồi quy', () => {
+    const a = nap('P1', 'R2', '');
+    const b = nap('P2', 'R2', '');
+    for (const [sha, tt] of [['s1', 'pass'], ['s2', 'hoi_quy'], ['s3', 'pass']] as const) {
+      tv.capNhatLichSu(SLUG, sha, [{ ten: a, trangThai: tt }, { ten: b, trangThai: tt }]);
+    }
+    const go = tv.timVaGoTrungHanhVi(SLUG);
+    expect(go).toHaveLength(1);
+    expect(go[0].go).toBe(b); // giữ bản cũ hơn
+    expect(go[0].giu).toBe(a);
+    expect(go[0].bangChung).toMatch(/3 lượt chung/);
+    expect(tv.docThuVien(SLUG).map((d) => d.ten)).toEqual([a]);
+    expect(existsSync(join(goc, SLUG, b))).toBe(false);
+  });
+
+  it('cùng hỏng vì MỘT NGUYÊN NHÂN CHUNG thì KHÔNG gỡ — đó là chuyện của môi trường, không phải của probe', () => {
+    // Ca thật: repo đích đổi mã lỗi nghiệp vụ 400 → 422. Mọi probe neo cùng luật đều đỏ cả hai nhánh
+    // với cùng vân tay lỗi ⇒ đồng loạt mang `ngoai_pham_vi` / `nghi_loi_co_san`. Chúng giống nhau vì
+    // spec đổi, không phải vì chúng kiểm cùng một thứ — gỡ là xoá vĩnh viễn cả nhóm phép thử tốt.
+    const a = nap('P1', 'R2', '');
+    const b = nap('P2', 'R2', '');
+    for (const [sha, tt] of [
+      ['s1', 'ngoai_pham_vi'],
+      ['s2', 'nghi_loi_co_san'],
+      ['s3', 'ngoai_pham_vi'],
+      ['s4', 'nghi_van'],
+    ] as const) {
+      tv.capNhatLichSu(SLUG, sha, [{ ten: a, trangThai: tt }, { ten: b, trangThai: tt }]);
+    }
+    expect(tv.timVaGoTrungHanhVi(SLUG)).toHaveLength(0);
+    expect(tv.docThuVien(SLUG)).toHaveLength(2);
+  });
+
+  it('nhãn hoàn cảnh chung KHÔNG được tính vào số lượt chung tối thiểu', () => {
+    // Hai lượt hành vi thật + hai lượt hoàn cảnh chung = vẫn chưa đủ ba lượt có thông tin
+    const a = nap('P1', 'R2', '');
+    const b = nap('P2', 'R2', '');
+    for (const [sha, tt] of [
+      ['s1', 'hoi_quy'],
+      ['s2', 'pass'],
+      ['s3', 'ngoai_pham_vi'],
+      ['s4', 'nghi_loi_co_san'],
+    ] as const) {
+      tv.capNhatLichSu(SLUG, sha, [{ ten: a, trangThai: tt }, { ten: b, trangThai: tt }]);
+    }
+    expect(tv.timVaGoTrungHanhVi(SLUG)).toHaveLength(0);
+  });
+
+  it('cùng XANH suốt thì KHÔNG gỡ — đồng thuận khi không có gì xảy ra không phải bằng chứng', () => {
+    const a = nap('P1', 'R2', '');
+    const b = nap('P2', 'R2', '');
+    for (const sha of ['s1', 's2', 's3', 's4']) {
+      tv.capNhatLichSu(SLUG, sha, [{ ten: a, trangThai: 'pass' }, { ten: b, trangThai: 'pass' }]);
+    }
+    expect(tv.timVaGoTrungHanhVi(SLUG)).toHaveLength(0);
+    expect(tv.docThuVien(SLUG)).toHaveLength(2);
+  });
+
+  it('khác luật spec thì không gỡ dù hành vi giống hệt', () => {
+    const a = nap('P1', 'R2', '');
+    const b = nap('P2', 'R7', '');
+    for (const [sha, tt] of [['s1', 'hoi_quy'], ['s2', 'pass'], ['s3', 'hoi_quy']] as const) {
+      tv.capNhatLichSu(SLUG, sha, [{ ten: a, trangThai: tt }, { ten: b, trangThai: tt }]);
+    }
+    expect(tv.timVaGoTrungHanhVi(SLUG)).toHaveLength(0);
+  });
+
+  it('mới có 2 lượt chung thì chưa đủ bằng chứng', () => {
+    const a = nap('P1', 'R2', '');
+    const b = nap('P2', 'R2', '');
+    for (const [sha, tt] of [['s1', 'hoi_quy'], ['s2', 'hoi_quy']] as const) {
+      tv.capNhatLichSu(SLUG, sha, [{ ten: a, trangThai: tt }, { ten: b, trangThai: tt }]);
+    }
+    expect(tv.timVaGoTrungHanhVi(SLUG)).toHaveLength(0);
   });
 });
 
 describe('voiKhoaThuVien', () => {
   it('nhả khoá sau khi xong để lượt sau vào được', () => {
-    voiKhoaThuVien(SLUG, () => 1);
+    tv.voiKhoaThuVien(SLUG, () => 1);
     expect(existsSync(join(goc, SLUG, '.khoa'))).toBe(false);
-    expect(voiKhoaThuVien(SLUG, () => 2)).toBe(2);
+    expect(tv.voiKhoaThuVien(SLUG, () => 2)).toBe(2);
   });
 
   it('việc bên trong ném lỗi thì khoá vẫn phải được nhả', () => {
     expect(() =>
-      voiKhoaThuVien(SLUG, () => {
+      tv.voiKhoaThuVien(SLUG, () => {
         throw new Error('hỏng');
       }),
     ).toThrow('hỏng');
@@ -71,10 +212,55 @@ describe('voiKhoaThuVien', () => {
   });
 
   it('khoá của tiến trình đã chết bị phá, thư viện không đứng hình vĩnh viễn', () => {
-    // Khoá cũ hơn ngưỡng quá hạn = chủ của nó đã chết. Đặt mtime lùi lại để khỏi chờ thật.
     mkdirSync(join(goc, SLUG, '.khoa'), { recursive: true });
     const cu = new Date(Date.now() - 5 * 60_000);
     utimesSync(join(goc, SLUG, '.khoa'), cu, cu);
-    expect(voiKhoaThuVien(SLUG, () => 'vào được')).toBe('vào được');
+    expect(tv.voiKhoaThuVien(SLUG, () => 'vào được')).toBe('vào được');
+  });
+});
+
+describe('an toàn dữ liệu — bài học dàn review (R10.12–R10.13)', () => {
+  it('meta.json rách: giữ bằng chứng .hong-*, thư viện coi như rỗng, KHÔNG ghi đè mất', () => {
+    mkdirSync(join(goc, SLUG), { recursive: true });
+    writeFileSync(join(goc, SLUG, 'meta.json'), '{"probes": [{"ten": "lib_x', 'utf8'); // file cụt vì sập giữa ghi
+    expect(tv.docThuVien(SLUG)).toEqual([]);
+    const bangChung = readdirSync(join(goc, SLUG)).filter((f) => f.startsWith('meta.json.hong-'));
+    expect(bangChung).toHaveLength(1);
+  });
+
+  it('di trú GIỮ file bộ khi có probe không tách được — không xoá tài sản chưa cứu ra', () => {
+    mkdirSync(join(goc, SLUG), { recursive: true });
+    // P2 viết qua chuỗi trung gian nên không cắt/tách được — cả file bộ phải được giữ lại
+    const boKho = `import { it, expect } from 'vitest';\nconst ke = "it('P2: hai'";\n\nit('P1: một', () => {\n  expect(1).toBe(1);\n  });\n`;
+    writeFileSync(join(goc, SLUG, 'lib-kho-1.probe.test.ts'), boKho, 'utf8');
+    writeFileSync(
+      join(goc, SLUG, 'meta.json'),
+      JSON.stringify({ files: [{ ten: 'lib-kho-1.probe.test.ts', sha_sinh: 'abc1234def', luc: '2026-08-20T01:00:00.000Z', hash: 'x', plan: [plan('P1'), plan('P2', 'R2')] }] }),
+      'utf8',
+    );
+    tv.docThuVien(SLUG);
+    expect(existsSync(join(goc, SLUG, 'lib-kho-1.probe.test.ts'))).toBe(true); // file bộ được GIỮ
+    const meta = JSON.parse(readFileSync(join(goc, SLUG, 'meta.json'), 'utf8')) as { di_tru: string };
+    expect(meta.di_tru).toMatch(/KHÔNG tách được 1/);
+    expect(meta.di_tru).toMatch(/lib-kho-1\.probe\.test\.ts·P2/); // truy được ĐÚNG probe kẹt
+  });
+
+  it('di trú ghi chi tiết TỪNG probe bị loại: trùng với ai, vì sao', () => {
+    mkdirSync(join(goc, SLUG), { recursive: true });
+    const bo1 = `import { it, expect } from 'vitest';\n\nit('P1: một', () => {\n  expect(1).toBe(1);\n  });\n`;
+    const bo2 = `import { it, expect } from 'vitest';\n\nit('P1: một bản hai', () => {\n  expect(1).toBe(1);\n  });\n`;
+    writeFileSync(join(goc, SLUG, 'bo1.probe.test.ts'), bo1, 'utf8');
+    writeFileSync(join(goc, SLUG, 'bo2.probe.test.ts'), bo2, 'utf8');
+    writeFileSync(
+      join(goc, SLUG, 'meta.json'),
+      JSON.stringify({ files: [
+        { ten: 'bo1.probe.test.ts', sha_sinh: 'abc1234def', luc: '2026-08-20T01:00:00.000Z', hash: 'x1', plan: [plan('P1')] },
+        { ten: 'bo2.probe.test.ts', sha_sinh: 'abc1234def', luc: '2026-08-21T01:00:00.000Z', hash: 'x2', plan: [plan('P1')] },
+      ] }),
+      'utf8',
+    );
+    tv.docThuVien(SLUG);
+    const meta = JSON.parse(readFileSync(join(goc, SLUG, 'meta.json'), 'utf8')) as { di_tru: string };
+    expect(meta.di_tru).toMatch(/bo2\.probe\.test\.ts·P1 chạy-lại của lib_abc1234/);
   });
 });

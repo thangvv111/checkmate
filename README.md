@@ -4,6 +4,24 @@ CheckMate — **maker–checker cho code và tài liệu** (MSB AI Hackathon 202
 Cổng review đối kháng: không gợi ý cải thiện — nó được thiết kế để **bác bỏ**. Verdict PASS/FAIL
 ghim commit SHA; mọi finding kèm bằng chứng chạy-thật hoặc trích dẫn nguyên văn.
 
+## Hai điều đáng nói
+
+**Ý kiến của model không chặn được merge.** Model đề xuất probe (phép thử đối kháng) và viết diễn
+giải, nhưng nó không có tool nào — máy chủ mới là bên chạy probe thật, trong git-worktree sandbox,
+trên **cả nhánh PR lẫn nhánh gốc** để đối chứng. Việc phân loại kết quả do máy quyết theo bảng chân
+trị: `pass · hồi quy · ngoài phạm vi · nghi vấn · cải thiện · bỏ qua · không chạy`. Model không được
+tự giác luật đó. Và chỉ **hồi quy** — đỏ ở nhánh PR, xanh ở nhánh gốc — mới đủ tư cách chặn merge.
+Kèm theo là các lưới chống xanh giả: probe bị skip không tính là pass; thiếu đối chứng thì không
+được phong hồi quy; không probe nào chứng minh được gì thì lượt chấm kết thúc bằng **lỗi**, không ra
+PASS.
+
+**Mỗi lượt chấm để lại một lớp regression.** Probe nào đã chứng minh khớp contract — chạy đạt trên
+nhánh gốc — được giữ lại trong thư viện theo repo, và chạy lại ở mọi lượt sau mà không tốn thêm một
+lời gọi model nào. Trùng lặp lọc qua bốn tầng: hai tầng cơ học, một tầng model phán xử đúng một câu
+hẹp, một tầng dựa trên hành vi đo được qua nhiều lượt. Số đo hiện có: thư viện của một repo demo có
+41 probe, trong đó 11 là bản chạy-lại trùng lặp bị cơ chế lọc loại ra. Cơ chế thì có; **đường cong
+tích luỹ thì chưa đo được**, vì CheckMate mới chạy trên repo demo và chưa phục vụ dự án nào.
+
 
 ## Cấu trúc
 
@@ -52,8 +70,10 @@ nếu chưa đặt token. Chế độ `org` bật bằng `--org`.
 
 **Cloud (deploy online):** code thuần Node + git, không phụ thuộc Windows. Yêu cầu môi trường:
 - `ANTHROPIC_API_KEY` — bắt buộc (cloud không có Claude Code CLI; provider tự chuyển sang API).
-- `github_token` trong cấu hình — bắt buộc (cloud không có `gh`); PAT quyền đọc repo + pull request,
-  thêm quyền ghi nếu dùng cổng Merge/Reject.
+- Token GitHub **theo từng repo** — bắt buộc (cloud không có `gh`). Dán ở ⚙ Cài đặt qua bốn bước
+  (đường dẫn → token → kiểm kết nối → chọn nhánh); PAT quyền đọc repo + pull request, thêm quyền ghi
+  nếu dùng cổng Merge/Reject. `GITHUB_TOKEN` trong môi trường vẫn dùng được làm chìa chung cho repo
+  chưa có chìa riêng.
 - `git` có trong image; repo đích clone sẵn vào `local_path` (hoặc mount volume).
 - Volume bền cho `web-runs/` (lịch sử run + sổ review-log) và `probes-lib/` (thư viện probe tích luỹ)
   — mất volume là mất tài sản regression. `CHECKER_LIB_DIR` đổi được chỗ chứa thư viện.

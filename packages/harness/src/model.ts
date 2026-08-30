@@ -42,6 +42,32 @@ const TOOL_CAM = 'Bash Read Write Edit Glob Grep WebFetch WebSearch Task Noteboo
 // giục model. Đặt quá chặt thì giết oan lượt chạy đang tiến triển bình thường.
 const TRAN_GOI_MS = Math.max(60_000, Number(process.env.CHECKER_TRAN_GOI_S ?? 1800) * 1000);
 
+// CLI báo mất xác thực bằng cách IN RA STDOUT rồi thoát 0, nên nếu không nhận ra thì harness tưởng
+// đó là câu trả lời của model và ném tiếp "không tìm thấy JSON" — người đọc log đi sửa nhầm chỗ.
+// Danh sách này phải phủ cả phiên hết hạn, không chỉ ca chưa đăng nhập bao giờ.
+export const MAU_MAT_XAC_THUC =
+  /not logged in|please run \/login|failed to authenticate|authentication failed|oauth[^.]*(expired|invalid|refresh)|session expired|invalid api key|unauthorized/i;
+
+/**
+ * Câu trả lời THẬT của model có hình dạng: khối fence, hoặc JSON, hoặc dài. Câu CLI báo lỗi thì ngắn
+ * và trơ. Phân biệt bằng HÌNH DẠNG chứ không bằng cách thu hẹp mẫu — repo nào có spec về xác thực thì
+ * probe sinh ra gần như luôn chứa 'unauthorized' hay 'session expired', và mẫu hẹp cỡ nào cũng dính.
+ */
+export function coVeLaTraLoiModel(out: string): boolean {
+  const t = out.trim();
+  if (t.length > 400 || t.includes('```')) return true;
+  return (t.startsWith('{') && t.endsWith('}')) || (t.startsWith('[') && t.endsWith(']'));
+}
+
+/**
+ * CLI có mất xác thực không. stderr khớp mẫu là chắc chắn — model không bao giờ trả lời qua stderr.
+ * stdout thì phải loại trừ khả năng chính nó là câu trả lời của model (R3.13).
+ */
+export function matXacThuc(out: string, err: string): boolean {
+  if (MAU_MAT_XAC_THUC.test(err)) return true;
+  return MAU_MAT_XAC_THUC.test(out) && !coVeLaTraLoiModel(out);
+}
+
 /** Lỗi do CẤU HÌNH của chính checker, không phải trục trặc thoáng qua — thử lại vô nghĩa. */
 export class LoiCauHinhCli extends Error {}
 
@@ -120,10 +146,11 @@ export class ClaudeCliProvider implements ModelProvider {
       child.on('error', reject);
       child.on('close', (code) => {
         clearTimeout(timer);
-        if (/not logged in|please run \/login/i.test(out) || /not logged in|please run \/login/i.test(err)) {
+        if (matXacThuc(out, err)) {
+          // Lỗi CẤU HÌNH: thử lại chỉ tốn thêm một lượt y hệt, phiên hết hạn không tự sống lại
           return reject(
-            new Error(
-              'Claude Code CLI chưa đăng nhập trên máy này nên không dùng được gói thuê bao. ' +
+            new LoiCauHinhCli(
+              'Claude Code CLI mất xác thực trên máy này (chưa đăng nhập, hoặc phiên đã hết hạn) nên không dùng được gói thuê bao. ' +
                 'Chủ máy chạy `claude login` (hoặc `claude setup-token` rồi đặt CLAUDE_CODE_OAUTH_TOKEN) bằng ĐÚNG user chạy dịch vụ; ' +
                 'hoặc chuyển Provider sang "Anthropic API" trong ⚙ Cài đặt nếu chấp nhận tính tiền theo API.',
             ),

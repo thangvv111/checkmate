@@ -19,15 +19,62 @@ runner:
       ../packages/harness/src/target.js      → dungDiff
       ../packages/harness/src/runner.js      → parseJUnit · docRunnerCfg · docReviewCfg · mauBoQuaDiff
       ../packages/harness/src/sandbox.js     → loiNapFile
-      ../packages/harness/src/thu-vien.js    → nhanVaoThuVien · docThuVien · voiKhoaThuVien · slugRepo
+      ../packages/harness/src/thu-vien.js    → nhanVaoThuVien · docThuVien · voiKhoaThuVien · slugRepo · tachMotProbe · catKhoiTest · coKhoiTest · kiemCanBang · tachRule · capNhatLichSu · timVaGoTrungHanhVi
+      ../packages/harness/src/dedup-probe.js → tachRule · timTrungChayLai · timNghiTrung · apDungPhanXu
       ../packages/harness/src/jsonx.js       → bocJson · bocCode · LoiModelDungTool
       ../packages/harness/src/rao.js         → taoRao · LOI_RAO
       ../apps/web/src/ui.js                  → escHtml · tachNguon
       ../apps/web/src/ui-lich-su.js          → locRuns
       ../apps/web/src/ncc.js                 → cheKhoa · dinhNghia · DANH_MUC_NCC · kiemConHieuLuc
+      ../apps/web/src/config.js              → cheToken · slugRepoGithub · timRepo · diTruTokenRepo · cauHinhHienTai
+      ../apps/web/src/kho-bi-mat.js          → docTokenRepo · docTokenRieng · ghiTokenRepo · xoaTokenRepo · coToken · khoaRepo
+      ../apps/web/src/github.js              → repoTuPath · tachOwnerRepo · kiemTraRepo · cheTokenTrongVan · coGhCli · coDuongVaoGithub
+      ../apps/web/src/cong.js                → ghiSo · docSoCong
+      ../apps/web/src/kho/db.js              → moDb · dongDb
+      ../apps/web/src/kho/kho-run.js         → luuMeta · danhSach · demRun · timTheoPr · dangChayPr · soDangChay · daTraVe
+      ../apps/web/src/kho/kho-socai.js       → ghiSoCai · ghiSoCaiNeuChua · docSoCaiKho · ghiSoCong · LoiTrungRun
+      ../apps/web/src/kho/di-tru.js          → diTruTatCa · diTruSoCai · docJsonl
+      ⚠ Lớp kho nằm trong THƯ MỤC CON `kho/`, không nằm thẳng dưới `src/` — đây là chỗ đã làm hỏng
+        một lượt chấm thật: probe import '../apps/web/src/di-tru.js' và chết vì thiếu đúng một thư mục.
+    ⚠ CHỮ KÝ HÀM LỚP KHO — ĐỪNG ĐOÁN THAM SỐ. Đo được: ba lượt chấm liên tiếp có probe chết bằng
+      'Provided value cannot be bound to SQLite parameter N' ngay ở bước dựng dữ liệu, tức trước khi
+      chạm tới hành vi cần kiểm — probe không chứng minh được gì và lượt chấm mất trắng.
+      Các hàm này nhận MỘT OBJECT đủ trường, không nhận danh sách tham số rời:
+
+      ghiSoCai(m) · ghiSoCaiNeuChua(m) — m là MucSoCai, BẮT BUỘC đủ mọi trường không dấu ?:
+        { luc: '2026-08-30T10:00:00.000Z', run_id: 'r1', skill: 'code', artifact: 'PR #8 - code',
+          sha: 'e711ced0a1', verdict: 'PASS' | 'FAIL', high: 0, medium: 0, low: 0, model: 'm' }
+        Tuỳ chọn: pr (number) · tac_gia · repo · token_vao · token_ra · token_uoc (boolean) · backfill (boolean).
+        Thiếu một trường bắt buộc, hoặc truyền undefined vào đó, là lỗi bind chứ không phải lỗi nghiệp vụ.
+        verdict CHỈ nhận đúng 'PASS' hoặc 'FAIL' — chữ thường bị ràng buộc CHECK của bảng từ chối.
+
+      luuMeta(m) — m là RunMeta:
+        { id: 'r1', tieuDe: 'PR #8 - code', skill: 'code', trangThai: 'dang_chay' | 'xong' | 'loi',
+          batDau: '2026-08-30T10:00:00.000Z' }
+        Tuỳ chọn: ketThuc · repo · verdict · pr ({ so, headSha, tacGia }) · ketQuaCong.
+
+      docSoCai(loc?) · danhSachRun(loc?) · demRun(loc?) — nhận object LỌC, mọi trường tuỳ chọn:
+        docSoCai({ repo, verdict, gioi_han, bo_qua }) · danhSachRun({ repo, skill, trang_thai, gioi_han, bo_qua })
+
+      luuSuKien(runId, events) — hai tham số RỜI: chuỗi id, rồi mảng sự kiện.
+      ghiSo(entry) — sổ hành động cổng, entry: { hanhDong: 'merge' | 'reject', pr, sha, run_id, verdict, nguoi }.
+
+      Cần dữ liệu mẫu thì chép nguyên hình dạng ở trên rồi đổi giá trị — đừng dựng object rút gọn.
+    ⚠ ALIAS CỤC BỘ TRONG DIFF KHÔNG PHẢI TÊN EXPORT. Đo được: hai probe cùng chết vì gọi `docSoCaiKho`
+      — tên đó chỉ là bí danh đặt lúc import trong server.ts (`import { docSoCai as docSoCaiKho }`),
+      hàm thật tên `docSoCai`. Thấy `X as Y` trong diff thì tên phải import là X, không phải Y.
     Import TRỰC TIẾP ở đầu file. Đừng bọc import trong try/catch rồi assert typeof — làm thế thì lỗi
     import biến thành assertion thường, probe trông như đã chạy trong khi nó chưa chạy được gì.
     Hàm nào mà diff của PR mới thêm thì lấy đường dẫn từ chính diff, đừng suy từ bảng trên.
+    ⚠ CHUỖI KHÓ — repo này có nhiều luật NÓI VỀ việc xử lý chuỗi, khối fence và regex, nên probe cho
+    chúng rất dễ vỡ cú pháp. Đo được: hai lượt sinh liên tiếp cùng chết vì "Unterminated string".
+    Luật viết chuỗi trong probe của repo này:
+      - Cần ba dấu backtick thì GHÉP thay vì viết thẳng: const fence = '`' + '`' + '`';
+      - Cần chuỗi có nháy hoặc dấu chéo ngược thì dùng String.raw hoặc nối từng mảnh ngắn.
+      - KHÔNG lồng template literal trong template literal.
+      - Mỗi chuỗi viết gọn trên MỘT dòng; đừng xuống dòng ở giữa chuỗi.
+    Mỗi probe phải có ÍT NHẤT một expect() thật trên giá trị hàm trả về — file không assert gì sẽ bị
+    lưới chống probe-rỗng loại và bạn mất một lượt sinh.
     Cần file tạm thì dùng mkdtempSync vào thư mục tạm của hệ, dọn trong afterAll.
     Thư viện probe đọc thư mục qua biến môi trường CHECKER_LIB_DIR — đặt biến này trước khi import
     thu-vien.js nếu probe cần ghi vào thư viện giả.

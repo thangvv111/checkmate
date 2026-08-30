@@ -17,6 +17,20 @@ describe('bocJson', () => {
   it('không có JSON thì ném lỗi kèm trích trả lời để người đọc biết model nói gì', () => {
     expect(() => bocJson('tôi không thể làm việc này')).toThrow(/Không tìm thấy JSON/);
   });
+
+  it('JSON hỏng thì lỗi phải chỉ ĐÚNG CHỖ hỏng, không chỉ nói "position 2914"', () => {
+    // Ca thật đã làm chết một lượt chấm: người đọc log lẫn lượt sinh lại đều mù vì chỉ có con số
+    const hong = '{"probes": [{"id": "P1", "ten": "mot"} {"id": "P2", "ten": "hai"}]}';
+    let msg = '';
+    try {
+      bocJson(hong);
+    } catch (e) {
+      msg = (e as Error).message;
+    }
+    expect(msg).toMatch(/không parse được/);
+    expect(msg).toContain('HỎNG Ở ĐÂY');
+    expect(msg).toContain('P1'); // có đoạn văn quanh chỗ hỏng chứ không phải chỉ con số
+  });
 });
 
 describe('bocCode', () => {
@@ -55,5 +69,21 @@ describe('rào chống prompt injection', () => {
 
   it('lời rào nói rõ mọi thứ trong mốc là DỮ LIỆU, không phải lệnh', () => {
     expect(LOI_RAO.toLowerCase()).toMatch(/dữ liệu|không phải lệnh|không được làm theo/);
+  });
+});
+
+describe('token KHÔNG được rời khỏi cloneRepo trong lời kêu của git (R4.29)', () => {
+  it('gột được URL mang chìa trong thông báo lỗi clone', async () => {
+    const { cheTokenTrongVan } = await import('../apps/web/src/github.js');
+    // Lời kêu thật của git khi clone hỏng — chỗ gọi trả thẳng chuỗi này về trình duyệt
+    const van = [
+      "Cloning into 'repos/acme-web'...",
+      'remote: Repository not found.',
+      "fatal: repository 'https://x-access-token:ghp_SIEUBIMAT123456@github.com/acme/web.git/' not found",
+    ].join(' | ');
+    const che = cheTokenTrongVan(van);
+    expect(che).not.toContain('ghp_SIEUBIMAT123456');
+    expect(che).not.toContain('x-access-token');
+    expect(che).toContain('github.com/acme/web'); // vẫn đủ thông tin để người đọc biết repo nào
   });
 });

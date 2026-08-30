@@ -22,6 +22,35 @@ export interface TargetInfo {
   testMau: string;
 }
 
+/**
+ * Lỗi nạp probe kiểu `Cannot find module '../apps/web/src/di-tru.js'` nói ĐÚNG rằng module không có,
+ * nhưng KHÔNG nói đường đúng nằm đâu — nên lượt sinh lại đoán tiếp và trượt tiếp. Đo được ở chính repo
+ * này: hai lượt sinh liên tiếp cùng chết vì một đường dẫn lệch đúng MỘT thư mục (`src/` vs `src/kho/`).
+ *
+ * Engine thì biết repo có file gì. Tra ra rồi đưa thẳng cho model là chênh lệch giữa sửa được và không —
+ * cùng nguyên tắc đã áp cho JSON hỏng: đưa CHỖ HỎNG chứ đừng chỉ nói "hỏng".
+ */
+export function goiYDuongDanModule(loi: string, repo: string): string {
+  const thieu = [...new Set([...loi.matchAll(/Cannot find module '([^']+)'/g)].map((m) => m[1]))];
+  if (!thieu.length) return '';
+  let dsFile: string[];
+  try {
+    dsFile = git(repo, ['ls-files', '*.ts']).split('\n').filter(Boolean);
+  } catch {
+    return '';
+  }
+  const dong = thieu.map((duong) => {
+    const ten = duong.split('/').pop()!.replace(/\.(js|ts)$/, '');
+    const khop = dsFile.filter((f) => f.endsWith(`/${ten}.ts`) || f === `${ten}.ts`);
+    if (!khop.length) {
+      return `  '${duong}' KHÔNG có thật, và repo cũng KHÔNG có file nào tên '${ten}'. Hàm bạn định gọi nằm ở module khác — đọc lại bảng đường dẫn trong hợp đồng repo.`;
+    }
+    const dung = khop.map((f) => `'../${f.replace(/\.ts$/, '.js')}'`).join(' hoặc ');
+    return `  '${duong}' KHÔNG có thật. Đường ĐÚNG (tính từ thư mục test/): ${dung}`;
+  });
+  return `\n\nĐƯỜNG DẪN MODULE SAI — SỬA ĐÚNG NHỮNG DÒNG NÀY:\n${dong.join('\n')}\n`;
+}
+
 function git(repo: string, args: string[]): string {
   return execFileSync('git', args, { cwd: repo, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }).trim();
 }

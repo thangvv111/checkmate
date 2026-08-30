@@ -1,9 +1,10 @@
 import { chuanMuc, type Finding, type RunEvent, type Severity } from '../../shared/src/types.js';
 import type { ModelProvider } from './model.js';
 import { goiCode, goiJson } from './jsonx.js';
-import { docTarget, type TargetInfo } from './target.js';
+import { docTarget, goiYDuongDanModule, type TargetInfo } from './target.js';
 import { Sandbox, type KetQuaProbe } from './sandbox.js';
-import { docThuVien, nhanVaoThuVien, slugRepo } from './thu-vien.js';
+import { capNhatLichSu, docThuVien, nhanVaoThuVien, slugRepo, tachMotProbe, timVaGoTrungHanhVi } from './thu-vien.js';
+import { apDungPhanXu, promptPhanXuTrung, timNghiTrung, timTrungChayLai, type PhanXu, type UngPhanXu } from './dedup-probe.js';
 import { docReviewCfg, docRunnerCfg, mauBoQuaDiff, parseJUnit, type ReviewCfg, type RunnerCfg } from './runner.js';
 import { LOI_RAO, taoRao, type Rao } from './rao.js';
 
@@ -293,7 +294,7 @@ export async function chaySkillCode(
   const keHoach = (await goiJson<{ probes: KeHoachProbe[] }>(model, promptPhanTich(t, review, rao))).probes.slice(0, MAX_PROBE);
   phat({ type: 'log', msg: `${keHoach.length} probe mới: ${keHoach.map((p) => `${p.id} (${p.spec_rule})`).join(' · ')}` });
   if (thuVien.length > 0) {
-    phat({ type: 'log', msg: `+ ${thuVien.reduce((s, f) => s + f.plan.length, 0)} probe THƯ VIỆN từ ${thuVien.length} lượt trước (regression, không tốn model)` });
+    phat({ type: 'log', msg: `+ ${thuVien.length} probe THƯ VIỆN (regression, không tốn model)` });
   }
 
   let code = await goiCode(model, promptSinhCode(t, keHoach, rao, undefined, runner));
@@ -368,7 +369,8 @@ export async function chaySkillCode(
     if (loiThu !== undefined) {
       if (lan === 2) throw new Error(`Probe không thu thập được sau 2 lần sinh: ${loiThu}`);
       phat({ type: 'log', msg: 'File probe lỗi thu thập — sinh lại lần 2 kèm thông báo lỗi' });
-      code = await goiCode(model, promptSinhCode(t, keHoach, rao, loiThu, runner));
+      // Kèm ĐƯỜNG ĐÚNG chứ không chỉ kèm lời kêu: lượt sinh lại mù đường thì nó đoán lại y hệt
+      code = await goiCode(model, promptSinhCode(t, keHoach, rao, loiThu + goiYDuongDanModule(loiThu, t.repo), runner));
       continue;
     }
 
@@ -380,7 +382,7 @@ export async function chaySkillCode(
 
     const bo: Array<{ file: string; nguon: 'moi' | 'thu_vien'; plan: KeHoachProbe[] }> = [
       { file: fileProbeMoi, nguon: 'moi', plan: keHoach },
-      ...thuVien.map((f) => ({ file: f.ten, nguon: 'thu_vien' as const, plan: f.plan })),
+      ...thuVien.map((f) => ({ file: f.ten, nguon: 'thu_vien' as const, plan: [f.plan] })),
     ];
     let dem = 0;
     ungVienTatCa = bo.flatMap(({ file, nguon, plan }) =>
@@ -494,7 +496,17 @@ export async function chaySkillCode(
           `KHÔNG probe nào chứng minh được gì: tất cả đều đỏ trên cả hai nhánh hoặc không chạy tới nơi. ` +
             `Thường là do IMPORT SAI MODULE — hàm nằm ở file khác file bạn đoán. Đối chiếu lại phần diff để lấy ĐÚNG ` +
             `đường dẫn file chứa hàm, và import trực tiếp (không bọc try/catch rồi assert typeof, vì như thế lỗi import ` +
-            `biến thành assertion thường và che mất nguyên nhân thật).\n${viSao}`,
+            `biến thành assertion thường và che mất nguyên nhân thật).` +
+            // PR thêm MODULE MỚI thì nhánh gốc không có file đó, nên nhánh gốc không chạy được probe nào.
+            // Không nói ra thì model tưởng mình sai đường import và đi sửa nhầm chỗ ở lượt sinh lại.
+            (baseKq === undefined || baseKq.length === 0
+              ? `\n\nLƯU Ý QUAN TRỌNG: nhánh gốc KHÔNG chạy được probe nào (thường vì PR này THÊM MODULE MỚI mà nhánh gốc chưa có). ` +
+                `Vậy không có đối chứng, và mọi probe đỏ đều thành nghi_van chứ không thành hồi quy. Muốn lượt chấm có cơ sở, ` +
+                `probe phải CHẠY ĐƯỢC VÀ PASS trên nhánh PR — tức là kiểm đúng chữ ký hàm như diff khai. ` +
+                `Đọc lại chữ ký trong diff: đúng tên tham số, đúng thứ tự, đúng kiểu trả về. Probe đỏ ở đây nhiều khả năng là ` +
+                `PROBE SAI GIẢ ĐỊNH chứ không phải code sai.`
+              : '') +
+            `\n${viSao}`,
           runner,
         ),
       );
@@ -563,48 +575,103 @@ export async function chaySkillCode(
     }
   }
 
-  // Thư viện (spec §11-C): nhận probe mới đã chứng minh khớp contract (pass trên nhánh gốc).
-  // Probe fail-gốc (feature mới / probe hỏng) bị CẮT khỏi file; bản cắt phải chạy sạch trên gốc mới được nhận.
+  // Thư viện (specs/R10): nạp theo TỪNG probe đã chứng minh khớp contract (pass trên nhánh gốc).
+  // Trùng lặp xử theo bốn tầng — hai tầng cơ học miễn phí, model chỉ phân xử trên diện nghi, và mọi
+  // lần loại đều ghi log (rủi ro không đối xứng: loại nhầm là mất tài sản regression trong im lặng).
   const probeMoi = ungVienTatCa.filter((u) => u.nguon === 'moi');
-  const failGoc = probeMoi.filter((u) => u.bs?.status !== 'passed');
-  let codeNhan = code;
-  let planNhan = keHoach;
-  if (failGoc.length > 0 && runner) {
-    // strip từng test-case chỉ tin cậy với cú pháp vitest — repo runner ngoài thì fail-safe: không nhận
-    planNhan = [];
-  } else if (failGoc.length > 0) {
-    const boIds = new Set(failGoc.map((u) => u.probe.id));
-    planNhan = keHoach.filter((p) => !boIds.has(p.id));
-    for (const u of failGoc) {
-      codeNhan = codeNhan.replace(new RegExp(`\\n\\s*it\\(['"\`]${u.probe.id}:[\\s\\S]*?\\n  \\}\\);`), '');
+  const extProbe = runner ? runner.probe_ext : '.probe.test.ts';
+  if (probeMoi.length > 0) {
+    const passGoc = probeMoi.filter((u) => u.bs?.status === 'passed').map((u) => u.probe);
+    const tatCaId = keHoach.map((k) => k.id);
+
+    // B1 — tách mỗi probe pass-gốc thành một file độc lập; tách không được thì bỏ qua VÀ nói ra (R10.2)
+    const ungNap: Array<{ plan: KeHoachProbe; code: string }> = [];
+    for (const pl of passGoc) {
+      const rieng = tachMotProbe(code, pl.id, tatCaId.filter((x) => x !== pl.id), extProbe);
+      if (rieng) ungNap.push({ plan: pl, code: rieng });
+      else phat({ type: 'log', msg: `Thư viện: KHÔNG nạp ${pl.id} — không tách được thành file độc lập (cú pháp ngoài khuôn it()/def test_)` });
     }
-  }
-  if (probeMoi.length > 0 && planNhan.length >= 2) {
-    let sach = failGoc.length === 0;
-    if (!sach) {
-      // verify bản cắt trên nhánh gốc — deterministic, không tốn model
-      const sb = new Sandbox(repo, t.baseSha);
+
+    // B2 — tầng 1 cơ học (R10.6): bản chạy-lại cùng commit — loại không cần model
+    const sauChayLai = ungNap.filter((u) => {
+      const cu = timTrungChayLai(thuVien, u.plan, t.branchSha);
+      if (cu) phat({ type: 'log', msg: `Thư viện: bỏ ${u.plan.id} — bản chạy-lại cùng commit của ${cu.ten}` });
+      return !cu;
+    });
+
+    // B3 — file tách là artifact MỚI chưa từng chạy: verify chạy sạch một mình trên nhánh gốc (R10.3).
+    // Đây là lưới đỡ cho mọi ca tách hỏng (decorator mồ côi, helper bị cắt nhầm...) — deterministic, không tốn model.
+    let quaVerify: typeof sauChayLai = [];
+    if (sauChayLai.length > 0) {
+      const sbV = new Sandbox(repo, t.baseSha);
       try {
-        const filesV = [sb.ghiProbe(codeNhan, fileProbeMoi, runner?.probe_dir ?? 'test')];
-        const kq = runner ? sb.chayTheoRunner(filesV, runner, parseJUnit) : sb.chayVitest(filesV);
-        sach = kq.ok && kq.probes.length === planNhan.length && kq.probes.every((p) => p.status === 'passed');
+        const tenTam = (i: number) => `ung_nap_${i}${extProbe}`;
+        const filesV = sauChayLai.map((u, i) => sbV.ghiProbe(u.code, tenTam(i), runner?.probe_dir ?? 'test'));
+        // Đường runner chạy TỪNG file một lời gọi riêng: chayTheoRunner return sớm khi một file hỏng
+        // nạp, và mọi ứng viên đứng SAU file hỏng sẽ bị loại oan với log sai bản chất nếu gộp chung.
+        const kqV = runner
+          ? { probes: filesV.flatMap((f) => sbV.chayTheoRunner([f], runner, parseJUnit).probes) }
+          : sbV.chayVitest(filesV);
+        quaVerify = sauChayLai.filter((u, i) => {
+          const r = kqV.probes.find((x) => x.file === tenTam(i) && khopIdProbe(x.title, u.plan.id));
+          if (r?.status === 'passed') return true;
+          phat({ type: 'log', msg: `Thư viện: bỏ ${u.plan.id} — file tách không chạy sạch một mình trên nhánh gốc (${r ? r.status : 'không thấy kết quả'})` });
+          return false;
+        });
       } finally {
-        sb.huy();
+        sbV.huy();
       }
     }
-    if (sach) {
-      const ten = nhanVaoThuVien(slug, codeNhan, planNhan, t.branchSha, runner ? runner.probe_ext : '.probe.test.ts');
-      phat({
-        type: 'log',
-        msg: ten
-          ? `Thư viện: nhận ${planNhan.length} probe khớp contract (${ten}${failGoc.length ? `, đã cắt ${failGoc.length} probe fail-gốc` : ''}) — thành regression cho các lượt sau`
-          : 'Thư viện: bộ probe trùng nội dung bộ đã có — bỏ qua',
-      });
-    } else {
-      phat({ type: 'log', msg: 'Thư viện: KHÔNG nhận — bản cắt không chạy sạch trên nhánh gốc' });
+
+    // B4 — tầng 2+3 (R10.7–R10.8): diện nghi cơ học, model phân xử bằng đúng một câu hẹp.
+    // Lời gọi model nằm NGOÀI khoá thư viện (R10.11) — nhanVaoThuVien tự kiểm lại trong khoá.
+    let duocNap = quaVerify;
+    const dienNghi: UngPhanXu[] = quaVerify
+      .map((u, i) => ({ ma: `N${i + 1}`, moi: u, nghi: timNghiTrung(thuVien, u.plan, t.branchSha) }))
+      .filter((x) => x.nghi.length > 0);
+    if (dienNghi.length > 0) {
+      phat({ type: 'log', msg: `Thư viện: ${dienNghi.length}/${quaVerify.length} probe vào diện nghi trùng — model phân xử câu hỏi hẹp: có cho ra cùng một finding không` });
+      try {
+        const kqPX = await goiJson<{ phan_xu: PhanXu[] }>(model, promptPhanXuTrung(dienNghi, rao));
+        const quyet = apDungPhanXu(dienNghi, kqPX.phan_xu ?? []);
+        duocNap = quaVerify.filter((u) => {
+          const dn = dienNghi.find((x) => x.moi === u);
+          if (!dn) return true;
+          const q = quyet.get(dn.ma);
+          if (q?.bo) {
+            phat({ type: 'log', msg: `Thư viện: bỏ ${u.plan.id} — model phân xử TRÙNG với ${q.voi}${q.ly_do ? ` (${q.ly_do.slice(0, 160)})` : ''}` });
+            return false;
+          }
+          return true;
+        });
+      } catch (e) {
+        // Phân xử hỏng thì nghiêng về GIỮ (R10.8) — mất một lời phán không được thành mất probe
+        phat({ type: 'log', msg: `Thư viện: phân xử trùng lặp gặp lỗi (${(e as Error).message.slice(0, 100)}) — nghiêng về GIỮ, nạp không loại` });
+        duocNap = quaVerify;
+      }
     }
-  } else if (probeMoi.length > 0) {
-    phat({ type: 'log', msg: `Thư viện: KHÔNG nhận (chỉ còn ${planNhan.length} probe pass-gốc, dưới ngưỡng 2)` });
+
+    // B5 — nạp từng probe; kho tự kiểm trùng lại bên trong khoá (đua với lượt song song)
+    let soNhan = 0;
+    for (const u of duocNap) {
+      const kqN = nhanVaoThuVien(slug, u.code, u.plan, t.branchSha, extProbe);
+      if (kqN.ten) soNhan++;
+      else if (kqN.bo) phat({ type: 'log', msg: `Thư viện: bỏ ${u.plan.id} — ${kqN.bo}${kqN.voi ? ` (${kqN.voi})` : ''}` });
+    }
+    if (soNhan > 0) phat({ type: 'log', msg: `Thư viện: nhận ${soNhan}/${passGoc.length} probe pass-gốc — thành regression cho các lượt sau` });
+    else if (passGoc.length === 0) phat({ type: 'log', msg: 'Thư viện: KHÔNG nhận — không probe mới nào pass trên nhánh gốc' });
+  }
+
+  // Tầng 4 (R10.9): lịch sử hành vi đo được + gỡ trùng bằng bằng chứng chạy thật
+  if (thuVien.length > 0) {
+    capNhatLichSu(
+      slug,
+      t.branchSha,
+      ungVienTatCa.filter((u) => u.nguon === 'thu_vien').map((u) => ({ ten: u.file, trangThai: u.trangThai })),
+    );
+    for (const g of timVaGoTrungHanhVi(slug)) {
+      phat({ type: 'log', msg: `Thư viện: gỡ ${g.go} — hành vi TRÙNG ĐO ĐƯỢC với ${g.giu} (${g.bangChung})` });
+    }
   }
 
   // Quan sát ngoài phạm vi PR — lỗi-có-sẵn/probe fail-2-nhánh không im lặng: vào verdict, không đổi PASS/FAIL

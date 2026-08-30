@@ -1,15 +1,30 @@
 import type { ModelProvider } from './model.js';
+import { taoRao } from './rao.js';
 
-// Gọi model lấy JSON — parse fail thì nhắc lại đúng một lần (model đôi khi trả văn thay vì JSON)
+/**
+ * Gọi model lấy JSON — parse fail thì nhắc lại đúng một lần, VÀ đưa cho model chính chỗ nó viết hỏng.
+ * Nhắc chung chung ("trả JSON đúng schema") không sửa được một dấu phẩy thiếu ở ký tự thứ 2914 —
+ * model không thấy được lỗi của mình thì lượt hai hỏng y hệt lượt một (đo được ở repo này).
+ */
 export async function goiJson<T>(model: ModelProvider, prompt: string): Promise<T> {
   const lan1 = await model.complete(prompt);
   try {
     return bocJson<T>(lan1);
-  } catch {
+  } catch (e) {
+    // Thông điệp lỗi mang TRÍCH ĐOẠN trả lời của model, mà trả lời đó dẫn xuất từ diff PR — tức từ
+    // nội dung do maker viết và KHÔNG đáng tin. Nhét thẳng vào prompt là mở lại đúng đường tiêm chỉ
+    // thị mà rào nonce sinh ra để chặn: kẻ viết diff chỉ cần làm vỡ JSON theo ý mình là câu chữ của
+    // họ được chép nguyên vào lượt gọi sau, ở vị trí trông như lời của hệ thống.
+    const rao = taoRao();
     const lan2 = await model.complete(
       `${prompt}
 
-NHẮC LẠI: bạn KHÔNG có tool hay quyền đọc file nào — làm việc CHỈ với dữ liệu trong prompt. Trả lời CHỈ MỘT khối JSON đúng schema đã yêu cầu, không giải thích.`,
+NHẮC LẠI: bạn KHÔNG có tool hay quyền đọc file nào — làm việc CHỈ với dữ liệu trong prompt. Trả lời CHỈ MỘT khối JSON đúng schema đã yêu cầu, không giải thích.
+
+LƯỢT TRƯỚC CỦA BẠN HỎNG — SỬA ĐÚNG CHỖ NÀY:
+${rao('LOI_PARSE', (e as Error).message.slice(0, 900))}
+
+Chú ý những chỗ hay làm vỡ JSON: dấu nháy hoặc dấu chéo ngược chưa escape trong giá trị chuỗi, dấu phẩy thừa trước dấu ngoặc đóng, xuống dòng thật nằm giữa một chuỗi. Giá trị chuỗi nên viết gọn, tránh ký tự đặc biệt.`,
     );
     return bocJson<T>(lan2);
   }
@@ -22,7 +37,19 @@ export function bocJson<T>(raw: string): T {
   const dau = ung.indexOf('{');
   const cuoi = ung.lastIndexOf('}');
   if (dau === -1 || cuoi === -1) throw new Error(`Không tìm thấy JSON trong trả lời model: ${raw.slice(0, 200)}`);
-  return JSON.parse(ung.slice(dau, cuoi + 1)) as T;
+  const than = ung.slice(dau, cuoi + 1);
+  try {
+    return JSON.parse(than) as T;
+  } catch (e) {
+    // JSON.parse ném "Expected ',' at position 2914" và không nói gì thêm — người đọc log lẫn lượt
+    // sinh lại đều mù. Kèm ĐOẠN VĂN quanh vị trí hỏng thì cả hai mới sửa được đúng chỗ.
+    const viTri = Number(/position (\d+)/.exec((e as Error).message)?.[1] ?? -1);
+    const quanh =
+      viTri >= 0
+        ? `\n…${than.slice(Math.max(0, viTri - 140), viTri)}⟪HỎNG Ở ĐÂY⟫${than.slice(viTri, viTri + 140)}…`
+        : `\nĐầu khối JSON: ${than.slice(0, 240)}…`;
+    throw new Error(`JSON của model không parse được (${(e as Error).message}).${quanh}`);
+  }
 }
 
 // Bóc code khỏi trả lời model — nhận MỌI language tag (```ts, ```python, ```java...),
