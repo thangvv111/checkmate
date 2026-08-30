@@ -41,6 +41,40 @@ Ký hiệu: `br` = kết quả trên nhánh PR, `bs` = kết quả trên nhánh 
 - **R1.13** — Probe `nghi_van` không tự nó làm nên `FAIL`, nhưng PHẢI được nêu trong verdict để người
   đọc biết vùng chưa kết luận được.
 
+## Khi luật spec chỉ có ở nhánh PR
+
+*Ca này khác hẳn ca «thêm module mới» ở trên, và nguy hiểm hơn: nhánh gốc CHẠY ĐƯỢC probe, nên máy có
+dữ liệu — chỉ là nó diễn giải sai. Đo được bằng hai lượt chấm khác nhau đúng một biến: cùng một luật
+«danh sách trả tối đa 20 mục», cùng một dòng code vi phạm, ba probe đỏ như nhau trên nhánh PR. Lượt có
+luật sẵn ở nhánh gốc ra FAIL; lượt mà PR mang cả luật lẫn code thì ba probe ấy bị dán `ngoai_pham_vi`
+và verdict ra PASS. Bằng chứng nằm sẵn trong tay máy, và cổng vẫn xanh.*
+
+- **R1.17** — Khi một luật spec **chỉ tồn tại ở nhánh PR** mà không có ở nhánh gốc, nhánh gốc KHÔNG PHẢI
+  đối chứng hợp lệ cho probe neo vào luật đó. Probe đỏ ở nhánh gốc khi ấy chỉ nói lên rằng luật chưa
+  từng được thực hiện, không nói lên rằng lỗi «có sẵn và ngoài phạm vi PR».
+- **R1.18** — Trong ca đó, probe đỏ ở nhánh PR PHẢI mang nhãn `vi_pham_luat_moi`, và nhãn này **chặn
+  merge** như `hoi_quy`. Lý do chặn không phải «code sai so với một luật cũ» — thứ đó có thể là nợ kỹ
+  thuật đã biết. Lý do là **pull request tự mâu thuẫn**: nó khai một luật rồi vi phạm ngay chính luật
+  vừa khai, trong cùng một lần thay đổi.
+- **R1.19** — Luật «chỉ có ở nhánh PR» được xác định bằng cách so nội dung `specs/` giữa hai nhánh, không
+  bằng cách hỏi model. Mã luật nào xuất hiện ở nhánh PR mà không xuất hiện ở nhánh gốc thì là luật mới.
+  Không so được (nhánh gốc không có thư mục `specs/`) thì coi như MỌI luật đều mới — fail-closed.
+- **R1.20** — `vi_pham_luat_moi` PHẢI được phân biệt rõ với `hoi_quy` ở mọi bề mặt người đọc: verdict,
+  log, comment trên pull request. Hai nhãn cùng chặn merge nhưng nói hai chuyện khác nhau, và người sửa
+  cần biết mình đang sửa cái gì — «PR làm hỏng thứ đang chạy» khác «PR chưa làm được thứ nó vừa hứa».
+
+## Độ phủ luật spec
+
+- **R1.21** — Mã luật mà mỗi probe neo vào PHẢI được ghi ra verdict, không chỉ sống trong lượt sinh
+  probe. Không ghi ra thì sau lượt chấm **không ai kiểm được bằng máy** đã phủ những luật nào — và một
+  cổng không tự đo được độ phủ của mình thì không nói được câu «đã kiểm xong».
+- **R1.22** — Verdict PHẢI nêu số luật đã có probe neo vào trên tổng số **mã luật đọc được** từ `specs/`.
+  Mẫu số là con số ĐỌC ĐƯỢC, không phải con số đúng tuyệt đối: mã luật nhận diện bằng khuôn chữ-và-số
+  nên có thể lẫn vài mã không phải luật (đo trên repo này: 3 trên 206, tức 1,5%). Nói «mã luật đọc được»
+  thay vì «luật» là cố ý — một con số tự nhận là ước lượng đáng tin hơn một con số giả vờ chính xác. Đây
+  là cùng một nguyên tắc với trần tầm nhìn diff ([R7](#)): **cắt được, nhưng không cắt âm thầm** — phủ
+  một phần thì được, giấu chuyện chỉ phủ một phần thì không.
+
 ## Khi nhánh gốc không chạy được probe nào
 
 - **R1.14** — Pull request **thêm module mới** thì nhánh gốc chưa có file đó, nên nhánh gốc không chạy

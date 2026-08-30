@@ -1,7 +1,7 @@
 import { chuanMuc, type Finding, type RunEvent, type Severity } from '../../shared/src/types.js';
 import type { ModelProvider } from './model.js';
 import { goiCode, goiJson } from './jsonx.js';
-import { docTarget, goiYDuongDanModule, type TargetInfo } from './target.js';
+import { docTarget, goiYDuongDanModule, trichMaLuat, type TargetInfo } from './target.js';
 import { Sandbox, type KetQuaProbe } from './sandbox.js';
 import { capNhatLichSu, docThuVien, nhanVaoThuVien, slugRepo, tachMotProbe, timVaGoTrungHanhVi } from './thu-vien.js';
 import { apDungPhanXu, promptPhanXuTrung, timNghiTrung, timTrungChayLai, type PhanXu, type UngPhanXu } from './dedup-probe.js';
@@ -33,7 +33,16 @@ const FILE_PROBE_MOI = 'checker.probe.test.ts';
 
 // ---------- Phân loại MÁY (spec §11-A): model không được tự giác luật này ----------
 
-export type TrangThaiProbe = 'pass' | 'hoi_quy' | 'ngoai_pham_vi' | 'nghi_loi_co_san' | 'nghi_van' | 'cai_thien' | 'bo_qua' | 'khong_chay';
+export type TrangThaiProbe =
+  | 'pass'
+  | 'hoi_quy'
+  | 'vi_pham_luat_moi'
+  | 'ngoai_pham_vi'
+  | 'nghi_loi_co_san'
+  | 'nghi_van'
+  | 'cai_thien'
+  | 'bo_qua'
+  | 'khong_chay';
 
 // Vân tay lỗi: dòng đầu message, chuẩn hoá số/hex/khoảng trắng — hai nhánh cùng vân tay = cùng nguyên nhân
 export function vanTayLoi(msg: string): string {
@@ -75,7 +84,58 @@ export function khopIdProbe(title: string, id: string): boolean {
     });
 }
 
-export function phanLoaiMay(br: KetQuaProbe | undefined, bs: KetQuaProbe | undefined): TrangThaiProbe {
+/**
+ * Mã luật mà probe neo vào có phải luật CHỈ có ở nhánh PR không.
+ *
+ * `spec_rule` model khai ra khá tự do: «R9», «R9.4», thậm chí «R4.21+R4.27». Nên tách thành từng mã rồi
+ * hỏi từng cái. Chỉ cần MỘT mã là luật mới thì probe đó không được lấy nhánh gốc làm đối chứng — probe
+ * neo vào luật mới lẫn luật cũ thì phần «mới» vẫn là phần chưa từng có đối chứng.
+ *
+ * Khớp theo tiền tố MỘT CHIỀU: luật mới «R9» phủ probe neo «R9.4» (mục con của một luật hoàn toàn mới
+ * thì cũng mới). Nhưng chiều ngược lại thì KHÔNG: «R1.18» mới không làm probe neo «R1» thành neo-luật
+ * -mới, vì R1 đã tồn tại ở nhánh gốc với mười mấy mục. Khớp hai chiều nghĩa là chỉ cần thêm một mục con
+ * là cả họ mã cha bị coi là mới — probe khai lỏng `spec_rule: 'R1'` trong khi thực chất kiểm R1.5 sẽ bị
+ * gán nhầm nhóm rồi chặn oan.
+ */
+/**
+ * Lỗi này là dấu hiệu PROBE HỎNG, không phải sản phẩm sai.
+ *
+ * Probe do model sinh ra, nó có thể import sai module, gọi sai chữ ký, hay đoán sai hình dạng dữ liệu.
+ * Khi lỗi trông như vậy thì probe **chưa chạy tới hành vi cần kiểm**, nên không có cơ sở kết luận gì về
+ * sản phẩm — kể cả khi probe neo vào một luật mới.
+ *
+ * Bản đầu của nhãn `vi_pham_luat_moi` thiếu đúng lưới này, và một lượt chấm thật đã biến hai probe
+ * import sai đường thành hai finding HIGH chặn merge, kèm lời văn «PR công bố quy tắc rồi chưa viết
+ * code hiện thực nó» — trong khi code có đủ. Mọi nhãn khác đều có lưới không-kết-luận-khi-chưa-chứng
+ * -minh-được-gì; nhãn mới cũng phải có.
+ */
+export function coVeLaProbeHong(loi: string): boolean {
+  // Mẫu phải ĐẶC TRƯNG cho lỗi nạp/gọi của chính probe. Bản đầu dùng những cụm quá rộng
+  // («is not defined», «Cannot read propert» trần) nên dương tính giả với lỗi NGHIỆP VỤ tiếng Anh tự
+  // nhiên — ví dụ "ValidationError: field 'email' is not defined in schema". Hậu quả là một vi phạm
+  // THẬT có thông điệp trùng cụm sẽ bị loại khỏi hoi_quy/vi_pham_luat_moi rồi lọt cổng: vá false-FAIL
+  // bằng cách mở một đường false-PASS. Nay chỉ nhận khi lỗi mang đúng dấu hiệu của tầng nạp module
+  // hoặc tên lớp lỗi runtime của JavaScript.
+  return (
+    /\bis not a function\b/i.test(loi) ||
+    /Cannot find module|ERR_MODULE_NOT_FOUND|Failed to load|Transform failed/i.test(loi) ||
+    /\b(ReferenceError|SyntaxError|TypeError|RangeError):/.test(loi) ||
+    /Cannot read propert(?:y|ies) of (?:undefined|null)/i.test(loi) ||
+    /expected '?undefined'? to be a? ?function/i.test(loi)
+  );
+}
+
+export function laLuatMoi(specRule: string | undefined, dsLuatMoi: string[]): boolean {
+  if (!specRule || dsLuatMoi.length === 0) return false;
+  const cua = [...trichMaLuat(specRule)];
+  return cua.some((m) => dsLuatMoi.some((n) => m === n || m.startsWith(n + '.')));
+}
+
+export function phanLoaiMay(
+  br: KetQuaProbe | undefined,
+  bs: KetQuaProbe | undefined,
+  laLuatMoi = false,
+): TrangThaiProbe {
   if (!br) return 'khong_chay';
   if (br.status === 'skipped') return 'bo_qua'; // C2: it.skip không được tính pass — lách lưới
   const brFail = br.status === 'failed';
@@ -83,9 +143,19 @@ export function phanLoaiMay(br: KetQuaProbe | undefined, bs: KetQuaProbe | undef
   if (!brFail && !bsFail) return 'pass';
   if (!brFail && bsFail) return 'cai_thien';
   if (brFail && !bsFail) {
-    // C1: KHÔNG có dữ liệu đối chứng (nhánh gốc không chạy được) thì không được phong hồi quy
+    // C1: KHÔNG có dữ liệu đối chứng (nhánh gốc không chạy được) thì không được phong hồi quy.
+    // Nhánh gốc PASS THẬT là bằng chứng mạnh nhất có thể có, và nó thắng cả nhãn luật-mới: khi gốc
+    // chạy đúng mà PR làm đỏ, đó là hồi quy đúng nghĩa — «PR làm hỏng thứ đang chạy», không phải
+    // «PR chưa làm được thứ nó vừa hứa». Hai chuyện khác nhau, và R1.20 đòi phân biệt.
     return bs === undefined ? 'nghi_van' : 'hoi_quy';
   }
+  // R1.17–R1.18 — tới đây nghĩa là ĐỎ CẢ HAI NHÁNH. Nếu probe neo vào luật chỉ có ở nhánh PR thì nhánh
+  // gốc không phải đối chứng hợp lệ: «cũng đỏ ở gốc» chỉ nói lên luật chưa từng được thực hiện, không
+  // nói lên «lỗi có sẵn, ngoài phạm vi PR». Nhãn này thay chỗ của ngoai_pham_vi/nghi_van, KHÔNG thay
+  // chỗ của hoi_quy — đó là lý do nó nằm ở đây chứ không nằm trên.
+  //
+  // Probe hỏng thì loại trước: nó chưa chạy tới hành vi cần kiểm nên không kết luận được gì.
+  if (laLuatMoi && !coVeLaProbeHong(br.message)) return 'vi_pham_luat_moi';
   // C4: vân tay thô trùng NHƯNG vân tay chặt khác → có thể khác nguyên nhân — đẩy model phân xử, không vứt
   if (vanTayLoi(br.message) !== vanTayLoi(bs?.message ?? '')) return 'nghi_van';
   // Fail cả hai nhánh cùng nguyên nhân: KHÔNG quy tội PR — nhưng cũng không dám kết luận "probe hỏng":
@@ -225,7 +295,9 @@ function promptVietFinding(ungVien: UngVien[], t: TargetInfo, review: ReviewCfg 
   }));
   return `Bạn là CHECKER ĐỐI KHÁNG. Máy đã phân loại xong kết quả probe — việc của bạn CHỈ là hai điều:
 1. Với ứng viên \`hoi_quy\` (PR fail + gốc pass — máy đã xác nhận là hồi quy): viết finding tiếng Việt nghiệp vụ + gán mức. BẮT BUỘC mỗi ứng viên hoi_quy có ĐÚNG MỘT finding — bạn không có quyền bỏ.
-2. Với ứng viên \`nghi_van\` (fail cả hai nhánh nhưng KHÁC nguyên nhân): quyết giữ/bỏ — GIỮ chỉ khi nhánh gốc fail vì tính năng chưa tồn tại (404 route, trường chưa có) còn nhánh PR fail vì SAI NGHIỆP VỤ; nếu giữ thì viết finding, nếu bỏ ghi lý do vào ghi_chu.
+2. Với ứng viên \`vi_pham_luat_moi\` (probe neo vào một luật spec mà CHÍNH PR NÀY thêm vào, và probe đỏ ở nhánh PR): viết finding tiếng Việt nghiệp vụ + gán mức. BẮT BUỘC mỗi ứng viên có ĐÚNG MỘT finding — bạn không có quyền bỏ.
+   Lời văn phải nói ĐÚNG bản chất, KHÁC hẳn hồi quy: đây KHÔNG phải «PR làm hỏng thứ đang chạy đúng» mà là «PR khai một luật rồi chưa thực hiện được chính luật vừa khai». Nhánh gốc cũng đỏ là chuyện đương nhiên — luật đó chưa từng tồn tại ở nhánh gốc, nên đừng dùng nó làm lý do giảm nhẹ.
+3. Với ứng viên \`nghi_van\` (fail cả hai nhánh nhưng KHÁC nguyên nhân): quyết giữ/bỏ — GIỮ chỉ khi nhánh gốc fail vì tính năng chưa tồn tại (404 route, trường chưa có) còn nhánh PR fail vì SAI NGHIỆP VỤ; nếu giữ thì viết finding, nếu bỏ ghi lý do vào ghi_chu.
 
    TRƯỚC KHI GIỮ, loại trừ khả năng thứ ba: **chính probe sai giả định về API**. Probe do bạn sinh ra ở
    bước trước, nó có thể đoán sai hình dạng dữ liệu mà hàm trả về, đoán sai tên module, hoặc gọi sai chữ ký.
@@ -357,7 +429,7 @@ export async function chaySkillCode(
 
   // gom ứng viên + phân loại máy; retry sinh lại 1 lần nếu file mới lỗi thu thập HOẶC >50% probe mới hỏng
   let ungVienTatCa: UngVien[] = [];
-  const thongKe = { ke_hoach: keHoach.length, ghi_nhan: 0, pass: 0, hoi_quy: 0, ngoai_pham_vi: 0, nghi_loi_co_san: 0, nghi_van: 0, cai_thien: 0, bo_qua: 0, that_lac: [] as string[] };
+  const thongKe = { ke_hoach: keHoach.length, ghi_nhan: 0, pass: 0, hoi_quy: 0, vi_pham_luat_moi: 0, ngoai_pham_vi: 0, nghi_loi_co_san: 0, nghi_van: 0, cai_thien: 0, bo_qua: 0, that_lac: [] as string[], luat_da_phu: [] as string[], luat_tong: 0 };
   for (let lan = 1; lan <= 2; lan++) {
     const { branchKq, baseKq, loiThu, treoBranch } = chayCaHaiNhanh(code);
     if (treoBranch) {
@@ -391,7 +463,7 @@ export async function chaySkillCode(
         const bs = timKq(baseKq, file, probe.id);
         if (!br) return [];
         dem++;
-        let trangThai = phanLoaiMay(br, bs);
+        let trangThai = phanLoaiMay(br, bs, laLuatMoi(probe.spec_rule, t.luatMoi));
         // Probe THƯ VIỆN đã pass trên nhánh gốc ở lượt trước (điều kiện admission) — nay fail cả hai nhánh
         // thì KHÔNG THỂ là "probe sai contract": tín hiệu tất định của lỗi có sẵn mới lộ / spec-code đã đổi.
         if (nguon === 'thu_vien' && trangThai === 'ngoai_pham_vi') trangThai = 'nghi_loi_co_san';
@@ -402,11 +474,23 @@ export async function chaySkillCode(
     const tomTat = (loai: TrangThaiProbe) => ungVienTatCa.filter((u) => u.trangThai === loai);
     phat({
       type: 'log',
-      msg: `Phân loại máy: ${tomTat('pass').length} pass · ${tomTat('hoi_quy').length} hồi quy · ${tomTat('ngoai_pham_vi').length} ngoài phạm vi (fail cả 2 nhánh) · ${tomTat('nghi_loi_co_san').length} nghi lỗi có sẵn (thư viện) · ${tomTat('nghi_van').length} nghi vấn · ${tomTat('cai_thien').length} cải thiện · ${tomTat('bo_qua').length} bỏ qua (skip)`,
+      msg: `Phân loại máy: ${tomTat('pass').length} pass · ${tomTat('hoi_quy').length} hồi quy · ${tomTat('vi_pham_luat_moi').length} vi phạm luật mới · ${tomTat('ngoai_pham_vi').length} ngoài phạm vi (fail cả 2 nhánh) · ${tomTat('nghi_loi_co_san').length} nghi lỗi có sẵn (thư viện) · ${tomTat('nghi_van').length} nghi vấn · ${tomTat('cai_thien').length} cải thiện · ${tomTat('bo_qua').length} bỏ qua (skip)`,
     });
     // C5: thống kê độ phủ đưa vào verdict + truy vết probe thất lạc
     thongKe.ghi_nhan = ungVienTatCa.length;
     thongKe.pass = tomTat('pass').length; thongKe.hoi_quy = tomTat('hoi_quy').length;
+    thongKe.vi_pham_luat_moi = tomTat('vi_pham_luat_moi').length;
+    // R1.21–R1.22 — mã luật sống suốt đường sinh probe rồi chết ở đầu ra: không ghi thì sau lượt chấm
+    // không ai kiểm được BẰNG MÁY đã phủ những luật nào. Một cổng không tự đo được độ phủ của mình thì
+    // không nói được câu «đã kiểm xong».
+    thongKe.luat_da_phu = [...new Set(ungVienTatCa.flatMap((u) => [...trichMaLuat(u.probe.spec_rule ?? '')]))].sort();
+    thongKe.luat_tong = trichMaLuat(t.specs.map((x) => x.noiDung).join('\n')).size;
+    phat({
+      type: 'log',
+      msg: `Độ phủ luật: ${thongKe.luat_da_phu.length}/${thongKe.luat_tong} mã luật đọc được từ specs/ có probe neo vào${
+        t.luatMoi.length ? ` · ${t.luatMoi.length} luật CHỈ có ở nhánh PR: ${t.luatMoi.join(', ')}` : ''
+      }`,
+    });
     thongKe.ngoai_pham_vi = tomTat('ngoai_pham_vi').length; thongKe.nghi_loi_co_san = tomTat('nghi_loi_co_san').length;
     thongKe.nghi_van = tomTat('nghi_van').length; thongKe.cai_thien = tomTat('cai_thien').length; thongKe.bo_qua = tomTat('bo_qua').length;
     const idGhiNhan = new Set(ungVienTatCa.filter((u) => u.nguon === 'moi').map((u) => u.probe.id));
@@ -471,7 +555,9 @@ export async function chaySkillCode(
     // được TOÀN BỘ probe mà vẫn ra xanh.
     // Chỉ ba trạng thái nói lên điều gì đó về PR: pass (hành vi đúng), hoi_quy (PR làm hỏng),
     // cai_thien (PR sửa được lỗi cũ). Không có cái nào thì lượt chấm không đủ cơ sở kết luận.
-    const coBangChung = ungVienTatCa.filter((u) => u.trangThai === 'pass' || u.trangThai === 'hoi_quy' || u.trangThai === 'cai_thien');
+    const coBangChung = ungVienTatCa.filter(
+      (u) => u.trangThai === 'pass' || u.trangThai === 'hoi_quy' || u.trangThai === 'vi_pham_luat_moi' || u.trangThai === 'cai_thien',
+    );
     if (coBangChung.length === 0) {
       const viSao = ungVienTatCa
         .slice(0, 3)
@@ -516,7 +602,9 @@ export async function chaySkillCode(
   }
 
   phat({ type: 'stage', stage: 5, ten: 'Kết luận — máy làm chủ phân loại, model viết finding' });
-  const duocPhepFinding = ungVienTatCa.filter((u) => u.trangThai === 'hoi_quy' || u.trangThai === 'nghi_van');
+  const duocPhepFinding = ungVienTatCa.filter(
+    (u) => u.trangThai === 'hoi_quy' || u.trangThai === 'vi_pham_luat_moi' || u.trangThai === 'nghi_van',
+  );
   let findings: Finding[] = [];
 
   if (duocPhepFinding.length > 0) {
@@ -544,7 +632,7 @@ export async function chaySkillCode(
         continue;
       }
       let sev = chuanMuc(f.severity);
-      if (u.trangThai === 'hoi_quy' && sev !== 'high') {
+      if ((u.trangThai === 'hoi_quy' || u.trangThai === 'vi_pham_luat_moi') && sev !== 'high') {
         phat({ type: 'log', msg: `C3: model gán ${sev} cho hồi quy máy-xác-nhận ${u.ma} (${u.probe.id}) — máy ép về high (sàn cứng cho regression)` });
         sev = 'high';
       }
@@ -561,7 +649,7 @@ export async function chaySkillCode(
 
     // Lưới máy 2: MỌI hồi quy máy-xác-nhận phải có finding — model im lặng thì máy tự bổ sung, fail-closed mức high
     const daCo = new Set(kl.findings.map((f) => f.ma));
-    for (const u of duocPhepFinding.filter((x) => x.trangThai === 'hoi_quy' && !daCo.has(x.ma))) {
+    for (const u of duocPhepFinding.filter((x) => (x.trangThai === 'hoi_quy' || x.trangThai === 'vi_pham_luat_moi') && !daCo.has(x.ma))) {
       phat({ type: 'log', msg: `Lưới máy: model bỏ sót hồi quy ${u.ma} (${u.probe.id} — ${u.probe.ten}) — máy tự bổ sung finding mức high (fail-closed)` });
       findings.push({
         id: `F${findings.length + 1}`,

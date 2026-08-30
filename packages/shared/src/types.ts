@@ -76,6 +76,11 @@ export interface Verdict {
     ghi_nhan: number; // số probe thực chạy và được ghi nhận
     pass: number;
     hoi_quy: number;
+    /** R1.18 — PR khai luật mới rồi vi phạm ngay luật vừa khai; chặn merge như hồi quy */
+    vi_pham_luat_moi?: number;
+    /** R1.22 — độ phủ luật: bao nhiêu luật có probe neo vào, trên tổng số luật đọc được từ specs/ */
+    luat_da_phu?: string[];
+    luat_tong?: number;
     ngoai_pham_vi: number; // fail cả hai nhánh cùng nguyên nhân — không quy tội PR
     nghi_loi_co_san: number; // probe THƯ VIỆN fail cả hai nhánh — đã chứng minh contract nên nghi lỗi có sẵn/spec đổi
     nghi_van: number;

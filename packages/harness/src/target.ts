@@ -18,6 +18,11 @@ export interface TargetInfo {
   /** File có trong PR nhưng KHÔNG nằm trong diff mà model nhìn thấy — phải nói ra, không được giấu */
   ngoaiTamNhin: FileNgoaiTamNhin[];
   specs: Array<{ file: string; noiDung: string }>;
+  /**
+   * Mã luật CHỈ có ở nhánh PR (R1.19). Probe neo vào những mã này KHÔNG được lấy nhánh gốc làm đối
+   * chứng: luật chưa tồn tại ở đó thì «cũng đỏ ở gốc» không nói lên điều gì về phạm vi của PR.
+   */
+  luatMoi: string[];
   apiDoc: string;
   testMau: string;
 }
@@ -79,6 +84,45 @@ function lyDoSinhTuDong(file: string, boQuaThem: RegExp[]): string | null {
  * Nguyên tắc: KHÔNG cắt âm thầm. Mọi file bị bỏ đều trả về trong `ngoaiTamNhin` để log và prompt
  * nói thẳng ra — một checker cắt bớt trong im lặng sẽ ra PASS trên phần nó chưa từng nhìn thấy.
  */
+/**
+ * Trích mọi mã luật khai trong một tập văn bản spec. Nhận cả dạng `R4.21` lẫn `R4` — repo đích có thể
+ * đánh số theo mục con hoặc chỉ theo file.
+ */
+export function trichMaLuat(vanBan: string): Set<string> {
+  const ra = new Set<string>();
+  for (const m of vanBan.matchAll(/\b([A-Z]{1,3}\d{1,3}(?:\.\d{1,3})?)\b/g)) ra.add(m[1]);
+  return ra;
+}
+
+/**
+ * R1.19 — luật chỉ có ở nhánh PR, tìm bằng cách so `specs/` hai nhánh.
+ *
+ * Đọc spec của nhánh gốc bằng `git show`, không bằng cách đọc đĩa: cây làm việc đang ở nhánh PR, nên
+ * đọc đĩa sẽ ra chính spec của nhánh PR và phép so thành vô nghĩa.
+ *
+ * Fail-closed: không đọc được spec nhánh gốc (nhánh gốc chưa có thư mục `specs/`, hay lệnh git hỏng)
+ * thì coi như MỌI luật đều mới. Thà chặn một PR đáng ra qua được, còn hơn cho qua một PR khai luật rồi
+ * vi phạm ngay luật vừa khai.
+ */
+export function timLuatMoi(repo: string, base: string, specsPr: Array<{ file: string; noiDung: string }>): string[] {
+  const maPr = trichMaLuat(specsPr.map((x) => x.noiDung).join('\n'));
+  if (maPr.size === 0) return [];
+  let vanBanGoc = '';
+  try {
+    const ds = git(repo, ['ls-tree', '-r', '--name-only', base, 'specs/'])
+      .split('\n')
+      .map((x) => x.trim())
+      .filter((x) => x.endsWith('.md'));
+    if (ds.length === 0) return [...maPr]; // nhánh gốc chưa có spec — mọi luật đều mới
+    vanBanGoc = ds.map((f) => git(repo, ['show', `${base}:${f}`])).join('\n');
+  } catch {
+    return [...maPr]; // không so được thì fail-closed
+  }
+  const maGoc = trichMaLuat(vanBanGoc);
+  return [...maPr].filter((m) => !maGoc.has(m));
+}
+
+
 export function dungDiff(
   dsFile: string[],
   diffTungFile: (file: string) => string,
@@ -134,6 +178,9 @@ export function docTarget(repo: string, branch: string, base = 'main', boQuaThem
         .map((f) => ({ file: `specs/${f}`, noiDung: readFileSync(join(specsDir, f), 'utf8') }))
     : [];
 
+  // R1.19 — luật nào CHỈ có ở nhánh PR. Xác định bằng cách so `specs/` giữa hai nhánh, không hỏi model.
+  const luatMoi = timLuatMoi(repo, base, specs);
+
   const apiDoc = existsSync(join(repo, 'README.md')) ? readFileSync(join(repo, 'README.md'), 'utf8') : '';
 
   // File test sẵn có làm khuôn import/inject cho probe sinh ra
@@ -146,5 +193,5 @@ export function docTarget(repo: string, branch: string, base = 'main', boQuaThem
     if (f) testMau = readFileSync(join(testDir, f), 'utf8');
   }
 
-  return { repo, branch, base, branchSha, baseSha, diff, ngoaiTamNhin, specs, apiDoc, testMau };
+  return { repo, branch, base, branchSha, baseSha, diff, ngoaiTamNhin, specs, luatMoi, apiDoc, testMau };
 }
