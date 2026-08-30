@@ -107,8 +107,18 @@ export function khopIdProbe(title: string, id: string): boolean {
  * -minh-được-gì; nhãn mới cũng phải có.
  */
 export function coVeLaProbeHong(loi: string): boolean {
-  return /is not a function|Cannot find module|is not defined|Cannot read propert|expected 'undefined' to be|ERR_MODULE_NOT_FOUND|SyntaxError|Unterminated/i.test(
-    loi,
+  // Mẫu phải ĐẶC TRƯNG cho lỗi nạp/gọi của chính probe. Bản đầu dùng những cụm quá rộng
+  // («is not defined», «Cannot read propert» trần) nên dương tính giả với lỗi NGHIỆP VỤ tiếng Anh tự
+  // nhiên — ví dụ "ValidationError: field 'email' is not defined in schema". Hậu quả là một vi phạm
+  // THẬT có thông điệp trùng cụm sẽ bị loại khỏi hoi_quy/vi_pham_luat_moi rồi lọt cổng: vá false-FAIL
+  // bằng cách mở một đường false-PASS. Nay chỉ nhận khi lỗi mang đúng dấu hiệu của tầng nạp module
+  // hoặc tên lớp lỗi runtime của JavaScript.
+  return (
+    /\bis not a function\b/i.test(loi) ||
+    /Cannot find module|ERR_MODULE_NOT_FOUND|Failed to load|Transform failed/i.test(loi) ||
+    /\b(ReferenceError|SyntaxError):/.test(loi) ||
+    /Cannot read propert(?:y|ies) of (?:undefined|null)/i.test(loi) ||
+    /expected '?undefined'? to be a? ?function/i.test(loi)
   );
 }
 
@@ -126,23 +136,23 @@ export function phanLoaiMay(
   if (!br) return 'khong_chay';
   if (br.status === 'skipped') return 'bo_qua'; // C2: it.skip không được tính pass — lách lưới
   const brFail = br.status === 'failed';
-  // R1.17–R1.18: luật CHỈ có ở nhánh PR thì nhánh gốc không phải đối chứng hợp lệ. Probe đỏ ở gốc chỉ
-  // nói lên «luật chưa từng được thực hiện», không nói lên «lỗi có sẵn, ngoài phạm vi PR». Đo được:
-  // cùng một luật và cùng một dòng code hỏng, lượt có luật sẵn ở gốc ra FAIL, lượt mà PR mang cả luật
-  // lẫn code thì ba probe đỏ bị dán ngoai_pham_vi và verdict ra PASS.
-  //
-  // Chặn ở đây KHÔNG phải vì «code sai so với một luật cũ» — thứ đó có thể là nợ kỹ thuật đã biết. Mà
-  // vì pull request TỰ MÂU THUẪN: khai một luật rồi vi phạm ngay chính luật vừa khai, trong cùng một
-  // lần thay đổi.
-  // Probe hỏng thì chưa chạy tới hành vi cần kiểm — không kết luận, dù nó neo vào luật mới
-  if (laLuatMoi && brFail && !coVeLaProbeHong(br.message)) return 'vi_pham_luat_moi';
   const bsFail = bs !== undefined && bs.status === 'failed';
   if (!brFail && !bsFail) return 'pass';
   if (!brFail && bsFail) return 'cai_thien';
   if (brFail && !bsFail) {
-    // C1: KHÔNG có dữ liệu đối chứng (nhánh gốc không chạy được) thì không được phong hồi quy
+    // C1: KHÔNG có dữ liệu đối chứng (nhánh gốc không chạy được) thì không được phong hồi quy.
+    // Nhánh gốc PASS THẬT là bằng chứng mạnh nhất có thể có, và nó thắng cả nhãn luật-mới: khi gốc
+    // chạy đúng mà PR làm đỏ, đó là hồi quy đúng nghĩa — «PR làm hỏng thứ đang chạy», không phải
+    // «PR chưa làm được thứ nó vừa hứa». Hai chuyện khác nhau, và R1.20 đòi phân biệt.
     return bs === undefined ? 'nghi_van' : 'hoi_quy';
   }
+  // R1.17–R1.18 — tới đây nghĩa là ĐỎ CẢ HAI NHÁNH. Nếu probe neo vào luật chỉ có ở nhánh PR thì nhánh
+  // gốc không phải đối chứng hợp lệ: «cũng đỏ ở gốc» chỉ nói lên luật chưa từng được thực hiện, không
+  // nói lên «lỗi có sẵn, ngoài phạm vi PR». Nhãn này thay chỗ của ngoai_pham_vi/nghi_van, KHÔNG thay
+  // chỗ của hoi_quy — đó là lý do nó nằm ở đây chứ không nằm trên.
+  //
+  // Probe hỏng thì loại trước: nó chưa chạy tới hành vi cần kiểm nên không kết luận được gì.
+  if (laLuatMoi && !coVeLaProbeHong(br.message)) return 'vi_pham_luat_moi';
   // C4: vân tay thô trùng NHƯNG vân tay chặt khác → có thể khác nguyên nhân — đẩy model phân xử, không vứt
   if (vanTayLoi(br.message) !== vanTayLoi(bs?.message ?? '')) return 'nghi_van';
   // Fail cả hai nhánh cùng nguyên nhân: KHÔNG quy tội PR — nhưng cũng không dám kết luận "probe hỏng":

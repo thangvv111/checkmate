@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { phanLoaiMay, vanTayLoi, vanTayChat, khopIdProbe, laLuatMoi } from '../packages/harness/src/skill-code.js';
+import { phanLoaiMay, vanTayLoi, vanTayChat, khopIdProbe, laLuatMoi, coVeLaProbeHong } from '../packages/harness/src/skill-code.js';
 import type { KetQuaProbe } from '../packages/harness/src/sandbox.js';
 
 // Lưới test cho TẦNG MÁY của skill code (specs/R1-phan-loai-probe.md).
@@ -134,5 +134,52 @@ describe('nhận diện probe neo vào luật mới', () => {
     expect(laLuatMoi('R9', ['R10'])).toBe(false);
     expect(laLuatMoi('R9', [])).toBe(false);
     expect(laLuatMoi(undefined, ['R9'])).toBe(false);
+  });
+});
+
+describe('nhận diện probe hỏng không được dương tính giả (R1.18)', () => {
+  it('bắt đúng lỗi nạp/gọi của chính probe', () => {
+    for (const l of [
+      'trichMaLuat is not a function',
+      "Cannot find module '../apps/web/src/x.js'",
+      'ReferenceError: foo is not defined',
+      'SyntaxError: Unexpected token',
+      "Cannot read properties of undefined (reading 'chi_tiet')",
+    ]) {
+      expect(coVeLaProbeHong(l), `phải nhận: ${l}`).toBe(true);
+    }
+  });
+
+  it('KHÔNG bắt nhầm lỗi nghiệp vụ tiếng Anh tự nhiên', () => {
+    // Ca do chính CheckMate tìm ra khi chấm bản vá này: vá false-FAIL bằng cách mở đường false-PASS.
+    // Một vi phạm THẬT có thông điệp trùng cụm sẽ bị loại khỏi hoi_quy rồi lọt cổng.
+    for (const l of [
+      "ValidationError: field 'email' is not defined in schema",
+      'expected 200 to be 422',
+      'expected [] to have a length of 20 but got 25',
+      'Số tiền vượt hạn mức: tài khoản is not defined in policy',
+    ]) {
+      expect(coVeLaProbeHong(l), `KHÔNG được nhận: ${l}`).toBe(false);
+    }
+  });
+});
+
+describe('nhánh gốc PASS thật thắng nhãn luật-mới (R1.20)', () => {
+  const p = (status: 'passed' | 'failed', message = '') => ({ file: 'f', title: 'P1: x', status, message }) as never;
+
+  it('gốc pass + PR đỏ + luật mới → hoi_quy, KHÔNG phải vi_pham_luat_moi', () => {
+    // «PR làm hỏng thứ đang chạy» khác «PR chưa làm được thứ nó vừa hứa». Gốc chạy đúng là bằng chứng
+    // mạnh nhất có thể có, nó không được bị nhãn luật-mới đè lên.
+    expect(phanLoaiMay(p('failed', 'expected 200 to be 422'), p('passed'), true)).toBe('hoi_quy');
+  });
+
+  it('đỏ cả hai nhánh + luật mới → vi_pham_luat_moi', () => {
+    const cung = 'expected 200 to be 422';
+    expect(phanLoaiMay(p('failed', cung), p('failed', cung), true)).toBe('vi_pham_luat_moi');
+  });
+
+  it('đỏ cả hai + luật mới NHƯNG probe hỏng → không kết luận', () => {
+    const hong = 'trichMaLuat is not a function';
+    expect(phanLoaiMay(p('failed', hong), p('failed', hong), true)).toBe('ngoai_pham_vi');
   });
 });
