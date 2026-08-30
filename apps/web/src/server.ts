@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { DINH_DANG_NHAN, trichText } from './extract.js';
 import { GOC } from './paths.js';
 import { RunManager } from './runs.js';
-import { khung, khoiDaTraVe, khoiPrList, trangChu, trangRun, trangSettings } from './ui.js';
+import { escHtml, khung, khoiDaTraVe, khoiPrList, trangChu, trangRun, trangSettings } from './ui.js';
 import { MODE, cauHinhHienTai, cheToken, cheToken2, docConfig, diTruTokenRepo, docTokenThueBao, envAgent, ghiConfig, ghiTokenThueBao } from './config.js';
 import { DANH_MUC_NCC, dinhNghia, docSoKiem, ghiKhoa, kiemConHieuLuc, type CauHinhNcc, type MaNcc, type PhuongThuc } from './ncc.js';
 import { GOC_REPO, slugRepoGithub, timRepo, type RepoConfig } from './config.js';
@@ -227,12 +227,28 @@ app.post('/settings', (req, res) => {
   const b = req.body as Record<string, string>;
   const c = docConfig();
   // Sửa thông tin của repo ĐANG CHỌN; thêm/gỡ repo đi đường riêng (/api/repo/*)
+  const tenCu = c.repo.github;
   const repoSua: RepoConfig = {
     ...c.repo,
     github: (b.repo_github ?? c.repo.github).trim(),
     base_branch: (b.base_branch ?? c.repo.base_branch).trim(),
     local_path: (b.local_path ?? c.repo.local_path).trim(),
   };
+  // Kiểm hình dạng TRƯỚC khi chạm vào kho bí mật: ô repo sửa tay được, nên gõ hụt một ký tự là chìa bị
+  // ghi vào một khoá không ứng với repo nào — rác nằm lại trong kho, không giao diện nào thấy để gỡ.
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repoSua.github)) {
+    return res
+      .status(422)
+      .send(khung('CheckMate', `<h1>Repo không hợp lệ</h1><p class="sub">«${escHtml(repoSua.github)}» phải có dạng owner/tên. <a href="/settings">← quay lại</a></p>`));
+  }
+  // Đổi tên repo thì chìa phải đi theo, kẻo repo mới thành «thiếu token» còn chìa cũ thành rác mồ côi
+  if (repoSua.github !== tenCu) {
+    const chiaCu = docTokenRieng(tenCu);
+    if (chiaCu) {
+      ghiTokenRepo(repoSua.github, chiaCu);
+      xoaTokenRepo(tenCu);
+    }
+  }
   // Token dán ở đây là chìa của repo ĐANG CHỌN, không phải chìa dùng chung nữa (R4.18)
   if (b.github_token?.trim()) ghiTokenRepo(repoSua.github, b.github_token.trim());
   const moi = {
