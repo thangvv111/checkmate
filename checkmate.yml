@@ -36,6 +36,30 @@ runner:
       ../apps/web/src/kho/di-tru.js          → diTruTatCa · diTruSoCai · docJsonl
       ⚠ Lớp kho nằm trong THƯ MỤC CON `kho/`, không nằm thẳng dưới `src/` — đây là chỗ đã làm hỏng
         một lượt chấm thật: probe import '../apps/web/src/di-tru.js' và chết vì thiếu đúng một thư mục.
+    ⚠ CHỮ KÝ HÀM LỚP KHO — ĐỪNG ĐOÁN THAM SỐ. Đo được: ba lượt chấm liên tiếp có probe chết bằng
+      'Provided value cannot be bound to SQLite parameter N' ngay ở bước dựng dữ liệu, tức trước khi
+      chạm tới hành vi cần kiểm — probe không chứng minh được gì và lượt chấm mất trắng.
+      Các hàm này nhận MỘT OBJECT đủ trường, không nhận danh sách tham số rời:
+
+      ghiSoCai(m) · ghiSoCaiNeuChua(m) — m là MucSoCai, BẮT BUỘC đủ mọi trường không dấu ?:
+        { luc: '2026-08-30T10:00:00.000Z', run_id: 'r1', skill: 'code', artifact: 'PR #8 - code',
+          sha: 'e711ced0a1', verdict: 'PASS' | 'FAIL', high: 0, medium: 0, low: 0, model: 'm' }
+        Tuỳ chọn: pr (number) · tac_gia · repo · token_vao · token_ra · token_uoc (boolean) · backfill (boolean).
+        Thiếu một trường bắt buộc, hoặc truyền undefined vào đó, là lỗi bind chứ không phải lỗi nghiệp vụ.
+        verdict CHỈ nhận đúng 'PASS' hoặc 'FAIL' — chữ thường bị ràng buộc CHECK của bảng từ chối.
+
+      luuMeta(m) — m là RunMeta:
+        { id: 'r1', tieuDe: 'PR #8 - code', skill: 'code', trangThai: 'dang_chay' | 'xong' | 'loi',
+          batDau: '2026-08-30T10:00:00.000Z' }
+        Tuỳ chọn: ketThuc · repo · verdict · pr ({ so, headSha, tacGia }) · ketQuaCong.
+
+      docSoCai(loc?) · danhSachRun(loc?) · demRun(loc?) — nhận object LỌC, mọi trường tuỳ chọn:
+        docSoCai({ repo, verdict, gioi_han, bo_qua }) · danhSachRun({ repo, skill, trang_thai, gioi_han, bo_qua })
+
+      luuSuKien(runId, events) — hai tham số RỜI: chuỗi id, rồi mảng sự kiện.
+      ghiSo(entry) — sổ hành động cổng, entry: { hanhDong: 'merge' | 'reject', pr, sha, run_id, verdict, nguoi }.
+
+      Cần dữ liệu mẫu thì chép nguyên hình dạng ở trên rồi đổi giá trị — đừng dựng object rút gọn.
     Import TRỰC TIẾP ở đầu file. Đừng bọc import trong try/catch rồi assert typeof — làm thế thì lỗi
     import biến thành assertion thường, probe trông như đã chạy trong khi nó chưa chạy được gì.
     Hàm nào mà diff của PR mới thêm thì lấy đường dẫn từ chính diff, đừng suy từ bảng trên.
