@@ -36,5 +36,11 @@ dùng chung một clone repo, một thư viện probe và một sổ cái — đ
 
 - **R8.10** — Sandbox chạy trên **chính máy chủ CheckMate**, không phải trên hạ tầng của nhà cung cấp
   model. Model không có tool: nó chỉ đề xuất probe và viết code probe; máy chủ là nơi chạy thật.
+- **R8.12** — Môi trường truyền cho MỌI tiến trình con — kể cả tiến trình chạy model của chính checker —
+  PHẢI dựng bằng **danh sách cho phép**, không bao giờ bằng danh sách cấm. Danh sách cấm đòi người viết
+  biết trước mọi bí mật sẽ tồn tại trong tương lai: thêm một khoá vào file môi trường là rò thêm một bí
+  mật, và không ai phải sửa code nên không ai nhận ra. Đo được: bản trước truyền cả môi trường rồi cắt
+  đúng một tên, nên `GITHUB_TOKEN` của máy chủ chảy sang tiến trình CLI ở mọi lượt chấm dù nó không cần
+  chìa đó để làm gì.
 - **R8.11** — Tiến trình chạy test PHẢI nhận môi trường đã lọc — token, khoá API và biến bí mật khác
   KHÔNG được lọt vào. Code của PR được chạy thật, nên coi nó là code không tin được.
