@@ -161,7 +161,15 @@ function nangCapAgent(a?: Partial<AgentConfig>): AgentConfig {
 
 export function cauHinhHienTai(c: CheckmateConfig): CauHinhNcc {
   const dn = dinhNghia(c.agent.ncc);
-  const cfg = c.agent.ncc_cau_hinh[c.agent.ncc] ?? { phuong_thuc: dn.phuong_thuc[0], model: dn.models[0] };
+  const tho = c.agent.ncc_cau_hinh[c.agent.ncc];
+  // Chuẩn hoá TRƯỚC khi gác: config sửa tay có thể KHUYẾT trường (đường cứu hộ R9.13 không hứa hình
+  // dạng đủ), mà đường cứu hộ ném TypeError thì không còn là đường cứu hộ. Vòng bốn của Opus bắt đúng
+  // ca này trên bản vá vòng ba — bản gác cửa gọi cfg.model.length khi model là undefined.
+  const cfg: CauHinhNcc = {
+    ...tho,
+    phuong_thuc: tho?.phuong_thuc && dn.phuong_thuc.includes(tho.phuong_thuc) ? tho.phuong_thuc : dn.phuong_thuc[0],
+    model: typeof tho?.model === 'string' && tho.model.trim() ? tho.model : dn.models[0],
+  };
   // R5.15 — cửa ĐỌC cũng phải gác, và nó mới là cửa thật: config.json sửa tay được (đường cứu hộ
   // R9.13), nên tổ hợp cấm có thể vào đây mà không chạm form lưu hay cổng kiểm nào — ba cửa kia đều là
   // cửa giao diện. Mọi lượt chấm đi qua đúng hàm này. (Opus bắt ở vòng ba trên chính PR khai R5.15:

@@ -69,3 +69,26 @@ describe('cửa ĐỌC cấu hình cũng phải gác giới hạn model (R5.15) 
     expect(cfg.cauHinhHienTai(cfg.docConfig()).model).toBe('claude-fable-5');
   });
 });
+
+describe('cửa đọc không được ném với config KHUYẾT — vòng bốn của Opus', () => {
+  it('config sửa tay thiếu trường model thì rơi về mặc định, không TypeError', () => {
+    // Đường cứu hộ (R9.13) không hứa hình dạng đủ — đường cứu hộ ném TypeError thì hết là đường cứu hộ
+    writeFileSync(
+      join(goc, 'config.json'),
+      JSON.stringify({ agent: { ncc: 'anthropic', ncc_cau_hinh: { anthropic: { phuong_thuc: 'api' } }, max_probe: 6, skeptic: true } }),
+      'utf8',
+    );
+    const hienTai = cfg.cauHinhHienTai(cfg.docConfig());
+    expect(typeof hienTai.model).toBe('string');
+    expect(hienTai.model.length).toBeGreaterThan(0);
+  });
+
+  it('phương thức lạ trong config tay cũng rơi về mặc định', () => {
+    writeFileSync(
+      join(goc, 'config.json'),
+      JSON.stringify({ agent: { ncc: 'anthropic', ncc_cau_hinh: { anthropic: { phuong_thuc: 'phuong-thuc-bia', model: 'claude-sonnet-5' } }, max_probe: 6, skeptic: true } }),
+      'utf8',
+    );
+    expect(() => cfg.cauHinhHienTai(cfg.docConfig())).not.toThrow();
+  });
+});
