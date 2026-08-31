@@ -117,10 +117,13 @@ export async function thuNcc(ma: MaNcc, cfg: CauHinhNcc): Promise<KetQuaThu> {
   const t0 = Date.now();
   const giay = (): number => Math.round((Date.now() - t0) / 100) / 10;
   const khoa = docKhoa(ma);
-  const xong = (ok: boolean, thong_diep: string): KetQuaThu => {
+  const xong = (ok: boolean, thong_diep: string, modelAnToan?: string): KetQuaThu => {
     const luc = new Date().toISOString();
-    ghiSoKiem(ma, { ok, luc, thong_diep, model: cfg.model, phuong_thuc: cfg.phuong_thuc });
-    return { ok, thong_diep, ncc: ma, giay: giay(), luc, model: cfg.model, phuong_thuc: cfg.phuong_thuc };
+    // modelAnToan: khi giá trị model KHÔNG thuộc danh mục thì nó là thứ người dùng gõ tay — có thể là
+    // một khoá dán nhầm. Sổ kiểm và kết quả trả về chỉ được mang bản đã che, không mang nguyên văn.
+    const md = modelAnToan ?? cfg.model;
+    ghiSoKiem(ma, { ok, luc, thong_diep, model: md, phuong_thuc: cfg.phuong_thuc });
+    return { ok, thong_diep, ncc: ma, giay: giay(), luc, model: md, phuong_thuc: cfg.phuong_thuc };
   };
 
   // R5.16 — tổ hợp ngoài giới hạn thì từ chối NGAY, không gọi model. Nhưng phải TÁCH hai nguyên nhân:
@@ -130,7 +133,12 @@ export async function thuNcc(ma: MaNcc, cfg: CauHinhNcc): Promise<KetQuaThu> {
   // khi chấm chính PR đưa cổng này vào: hồi quy so với thông điệp đúng ở nhánh gốc).
   const dn = dinhNghia(ma);
   if (!dn.models.includes(cfg.model)) {
-    return xong(false, `Model «${cfg.model}» không có trong danh mục của ${dn.ten} — kiểm lại tên model (danh mục: ${dn.models.join(', ')}).`);
+    // KHÔNG vọng nguyên văn giá trị người dùng nhập (R9.17, R4.29): ô model sửa tay được qua
+    // config.json, và người dán nhầm một API key vào đó sẽ thấy key của mình đi ra thông điệp, vào sổ
+    // kiểm, vào log — coi như đã lộ, buộc thu hồi. Nêu độ dài + danh mục là đủ để người gõ nhầm tự
+    // đối chiếu; không cần chép lại thứ họ vừa gõ. (Opus bắt đúng ca này khi chấm chính PR đưa thông
+    // điệp vào — hồi quy so với nhánh gốc, trên bản sửa của finding trước. Sửa finding đẻ finding.)
+    return xong(false, `Giá trị model bạn nhập (${cfg.model.length} ký tự) không có trong danh mục của ${dn.ten} — kiểm lại tên. Danh mục: ${dn.models.join(', ')}.`, `(ngoài danh mục — ${cfg.model.length} ký tự)`);
   }
   if (!modelHopLe(dn, cfg.phuong_thuc, cfg.model)) {
     return xong(false, `Model ${cfg.model} chỉ dùng được với gói thuê bao, không mở cho đường API (R5.15) — đổi phương thức sang «gói thuê bao» hoặc chọn model khác.`);

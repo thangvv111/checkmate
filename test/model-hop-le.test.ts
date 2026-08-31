@@ -66,3 +66,20 @@ describe('hai nguyên nhân phải nói hai lời khác nhau — Opus bắt trê
     expect(kq.thong_diep).not.toMatch(/không có trong danh mục/);
   });
 });
+
+describe('không vọng nguyên văn giá trị ngoài danh mục — Opus bắt hồi quy rò khoá trên chính bản sửa', () => {
+  it('dán nhầm API key vào ô model thì key KHÔNG đi ra thông điệp lẫn sổ kiểm', async () => {
+    const keyGia = 'sk-ant-api03-TEST-KHONG-CO-THAT-0123456789';
+    const { thuNcc } = await import('../apps/web/src/nguon-model.js');
+    const { docSoKiem } = await import('../apps/web/src/ncc.js');
+    const kq = await thuNcc('anthropic', { phuong_thuc: 'api', model: keyGia });
+    expect(kq.ok).toBe(false);
+    // Nêu độ dài + danh mục là đủ; chép lại thứ người dùng vừa gõ là biến lỗi gõ nhầm thành lỗi lộ khoá
+    for (const chuoi of [JSON.stringify(kq), JSON.stringify(docSoKiem())]) {
+      expect(chuoi).not.toContain(keyGia);
+      expect(chuoi).not.toContain('sk-ant-');
+    }
+    expect(kq.thong_diep).toMatch(/không có trong danh mục/);
+    expect(kq.thong_diep).toContain(`${keyGia.length} ký tự`);
+  });
+});
