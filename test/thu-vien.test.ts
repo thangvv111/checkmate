@@ -10,6 +10,8 @@ import type { KeHoachProbe } from '../packages/harness/src/skill-code.js';
 
 const goc = mkdtempSync(join(tmpdir(), 'checkmate-lib-'));
 process.env.CHECKER_LIB_DIR = goc;
+// Ghim trần 40 cho các ca đào thải bên dưới (mặc định sản phẩm nay là 100 — R10.4, PO chốt 31/08)
+process.env.CHECKER_LIB_TRAN = '40';
 
 const tv = await import('../packages/harness/src/thu-vien.js');
 
@@ -56,7 +58,8 @@ describe('nhận theo từng probe', () => {
     expect(tv.docThuVien(SLUG)).toHaveLength(2);
   });
 
-  it('trần đếm theo PROBE, đào thải FIFO và xoá cả file trên đĩa', () => {
+  it('trần đếm theo PROBE, đào thải theo điểm (R10.22) và xoá cả file trên đĩa', () => {
+    // Không probe nào mang cờ/thành tích → nấc 3 «cũ nhất chưa từng bắt hồi quy» trùng hành vi FIFO
     for (let i = 0; i < 45; i++) tv.nhanVaoThuVien(SLUG, codeProbe(`P${i}`, String(i)), plan(`P${i}`), `sha${i}0000`);
     const con = tv.docThuVien(SLUG);
     expect(con).toHaveLength(40);
@@ -192,6 +195,96 @@ describe('tầng 4 — lịch sử hành vi và gỡ trùng đo được', () =>
       tv.capNhatLichSu(SLUG, sha, [{ ten: a, trangThai: tt }, { ten: b, trangThai: tt }]);
     }
     expect(tv.timVaGoTrungHanhVi(SLUG)).toHaveLength(0);
+  });
+});
+
+describe('đào thải theo điểm GIỮ/LOẠI (R10.22–R10.24) — thay FIFO mù', () => {
+  type Muc = import('../packages/harness/src/thu-vien.js').MucProbeLib;
+  const muc = (ten: string, phu: Partial<Muc> = {}): Muc => ({
+    ten, sha_sinh: 's', luc: '2026-01-01', hash: ten, plan: plan(ten), lich_su: [], ...phu,
+  });
+  const ls = (...tt: string[]) => tt.map((t, i) => ({ sha: `s${i}`, luc: '', trang_thai: t }));
+
+  it('nấc 1: probe chết kéo dài bị loại trước — kể cả từng bắt hồi quy (giữ là giữ xác)', () => {
+    const kq = tv.chonNanNhan([
+      muc('a'),
+      muc('chet', { da_bat_hoi_quy: true, lich_su: ls('nghi_loi_co_san', 'nghi_loi_co_san', 'khong_chay', 'nghi_loi_co_san', 'nghi_loi_co_san') }),
+      muc('c'),
+    ]);
+    expect(kq.i).toBe(1);
+    expect(kq.ly_do).toContain('chết kéo dài');
+  });
+
+  it('chưa đủ ngưỡng lượt chết liên tiếp thì KHÔNG tính là chết — spec đổi tạm không giết probe', () => {
+    const kq = tv.chonNanNhan([
+      muc('a', { lich_su: ls('pass', 'nghi_loi_co_san', 'nghi_loi_co_san', 'nghi_loi_co_san', 'nghi_loi_co_san') }),
+      muc('b'),
+    ]);
+    expect(kq.ly_do).not.toContain('chết kéo dài');
+  });
+
+  it('nấc 2: không ai chết thì flaky cao nhất (≥2) bị loại', () => {
+    const kq = tv.chonNanNhan([muc('a', { flaky_diem: 1 }), muc('b', { flaky_diem: 3 }), muc('c', { flaky_diem: 2 })]);
+    expect(kq.i).toBe(1);
+    expect(kq.ly_do).toContain('flaky');
+  });
+
+  it('nấc 3: probe từng bắt hồi quy được MIỄN TRỪ — loại probe cũ nhất chưa từng bắt', () => {
+    const kq = tv.chonNanNhan([muc('a', { da_bat_hoi_quy: true }), muc('b'), muc('c')]);
+    expect(kq.i).toBe(1);
+    expect(kq.ly_do).toContain('chưa từng bắt hồi quy');
+  });
+
+  it('nấc 4 (van chống kẹt trần): cả kho toàn hàng miễn trừ thì loại cũ nhất tuyệt đối', () => {
+    const kq = tv.chonNanNhan([muc('a', { da_bat_hoi_quy: true }), muc('b', { da_bat_hoi_quy: true })]);
+    expect(kq.i).toBe(0);
+    expect(kq.ly_do).toContain('van chống kẹt trần');
+  });
+
+  it('nấc 3 KHÔNG đá probe VỪA NẠP: kho toàn miễn trừ + probe mới → van nấc 4 mở, không hoá thạch', () => {
+    // Quan sát P1 vòng một: probe vừa push là đứa duy nhất chưa-từng-bắt — nấc 3 mù sẽ đá đúng nó.
+    const kq = tv.chonNanNhan([muc('a', { da_bat_hoi_quy: true }), muc('b', { da_bat_hoi_quy: true }), muc('moi')], 'moi');
+    expect(kq.i).toBe(0); // loại probe MIỄN TRỪ cũ nhất, không phải probe mới
+    expect(kq.ly_do).toContain('van chống kẹt trần');
+  });
+
+  it('«vừa nạp» nhận diện bằng TÊN, không đoán vị trí — nạn nhân hợp lệ đứng cuối vẫn bị chọn (vòng hai)', () => {
+    // chonNanNhan là hàm export: bản đoán slice(0,-1) bỏ sót probe thường đứng cuối và xoá nhầm
+    // probe từng bắt hồi quy ở nấc 4 trong khi tiền đề nấc 4 không thoả.
+    const kq = tv.chonNanNhan([muc('a', { da_bat_hoi_quy: true }), muc('b', { da_bat_hoi_quy: true }), muc('c')]);
+    expect(kq.i).toBe(2); // không có tenVuaNap → c là nạn nhân nấc 3 hợp lệ
+    expect(kq.ly_do).toContain('chưa từng bắt hồi quy');
+  });
+
+  it('nhãn hoàn cảnh KHÔNG đè nhãn hành-vi-riêng cùng sha — chuỗi pass→nghi_loi→hoi_quy vẫn ra flaky (P2)', () => {
+    const kq = tv.nhanVaoThuVien(SLUG, codeProbe('PG', `'PG'`), plan('PG'), 'shaG');
+    tv.capNhatLichSu(SLUG, 'z1', [{ ten: kq.ten!, trangThai: 'pass' }]);
+    tv.capNhatLichSu(SLUG, 'z1', [{ ten: kq.ten!, trangThai: 'nghi_loi_co_san' }]); // hoàn cảnh — không đè
+    let d = tv.docThuVien(SLUG)[0];
+    expect(d.lich_su.find((h) => h.sha === 'z1')?.trang_thai).toBe('pass');
+    tv.capNhatLichSu(SLUG, 'z1', [{ ten: kq.ten!, trangThai: 'hoi_quy' }]); // so được với pass còn giữ → +1
+    d = tv.docThuVien(SLUG)[0];
+    expect(d.flaky_diem).toBe(1);
+    expect(d.da_bat_hoi_quy).toBe(true);
+  });
+
+  it('capNhatLichSu: nhãn hoi_quy đóng cờ VĨNH VIỄN — không trôi theo trần lịch sử 20 lượt', () => {
+    const kq = tv.nhanVaoThuVien(SLUG, codeProbe('PV', `'PV'`), plan('PV'), 'shaV');
+    tv.capNhatLichSu(SLUG, 'x0', [{ ten: kq.ten!, trangThai: 'hoi_quy' }]);
+    for (let i = 1; i <= 25; i++) tv.capNhatLichSu(SLUG, `x${i}`, [{ ten: kq.ten!, trangThai: 'pass' }]);
+    const d = tv.docThuVien(SLUG)[0];
+    expect(d.lich_su.length).toBe(20); // hàng hoi_quy đã trôi khỏi lịch sử...
+    expect(d.da_bat_hoi_quy).toBe(true); // ...nhưng thành tích thì không
+  });
+
+  it('capNhatLichSu: cùng sha đổi trạng thái hành-vi-riêng → flaky_diem tăng; nhãn hoàn cảnh không tính', () => {
+    const kq = tv.nhanVaoThuVien(SLUG, codeProbe('PF', `'PF'`), plan('PF'), 'shaF');
+    tv.capNhatLichSu(SLUG, 'y1', [{ ten: kq.ten!, trangThai: 'pass' }]);
+    tv.capNhatLichSu(SLUG, 'y1', [{ ten: kq.ten!, trangThai: 'hoi_quy' }]); // cùng sha, khác kết quả → +1
+    tv.capNhatLichSu(SLUG, 'y1', [{ ten: kq.ten!, trangThai: 'hoi_quy' }]); // giống hệt → không tăng
+    tv.capNhatLichSu(SLUG, 'y1', [{ ten: kq.ten!, trangThai: 'nghi_loi_co_san' }]); // hoàn cảnh → không tăng
+    const d = tv.docThuVien(SLUG)[0];
+    expect(d.flaky_diem).toBe(1);
   });
 });
 

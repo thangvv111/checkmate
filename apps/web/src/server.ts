@@ -408,7 +408,7 @@ app.post('/settings', (req, res) => {
         }
         return ra;
       })(),
-      max_probe: Math.min(12, Math.max(2, Number(b.max_probe) || 6)),
+      max_probe: Math.min(20, Math.max(2, Number(b.max_probe) || 10)),
       skeptic: b.skeptic === '1',
     },
     truc: {

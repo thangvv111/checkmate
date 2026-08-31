@@ -91,7 +91,7 @@ const MAC_DINH: CheckmateConfig = {
   agent: {
     ncc: 'anthropic',
     ncc_cau_hinh: { anthropic: { phuong_thuc: 'thue_bao', model: 'claude-sonnet-5' } },
-    max_probe: 6,
+    max_probe: 10,
     skeptic: true,
   },
   truc: { bat: false, chu_ky_giay: 300, tu_dong_comment: true, tu_dong_trang_thai: true, tu_dong_tra_ve: false },
@@ -101,11 +101,13 @@ const MAC_DINH: CheckmateConfig = {
 // khi cấu hình sai làm giao diện không lên, và bí mật nằm trong cơ sở dữ liệu thì mọi bản sao lưu đều
 // mang theo khoá. File này đóng vai lớp kho cho phần đó.
 // Cache theo thời điểm sửa file: đọc lại chỉ khi file thật sự đổi, nên sửa tay vẫn có hiệu lực ngay.
-// Khoá cache theo mtime NANO giây, không phải mili giây. Với mili giây, hai lần ghi trong cùng một
-// mili giây cho cùng một khoá — lần thứ hai bị cache che, và R9.14 («sửa file bằng tay phải có hiệu lực
-// ở lượt đọc kế tiếp») không còn đúng. Hiếm khi xảy ra lúc người dùng bấm, nhưng chắc chắn xảy ra khi
-// một script ghi liên tiếp — và một đường cứu hộ chỉ đúng «hầu hết thời gian» thì không phải đường cứu hộ.
-let cache: { mtimeNs: bigint; token: string; c: CheckmateConfig } | null = null;
+// Khoá cache theo mtime NANO giây + SIZE. Nano giây là API — độ phân giải THẬT do filesystem cấp,
+// nhiều hệ chỉ cập nhật theo tick ~1ms, nên hai lần ghi liên tiếp trong cùng tick vẫn cùng mtimeNs
+// và lần thứ hai bị cache che — R9.14 («sửa file bằng tay phải có hiệu lực ở lượt đọc kế tiếp») vỡ.
+// Đã xảy ra thật: probe P6 của cổng ghi config hai lần liền, lần đọc thứ hai trả bản cũ, và verdict
+// dán nhầm cho PR không liên quan tội «đảo mặc định cờ». Size chặn ca hai bản khác độ dài (gần như
+// mọi lần ghi-liên-tiếp thực tế); ca cùng-độ-dài-cùng-tick còn lại chấp nhận là giới hạn của cache.
+let cache: { mtimeNs: bigint; size: number; token: string; c: CheckmateConfig } | null = null;
 
 /**
  * Danh sách repo suy từ cấu hình đã lưu — R4.3: bản đời cũ chỉ có MỘT `repo` phải được nâng thành
@@ -124,8 +126,10 @@ export function docConfig(): CheckmateConfig {
   if (!existsSync(FILE)) {
     return structuredClone(MAC_DINH);
   }
-  const mtimeNs = statSync(FILE, { bigint: true }).mtimeNs;
-  if (cache && cache.mtimeNs === mtimeNs && cache.token === tokenEnv) return cache.c;
+  const st = statSync(FILE, { bigint: true });
+  const mtimeNs = st.mtimeNs;
+  const size = Number(st.size);
+  if (cache && cache.mtimeNs === mtimeNs && cache.size === size && cache.token === tokenEnv) return cache.c;
   const luu = JSON.parse(readFileSync(FILE, 'utf8')) as Partial<CheckmateConfig>;
   // Config đời cũ chỉ có MỘT repo — nâng thành danh sách mà không mất thiết lập nào
   const repos = dsRepoTuLuu(luu);
@@ -138,7 +142,7 @@ export function docConfig(): CheckmateConfig {
     agent: nangCapAgent(luu.agent),
     truc: { ...MAC_DINH.truc, ...luu.truc },
   };
-  cache = { mtimeNs, token: tokenEnv, c };
+  cache = { mtimeNs, size, token: tokenEnv, c };
   return c;
 }
 
@@ -158,7 +162,7 @@ function nangCapAgent(a?: Partial<AgentConfig>): AgentConfig {
     ncc_cau_hinh: {
       anthropic: { phuong_thuc: a.provider === 'api' ? 'api' : 'thue_bao', model: a.model ?? 'claude-sonnet-5' },
     },
-    max_probe: a.max_probe ?? 6,
+    max_probe: a.max_probe ?? 10,
     skeptic: a.skeptic ?? true,
   };
 }
