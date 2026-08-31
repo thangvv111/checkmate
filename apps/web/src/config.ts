@@ -211,7 +211,12 @@ export function cauHinhDeCham(c: CheckmateConfig): CauHinhNcc {
   if (typeof tho.model !== 'string' || !tho.model.trim()) {
     throw new LoiCauHinhNcc(`Cấu hình ${dn.ten} thiếu trường «model» (config.json sửa tay?). ${goiY}`);
   }
-  if (!tho.phuong_thuc || !dn.phuong_thuc.includes(tho.phuong_thuc)) {
+  if (!tho.phuong_thuc) {
+    // THIẾU HẲN nói «thiếu trường» — gộp vào nhánh «không hỗ trợ ((thiếu))» là sai nguyên nhân (R5.7,
+    // cùng họ với finding vòng một), và lệch lời với cửa song sinh thuNcc vốn nói «thiếu trường».
+    throw new LoiCauHinhNcc(`Cấu hình ${dn.ten} thiếu trường «phương thức» (config.json sửa tay?). ${goiY}`);
+  }
+  if (!dn.phuong_thuc.includes(tho.phuong_thuc)) {
     // Che giá trị lạ (R5.20 áp cho MỌI trường gõ tay được, không riêng model): người dán nhầm khoá vào
     // trường phương thức của config.json cũng không được thấy nó vọng ra thông điệp.
     // Chiếu qua enum HỆ THỐNG, không phải danh mục ncc — «thue_bao» cho ncc chỉ-API phải hiện

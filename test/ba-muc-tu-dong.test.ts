@@ -89,6 +89,20 @@ describe('cửa đọc không được ném với config KHUYẾT — vòng bố
     expect(hienTai.model.length).toBeGreaterThan(0);
   });
 
+  it('phuong_thuc THIẾU HẲN → «thiếu trường «phương thức»», không đổ tội «không hỗ trợ» (vòng mười hai)', () => {
+    // Thiếu và không-hỗ-trợ là hai nguyên nhân khác nhau (R5.7) — và cửa song sinh thuNcc đã nói
+    // «thiếu trường», hai cửa phải cùng một lời cho cùng một bản chất.
+    writeFileSync(
+      join(goc, 'config.json'),
+      JSON.stringify({ agent: { ncc: 'anthropic', ncc_cau_hinh: { anthropic: { model: 'claude-sonnet-5' } }, max_probe: 6, skeptic: true } }),
+      'utf8',
+    );
+    let loi = '';
+    try { cfg.cauHinhDeCham(cfg.docConfig()); } catch (e) { loi = (e as Error).message; }
+    expect(loi).toMatch(/thiếu trường «phương thức»/);
+    expect(loi).not.toMatch(/không hỗ trợ/);
+  });
+
   it('đường CHẤM: phương thức lạ thì HỎI như model khuyết — áp đều tay (vòng bảy)', () => {
     writeFileSync(
       join(goc, 'config.json'),
