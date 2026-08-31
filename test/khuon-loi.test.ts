@@ -4,10 +4,29 @@ import { KHO_KHUON, TRAN_KHUON, layKhuonCode, layKhuonDoc } from '../packages/ha
 // Kho khuôn lỗi common (specs/R12) — tri thức đúc từ finding thật, phát vào prompt của cả hai skill.
 
 describe('kho khuôn lỗi common (R12)', () => {
-  it('mỗi khuôn PHẢI kèm án lệ — không án lệ là phỏng đoán (R12.2)', () => {
+  it('mỗi khuôn PHẢI kèm án lệ TRUY ĐƯỢC NGUỒN — mốc định vị, không mô tả suông (R12.2)', () => {
+    // Vòng một của cổng bắt 5 mục «khuôn đời đầu» không mốc: người đọc không lần ngược được khuôn
+    // ra đời từ finding nào để sửa/loại khi nó sinh probe sai. Mốc = số PR / vòng chấm / tên file /
+    // tên repo — thứ trỏ thẳng vào một nơi có thật.
     for (const k of KHO_KHUON) {
-      expect(k.an_le.trim().length, `${k.id} thiếu án lệ`).toBeGreaterThan(10);
+      expect(k.an_le, `${k.id} án lệ thiếu mốc định vị`).toMatch(/#\d+|vòng \d+|\.(md|ts|yml)|demo-[a-z-]+/);
       expect(k.khuon.trim().length, `${k.id} khuôn rỗng`).toBeGreaterThan(20);
+    }
+  });
+
+  it('khuôn BẮT BUỘC (len_dau) sống sót trần — sắp trước, cắt sau (vòng một của cổng bắt)', () => {
+    // Dựng kho giả vượt trần: 25 khuôn thường + KL5 bắt buộc đứng CUỐI danh sách khai
+    const khoGia = [
+      ...Array.from({ length: 25 }, (_, i) => ({ id: `T${i}`, loai: 'code' as const, khuon: `khuôn thường ${i} đủ dài để qua ngưỡng kiểm tra`, an_le: 'test.ts' })),
+      { id: 'BB', loai: 'code' as const, khuon: 'BẮT BUỘC có probe thử VƯỢT QUYỀN — khuôn đứng cuối danh sách khai', an_le: 'test.ts', dieu_kien: /quyền/, len_dau: true },
+    ];
+    const goc = KHO_KHUON.splice(0, KHO_KHUON.length, ...khoGia as never[]);
+    try {
+      const ra = layKhuonCode('spec có luật về quyền');
+      expect(ra.length).toBeLessThanOrEqual(TRAN_KHUON);
+      expect(ra[0], 'khuôn bắt buộc phải đứng đầu, không bị cắt lặng').toContain('VƯỢT QUYỀN');
+    } finally {
+      KHO_KHUON.splice(0, KHO_KHUON.length, ...goc);
     }
   });
 

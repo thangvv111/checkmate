@@ -29,32 +29,32 @@ export const KHO_KHUON: KhuonLoi[] = [
     id: 'KL1',
     loai: 'code',
     khuon: 'điều kiện KÉP bị gộp sai: thử TỪNG VẾ riêng (vế này đúng + vế kia sai, và ngược lại);',
-    an_le: 'khuôn đời đầu — demo-credit-approval, điều kiện duyệt gộp hai vế sai một',
+    an_le: 'prompt xayKhuonLoi đời trước (skill-code.ts, trước specs/R12) — repo demo-credit-approval, điều kiện duyệt gộp hai vế sai một',
   },
   {
     id: 'KL2',
     loai: 'code',
     khuon: 'giá trị BIÊN đúng ngưỡng của hằng số trong spec (biên đóng/mở);',
-    an_le: 'khuôn đời đầu — lỗi off-by-one quanh ngưỡng hạn mức',
+    an_le: 'prompt xayKhuonLoi đời trước (skill-code.ts) — repo demo-credit-approval, off-by-one quanh ngưỡng hạn mức phê duyệt',
   },
   {
     id: 'KL3',
     loai: 'code',
     khuon: 'phép tính số học: tổng các phần phải bằng đúng tổng gốc, thử số CHIA KHÔNG HẾT / làm tròn;',
-    an_le: 'khuôn đời đầu — chia kỳ trả góp lệch tổng',
+    an_le: 'prompt xayKhuonLoi đời trước (skill-code.ts) — repo demo-credit-approval, chia kỳ trả góp số lẻ lệch tổng gốc',
   },
   {
     id: 'KL4',
     loai: 'code',
     khuon: 'hành vi cũ không bị PR phá (probe kỳ vọng qua, để chứng minh PASS xứng đáng khi PR sạch).',
-    an_le: 'khuôn đời đầu — nền của mọi lượt regression',
+    an_le: 'prompt xayKhuonLoi đời trước (skill-code.ts) — nền phân loại R1 (specs/R1-phan-loai-probe.md): PASS phải được chứng minh, không phải mặc định',
   },
   {
     id: 'KL5',
     loai: 'code',
     khuon:
       'PHÂN QUYỀN (spec repo này có luật về quyền/vai): BẮT BUỘC có probe thử VƯỢT QUYỀN — actor không đủ quyền thực hiện hành động của actor đủ quyền, và tự thao tác trên đối tượng của chính mình nếu spec cấm;',
-    an_le: 'khuôn đời đầu — maker-chấm-bài-mình; và P4 các vòng 11–12 PR #12 checkmate (vai tu_dong ở cổng)',
+    an_le: 'prompt xayKhuonLoi đời trước (skill-code.ts) — repo demo-credit-approval, nhân viên tự duyệt hồ sơ mình; và P4 vòng 11–12 PR #12 checkmate (vai tu_dong ở cổng, specs/R11.18b)',
     dieu_kien: /quyền|vai trò|role|permission|phân cấp|thẩm quyền|actor|chỉ .* được/,
     len_dau: true,
   },
@@ -62,14 +62,14 @@ export const KHO_KHUON: KhuonLoi[] = [
     id: 'KL6',
     loai: 'code',
     khuon: 'đường SAI phải trả lỗi nghiệp vụ 4xx kèm thông báo (trùng khoá, tham chiếu không tồn tại) — app-guard, không được vỡ thành 500;',
-    an_le: 'khuôn đời đầu — POST trùng khoá vỡ 500',
+    an_le: 'prompt xayKhuonLoi đời trước (skill-code.ts) — repo demo-credit-approval, POST trùng mã hồ sơ vỡ 500 thay vì 4xx nghiệp vụ',
     dieu_kien: /4\d\d|http|route|endpoint|api|status/,
   },
   {
     id: 'KL7',
     loai: 'code',
     khuon: 'VALIDATION đầu vào: trường bắt buộc bỏ trống / kiểu sai / giá trị ngoài miền — phải bị chặn đúng như spec khai;',
-    an_le: 'khuôn đời đầu',
+    an_le: 'prompt xayKhuonLoi đời trước (skill-code.ts) — repo demo-credit-approval, trường bắt buộc bỏ trống đi lọt validate',
     dieu_kien: /đầu vào|validate|bắt buộc|không được rỗng|required/,
   },
 
@@ -169,8 +169,15 @@ export const KHO_KHUON: KhuonLoi[] = [
 /** Khuôn code phát cho repo có spec này (R12.4): bật khuôn điều kiện khớp, khuôn len_dau lên đầu. */
 export function layKhuonCode(specText: string): string[] {
   const thap = specText.toLowerCase();
-  const bat = KHO_KHUON.filter((k) => k.loai === 'code' && (!k.dieu_kien || k.dieu_kien.test(thap))).slice(0, TRAN_KHUON);
-  return [...bat.filter((k) => k.len_dau), ...bat.filter((k) => !k.len_dau)].map((k) => k.khuon);
+  const bat = KHO_KHUON.filter((k) => k.loai === 'code' && (!k.dieu_kien || k.dieu_kien.test(thap)));
+  // SẮP trước, CẮT sau — cắt trước là khuôn bắt buộc (len_dau) đứng cuối danh sách khai bị rơi LẶNG
+  // đúng lúc kho chạm trần, cổng âm thầm thôi sinh probe vượt-quyền (vòng một của cổng bắt trên chính
+  // PR này). Trần vẫn giữ (R12.3) nhưng nạn nhân phải là khuôn thường cuối danh sách, có log.
+  const sap = [...bat.filter((k) => k.len_dau), ...bat.filter((k) => !k.len_dau)];
+  if (sap.length > TRAN_KHUON) {
+    console.log(`[khuon-loi] kho vượt trần ${TRAN_KHUON} — bỏ: ${sap.slice(TRAN_KHUON).map((k) => k.id).join(', ')} (R12.3: thay khuôn phải là quyết định nói ra, sửa KHO_KHUON thay vì để cắt ở đây)`);
+  }
+  return sap.slice(0, TRAN_KHUON).map((k) => k.khuon);
 }
 
 /** Khuôn doc — «nơi hay giấu lỗi», phát vào prompt tìm lỗi tài liệu. Không mở rộng rubric. */
