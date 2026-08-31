@@ -256,7 +256,10 @@ function nguonFetch(github: string): string {
  * chỉ tốn tiền và ồn; code bị đẩy sang doc thì KHÔNG probe nào chạy và verdict xanh trên vùng chưa ai
  * thử — xanh giả, đúng thứ công cụ này sinh ra để chống. Nghi ngờ thì chọn code.
  */
-export function phanLoaiPr(filesDoi: readonly string[]): { loai: 'code' | 'doc'; lyDo: string; fileDocUngVien: string[]; khongDoc: string[] } {
+export function phanLoaiPr(dsVao: readonly string[]): { loai: 'code' | 'doc'; lyDo: string; fileDocUngVien: string[]; khongDoc: string[] } {
+  // R13.8 áp cho CẢ CỤM, không chỉ từng phần tử: gọi với null/undefined/chuỗi/đối tượng đều phải rơi
+  // về code, không ném — hàm đứng đầu pipeline mà ném là cả lượt chấm chết (vòng ba của cổng bắt).
+  const filesDoi: readonly string[] = Array.isArray(dsVao) ? dsVao : [];
   // Đuôi VĂN BẢN THUẦN — áp ở mọi nơi trong repo.
   const DUOI_VAN_BAN = ['.md', '.txt'];
   // Đuôi CẤU HÌNH QUY TRÌNH — chỉ có nghĩa BÊN TRONG `openspec/`. Engine chấm không đọc thư mục đó.
@@ -280,7 +283,12 @@ export function phanLoaiPr(filesDoi: readonly string[]): { loai: 'code' | 'doc';
     return DUOI_VAN_BAN.some((d) => t.endsWith(d));
   };
 
-  const ten = (f: unknown): string => (typeof f === 'string' ? f : `(phần tử không phải chuỗi: ${String(f)})`);
+  // R13.6 — lý do nói CÓ thủ phạm thì phải nêu được dấu hiệu đọc được của nó; in nguyên chuỗi rỗng
+  // ra thì phần liệt kê trống trơn, người đọc không biết file nào (vòng ba của cổng bắt).
+  const ten = (f: unknown): string => {
+    if (typeof f !== 'string') return `(phần tử không phải chuỗi: ${String(f)})`;
+    return f.trim() ? f : `(tên file rỗng, ${f.length} ký tự trắng)`;
+  };
   const ke = (ds: readonly unknown[], tran = 20): string =>
     ds.length <= tran ? ds.map(ten).join(', ') : `${ds.slice(0, tran).map(ten).join(', ')} và ${ds.length - tran} file nữa`;
 
@@ -295,7 +303,12 @@ export function phanLoaiPr(filesDoi: readonly string[]): { loai: 'code' | 'doc';
   }
   // R13.7 — KHAI VÙNG MÙ: skill doc đọc đúng MỘT tài liệu, nên mọi file còn lại của PR không ai xem.
   // Nêu cái ĐƯỢC xem không thay được nghĩa vụ nêu cái KHÔNG được xem (cùng nguyên tắc R7 về diff bị cắt).
-  const khongDoc = filesDoi.filter((f) => !md.includes(f as string)).map(ten);
+  // Skill doc đọc ĐÚNG MỘT tài liệu, nên các tài liệu ứng viên CÒN LẠI cũng là vùng mù — loại cả
+  // nhóm .md ra khỏi vùng mù là giấu đúng phần người đọc cần biết (vòng ba của cổng bắt).
+  // Ở tầng này chưa biết tài liệu nào sẽ được chọn (fetchVaRouter chọn theo số dòng đổi), nên lấy
+  // ứng viên đầu làm dự kiến; fetchVaRouter dựng lại vùng mù theo tài liệu THẬT sau khi chốt.
+  const duKien = md[0];
+  const khongDoc = filesDoi.filter((f) => f !== duKien).map(ten);
   const lyDo =
     `${filesDoi.length} file đổi đều là văn bản thuần. Tài liệu ứng viên (${md.length}): ${ke(md)} — CHỈ MỘT được chấm` +
     (khongDoc.length ? `; KHÔNG được đọc ở lượt này (${khongDoc.length}): ${ke(khongDoc)}` : '') +
@@ -338,7 +351,9 @@ export function fetchVaRouter(cfg: CheckmateConfig, so: number): PrDaFetch {
     .sort((a, b) => b.doi - a.doi);
   // numstat có thể không khớp ứng viên nào (đổi tên, file nhị phân) — rơi về ứng viên đầu, không ném
   const fileDoc = numstat[0]?.file ?? pl.fileDocUngVien[0];
-  const lyDo = `${pl.lyDo}; chấm tài liệu ${fileDoc}`;
+  // Vùng mù THẬT chỉ chốt được ở đây, khi đã biết tài liệu nào được đem đi chấm (R13.7)
+  const muThat = filesDoi.filter((f) => f !== fileDoc);
+  const lyDo = `${pl.lyDo}; chấm tài liệu ${fileDoc}; KHÔNG đọc (${muThat.length}): ${muThat.slice(0, 20).join(', ')}${muThat.length > 20 ? ` và ${muThat.length - 20} file nữa` : ''}`;
   console.log(`Định tuyến PR #${so}: skill doc — ${lyDo}`);
   return { so, headSha, baseRef, headRef, filesDoi, loai: 'doc', fileDoc, lyDoDinhTuyen: lyDo };
 }

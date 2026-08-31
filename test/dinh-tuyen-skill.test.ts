@@ -90,6 +90,28 @@ describe('vòng hai: đuôi file trong openspec · specs là luật · vùng mù
     expect(kq.lyDo).toMatch(/3 tài liệu ứng viên còn lại cũng không được đọc/);
   });
 
+  it('vùng mù gồm CẢ tài liệu ứng viên không được chọn — chỉ MỘT được đọc (R13.7, vòng ba)', () => {
+    const kq = phanLoaiPr(['CLAUDE.md', 'NOTES.md', 'openspec/config.yaml', 'notes.txt']);
+    expect(kq.loai).toBe('doc');
+    expect(kq.khongDoc).toContain('NOTES.md'); // ứng viên còn lại cũng không ai xem
+    expect(kq.khongDoc).toContain('openspec/config.yaml');
+    expect(kq.khongDoc).toContain('notes.txt');
+    expect(kq.khongDoc).not.toContain('CLAUDE.md'); // đúng một tài liệu được chấm
+  });
+
+  it('CẢ CỤM đầu vào méo cũng không được ném — R13.8 áp cho cụm, không chỉ phần tử (vòng ba)', () => {
+    for (const x of [null, undefined, 'chuoi', 123, { a: 1 }]) {
+      expect(() => phanLoaiPr(x as never), `phanLoaiPr(${JSON.stringify(x)})`).not.toThrow();
+      expect(phanLoaiPr(x as never).loai).toBe('code');
+    }
+  });
+
+  it('tên file RỖNG vẫn phải hiện thành dấu hiệu đọc được trong lý do (R13.6, vòng ba)', () => {
+    const kq = phanLoaiPr(['docs.md', '   ']);
+    expect(kq.loai).toBe('code');
+    expect(kq.lyDo).toMatch(/tên file rỗng/); // không được để chỗ liệt kê trống trơn
+  });
+
   it('phần tử null/undefined/sai kiểu KHÔNG được ném — fail-closed về code (R13.8)', () => {
     // Hàm đứng đầu pipeline mà ném thì cả lượt chấm chết giữa chừng — hỏng an toàn ngược hướng.
     for (const ds of [['docs.md', null], ['docs.md', undefined], ['docs.md', 123], [null], ['']]) {
