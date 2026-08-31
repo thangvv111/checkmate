@@ -91,7 +91,7 @@ const MAC_DINH: CheckmateConfig = {
   agent: {
     ncc: 'anthropic',
     ncc_cau_hinh: { anthropic: { phuong_thuc: 'thue_bao', model: 'claude-sonnet-5' } },
-    max_probe: 6,
+    max_probe: 10,
     skeptic: true,
   },
   truc: { bat: false, chu_ky_giay: 300, tu_dong_comment: true, tu_dong_trang_thai: true, tu_dong_tra_ve: false },
@@ -154,7 +154,7 @@ function nangCapAgent(a?: Partial<AgentConfig>): AgentConfig {
     ncc_cau_hinh: {
       anthropic: { phuong_thuc: a.provider === 'api' ? 'api' : 'thue_bao', model: a.model ?? 'claude-sonnet-5' },
     },
-    max_probe: a.max_probe ?? 6,
+    max_probe: a.max_probe ?? 10,
     skeptic: a.skeptic ?? true,
   };
 }
