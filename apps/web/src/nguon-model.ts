@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { cauHinhHienTai, docTokenThueBao, type CheckmateConfig } from './config.js';
-import { chieuGiaTri, dinhNghia, docKhoa, modelHopLe, ghiSoKiem, type CauHinhNcc, type KetQuaKiem, type MaNcc } from './ncc.js';
+import { chieuGiaTri, dinhNghia, docKhoa, DS_PHUONG_THUC, modelHopLe, ghiSoKiem, type CauHinhNcc, type KetQuaKiem, type MaNcc } from './ncc.js';
 
 // Kiểm một nhà cung cấp: gọi thử MỘT câu cực ngắn đúng cấu hình của nó.
 // Vừa là nút "Kiểm tra" trong giao diện, vừa là CỔNG: chưa kiểm thành công thì không được chọn để chấm.
@@ -113,7 +113,11 @@ export interface KetQuaThu extends KetQuaKiem {
   giay: number;
 }
 
-export async function thuNcc(ma: MaNcc, cfg: CauHinhNcc): Promise<KetQuaThu> {
+export async function thuNcc(ma: MaNcc, cfgTho: CauHinhNcc): Promise<KetQuaThu> {
+  // Chuẩn hoá TRƯỚC MỌI THỨ: gọi với undefined/null phải đi tới gác «thiếu trường» phía dưới chứ
+  // không nổ ở dòng đầu của xong() — vòng mười một bắt đúng ca gác dùng cfg?.model nhưng xong() đọc
+  // cfg.model trần (R5.19: reject là đánh sập cả lượt thay vì trả kết quả kiểm thất bại đọc được).
+  const cfg: CauHinhNcc = cfgTho ?? ({} as CauHinhNcc);
   const t0 = Date.now();
   const giay = (): number => Math.round((Date.now() - t0) / 100) / 10;
   const khoa = docKhoa(ma);
@@ -129,7 +133,9 @@ export async function thuNcc(ma: MaNcc, cfg: CauHinhNcc): Promise<KetQuaThu> {
     // Che TỰ ĐỘNG, không lệ thuộc chỗ gọi nhớ truyền modelAnToan: nhánh nào quên (vd nhánh «chưa có
     // khoá» dừng trước khi chạm model) là key giả đi nguyên vào sổ — đã xảy ra, test bắt được.
     const md = modelAnToan ?? chieuGiaTri(cfg.model, dinhNghia(ma).models);
-    const pt = chieuGiaTri(String(cfg.phuong_thuc ?? ''), dinhNghia(ma).phuong_thuc) as typeof cfg.phuong_thuc;
+    // phuong_thuc chiếu qua enum HỆ THỐNG (không phải danh mục ncc): «thue_bao» với ncc chỉ-API
+    // vẫn là giá trị hệ thống, ghi nguyên văn được — chỉ giá trị gõ tay lạ mới bị che.
+    const pt = chieuGiaTri(cfg.phuong_thuc, DS_PHUONG_THUC) as typeof cfg.phuong_thuc;
     ghiSoKiem(ma, { ok, luc, thong_diep, model: md, phuong_thuc: pt });
     return { ok, thong_diep, ncc: ma, giay: giay(), luc, model: md, phuong_thuc: pt };
   };
@@ -150,9 +156,10 @@ export async function thuNcc(ma: MaNcc, cfg: CauHinhNcc): Promise<KetQuaThu> {
   const laModelLa = !dn.models.includes(cfg.model);
   if (!modelHopLe(dn, cfg.phuong_thuc, cfg.model)) {
     const che = chieuGiaTri(cfg.model, dn.models);
-    // phuong_thuc cũng qua phép chiếu (R5.20 áp cho MỌI trường gõ tay được): giá trị hợp lệ đi qua
-    // nguyên vẹn, còn thứ dán nhầm vào trường này không được vọng ra thông điệp.
-    const ptChe = chieuGiaTri(String(cfg.phuong_thuc ?? ''), dn.phuong_thuc);
+    // phuong_thuc chiếu qua enum HỆ THỐNG: «thue_bao» tuy ncc này không hỗ trợ nhưng là giá trị
+    // người dùng chọn từ dropdown — phải hiện nguyên văn để họ biết đổi cái gì (vòng mười một);
+    // chỉ thứ dán nhầm ngoài enum mới bị che (R5.20).
+    const ptChe = chieuGiaTri(cfg.phuong_thuc, DS_PHUONG_THUC);
     const lyDo = dn.chi_thue_bao?.includes(cfg.model)
       ? 'model này chỉ mở cho gói thuê bao (R5.15)'
       : `nhà cung cấp không hỗ trợ phương thức «${ptChe}»`;

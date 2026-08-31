@@ -11,6 +11,12 @@ import { docKho, ghiKho } from './kho-bi-mat.js';
 export type MaNcc = 'anthropic' | 'github' | 'openai' | 'google';
 export type PhuongThuc = 'thue_bao' | 'api';
 
+// MIỀN CHE của trường phuong_thuc là enum HỆ THỐNG này, KHÔNG phải danh mục của từng nhà cung cấp:
+// «thue_bao» với một ncc chỉ-API là tổ hợp không hỗ trợ nhưng vẫn là giá trị hệ thống người dùng chọn
+// từ dropdown — băm nó là giấu chính nguyên nhân trong thông điệp lỗi (vòng mười một của cổng bắt).
+// Chỉ giá trị ngoài enum này (gõ tay/khoá dán nhầm) mới đáng che theo R5.20.
+export const DS_PHUONG_THUC: readonly PhuongThuc[] = ['thue_bao', 'api'];
+
 export interface DinhNghiaNcc {
   ma: MaNcc;
   ten: string;
@@ -172,6 +178,6 @@ export function kiemConHieuLuc(ma: MaNcc, cfg: CauHinhNcc): KetQuaKiem | null {
   // Sổ đời cũ lỡ lưu giá trị lạ dạng thô thì so ảnh sẽ lệch → coi như hết hiệu lực, phải Kiểm tra
   // lại — lệch về phía nói KHÔNG, đúng chiều an toàn.
   if ((k.model ?? '') !== chieuGiaTri(cfg.model, dn.models)) return null;
-  if ((k.phuong_thuc ?? '') !== chieuGiaTri(String(cfg.phuong_thuc), dn.phuong_thuc)) return null;
+  if ((k.phuong_thuc ?? '') !== chieuGiaTri(String(cfg.phuong_thuc), DS_PHUONG_THUC)) return null;
   return k;
 }

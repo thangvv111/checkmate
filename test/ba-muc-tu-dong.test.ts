@@ -260,3 +260,44 @@ describe('vòng mười: áp đều tay luật «khuyết thì hỏi, có mặt 
     expect(chieuGiaTri(42, ['a'])).toMatch(/ngoài danh mục — 2 ký tự/);
   });
 });
+
+describe('vòng mười một: miền che của phuong_thuc + thuNcc với cụm undefined', () => {
+  it('thuNcc(ma, undefined/null) → resolve ok:false «thiếu trường», KHÔNG reject (finding 2 — HIGH)', async () => {
+    // Gác vòng mười dùng cfg?.model nhưng xong() đọc cfg.model trần — cụm undefined lọt qua gác rồi
+    // chết ở dòng đầu của xong. Chuẩn hoá cfg TRƯỚC MỌI THỨ.
+    const { thuNcc } = await import('../apps/web/src/nguon-model.js');
+    for (const cum of [undefined, null]) {
+      const kq = await thuNcc('anthropic', cum as never);
+      expect(kq.ok).toBe(false);
+      expect(kq.thong_diep).toMatch(/thiếu trường/);
+    }
+  });
+
+  it('enum hệ thống hợp lệ («thue_bao») KHÔNG bị băm trong thông điệp từ chối sớm (finding 1 — HIGH)', async () => {
+    // «thue_bao» với ncc chỉ-API là tổ hợp không hỗ trợ nhưng là giá trị hệ thống chọn từ dropdown —
+    // băm nó là giấu chính nguyên nhân, người dùng không biết đổi cái gì trong ⚙ Cấu hình (R5.7).
+    const { DANH_MUC_NCC } = await import('../apps/web/src/ncc.js');
+    const { thuNcc } = await import('../apps/web/src/nguon-model.js');
+    const chiApi = DANH_MUC_NCC.find((d) => !d.ngung && d.phuong_thuc.length === 1 && d.phuong_thuc[0] === 'api');
+    expect(chiApi, 'cần một ncc chỉ-API để probe không rỗng').toBeTruthy();
+    const kq = await thuNcc(chiApi!.ma, { phuong_thuc: 'thue_bao', model: chiApi!.models[0] });
+    expect(kq.ok).toBe(false);
+    expect(kq.thong_diep).toContain('thue_bao');
+    expect(kq.thong_diep).not.toContain('sha256:');
+  });
+
+  it('giá trị NGOÀI enum hệ thống trong trường phuong_thuc vẫn bị che — miền đổi không mở lại lỗ rò', () => {
+    // Cùng ca keyGia của vòng tám: đổi miền chiếu sang enum hệ thống không được làm khoá dán nhầm
+    // vọng lại nguyên văn.
+    const keyGia = 'sk-ant-api03-DAN-NHAM-VAO-PHUONG-THUC-42';
+    writeFileSync(
+      join(goc, 'config.json'),
+      JSON.stringify({ agent: { ncc: 'anthropic', ncc_cau_hinh: { anthropic: { phuong_thuc: keyGia, model: 'claude-sonnet-5' } }, max_probe: 6, skeptic: true } }),
+      'utf8',
+    );
+    let loi = '';
+    try { cfg.cauHinhDeCham(cfg.docConfig()); } catch (e) { loi = (e as Error).message; }
+    expect(loi).not.toContain(keyGia);
+    expect(loi).toContain('sha256:');
+  });
+});

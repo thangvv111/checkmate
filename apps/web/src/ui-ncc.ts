@@ -1,5 +1,5 @@
 import { escHtml } from './ui.js';
-import { chieuGiaTri, DANH_MUC_NCC, type CauHinhNcc, type KetQuaKiem, type MaNcc, type PhuongThuc } from './ncc.js';
+import { chieuGiaTri, DANH_MUC_NCC, DS_PHUONG_THUC, type CauHinhNcc, type KetQuaKiem, type MaNcc, type PhuongThuc } from './ncc.js';
 import type { TrangThaiNcc } from './nguon-model.js';
 
 // Khối "Nhà cung cấp model" trong Cấu hình: mỗi nhà cung cấp một thẻ gập cho gọn,
@@ -65,7 +65,7 @@ export function khoiNcc(v: KhoiNccView): string {
             // Giá trị trong config NGOÀI danh mục: không có option khớp thì trình duyệt lặng lẽ hiện
             // option đầu — giấu đúng thứ đang làm đường chấm chặn (vòng tám, finding 3). Hiện bản che
             // (R5.20 — có thể là khoá dán nhầm) để người dùng thấy có thứ phải sửa.
-            dn.phuong_thuc.includes(cfg.phuong_thuc) ? '' : `<option value="" selected disabled>⚠ trong config: ${escHtml(chieuGiaTri(String(cfg.phuong_thuc ?? ''), dn.phuong_thuc))}</option>`
+            dn.phuong_thuc.includes(cfg.phuong_thuc) ? '' : `<option value="" selected disabled>⚠ trong config: ${escHtml(chieuGiaTri(cfg.phuong_thuc, DS_PHUONG_THUC))}</option>`
           }
         </select>
       </label>

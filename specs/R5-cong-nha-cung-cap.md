@@ -77,4 +77,8 @@ Mỗi nhà cung cấp cấu hình độc lập, và chỉ nhà cung cấp đã *
   MỘT phép chiếu chung: giá trị trong danh mục đi qua nguyên vẹn, giá trị ngoài thành bản che mang độ
   dài + vân tay (hai giá trị khác nhau phải cho hai bản che khác nhau). Sổ kiểm lưu ẢNH của phép chiếu,
   và mọi phép đối chiếu với sổ so ẢNH với ẢNH — chiếu vế sổ thêm lần nữa là che-của-che, không bao giờ
-  khớp, tổ hợp model-lạ vừa kiểm xong đã «hết hiệu lực» (vòng tám của cổng bắt đúng ca này).
+  khớp, tổ hợp model-lạ vừa kiểm xong đã «hết hiệu lực» (vòng tám của cổng bắt đúng ca này). MIỀN
+  của phép chiếu đi theo BẢN CHẤT trường, không theo ngữ cảnh dùng: `model` chiếu qua danh mục của
+  nhà cung cấp, còn `phuong_thuc` chiếu qua enum HỆ THỐNG (`DS_PHUONG_THUC`) — «thue_bao» với một
+  nhà cung cấp chỉ-API là tổ hợp không hỗ trợ nhưng vẫn là giá trị hệ thống người dùng chọn từ
+  dropdown; băm nó là giấu chính nguyên nhân trong thông điệp lỗi, trái R5.7 (vòng mười một).

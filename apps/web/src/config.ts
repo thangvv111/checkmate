@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { chieuGiaTri, dinhNghia, docKhoa, modelHopLe, type CauHinhNcc, type MaNcc } from './ncc.js';
+import { chieuGiaTri, dinhNghia, docKhoa, DS_PHUONG_THUC, modelHopLe, type CauHinhNcc, type MaNcc } from './ncc.js';
 import { docKho, ghiKho, docTokenRieng, ghiTokenRepo } from './kho-bi-mat.js';
 
 // Chế độ vận hành (spec §9): demo = deploy public, khoá repo demo, Settings chỉ-đọc (fail-closed);
@@ -214,7 +214,9 @@ export function cauHinhDeCham(c: CheckmateConfig): CauHinhNcc {
   if (!tho.phuong_thuc || !dn.phuong_thuc.includes(tho.phuong_thuc)) {
     // Che giá trị lạ (R5.20 áp cho MỌI trường gõ tay được, không riêng model): người dán nhầm khoá vào
     // trường phương thức của config.json cũng không được thấy nó vọng ra thông điệp.
-    const ptChe = chieuGiaTri(tho.phuong_thuc, dn.phuong_thuc); // toàn phần: khuyết → «(thiếu)»
+    // Chiếu qua enum HỆ THỐNG, không phải danh mục ncc — «thue_bao» cho ncc chỉ-API phải hiện
+    // nguyên văn để người dùng biết đổi cái gì; toàn phần: khuyết → «(thiếu)» (vòng mười một).
+    const ptChe = chieuGiaTri(tho.phuong_thuc, DS_PHUONG_THUC);
     throw new LoiCauHinhNcc(`Cấu hình ${dn.ten} mang phương thức không hỗ trợ (${ptChe}) — ${dn.ten} chỉ có: ${dn.phuong_thuc.join(', ')}. ${goiY}`);
   }
   if (!modelHopLe(dn, tho.phuong_thuc, tho.model)) {
