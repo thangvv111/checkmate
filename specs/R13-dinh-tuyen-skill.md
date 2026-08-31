@@ -21,11 +21,17 @@ Hai thiệt hại không đối xứng, nên luật dưới đây lệch hẳn v
   thư mục `openspec/`. Mọi thứ ngoài danh sách kéo PR về skill code. Không được dùng danh sách loại
   trừ («không phải `.ts/.js/.py` thì là doc»): mỗi lần repo đích mang một loại file thực thi được mà
   danh sách chưa biết, PR có code sẽ âm thầm đi đường doc — sai về phía nguy hiểm.
-- **R13.3** — `checkmate.yml` ở gốc repo KHÔNG phải văn bản thuần dù là YAML: engine ĐỌC nó để biết
-  import gì từ đâu ([R2](R2-hop-dong-repo-dich.md)), nên đổi nó là đổi hành vi chấm. Ngược lại
-  `openspec/**` LÀ văn bản thuần: engine không đọc thư mục đó, nó chỉ định hình cách con người và
-  agent soạn change về sau. Đây là quy ước của CheckMate áp cho mọi repo đích — repo nào để mã nguồn
-  trong `openspec/` là vi phạm quy ước, và hệ quả (PR đó đi đường doc) thuộc về repo ấy.
+- **R13.3** — Tiêu chí phân định là **engine có ĐỌC file đó để chấm hay không**, áp ĐỀU TAY:
+  - `checkmate.yml` ở gốc KHÔNG phải văn bản thuần dù là YAML — engine đọc nó để biết import gì từ
+    đâu ([R2](R2-hop-dong-repo-dich.md)).
+  - **`specs/**` KHÔNG phải văn bản thuần dù là `.md`** — engine đọc thư mục này để so luật giữa hai
+    nhánh ([R1.19](R1-phan-loai-probe.md)) và đếm độ phủ mã luật (R1.22). Cùng một tiêu chí mà cho
+    hai kết luận trái ngược là tự mâu thuẫn; và hậu quả nặng hơn checkmate.yml: PR sửa hoặc gỡ luật
+    của CHÍNH CỔNG sẽ được xét bằng rubric tài liệu, không probe nào chạy — tự nới cổng rồi tự qua
+    cổng (vòng hai của cổng bắt trên chính change này).
+  - `openspec/**` LÀ văn bản thuần **nhưng chỉ với các đuôi cấu hình quy trình** (`.md`, `.txt`,
+    `.yaml`, `.yml`, `.json`). Cho cả THƯ MỤC là văn bản thì `openspec/hack.ts` cũng thành tài liệu —
+    cửa né probe rộng nhất, và nó do chính luật này mở ra ở bản đầu.
 - **R13.4** — Skill doc CHỈ được chọn khi có ít nhất một file `.md` trong diff. Rubric của skill doc
   xây quanh trích dẫn nguyên văn từ MỘT tài liệu; không có `.md` nào thì nó không có gì để đọc, và
   lượt chấm phải rơi về đường code.
@@ -41,6 +47,18 @@ Hai thiệt hại không đối xứng, nên luật dưới đây lệch hẳn v
     Chuẩn hoá nó là cho maker tự chọn đường chấm nhẹ tay cho PR của chính mình.
   - KHÔNG được nhận chuỗi `openspec` trơ là văn bản thuần: git liệt kê FILE chứ không liệt kê thư
     mục, nên khớp đúng chuỗi đó chỉ có thể là một file thực thi được ở gốc repo.
+
+## Khai vùng mù và chịu đầu vào méo
+
+- **R13.7** — Skill doc chỉ đọc ĐÚNG MỘT tài liệu, nên với PR nhiều file thì phần lớn nội dung thay
+  đổi KHÔNG ai xem. Quyết định định tuyến PHẢI khai ra **những file sẽ không được đọc** — nêu cái
+  được xem không thay được nghĩa vụ nêu cái không được xem. Cùng nguyên tắc với
+  [R7](R7-tam-nhin-diff.md): được phép thu hẹp, không được thu hẹp trong im lặng. Danh sách dài thì
+  cắt được, nhưng phải nói rõ còn bao nhiêu file nữa.
+- **R13.8** — Hàm phân loại đứng ĐẦU pipeline nên PHẢI chịu được danh sách méo (phần tử `null`,
+  `undefined`, không phải chuỗi, chuỗi rỗng): rơi về `code` kèm lý do, KHÔNG ĐƯỢC ném. Ném ở đây làm
+  cả lượt chấm chết giữa chừng — hỏng an toàn ngược hướng, vì fail-closed nghĩa là về đường chặt
+  hơn, không phải là dừng hẳn.
 
 ## Nói ra quyết định
 

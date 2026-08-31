@@ -256,32 +256,52 @@ function nguonFetch(github: string): string {
  * chỉ tốn tiền và ồn; code bị đẩy sang doc thì KHÔNG probe nào chạy và verdict xanh trên vùng chưa ai
  * thử — xanh giả, đúng thứ công cụ này sinh ra để chống. Nghi ngờ thì chọn code.
  */
-export function phanLoaiPr(filesDoi: readonly string[]): { loai: 'code' | 'doc'; lyDo: string; fileDocUngVien: string[] } {
-  // Khớp CẤU TRÚC đường dẫn, không khớp tiền tố chuỗi (R13.5): `openspec-notes.js` không được ăn nhầm
-  // allowlist của thư mục `openspec/`. Tên file trong diff là dữ liệu do maker viết.
-  const laVanBan = (f: string): boolean => {
-    // ĐUÔI so không phân biệt hoa thường (README.MD vẫn là tài liệu). ĐƯỜNG DẪN thư mục thì so ĐÚNG
-    // HOA THƯỜNG: engine chạy trên Linux, nơi `OpenSpec/` là thư mục KHÁC `openspec/` — gột hoa
-    // thường ở đây là tự mở cửa né probe (vòng một của cổng bắt).
-    if (f.toLowerCase().endsWith('.md') || f.toLowerCase().endsWith('.txt')) return true;
-    // KHÔNG chuẩn hoá dấu `\`: `git diff --name-only` luôn trả dấu `/`, nên một đường dẫn chứa
-    // `\` là TÊN FILE thật do maker đặt — `openspec\hack.ts` là MỘT file ở gốc repo, không phải
-    // file nằm dưới thư mục `openspec/`. Và KHÔNG nhận `openspec` trơ: git liệt kê FILE chứ không
-    // liệt kê thư mục, nên khớp đúng chuỗi đó chỉ có thể là một file thực thi được ở gốc.
-    return f.startsWith('openspec/');
+export function phanLoaiPr(filesDoi: readonly string[]): { loai: 'code' | 'doc'; lyDo: string; fileDocUngVien: string[]; khongDoc: string[] } {
+  // Đuôi VĂN BẢN THUẦN — áp ở mọi nơi trong repo.
+  const DUOI_VAN_BAN = ['.md', '.txt'];
+  // Đuôi CẤU HÌNH QUY TRÌNH — chỉ có nghĩa BÊN TRONG `openspec/`. Engine chấm không đọc thư mục đó.
+  const DUOI_QUY_TRINH = ['.md', '.txt', '.yaml', '.yml', '.json'];
+
+  const laVanBan = (f: unknown): boolean => {
+    // Phần tử không phải chuỗi → KHÔNG phải văn bản (fail-closed R13.8). Ném ở đây là làm sập cả
+    // lượt chấm ngay hàm đứng đầu pipeline — hỏng an toàn ngược hướng.
+    if (typeof f !== 'string' || !f.trim()) return false;
+    const t = f.toLowerCase();
+    // ĐƯỜNG DẪN so ĐÚNG HOA THƯỜNG (Linux: `OpenSpec/` ≠ `openspec/`); ĐUÔI thì không phân biệt.
+    // `specs/**` là LUẬT engine ĐỌC THẬT (R1.19 so luật hai nhánh, R1.22 đếm độ phủ) — cùng tiêu chí
+    // đã xếp `checkmate.yml` vào code, nên sửa luật của chính cổng phải đi đường code, kẻo PR tự nới
+    // cổng rồi tự qua cổng bằng rubric tài liệu (vòng hai của cổng bắt).
+    if (f.startsWith('specs/')) return false;
+    // Dưới `openspec/`: chỉ các đuôi cấu hình quy trình. Cho cả THƯ MỤC là văn bản thuần thì
+    // `openspec/hack.ts` cũng thành tài liệu — cửa né probe rộng nhất, do chính luật này mở ra.
+    if (f.startsWith('openspec/')) return DUOI_QUY_TRINH.some((d) => t.endsWith(d));
+    // KHÔNG chuẩn hoá dấu `\`: `git diff --name-only` luôn trả `/`, nên `\` là TÊN FILE thật do
+    // maker đặt. KHÔNG nhận `openspec` trơ: git liệt kê FILE, không liệt kê thư mục.
+    return DUOI_VAN_BAN.some((d) => t.endsWith(d));
   };
-  const md = filesDoi.filter((f) => f.toLowerCase().endsWith('.md'));
+
+  const ten = (f: unknown): string => (typeof f === 'string' ? f : `(phần tử không phải chuỗi: ${String(f)})`);
+  const ke = (ds: readonly unknown[], tran = 20): string =>
+    ds.length <= tran ? ds.map(ten).join(', ') : `${ds.slice(0, tran).map(ten).join(', ')} và ${ds.length - tran} file nữa`;
+
+  const md = filesDoi.filter((f) => typeof f === 'string' && f.toLowerCase().endsWith('.md') && !f.startsWith('specs/'));
   const thucThi = filesDoi.filter((f) => !laVanBan(f));
   if (thucThi.length > 0) {
-    const vd = thucThi.slice(0, 3).join(', ');
-    return { loai: 'code', lyDo: `có ${thucThi.length} file không phải văn bản thuần (${vd}${thucThi.length > 3 ? '…' : ''}) — R13.1`, fileDocUngVien: md };
+    return { loai: 'code', lyDo: `có ${thucThi.length} file không phải văn bản thuần: ${ke(thucThi)} — R13.1`, fileDocUngVien: md, khongDoc: [] };
   }
   // R13.4 — skill doc chấm MỘT tài liệu bằng trích dẫn nguyên văn; không .md nào thì không có gì để đọc
   if (md.length === 0) {
-    return { loai: 'code', lyDo: 'toàn văn bản thuần nhưng không có file .md nào để skill doc đọc — R13.4', fileDocUngVien: [] };
+    return { loai: 'code', lyDo: 'toàn văn bản thuần nhưng không có file .md nào để skill doc đọc — R13.4', fileDocUngVien: [], khongDoc: [] };
   }
-  const dsMd = md.slice(0, 3).join(', ');
-  return { loai: 'doc', lyDo: `${filesDoi.length} file đổi đều là văn bản thuần; tài liệu ứng viên: ${dsMd}${md.length > 3 ? '…' : ''} — R13.1`, fileDocUngVien: md };
+  // R13.7 — KHAI VÙNG MÙ: skill doc đọc đúng MỘT tài liệu, nên mọi file còn lại của PR không ai xem.
+  // Nêu cái ĐƯỢC xem không thay được nghĩa vụ nêu cái KHÔNG được xem (cùng nguyên tắc R7 về diff bị cắt).
+  const khongDoc = filesDoi.filter((f) => !md.includes(f as string)).map(ten);
+  const lyDo =
+    `${filesDoi.length} file đổi đều là văn bản thuần. Tài liệu ứng viên (${md.length}): ${ke(md)} — CHỈ MỘT được chấm` +
+    (khongDoc.length ? `; KHÔNG được đọc ở lượt này (${khongDoc.length}): ${ke(khongDoc)}` : '') +
+    (md.length > 1 ? `; ${md.length - 1} tài liệu ứng viên còn lại cũng không được đọc` : '') +
+    ' — R13.1/R13.7';
+  return { loai: 'doc', lyDo, fileDocUngVien: md, khongDoc };
 }
 
 // Fetch PR + nhánh đích về ref local rồi ROUTER theo loại file đã đổi (specs/R13).

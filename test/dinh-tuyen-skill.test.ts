@@ -57,6 +57,50 @@ describe('phanLoaiPr — allowlist hẹp, fail-closed (R13.1–R13.5)', () => {
   });
 });
 
+describe('vòng hai: đuôi file trong openspec · specs là luật · vùng mù · phần tử méo', () => {
+  it('file MÃ NGUỒN dưới openspec/ vẫn là code — allowlist theo ĐUÔI, không theo thư mục (HIGH)', () => {
+    // Cho cả thư mục là văn bản thuần thì `openspec/hack.ts` thành tài liệu — cửa né probe rộng nhất,
+    // do chính luật này mở ra ở vòng một.
+    expect(phanLoaiPr(['docs.md', 'openspec/hack.ts']).loai).toBe('code');
+    expect(phanLoaiPr(['docs.md', 'openspec/changes/x/run.sh']).loai).toBe('code');
+    // còn đuôi cấu hình quy trình dưới openspec/ thì vẫn là văn bản
+    expect(phanLoaiPr(['docs.md', 'openspec/config.yaml']).loai).toBe('doc');
+  });
+
+  it('specs/** là LUẬT engine đọc thật → code, kể cả .md (HIGH)', () => {
+    // Cùng tiêu chí đã xếp checkmate.yml vào code: engine ĐỌC nó. PR sửa luật của chính cổng mà đi
+    // đường tài liệu thì có thể tự nới cổng rồi tự qua cổng với bằng chứng rỗng.
+    expect(phanLoaiPr(['specs/R6-verdict-va-cong-merge.md']).loai).toBe('code');
+    expect(phanLoaiPr(['specs/R13-dinh-tuyen-skill.md', 'openspec/config.yaml']).loai).toBe('code');
+    expect(phanLoaiPr(['README.md']).loai).toBe('doc'); // .md ngoài specs/ vẫn là tài liệu
+  });
+
+  it('KHAI VÙNG MÙ: lý do nêu đủ file sẽ KHÔNG được đọc, không chỉ file được chấm (R13.7)', () => {
+    const kq = phanLoaiPr(['CLAUDE.md', 'openspec/config.yaml', 'openspec/schemas/checkmate/schema.yaml']);
+    expect(kq.loai).toBe('doc');
+    expect(kq.lyDo).toContain('openspec/config.yaml');
+    expect(kq.lyDo).toContain('openspec/schemas/checkmate/schema.yaml');
+    expect(kq.khongDoc).toEqual(['openspec/config.yaml', 'openspec/schemas/checkmate/schema.yaml']);
+  });
+
+  it('KHAI VÙNG MÙ: nhiều .md thì nói rõ chỉ MỘT được chấm và nêu tên các ứng viên còn lại', () => {
+    const kq = phanLoaiPr(['a.md', 'b.md', 'c.md', 'd.md']);
+    expect(kq.lyDo).toContain('d.md');
+    expect(kq.lyDo).toMatch(/CHỈ MỘT được chấm/);
+    expect(kq.lyDo).toMatch(/3 tài liệu ứng viên còn lại cũng không được đọc/);
+  });
+
+  it('phần tử null/undefined/sai kiểu KHÔNG được ném — fail-closed về code (R13.8)', () => {
+    // Hàm đứng đầu pipeline mà ném thì cả lượt chấm chết giữa chừng — hỏng an toàn ngược hướng.
+    for (const ds of [['docs.md', null], ['docs.md', undefined], ['docs.md', 123], [null], ['']]) {
+      expect(() => phanLoaiPr(ds as never)).not.toThrow();
+      const kq = phanLoaiPr(ds as never);
+      expect(kq.loai, `${JSON.stringify(ds)} phải về code`).toBe('code');
+      expect(kq.lyDo.trim().length).toBeGreaterThan(10);
+    }
+  });
+});
+
 describe('ca đối kháng — tên file là dữ liệu do maker viết (R13.5, R7)', () => {
   it('«openspec» là TIỀN TỐ tên file chứ không phải thư mục → vẫn là code', () => {
     // Ai muốn né probe sẽ đặt tên nhắm đúng chỗ hở này. Khớp cấu trúc, không khớp tiền tố chuỗi.
