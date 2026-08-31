@@ -97,6 +97,36 @@ sudo nano /etc/checkmate.env      # quyền 600
 sudo systemctl restart checkmate
 ```
 
+## Tự động ở cổng — ba công tắc riêng (R6.15)
+
+| việc | mặc định | ghi chú |
+|---|---|---|
+| đăng verdict + finding lên PR | **bật** | chạy cho MỌI lượt chấm, không riêng chế độ trực |
+| gắn trạng thái commit success/failure | **bật** | chặn nút merge trên GitHub, gỡ được |
+| tự trả về dev (ĐÓNG pull request) | **tắt** | chỉ khi FAIL có finding mức high; bật trong ⚙ Cấu hình |
+
+Nguyên tắc: tự động hoá được phép nói KHÔNG, không được phép nói CÓ — máy không bao giờ tự merge,
+không có công tắc nào bật được điều đó. Hành động do máy ghi sổ dưới tên `ci-bot`, không mượn tên người.
+
+Tài khoản cho tác nhân máy dùng vai `tu_dong` (chạy chấm + trả về dev, KHÔNG sửa cấu hình, KHÔNG merge):
+
+```
+npm run tai-khoan -- them ci-bot --vai tu_dong
+```
+
+## Chấm độc lập repo checkmate từ prod
+
+Từ 31/08: CheckMate trên máy chủ giữ một **bản clone riêng** của repo `thangvv111/checkmate` tại
+`~/checkmate-app/checkmate/repos/thangvv111-checkmate` và trực nó (`repo_dang_chon` trỏ vào đó,
+`truc.bat: true`). Mỗi PR mở trên repo này được prod tự chấm rồi đăng verdict + gắn commit status —
+một lượt chấm **độc lập với máy dev**: engine prod, clone riêng, hợp đồng đọc từ clone.
+
+Quy trình merge từ đây: mở PR → chờ verdict độc lập từ prod trên PR → merge khi PASS.
+Lượt chấm local vẫn chạy được khi cần lặp nhanh, nhưng verdict tính cho cổng là verdict prod.
+
+Clone này KHÔNG tự cập nhật cây làm việc (fetch chỉ cập nhật refs). Hợp đồng `checkmate.yml` đọc từ cây
+làm việc của clone — mỗi lần deploy nên `git -C repos/thangvv111-checkmate pull` để hợp đồng theo kịp.
+
 ## Lệnh hay dùng
 ```
 sudo systemctl status checkmate          # trạng thái
