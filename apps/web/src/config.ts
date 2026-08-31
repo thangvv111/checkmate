@@ -190,26 +190,25 @@ export class LoiCauHinhNcc extends Error {}
 export function cauHinhDeCham(c: CheckmateConfig): CauHinhNcc {
   const dn = dinhNghia(c.agent.ncc);
   const tho = c.agent.ncc_cau_hinh[c.agent.ncc];
-  // R5.19 — đường chấm gặp config KHUYẾT thì HỎI, không ĐOÁN. Tự điền mặc định ở đây là tự thay bằng
-  // tổ hợp người dùng chưa chọn — cùng họ với điều R5.17 cấm (vòng sáu của cổng bắt đúng ca này trên
-  // bản chuẩn-hoá-tự-điền của vòng bốn). Đường hiển thị (cauHinhHienTai) vẫn điền để render được.
-  if (tho !== undefined && (typeof tho.model !== 'string' || !tho.model.trim())) {
-    throw new LoiCauHinhNcc(
-      `Cấu hình ${dn.ten} thiếu trường «model» (config.json sửa tay?). Lượt chấm không chạy — điền model trong ⚙ Cấu hình, hoặc bổ sung trường vào config.json.`,
-    );
+  // R5.17 + R5.19, áp ĐỀU TAY (vòng bảy của cổng bắt ba chỗ áp lệch): đường chấm đọc cấu hình THÔ và
+  // tự validate từng trường — không mượn cauHinhHienTai, vì đường hiển thị có điền mặc định, mà điền ở
+  // đường chấm là tự thay thứ người dùng chưa chọn. Khuyết CẢ CỤM cũng hỏi, khuyết MỘT TRƯỜNG cũng hỏi,
+  // và PHƯƠNG THỨC lạ cũng hỏi — không riêng model.
+  const goiY = 'Lượt chấm không chạy — vào ⚙ Cấu hình chọn rồi bấm Kiểm tra.';
+  if (tho === undefined) {
+    throw new LoiCauHinhNcc(`Nhà cung cấp ${dn.ten} chưa được cấu hình. ${goiY}`);
   }
-  const cfg = cauHinhHienTai(c);
-  // R5.15 + R5.18 — chỉ chặn vi phạm ràng buộc KHAI TƯỜNG MINH (chi_thue_bao, phương thức không hỗ
-  // trợ). Model ngoài danh mục ĐI QUA: nhà cung cấp là trọng tài, đường cứu hộ phải dùng được với
-  // model mới ra mà không chờ ai sửa code.
-  if (!modelHopLe(dn, cfg.phuong_thuc, cfg.model)) {
-    const che = dn.models.includes(cfg.model) ? cfg.model : `(ngoài danh mục — ${cfg.model.length} ký tự)`;
-    throw new LoiCauHinhNcc(
-      `Cấu hình ${dn.ten} đang mang tổ hợp không được phép: model ${che} với phương thức «${cfg.phuong_thuc}» (R5.15). ` +
-        `Lượt chấm không chạy — vào ⚙ Cấu hình chọn lại model hoặc phương thức, rồi bấm Kiểm tra.`,
-    );
+  if (typeof tho.model !== 'string' || !tho.model.trim()) {
+    throw new LoiCauHinhNcc(`Cấu hình ${dn.ten} thiếu trường «model» (config.json sửa tay?). ${goiY}`);
   }
-  return cfg;
+  if (!tho.phuong_thuc || !dn.phuong_thuc.includes(tho.phuong_thuc)) {
+    throw new LoiCauHinhNcc(`Cấu hình ${dn.ten} mang phương thức không hỗ trợ («${String(tho.phuong_thuc ?? '(thiếu)')}») — ${dn.ten} chỉ có: ${dn.phuong_thuc.join(', ')}. ${goiY}`);
+  }
+  if (!modelHopLe(dn, tho.phuong_thuc, tho.model)) {
+    const che = dn.models.includes(tho.model) ? tho.model : `(ngoài danh mục — ${tho.model.length} ký tự)`;
+    throw new LoiCauHinhNcc(`Cấu hình ${dn.ten} đang mang tổ hợp không được phép: model ${che} với phương thức «${tho.phuong_thuc}» (R5.15). ${goiY}`);
+  }
+  return tho as CauHinhNcc;
 }
 
 export function ghiConfig(c: CheckmateConfig): void {

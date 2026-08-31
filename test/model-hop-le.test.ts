@@ -96,3 +96,16 @@ describe('không vọng nguyên văn giá trị ngoài danh mục — Opus bắt
     // đi tới bước sau (thiếu khoá API trên máy test) nhưng key tuyệt đối không được vọng ra
   });
 });
+
+describe('bản che phân biệt được hai model khác nhau (vòng bảy, finding 1)', () => {
+  it('hai model lạ CÙNG độ dài không được trùng một hàng sổ kiểm', async () => {
+    const { thuNcc } = await import('../apps/web/src/nguon-model.js');
+    const { docSoKiem } = await import('../apps/web/src/ncc.js');
+    await thuNcc('anthropic', { phuong_thuc: 'api', model: 'model-la-aaaaaaaa' });
+    const hangA = JSON.stringify(docSoKiem());
+    await thuNcc('anthropic', { phuong_thuc: 'api', model: 'model-la-bbbbbbbb' });
+    const hangB = JSON.stringify(docSoKiem());
+    // cùng 17 ký tự — che trần theo độ dài sẽ cho cùng chuỗi, và tổ hợp B thành «đã kiểm» nhờ hàng của A
+    expect(hangA).not.toBe(hangB);
+  });
+});

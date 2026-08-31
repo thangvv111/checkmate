@@ -89,6 +89,27 @@ describe('cửa đọc không được ném với config KHUYẾT — vòng bố
     expect(hienTai.model.length).toBeGreaterThan(0);
   });
 
+  it('đường CHẤM: phương thức lạ thì HỎI như model khuyết — áp đều tay (vòng bảy)', () => {
+    writeFileSync(
+      join(goc, 'config.json'),
+      JSON.stringify({ agent: { ncc: 'anthropic', ncc_cau_hinh: { anthropic: { phuong_thuc: 'phuong-thuc-bia', model: 'claude-sonnet-5' } }, max_probe: 6, skeptic: true } }),
+      'utf8',
+    );
+    expect(() => cfg.cauHinhDeCham(cfg.docConfig())).toThrow(/phương thức không hỗ trợ/);
+  });
+
+  it('đường CHẤM: nhà cung cấp KHUYẾT CẢ CỤM cấu hình thì hỏi, không tự điền (vòng bảy)', () => {
+    // Dùng ncc 'google' — anthropic LUÔN có cấu hình mặc định sản phẩm (bản cài mới chạy được demo,
+    // tổ hợp lành, có chủ đích qua nangCapAgent). Ca khuyết-cả-cụm thật là đổi sang ncc chưa từng
+    // được cấu hình: đường chấm phải hỏi, không tự dựng cấu hình từ không khí.
+    writeFileSync(
+      join(goc, 'config.json'),
+      JSON.stringify({ agent: { ncc: 'google', ncc_cau_hinh: {}, max_probe: 6, skeptic: true } }),
+      'utf8',
+    );
+    expect(() => cfg.cauHinhDeCham(cfg.docConfig())).toThrow(/chưa được cấu hình/);
+  });
+
   it('phương thức lạ trong config tay cũng rơi về mặc định', () => {
     writeFileSync(
       join(goc, 'config.json'),
