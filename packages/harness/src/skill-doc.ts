@@ -112,7 +112,7 @@ function promptTim(docCoSoDong: string, rao: Rao, loiNeoLanTruoc?: string): stri
 Ví dụ/kịch bản minh hoạ trong tài liệu cũng là một "chỗ khẳng định" — hãy đối chiếu TỪNG SỐ LIỆU và TỪNG HÀNH VI trong ví dụ với các bảng quy tắc/ngưỡng/tiêu chí đã khai ở mục khác: người trong ví dụ làm việc đó có đúng thẩm quyền không, số tiền có nằm trong ngưỡng của vai không, hành vi có vi phạm tiêu chí nghiệm thu nào không, luồng có đúng sơ đồ trạng thái không. Ví dụ mâu thuẫn với quy tắc = \`mau_thuan\` hoặc \`lech_cheo\`, mức blocking.
 
 # NƠI HAY GIẤU LỖI KHÁC (khuôn đúc từ án lệ các lượt chấm trước — specs/R12; vẫn chỉ 7 loại rubric trên)
-${layKhuonDoc().map((k) => `- ${k}`).join('\n')}
+${layKhuonDoc(docCoSoDong).map((k) => `- ${k}`).join('\n')}
 
 # CẤM TUYỆT ĐỐI (finding sẽ bị loại)
 - Nhận xét văn phong, chính tả, format, cấu trúc, độ dài.

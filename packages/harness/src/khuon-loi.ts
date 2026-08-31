@@ -166,21 +166,47 @@ export const KHO_KHUON: KhuonLoi[] = [
   },
 ];
 
-/** Khuôn code phát cho repo có spec này (R12.4): bật khuôn điều kiện khớp, khuôn len_dau lên đầu. */
-export function layKhuonCode(specText: string): string[] {
-  const thap = specText.toLowerCase();
-  const bat = KHO_KHUON.filter((k) => k.loai === 'code' && (!k.dieu_kien || k.dieu_kien.test(thap)));
-  // SẮP trước, CẮT sau — cắt trước là khuôn bắt buộc (len_dau) đứng cuối danh sách khai bị rơi LẶNG
-  // đúng lúc kho chạm trần, cổng âm thầm thôi sinh probe vượt-quyền (vòng một của cổng bắt trên chính
-  // PR này). Trần vẫn giữ (R12.3) nhưng nạn nhân phải là khuôn thường cuối danh sách, có log.
+/**
+ * Cửa phát CHUNG cho cả hai loại — vòng hai của cổng bắt bốn lỗ đều do hai cửa lệch nhau hoặc cửa
+ * thiếu gác, nên gom về một chỗ:
+ *  · dieu_kien đánh bằng RegExp KHÔNG trạng thái — RegExp khai cờ g/y giữ lastIndex, cùng một spec
+ *    cho true lượt đầu rồi false lượt sau, khuôn bắt buộc biến mất từ repo thứ hai trong tiến trình;
+ *  · khuôn không án lệ bị TỪ CHỐI ngay cửa (R12.2 — «không án lệ là phỏng đoán, không nhận» phải là
+ *    gác chạy được, không phải lời dặn trong test);
+ *  · khuôn ép về MỘT dòng (R12.5 — chuỗi mang xuống-dòng vỡ danh sách bullet của prompt);
+ *  · SẮP trước CẮT sau + log khuôn bị bỏ khi chạm trần (R12.3) — cho CẢ code lẫn doc.
+ */
+function phatKhuon(loai: 'code' | 'doc', vanBanDieuKien: string): string[] {
+  const thap = vanBanDieuKien.toLowerCase();
+  const bat: KhuonLoi[] = [];
+  for (const k of KHO_KHUON.filter((x) => x.loai === loai)) {
+    if (typeof k.an_le !== 'string' || !k.an_le.trim()) {
+      console.log(`[khuon-loi] TỪ CHỐI ${k.id}: không án lệ — phỏng đoán không được phát vào prompt (R12.2)`);
+      continue;
+    }
+    if (k.dieu_kien) {
+      const sach = new RegExp(k.dieu_kien.source, k.dieu_kien.flags.replace(/[gy]/g, ''));
+      if (!sach.test(thap)) continue;
+    }
+    bat.push(k);
+  }
   const sap = [...bat.filter((k) => k.len_dau), ...bat.filter((k) => !k.len_dau)];
   if (sap.length > TRAN_KHUON) {
-    console.log(`[khuon-loi] kho vượt trần ${TRAN_KHUON} — bỏ: ${sap.slice(TRAN_KHUON).map((k) => k.id).join(', ')} (R12.3: thay khuôn phải là quyết định nói ra, sửa KHO_KHUON thay vì để cắt ở đây)`);
+    console.log(`[khuon-loi] kho ${loai} vượt trần ${TRAN_KHUON} — bỏ: ${sap.slice(TRAN_KHUON).map((k) => k.id).join(', ')} (R12.3: thay khuôn phải là quyết định nói ra, sửa KHO_KHUON thay vì để cắt ở đây)`);
   }
-  return sap.slice(0, TRAN_KHUON).map((k) => k.khuon);
+  return sap.slice(0, TRAN_KHUON).map((k) => k.khuon.replace(/\s*\n\s*/g, ' ').trim());
 }
 
-/** Khuôn doc — «nơi hay giấu lỗi», phát vào prompt tìm lỗi tài liệu. Không mở rộng rubric. */
-export function layKhuonDoc(): string[] {
-  return KHO_KHUON.filter((k) => k.loai === 'doc').slice(0, TRAN_KHUON).map((k) => k.khuon);
+/** Khuôn code phát cho repo có spec này (R12.4): bật khuôn điều kiện khớp, khuôn len_dau lên đầu. */
+export function layKhuonCode(specText: string): string[] {
+  return phatKhuon('code', specText);
+}
+
+/**
+ * Khuôn doc — «nơi hay giấu lỗi», phát vào prompt tìm lỗi tài liệu. Không mở rộng rubric.
+ * dieu_kien (nếu khuôn có) đánh trên chính VĂN BẢN TÀI LIỆU — cửa song sinh của layKhuonCode, vòng
+ * hai của cổng bắt đúng ca cửa code được vá mà cửa doc bỏ qua điều kiện lặng lẽ.
+ */
+export function layKhuonDoc(vanBanTaiLieu = ''): string[] {
+  return phatKhuon('doc', vanBanTaiLieu);
 }

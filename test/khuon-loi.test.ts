@@ -60,6 +60,60 @@ describe('kho khuôn lỗi common (R12)', () => {
     }
   });
 
+  const khoGiaVao = (kho: unknown[]): unknown[] => KHO_KHUON.splice(0, KHO_KHUON.length, ...(kho as never[]));
+  const khuonThuong = (id: string, loai: 'code' | 'doc', phu: Record<string, unknown> = {}) =>
+    ({ id, loai, khuon: `${id} mọi nhánh lỗi phải có probe kiểm đủ dài qua ngưỡng`, an_le: 'test.ts — ca dựng trong test', ...phu });
+
+  it('dieu_kien mang cờ g/y KHÔNG được giữ trạng thái — hai lượt gọi cùng spec phải giống hệt (vòng hai, HIGH)', () => {
+    const goc = khoGiaVao([khuonThuong('GY', 'code', { dieu_kien: /quyền/g, len_dau: true })]);
+    try {
+      const lan1 = layKhuonCode('spec có luật về quyền');
+      const lan2 = layKhuonCode('spec có luật về quyền');
+      expect(lan1).toHaveLength(1);
+      expect(lan2, 'lastIndex của cờ g làm lượt hai trả rỗng — khuôn biến mất từ repo thứ hai').toEqual(lan1);
+    } finally { khoGiaVao(goc); }
+  });
+
+  it('khuôn KHÔNG án lệ bị TỪ CHỐI ngay cửa phát — luật R12.2 là gác chạy được (vòng hai, HIGH)', () => {
+    const goc = khoGiaVao([khuonThuong('OK', 'code'), khuonThuong('RONG', 'code', { an_le: '' }), khuonThuong('THIEU', 'code', { an_le: undefined })]);
+    try {
+      const ra = layKhuonCode('spec bất kỳ');
+      expect(ra).toHaveLength(1);
+      expect(ra[0]).toContain('OK');
+    } finally { khoGiaVao(goc); }
+  });
+
+  it('cửa doc là CỬA SONG SINH: dieu_kien được đánh trên văn bản tài liệu, không bị bỏ qua lặng (vòng hai)', () => {
+    const goc = khoGiaVao([khuonThuong('KDT', 'doc'), khuonThuong('KDDK', 'doc', { dieu_kien: /không-bao-giờ-khớp/ })]);
+    try {
+      const ra = layKhuonDoc('tài liệu thường không chứa cụm điều kiện');
+      expect(ra).toHaveLength(1);
+      expect(ra[0]).toContain('KDT');
+      expect(layKhuonDoc('văn bản có cụm không-bao-giờ-khớp hẳn hoi')).toHaveLength(2);
+    } finally { khoGiaVao(goc); }
+  });
+
+  it('cửa doc cũng log khi chạm trần — không cắt lặng (vòng hai)', () => {
+    const goc = khoGiaVao(Array.from({ length: TRAN_KHUON + 3 }, (_, i) => khuonThuong(`D${i}`, 'doc')));
+    const daLog: string[] = [];
+    const logGoc = console.log;
+    console.log = (m: string) => { daLog.push(String(m)); };
+    try {
+      expect(layKhuonDoc('văn bản')).toHaveLength(TRAN_KHUON);
+      expect(daLog.some((m) => m.includes('vượt trần') && m.includes('D')), 'phải log id khuôn bị bỏ').toBe(true);
+    } finally { console.log = logGoc; khoGiaVao(goc); }
+  });
+
+  it('khuôn nhiều dòng bị ÉP về một dòng — không vỡ danh sách bullet của prompt (vòng hai)', () => {
+    const goc = khoGiaVao([khuonThuong('ML', 'doc', { khuon: 'vế đầu của khuôn dài đủ ngưỡng\n   vế sau bị thụt dòng' })]);
+    try {
+      const ra = layKhuonDoc('văn bản');
+      expect(ra[0]).not.toContain('\n');
+      expect(ra[0]).toContain('vế đầu');
+      expect(ra[0]).toContain('vế sau');
+    } finally { khoGiaVao(goc); }
+  });
+
   it('khuôn doc là «nơi hay giấu lỗi», không mở rộng rubric — không dòng nào tự đặt loại finding mới', () => {
     for (const k of layKhuonDoc()) {
       expect(k).not.toMatch(/rubric mới|loại mới|loại thứ 8/i);
