@@ -71,6 +71,7 @@ export interface PrDaFetch {
   filesDoi: string[];
   loai: 'code' | 'doc';
   fileDoc?: string; // file .md được chọn khi loai=doc
+  lyDoDinhTuyen: string; // R13.6 — vì sao chọn skill đó, nêu đúng file gây ra quyết định
 }
 
 // Ghi lên GitHub (merge / comment / review) — token hoặc gh CLI của máy
@@ -247,8 +248,100 @@ function nguonFetch(github: string): string {
   return token ? `https://x-access-token:${token}@github.com/${github}.git` : 'origin';
 }
 
-// Fetch PR + nhánh đích về ref local rồi ROUTER theo nội dung diff:
-// chỉ toàn .md → skill doc (chọn file .md đổi nhiều dòng nhất); còn lại → skill code.
+/**
+ * Phân loại PR theo loại file đã đổi (specs/R13) — hàm THUẦN, không I/O, để mọi scenario của luật
+ * thành một ca test chạy bằng danh sách tên file.
+ *
+ * Allowlist HẸP chứ không phải blocklist (R13.2): hai hướng sai không đối xứng. Doc bị đẩy sang code
+ * chỉ tốn tiền và ồn; code bị đẩy sang doc thì KHÔNG probe nào chạy và verdict xanh trên vùng chưa ai
+ * thử — xanh giả, đúng thứ công cụ này sinh ra để chống. Nghi ngờ thì chọn code.
+ */
+export function phanLoaiPr(dsVao: readonly string[]): { loai: 'code' | 'doc'; lyDo: string; fileDocUngVien: string[]; khongDoc: string[] } {
+  // R13.8 áp cho CẢ CỤM, không chỉ từng phần tử: gọi với null/undefined/chuỗi/đối tượng đều phải rơi
+  // về code, không ném — hàm đứng đầu pipeline mà ném là cả lượt chấm chết (vòng ba của cổng bắt).
+  const laMang = Array.isArray(dsVao);
+  const filesDoi: readonly string[] = laMang ? dsVao : [];
+  // Đuôi VĂN BẢN THUẦN — áp ở mọi nơi trong repo.
+  const DUOI_VAN_BAN = ['.md', '.txt'];
+  // Đuôi CẤU HÌNH QUY TRÌNH — chỉ có nghĩa BÊN TRONG `openspec/`. Engine chấm không đọc thư mục đó.
+  const DUOI_QUY_TRINH = ['.md', '.txt', '.yaml', '.yml', '.json'];
+
+  const laVanBan = (f: unknown): boolean => {
+    // Phần tử không phải chuỗi → KHÔNG phải văn bản (fail-closed R13.8). Ném ở đây là làm sập cả
+    // lượt chấm ngay hàm đứng đầu pipeline — hỏng an toàn ngược hướng.
+    if (typeof f !== 'string' || !f.trim()) return false;
+    const t = f.toLowerCase();
+    // ĐƯỜNG DẪN so ĐÚNG HOA THƯỜNG (Linux: `OpenSpec/` ≠ `openspec/`); ĐUÔI thì không phân biệt.
+    // `specs/**` là LUẬT engine ĐỌC THẬT (R1.19 so luật hai nhánh, R1.22 đếm độ phủ) — cùng tiêu chí
+    // đã xếp `checkmate.yml` vào code, nên sửa luật của chính cổng phải đi đường code, kẻo PR tự nới
+    // cổng rồi tự qua cổng bằng rubric tài liệu (vòng hai của cổng bắt).
+    if (f.startsWith('specs/')) return false;
+    // Dưới `openspec/`: chỉ các đuôi cấu hình quy trình. Cho cả THƯ MỤC là văn bản thuần thì
+    // `openspec/hack.ts` cũng thành tài liệu — cửa né probe rộng nhất, do chính luật này mở ra.
+    if (f.startsWith('openspec/')) return DUOI_QUY_TRINH.some((d) => t.endsWith(d));
+    // KHÔNG chuẩn hoá dấu `\`: `git diff --name-only` luôn trả `/`, nên `\` là TÊN FILE thật do
+    // maker đặt. KHÔNG nhận `openspec` trơ: git liệt kê FILE, không liệt kê thư mục.
+    return DUOI_VAN_BAN.some((d) => t.endsWith(d));
+  };
+
+  // R13.6 — lý do nói CÓ thủ phạm thì phải nêu được dấu hiệu đọc được của nó; in nguyên chuỗi rỗng
+  // ra thì phần liệt kê trống trơn, người đọc không biết file nào (vòng ba của cổng bắt).
+  const ten = (f: unknown, i = -1): string => {
+    const oViTri = i >= 0 ? ` ở vị trí ${i}` : '';
+    if (typeof f === 'string') return f.trim() ? f : `(tên file rỗng${oViTri}, ${f.length} ký tự trắng)`;
+    // String() ném với object không prototype (Object.create(null)) hoặc toString bị vô hiệu — hàm
+    // MÔ TẢ lỗi mà tự ném thì cả lượt chấm chết, đúng thứ R13.8 cấm (vòng bốn của cổng bắt).
+    let mo: string;
+    try {
+      mo = String(f);
+    } catch {
+      mo = Object.prototype.toString.call(f);
+    }
+    // Kèm vị trí: hai object khác nhau đều cho «[object Object]», không có vị trí thì lý do không
+    // phân biệt được thủ phạm nào (R13.6).
+    return `(phần tử${oViTri} không phải chuỗi: ${mo})`;
+  };
+  const keTen = (ds: readonly unknown[]): string[] => ds.map((f) => ten(f, filesDoi.indexOf(f as string)));
+  const ke = (ds: readonly unknown[], tran = 20): string =>
+    ds.length <= tran ? keTen(ds).join(', ') : `${keTen(ds.slice(0, tran)).join(', ')} và ${ds.length - tran} file nữa`;
+
+  // Nói ĐÚNG BẢN CHẤT đầu vào: mượn lời R13.4 («toàn văn bản thuần nhưng không có .md») cho một cụm
+  // không phải mảng là khẳng định sai về thứ mình vừa nhận (vòng bốn của cổng bắt).
+  if (!laMang) {
+    return { loai: 'code', lyDo: `danh sách file không phải mảng (${Object.prototype.toString.call(dsVao)}) — không phân loại được, fail-closed về code theo R13.8`, fileDocUngVien: [], khongDoc: [] };
+  }
+  if (filesDoi.length === 0) {
+    return { loai: 'code', lyDo: 'danh sách file RỖNG — không có gì để phân loại, fail-closed về code theo R13.8', fileDocUngVien: [], khongDoc: [] };
+  }
+  const md = filesDoi.filter((f) => typeof f === 'string' && f.toLowerCase().endsWith('.md') && !f.startsWith('specs/'));
+  const thucThi = filesDoi.filter((f) => !laVanBan(f));
+  if (thucThi.length > 0) {
+    return { loai: 'code', lyDo: `có ${thucThi.length} file không phải văn bản thuần: ${ke(thucThi)} — R13.1`, fileDocUngVien: md, khongDoc: [] };
+  }
+  // R13.4 — skill doc chấm MỘT tài liệu bằng trích dẫn nguyên văn; không .md nào thì không có gì để đọc
+  if (md.length === 0) {
+    return { loai: 'code', lyDo: 'toàn văn bản thuần nhưng không có file .md nào để skill doc đọc — R13.4', fileDocUngVien: [], khongDoc: [] };
+  }
+  // R13.7 — KHAI VÙNG MÙ: skill doc đọc đúng MỘT tài liệu, nên mọi file còn lại của PR không ai xem.
+  // Nêu cái ĐƯỢC xem không thay được nghĩa vụ nêu cái KHÔNG được xem (cùng nguyên tắc R7 về diff bị cắt).
+  // Skill doc đọc ĐÚNG MỘT tài liệu, nên các tài liệu ứng viên CÒN LẠI cũng là vùng mù — loại cả
+  // nhóm .md ra khỏi vùng mù là giấu đúng phần người đọc cần biết (vòng ba của cổng bắt).
+  // Ở tầng này chưa biết tài liệu nào sẽ được chọn (fetchVaRouter chọn theo số dòng đổi), nên lấy
+  // ứng viên đầu làm dự kiến; fetchVaRouter dựng lại vùng mù theo tài liệu THẬT sau khi chốt.
+  // Ở TẦNG NÀY chưa biết tài liệu nào sẽ được chấm — fetchVaRouter chọn theo số dòng đổi nhiều nhất.
+  // Nên `khongDoc` chỉ gồm những file CHẮC CHẮN không ai đọc; các ứng viên .md được nêu riêng kèm
+  // câu «chỉ MỘT được chấm». Khai đích danh một ứng viên là «sẽ được chấm» khi chưa chốt là nói sai
+  // sự thật ngay lúc nói (vòng bốn của cổng bắt) — vùng mù THẬT do fetchVaRouter dựng lại sau.
+  const khongDoc = filesDoi.filter((f) => !md.includes(f as string)).map((f) => ten(f, filesDoi.indexOf(f)));
+  const lyDo =
+    `${filesDoi.length} file đổi đều là văn bản thuần. Tài liệu ứng viên (${md.length}): ${ke(md)} — CHỈ MỘT được chấm, ` +
+    (md.length > 1 ? `${md.length - 1} ứng viên còn lại KHÔNG được đọc (chốt ở bước chọn tài liệu)` : 'không có ứng viên nào bị bỏ') +
+    (khongDoc.length ? `; CHẮC CHẮN không được đọc (${khongDoc.length}): ${ke(khongDoc)}` : '') +
+    ' — R13.1/R13.7';
+  return { loai: 'doc', lyDo, fileDocUngVien: md, khongDoc };
+}
+
+// Fetch PR + nhánh đích về ref local rồi ROUTER theo loại file đã đổi (specs/R13).
 export function fetchVaRouter(cfg: CheckmateConfig, so: number): PrDaFetch {
   const lp = cfg.repo.local_path;
   const headRef = `refs/checkmate/pr${so}`;
@@ -260,10 +353,17 @@ export function fetchVaRouter(cfg: CheckmateConfig, so: number): PrDaFetch {
   const filesDoi = git(lp, ['diff', '--name-only', `${baseRef}...${headRef}`]).split('\n').filter(Boolean);
   if (filesDoi.length === 0) throw new Error(`PR #${so} không có file thay đổi so với ${cfg.repo.base_branch}`);
 
-  const toanMd = filesDoi.every((f) => f.toLowerCase().endsWith('.md'));
-  if (!toanMd) return { so, headSha, baseRef, headRef, filesDoi, loai: 'code' };
+  const pl = phanLoaiPr(filesDoi);
+  // R13.6 — nói ra quyết định: router quyết trong im lặng thì người đọc verdict không biết vì sao PR
+  // của mình đi đường nào, và một quyết định không ai thấy là quyết định không ai kiểm được.
+  // Đường doc log SAU khi chốt fileDoc, để dòng log nêu đúng tài liệu được đem đi chấm.
+  if (pl.loai === 'code') {
+    console.log(`Định tuyến PR #${so}: skill code — ${pl.lyDo}`);
+    return { so, headSha, baseRef, headRef, filesDoi, loai: 'code', lyDoDinhTuyen: pl.lyDo };
+  }
 
-  // chọn file .md đổi nhiều dòng nhất
+  // chọn file .md đổi nhiều dòng nhất TRONG SỐ ứng viên .md (numstat liệt kê cả file không phải .md)
+  const ungVien = new Set(pl.fileDocUngVien);
   const numstat = git(lp, ['diff', '--numstat', `${baseRef}...${headRef}`])
     .split('\n')
     .filter(Boolean)
@@ -271,8 +371,15 @@ export function fetchVaRouter(cfg: CheckmateConfig, so: number): PrDaFetch {
       const [them, xoa, file] = l.split('\t');
       return { file, doi: (Number(them) || 0) + (Number(xoa) || 0) };
     })
+    .filter((x) => ungVien.has(x.file))
     .sort((a, b) => b.doi - a.doi);
-  return { so, headSha, baseRef, headRef, filesDoi, loai: 'doc', fileDoc: numstat[0].file };
+  // numstat có thể không khớp ứng viên nào (đổi tên, file nhị phân) — rơi về ứng viên đầu, không ném
+  const fileDoc = numstat[0]?.file ?? pl.fileDocUngVien[0];
+  // Vùng mù THẬT chỉ chốt được ở đây, khi đã biết tài liệu nào được đem đi chấm (R13.7)
+  const muThat = filesDoi.filter((f) => f !== fileDoc);
+  const lyDo = `${pl.lyDo}; chấm tài liệu ${fileDoc}; KHÔNG đọc (${muThat.length}): ${muThat.slice(0, 20).join(', ')}${muThat.length > 20 ? ` và ${muThat.length - 20} file nữa` : ''}`;
+  console.log(`Định tuyến PR #${so}: skill doc — ${lyDo}`);
+  return { so, headSha, baseRef, headRef, filesDoi, loai: 'doc', fileDoc, lyDoDinhTuyen: lyDo };
 }
 
 // ---- Kết nối repo: liệt kê repo mà token nhìn thấy, rồi clone về máy chủ ----
