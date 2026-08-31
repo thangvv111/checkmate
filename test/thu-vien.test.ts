@@ -242,11 +242,18 @@ describe('đào thải theo điểm GIỮ/LOẠI (R10.22–R10.24) — thay FIFO
   });
 
   it('nấc 3 KHÔNG đá probe VỪA NẠP: kho toàn miễn trừ + probe mới → van nấc 4 mở, không hoá thạch', () => {
-    // Quan sát P1 của cổng trên chính PR này: probe vừa push là phần tử CUỐI và là đứa duy nhất
-    // chưa-từng-bắt — nấc 3 mù vị trí sẽ đá đúng nó, kho không bao giờ nhận máu mới.
-    const kq = tv.chonNanNhan([muc('a', { da_bat_hoi_quy: true }), muc('b', { da_bat_hoi_quy: true }), muc('moi')]);
+    // Quan sát P1 vòng một: probe vừa push là đứa duy nhất chưa-từng-bắt — nấc 3 mù sẽ đá đúng nó.
+    const kq = tv.chonNanNhan([muc('a', { da_bat_hoi_quy: true }), muc('b', { da_bat_hoi_quy: true }), muc('moi')], 'moi');
     expect(kq.i).toBe(0); // loại probe MIỄN TRỪ cũ nhất, không phải probe mới
     expect(kq.ly_do).toContain('van chống kẹt trần');
+  });
+
+  it('«vừa nạp» nhận diện bằng TÊN, không đoán vị trí — nạn nhân hợp lệ đứng cuối vẫn bị chọn (vòng hai)', () => {
+    // chonNanNhan là hàm export: bản đoán slice(0,-1) bỏ sót probe thường đứng cuối và xoá nhầm
+    // probe từng bắt hồi quy ở nấc 4 trong khi tiền đề nấc 4 không thoả.
+    const kq = tv.chonNanNhan([muc('a', { da_bat_hoi_quy: true }), muc('b', { da_bat_hoi_quy: true }), muc('c')]);
+    expect(kq.i).toBe(2); // không có tenVuaNap → c là nạn nhân nấc 3 hợp lệ
+    expect(kq.ly_do).toContain('chưa từng bắt hồi quy');
   });
 
   it('nhãn hoàn cảnh KHÔNG đè nhãn hành-vi-riêng cùng sha — chuỗi pass→nghi_loi→hoi_quy vẫn ra flaky (P2)', () => {

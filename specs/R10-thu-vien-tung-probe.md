@@ -45,7 +45,8 @@ phải ghi log: probe nào, trùng với probe nào, vì sao.
   bằng chứng. Hai probe cùng xanh suốt KHÔNG bị coi là trùng — đồng thuận khi không có gì xảy ra không
   phải bằng chứng.
 - **R10.10** — Lịch sử hành vi có trần (20 lượt gần nhất); cùng một lượt chạy lại thì thay bản ghi cũ
-  của lượt đó, không nhân đôi.
+  của lượt đó, không nhân đôi — với một ngoại lệ khai ở R10.24: nhãn hoàn cảnh không đè nhãn hành-vi-
+  riêng đã ghi cho cùng lượt.
 
 ## Ranh giới với khoá liên tiến trình
 
@@ -90,8 +91,9 @@ nổ» đều loại đúng lưới an toàn đang im lặng. Điểm chỉ nhì
   `CHET_KEO_DAI_NGUONG` lượt gần nhất trong lịch sử đều mang nhãn hoàn cảnh chết (`nghi_loi_co_san` ·
   `khong_chay`), tức API đích đã đổi và probe không còn chạy được — giữ là giữ xác, kể cả xác từng
   bắt hồi quy; (2) probe **flaky** — `flaky_diem` cao nhất trong nhóm ≥ 2; (3) probe **cũ nhất chưa
-  từng bắt hồi quy** — KHÔNG tính probe vừa nạp: kho toàn hàng miễn trừ mà đá luôn probe mới là van
-  nấc (4) không bao giờ mở, kho hoá thạch, không nhận được phép thử cho biên mới; (4) probe cũ nhất
+  từng bắt hồi quy** — KHÔNG tính probe vừa nạp, và «vừa nạp» phải nhận diện bằng DẤU HIỆU DỮ LIỆU
+  (định danh truyền từ chỗ nạp), không đoán theo vị trí trong mảng: kho toàn hàng miễn trừ mà đá luôn
+  probe mới là van nấc (4) không bao giờ mở, kho hoá thạch, không nhận được phép thử cho biên mới; (4) probe cũ nhất
   tuyệt đối (khi mọi probe cũ đều miễn trừ — van chống kẹt trần). Mọi lần loại PHẢI log: probe nào,
   nấc nào, bằng chứng gì.
 - **R10.23** — Probe từng bắt hồi quy mang cờ `da_bat_hoi_quy` **vĩnh viễn** (không trôi theo trần

@@ -61,7 +61,7 @@ function chetKeoDai(m: MucProbeLib): boolean {
  * FIFO cũ loại theo tuổi là loại đúng probe im lặng lâu năm — lưới an toàn đang canh biên chưa ai
  * phá lại; điểm chỉ nhìn tín hiệu XẤU đo được (chết, flaky) và miễn trừ thành tích thật (R10.23).
  */
-export function chonNanNhan(probes: readonly MucProbeLib[]): { i: number; ly_do: string } {
+export function chonNanNhan(probes: readonly MucProbeLib[], tenVuaNap?: string): { i: number; ly_do: string } {
   const iChet = probes.findIndex(chetKeoDai);
   if (iChet >= 0) return { i: iChet, ly_do: `chết kéo dài — ${CHET_KEO_DAI_NGUONG} lượt gần nhất đều ${[...NHAN_CHET].join('/')} (R10.22.1)` };
   let iFlaky = -1;
@@ -70,10 +70,12 @@ export function chonNanNhan(probes: readonly MucProbeLib[]): { i: number; ly_do:
     if (d >= 2 && (iFlaky < 0 || d > (probes[iFlaky].flaky_diem ?? 0))) iFlaky = i;
   }
   if (iFlaky >= 0) return { i: iFlaky, ly_do: `flaky — ${probes[iFlaky].flaky_diem} lần cùng sha khác kết quả (R10.22.2)` };
-  // Nấc 3 loại trừ phần tử CUỐI (probe vừa nạp — chonNanNhan chỉ được gọi ngay sau push): kho toàn
-  // hàng miễn trừ mà đá luôn probe mới thì van nấc 4 không bao giờ mở, kho hoá thạch — không nhận
-  // được phép thử cho biên MỚI nữa (quan sát P1 của cổng trên chính PR này).
-  const iThuong = probes.slice(0, -1).findIndex((m) => !m.da_bat_hoi_quy);
+  // Nấc 3 loại trừ probe VỪA NẠP — nhận diện bằng DẤU HIỆU DỮ LIỆU (tên truyền từ chỗ nạp), không
+  // đoán theo vị trí cuối mảng: chonNanNhan là hàm export, bản đoán-vị-trí bỏ sót nạn nhân hợp lệ
+  // đứng cuối và rơi sai xuống nấc 4 — xoá vĩnh viễn một probe từng bắt hồi quy trong khi còn nạn
+  // nhân thường (vòng hai của cổng bắt trên chính PR này). Kho toàn hàng miễn trừ mà đá luôn probe
+  // mới thì van nấc 4 không bao giờ mở, kho hoá thạch — nên probe vừa nạp vẫn phải được miễn ở nấc 3.
+  const iThuong = probes.findIndex((m) => !m.da_bat_hoi_quy && m.ten !== tenVuaNap);
   if (iThuong >= 0) return { i: iThuong, ly_do: 'cũ nhất chưa từng bắt hồi quy (R10.22.3)' };
   return { i: 0, ly_do: 'mọi probe cũ đều từng bắt hồi quy — loại cũ nhất tuyệt đối, van chống kẹt trần (R10.22.4)' };
 }
@@ -520,7 +522,7 @@ export function nhanVaoThuVien(slug: string, code: string, plan: KeHoachProbe, s
 
     // trần theo PROBE (R10.4), đào thải theo điểm GIỮ/LOẠI (R10.22) — xoá cả file, không để mồ côi
     while (meta.probes.length > TRAN_PROBE) {
-      const { i, ly_do } = chonNanNhan(meta.probes);
+      const { i, ly_do } = chonNanNhan(meta.probes, ten);
       const cu = meta.probes.splice(i, 1)[0];
       console.log(`[thu-vien] đào thải «${cu.ten}»: ${ly_do}`);
       try {
