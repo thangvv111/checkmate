@@ -20,7 +20,7 @@ import {
 } from './danh-tinh.js';
 import { trangLogin, type TrangThaiLogin } from './ui-login.js';
 
-import { MODE, cauHinhHienTai, cheToken, cheToken2, docConfig, diTruTokenRepo, docTokenThueBao, envAgent, ghiConfig, ghiTokenThueBao } from './config.js';
+import { MODE, LoiCauHinhNcc, cauHinhDeCham, cauHinhHienTai, cheToken, cheToken2, docConfig, diTruTokenRepo, docTokenThueBao, envAgent, ghiConfig, ghiTokenThueBao } from './config.js';
 import { DANH_MUC_NCC, dinhNghia, modelHopLe, docSoKiem, ghiKhoa, kiemConHieuLuc, type CauHinhNcc, type MaNcc, type PhuongThuc } from './ncc.js';
 import { GOC_REPO, slugRepoGithub, timRepo, type RepoConfig } from './config.js';
 import { existsSync as coFile } from 'node:fs';
@@ -608,6 +608,16 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
     if (!Number.isInteger(soPr) || soPr <= 0) return res.status(422).send('Số PR không hợp lệ');
     // R4.25 — repo thiếu chìa thì chặn NGAY, đừng khởi chạy rồi chết ở giữa: người dùng mất vài phút
     // chờ và lịch sử có thêm một lượt hỏng, trong khi nguyên nhân đã biết trước từ trước khi bấm.
+    // R5.17 — tổ hợp model+phương thức cấm (config sửa tay) thì từ chối TRƯỚC khi khởi chạy, lời rõ
+    try {
+      cauHinhDeCham(cfg);
+    } catch (e) {
+      if (e instanceof LoiCauHinhNcc) {
+        if (muonJson) return res.status(412).json({ loi: e.message });
+        return res.status(412).send(khung('CheckMate — cấu hình không hợp lệ', `<h1>Cấu hình model không hợp lệ</h1><p class="sub">${escHtml(e.message)} <a href="/settings">→ Cài đặt</a></p>`));
+      }
+      throw e;
+    }
     if (!coDuongVaoGithub(cfg.repo.github)) {
       const loi = `Repo ${cfg.repo.github} chưa có GitHub token nên không đọc được PR, và máy chủ cũng không có \`gh\` đã đăng nhập. Vào ⚙ Cài đặt → dán token cho repo này.`;
       if (muonJson) return res.status(412).json({ loi });

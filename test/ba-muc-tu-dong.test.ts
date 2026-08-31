@@ -55,8 +55,12 @@ describe('cửa ĐỌC cấu hình cũng phải gác giới hạn model (R5.15) 
       'utf8',
     );
     const c = cfg.docConfig();
+    // R5.17 — đường CHẤM từ chối với lời rõ (không dùng nguyên, không thay hộ: tổ hợp thay chưa qua
+    // cổng kiểm — vòng năm của Opus bắt đúng bản vá rơi-mềm vì lý do đó)
+    expect(() => cfg.cauHinhDeCham(c)).toThrow(/không được phép|Kiểm tra/);
+    // còn đường HIỂN THỊ trả nguyên vẹn để màn Cấu hình render được cho người dùng sửa
     const hienTai = cfg.cauHinhHienTai(c);
-    expect(hienTai.model).not.toBe('claude-fable-5');
+    expect(hienTai.model).toBe('claude-fable-5');
     expect(hienTai.phuong_thuc).toBe('api');
   });
 
@@ -67,6 +71,8 @@ describe('cửa ĐỌC cấu hình cũng phải gác giới hạn model (R5.15) 
       'utf8',
     );
     expect(cfg.cauHinhHienTai(cfg.docConfig()).model).toBe('claude-fable-5');
+    // và đường chấm cũng đi qua nguyên vẹn — không được âm thầm đổi model của người ta
+    expect(cfg.cauHinhDeCham(cfg.docConfig()).model).toBe('claude-fable-5');
   });
 });
 

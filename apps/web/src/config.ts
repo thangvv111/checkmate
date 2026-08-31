@@ -170,20 +170,32 @@ export function cauHinhHienTai(c: CheckmateConfig): CauHinhNcc {
     phuong_thuc: tho?.phuong_thuc && dn.phuong_thuc.includes(tho.phuong_thuc) ? tho.phuong_thuc : dn.phuong_thuc[0],
     model: typeof tho?.model === 'string' && tho.model.trim() ? tho.model : dn.models[0],
   };
-  // R5.15 — cửa ĐỌC cũng phải gác, và nó mới là cửa thật: config.json sửa tay được (đường cứu hộ
-  // R9.13), nên tổ hợp cấm có thể vào đây mà không chạm form lưu hay cổng kiểm nào — ba cửa kia đều là
-  // cửa giao diện. Mọi lượt chấm đi qua đúng hàm này. (Opus bắt ở vòng ba trên chính PR khai R5.15:
-  // «khai MỌI cửa phải tôn trọng rồi bỏ sót một cửa».)
-  //
-  // Rơi về model hợp lệ đầu tiên của phương thức và KÊU RÕ — âm thầm đổi model là báo sai bản chất
-  // kiểu khác. Không vọng nguyên văn giá trị ngoài danh mục: nó có thể là một khoá dán nhầm.
+  // Đường HIỂN THỊ: trả nguyên vẹn (kể cả tổ hợp cấm) để màn Cấu hình còn render được cho người dùng
+  // sửa. Gác giới hạn nằm ở cauHinhDeCham — đường CHẤM (R5.17).
+  return cfg;
+}
+
+/** Lỗi cấu hình nhà cung cấp — chỗ khởi chạy chấm bắt cái này để từ chối với lời rõ, không phải 500 */
+export class LoiCauHinhNcc extends Error {}
+
+/**
+ * Cấu hình cho ĐƯỜNG CHẤM — mọi lượt chấm phải lấy cấu hình qua đây, không qua cauHinhHienTai.
+ *
+ * R5.15 + R5.17, chốt sau HAI vòng cổng bắt hai hướng ngược nhau: vòng ba bắt «tổ hợp cấm từ config
+ * sửa tay sống tới lượt chấm» (ba cửa giao diện đều gác nhưng cửa đọc — cửa thật — thì không); bản vá
+ * rơi-mềm-về-model-khác bị vòng năm bắt tiếp «âm thầm thay model, mở cổng kiểm cho tổ hợp chưa kiểm».
+ * Giao của hai yêu cầu chỉ còn một đáp án: TỪ CHỐI CHẠY, nói rõ, để người dùng tự sửa — không dùng
+ * nguyên, không thay hộ. Không vọng nguyên văn giá trị ngoài danh mục (có thể là khoá dán nhầm).
+ */
+export function cauHinhDeCham(c: CheckmateConfig): CauHinhNcc {
+  const dn = dinhNghia(c.agent.ncc);
+  const cfg = cauHinhHienTai(c);
   if (!modelHopLe(dn, cfg.phuong_thuc, cfg.model)) {
-    const thay = dn.models.find((m) => modelHopLe(dn, cfg.phuong_thuc, m)) ?? dn.models[0];
     const che = dn.models.includes(cfg.model) ? cfg.model : `(ngoài danh mục — ${cfg.model.length} ký tự)`;
-    console.error(
-      `Cấu hình ${dn.ten}: model ${che} không dùng được với phương thức «${cfg.phuong_thuc}» (R5.15) — lượt này chạy bằng ${thay}. Sửa lại trong ⚙ Cấu hình.`,
+    throw new LoiCauHinhNcc(
+      `Cấu hình ${dn.ten} đang mang tổ hợp không được phép: model ${che} với phương thức «${cfg.phuong_thuc}» (R5.15). ` +
+        `Lượt chấm không chạy — vào ⚙ Cấu hình chọn lại model hoặc phương thức, rồi bấm Kiểm tra.`,
     );
-    return { ...cfg, model: thay };
   }
   return cfg;
 }
@@ -256,7 +268,8 @@ export function cheToken2(t: string): string {
 }
 
 export function envAgent(c: CheckmateConfig): NodeJS.ProcessEnv {
-  const cfg = cauHinhHienTai(c);
+  // Đường chấm — tổ hợp cấm ném LoiCauHinhNcc tại đây, mọi đường khởi chạy đều đi qua (R5.17)
+  const cfg = cauHinhDeCham(c);
   const ncc = c.agent.ncc;
   const dn = dinhNghia(ncc);
   const tokenTb = docTokenThueBao();

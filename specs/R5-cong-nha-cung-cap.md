@@ -54,3 +54,8 @@ Mỗi nhà cung cấp cấu hình độc lập, và chỉ nhà cung cấp đã *
 - **R5.16** — Cổng kiểm gặp tổ hợp model + phương thức nằm ngoài giới hạn PHẢI từ chối NGAY với lời nói
   rõ vì sao, không gọi model — gọi rồi để nhà cung cấp trả lỗi là bắt người dùng giải mã một thông điệp
   không nói đúng nguyên nhân.
+- **R5.17** — Cửa đọc cấu hình KHÔNG ĐƯỢC tự thay tổ hợp cấm bằng một tổ hợp khác: tổ hợp thay chưa
+  từng qua cổng kiểm, nên «rơi mềm» là mở đường lách chính cái cổng bắt buộc của R5. Giao của hai yêu
+  cầu (tổ hợp cấm không được sống tới lượt chấm · không được tự thay) chỉ còn một đáp án: đường CHẤM
+  từ chối chạy với lỗi nói rõ, còn đường HIỂN THỊ vẫn trả cấu hình nguyên vẹn để người dùng còn vào
+  được màn Cấu hình mà sửa. Hai đường, hai hàm, không dùng lẫn.

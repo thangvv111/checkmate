@@ -26,7 +26,7 @@ runner:
       ../apps/web/src/ui.js                  → escHtml · tachNguon
       ../apps/web/src/ui-lich-su.js          → locRuns
       ../apps/web/src/ncc.js                 → cheKhoa · dinhNghia · DANH_MUC_NCC · kiemConHieuLuc · docKhoa · ghiKhoa · docSoKiem · ghiSoKiem · modelHopLe
-      ../apps/web/src/config.js              → cheToken · cheToken2 · slugRepoGithub · timRepo · diTruTokenRepo · cauHinhHienTai · docConfig · ghiConfig · docTokenThueBao · ghiTokenThueBao · envAgent
+      ../apps/web/src/config.js              → cheToken · cheToken2 · slugRepoGithub · timRepo · diTruTokenRepo · cauHinhHienTai · docConfig · ghiConfig · docTokenThueBao · ghiTokenThueBao · envAgent · cauHinhDeCham · LoiCauHinhNcc
       ../apps/web/src/kho-bi-mat.js          → docTokenRepo · docTokenRieng · ghiTokenRepo · xoaTokenRepo · coToken · khoaRepo · docKho · ghiKho
       ../apps/web/src/danh-tinh.js           → layDanhTinh · danhTinhNeuCo · kiemMatKhau · taoPhien · xoaPhien · donPhienHetHan · taoTaiKhoan · doiMatKhau · doiVai · xoaTaiKhoan · dsTaiKhoan · coTaiKhoanNao · hopLeTen · docCookie · duocBamCong · epBamCong · duocVanHanh · LoiDanhTinh · TEN_COOKIE_PHIEN · duocChayCham · duocSuaCauHinh
       ../apps/web/src/ui-login.js            → trangLogin
