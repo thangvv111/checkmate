@@ -29,7 +29,11 @@ export interface DinhNghiaNcc {
  * giới hạn chỉ là lời dặn.
  */
 export function modelHopLe(dn: DinhNghiaNcc, phuongThuc: PhuongThuc, model: string): boolean {
-  if (!dn.models.includes(model)) return false;
+  // NGHĨA HẸP có chủ đích (R5.18, chốt sau vòng sáu của cổng): chỉ chặn vi phạm ràng buộc KHAI TƯỜNG
+  // MINH. Model ngoài danh mục KHÔNG làm false — danh mục là gợi ý cho giao diện, không phải trần
+  // cứng; nhà cung cấp là trọng tài về việc model có tồn tại. Bản đầu coi danh mục là trần đã chặn
+  // luôn đường cứu hộ config với model mới ra — hồi quy do gác quá tay.
+  if (!dn.phuong_thuc.includes(phuongThuc)) return false;
   if (phuongThuc !== 'thue_bao' && dn.chi_thue_bao?.includes(model)) return false;
   return true;
 }

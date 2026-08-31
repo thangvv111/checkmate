@@ -59,3 +59,14 @@ Mỗi nhà cung cấp cấu hình độc lập, và chỉ nhà cung cấp đã *
   cầu (tổ hợp cấm không được sống tới lượt chấm · không được tự thay) chỉ còn một đáp án: đường CHẤM
   từ chối chạy với lỗi nói rõ, còn đường HIỂN THỊ vẫn trả cấu hình nguyên vẹn để người dùng còn vào
   được màn Cấu hình mà sửa. Hai đường, hai hàm, không dùng lẫn.
+- **R5.18** — Danh mục `models` là GỢI Ý cho giao diện và nguồn giá trị mặc định, KHÔNG phải trần cứng.
+  Model ngoài danh mục được phép đi đường kiểm lẫn đường chấm — **nhà cung cấp là trọng tài** về việc
+  model có tồn tại: ngày họ ra model mới, đường cứu hộ config (R9.13) phải dùng được ngay, không chờ ai
+  sửa code. Giới hạn chỉ áp cho ràng buộc KHAI TƯỜNG MINH: `chi_thue_bao`, và phương thức phải thuộc
+  danh sách phương thức của nhà cung cấp.
+- **R5.19** — Đường chấm gặp cấu hình KHUYẾT trường (model rỗng/thiếu) thì HỎI, không ĐOÁN: từ chối chạy
+  với lời nói rõ trường nào khuyết. Tự điền mặc định ở đường chấm là tự thay bằng tổ hợp người dùng
+  chưa chọn — cùng họ với điều R5.17 cấm. Đường hiển thị vẫn điền mặc định để màn Cấu hình render được.
+- **R5.20** — Giá trị model NGOÀI danh mục không được vọng nguyên văn ra bất kỳ thông điệp nào — kể cả
+  thông điệp lỗi nhà cung cấp trả về (họ thường chép lại trường `model` của request, mà giá trị đó có
+  thể là một khoá dán nhầm). Che bằng độ dài trước khi cho hiển thị.

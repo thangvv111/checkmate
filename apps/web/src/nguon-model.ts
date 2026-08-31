@@ -118,30 +118,33 @@ export async function thuNcc(ma: MaNcc, cfg: CauHinhNcc): Promise<KetQuaThu> {
   const giay = (): number => Math.round((Date.now() - t0) / 100) / 10;
   const khoa = docKhoa(ma);
   const xong = (ok: boolean, thong_diep: string, modelAnToan?: string): KetQuaThu => {
+    // R5.20 — giá trị model NGOÀI danh mục có thể là khoá dán nhầm, và nhà cung cấp thường chép lại
+    // trường model vào thông điệp lỗi của họ. Gột nó khỏi MỌI thông điệp trước khi ra ngoài.
+    if (cfg.model && !dinhNghia(ma).models.includes(cfg.model) && thong_diep.includes(cfg.model)) {
+      thong_diep = thong_diep.split(cfg.model).join(`(${cfg.model.length} ký tự, ngoài danh mục)`);
+    }
     const luc = new Date().toISOString();
     // modelAnToan: khi giá trị model KHÔNG thuộc danh mục thì nó là thứ người dùng gõ tay — có thể là
     // một khoá dán nhầm. Sổ kiểm và kết quả trả về chỉ được mang bản đã che, không mang nguyên văn.
-    const md = modelAnToan ?? cfg.model;
+    // Che TỰ ĐỘNG, không lệ thuộc chỗ gọi nhớ truyền modelAnToan: nhánh nào quên (vd nhánh «chưa có
+    // khoá» dừng trước khi chạm model) là key giả đi nguyên vào sổ — đã xảy ra, test bắt được.
+    const md = modelAnToan ?? (dinhNghia(ma).models.includes(cfg.model) ? cfg.model : `(ngoài danh mục — ${cfg.model.length} ký tự)`);
     ghiSoKiem(ma, { ok, luc, thong_diep, model: md, phuong_thuc: cfg.phuong_thuc });
     return { ok, thong_diep, ncc: ma, giay: giay(), luc, model: md, phuong_thuc: cfg.phuong_thuc };
   };
 
-  // R5.16 — tổ hợp ngoài giới hạn thì từ chối NGAY, không gọi model. Nhưng phải TÁCH hai nguyên nhân:
-  // modelHopLe trả false cho cả «model không có trong danh mục» lẫn «model chỉ-thuê-bao đi đường API»,
-  // mà hai chuyện đó dẫn người dùng đi hai hướng sửa khác hẳn nhau. Gộp chung một câu là báo sai bản
-  // chất — người gõ nhầm tên model sẽ đi đổi phương thức thay vì sửa tên (Opus bắt được đúng ca này
-  // khi chấm chính PR đưa cổng này vào: hồi quy so với thông điệp đúng ở nhánh gốc).
+  // R5.16 + R5.18 — chỉ từ chối sớm khi vi phạm ràng buộc KHAI TƯỜNG MINH (chi_thue_bao, phương thức
+  // nhà cung cấp không hỗ trợ). Model NGOÀI danh mục thì GỌI THẬT: nhà cung cấp là trọng tài về việc
+  // model có tồn tại — họ trả lỗi thật, đúng bản chất. Từ-chối-sớm theo danh mục cứng là chặn luôn
+  // model mới ra (hồi quy vòng sáu của cổng đã bắt trên chính PR này).
   const dn = dinhNghia(ma);
-  if (!dn.models.includes(cfg.model)) {
-    // KHÔNG vọng nguyên văn giá trị người dùng nhập (R9.17, R4.29): ô model sửa tay được qua
-    // config.json, và người dán nhầm một API key vào đó sẽ thấy key của mình đi ra thông điệp, vào sổ
-    // kiểm, vào log — coi như đã lộ, buộc thu hồi. Nêu độ dài + danh mục là đủ để người gõ nhầm tự
-    // đối chiếu; không cần chép lại thứ họ vừa gõ. (Opus bắt đúng ca này khi chấm chính PR đưa thông
-    // điệp vào — hồi quy so với nhánh gốc, trên bản sửa của finding trước. Sửa finding đẻ finding.)
-    return xong(false, `Giá trị model bạn nhập (${cfg.model.length} ký tự) không có trong danh mục của ${dn.ten} — kiểm lại tên. Danh mục: ${dn.models.join(', ')}.`, `(ngoài danh mục — ${cfg.model.length} ký tự)`);
-  }
+  const laModelLa = !dn.models.includes(cfg.model);
   if (!modelHopLe(dn, cfg.phuong_thuc, cfg.model)) {
-    return xong(false, `Model ${cfg.model} chỉ dùng được với gói thuê bao, không mở cho đường API (R5.15) — đổi phương thức sang «gói thuê bao» hoặc chọn model khác.`);
+    const che = laModelLa ? `(${cfg.model.length} ký tự, ngoài danh mục)` : cfg.model;
+    const lyDo = dn.chi_thue_bao?.includes(cfg.model)
+      ? 'model này chỉ mở cho gói thuê bao (R5.15)'
+      : `nhà cung cấp không hỗ trợ phương thức «${cfg.phuong_thuc}»`;
+    return xong(false, `Model ${che} không đi được với phương thức «${cfg.phuong_thuc}» của ${dn.ten} — ${lyDo}. Đổi trong ⚙ Cấu hình rồi Kiểm tra lại.`, laModelLa ? che : undefined);
   }
 
   // ---- Anthropic · gói thuê bao: chạy qua Claude Code CLI ----

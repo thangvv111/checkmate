@@ -189,7 +189,19 @@ export class LoiCauHinhNcc extends Error {}
  */
 export function cauHinhDeCham(c: CheckmateConfig): CauHinhNcc {
   const dn = dinhNghia(c.agent.ncc);
+  const tho = c.agent.ncc_cau_hinh[c.agent.ncc];
+  // R5.19 — đường chấm gặp config KHUYẾT thì HỎI, không ĐOÁN. Tự điền mặc định ở đây là tự thay bằng
+  // tổ hợp người dùng chưa chọn — cùng họ với điều R5.17 cấm (vòng sáu của cổng bắt đúng ca này trên
+  // bản chuẩn-hoá-tự-điền của vòng bốn). Đường hiển thị (cauHinhHienTai) vẫn điền để render được.
+  if (tho !== undefined && (typeof tho.model !== 'string' || !tho.model.trim())) {
+    throw new LoiCauHinhNcc(
+      `Cấu hình ${dn.ten} thiếu trường «model» (config.json sửa tay?). Lượt chấm không chạy — điền model trong ⚙ Cấu hình, hoặc bổ sung trường vào config.json.`,
+    );
+  }
   const cfg = cauHinhHienTai(c);
+  // R5.15 + R5.18 — chỉ chặn vi phạm ràng buộc KHAI TƯỜNG MINH (chi_thue_bao, phương thức không hỗ
+  // trợ). Model ngoài danh mục ĐI QUA: nhà cung cấp là trọng tài, đường cứu hộ phải dùng được với
+  // model mới ra mà không chờ ai sửa code.
   if (!modelHopLe(dn, cfg.phuong_thuc, cfg.model)) {
     const che = dn.models.includes(cfg.model) ? cfg.model : `(ngoài danh mục — ${cfg.model.length} ký tự)`;
     throw new LoiCauHinhNcc(
