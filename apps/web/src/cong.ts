@@ -1,5 +1,6 @@
 import { chuanMuc, type Finding, type Verdict } from '../../../packages/shared/src/types.js';
-import { ghiSoCong } from './kho/kho-socai.js';
+import { docSoCong, ghiSoCong, runChuaCoHanhDongCong } from './kho/kho-socai.js';
+import { capNhatCongRun, docMeta } from './kho/kho-run.js';
 
 /**
  * ĐÃ GỠ: `nguoiThaoTac()` lấy `userInfo().username` — tài khoản HỆ ĐIỀU HÀNH chạy tiến trình. Trên máy
@@ -29,6 +30,90 @@ export function demMuc(findings: Finding[]): { high: number; medium: number; low
 }
 
 // Sổ hành động cổng nay là bảng chỉ-ghi-thêm trong cơ sở dữ liệu (specs/R9.6).
+/**
+ * Ghi chú cho một hàng NGOÀI CỔNG (R6.22).
+ *
+ * Phải nói đủ ba điều: hành động xảy ra ngoài CheckMate · KHÔNG có xác nhận finding nào · verdict lúc
+ * đó ra sao và còn bao nhiêu medium/low chưa ai tick. Để trống chỗ xác nhận là mời người đọc suy diễn
+ * thành «không có finding nào để xác nhận» — hai điều đó khác hẳn nhau, và đường qua cổng vốn BẮT
+ * tick từng cái.
+ */
+export function chiTietNgoaiCong(v: { result?: string; findings?: Finding[] } | null): string {
+  const d = demMuc(v?.findings ?? []);
+  const chuaTick = d.medium + d.low;
+  return [
+    '⚠ Hành động xảy ra NGOÀI CheckMate (không qua cổng)',
+    'KHÔNG có xác nhận finding nào — không ai tick trước khi merge',
+    `verdict lúc chấm: ${v?.result ?? 'không rõ'} · ${d.high} high · ${d.medium} medium · ${d.low} low` +
+      (chuaTick ? ` · ${chuaTick} cảnh báo medium/low CHƯA được xác nhận` : ' · không có cảnh báo medium/low nào'),
+  ].join(' · ');
+}
+
+/**
+ * Đối soát sổ cổng với trạng thái THẬT của pull request (R6.20–R6.25).
+ *
+ * Một cổng không ngăn được người ta merge bằng đường khác; điều nó bắt buộc phải làm là BIẾT chuyện
+ * đó đã xảy ra. Hàm nhận `docTrangThai` từ ngoài để test được mà không cần mạng.
+ */
+export async function doiSoatCong(
+  docTrangThai: (pr: number) => Promise<{ trang_thai: 'mo' | 'merged' | 'dong'; nguoi_merge?: string; tac_gia?: string }>,
+  log: (msg: string) => void = () => {},
+): Promise<{ daGhi: number; boQua: number; loi: number }> {
+  const canSoat = runChuaCoHanhDongCong();
+  if (!canSoat.length) return { daGhi: 0, boQua: 0, loi: 0 };
+  // Gom THEO PR chứ không theo run: một PR có thể có chục lượt chấm (chuỗi vá nhiều vòng), và hỏi
+  // GitHub một lần cho mỗi lượt là tự đốt quota vào cùng một câu trả lời.
+  const theoPr = new Map<number, string[]>();
+  for (const r of canSoat) theoPr.set(r.pr_so, [...(theoPr.get(r.pr_so) ?? []), r.run_id]);
+
+  let daGhi = 0;
+  let boQua = 0;
+  let loi = 0;
+  for (const [pr, dsRun] of theoPr) {
+    let tt: Awaited<ReturnType<typeof docTrangThai>>;
+    try {
+      tt = await docTrangThai(pr);
+    } catch (e) {
+      // R6.24 — không đọc được thì BỎ QUA và nói ra. Sổ chỉ ghi thêm và không sửa được, nên thà thiếu
+      // một hàng còn hơn mang một hàng suy đoán vĩnh viễn.
+      loi++;
+      log(`Đối soát cổng: không đọc được trạng thái PR #${pr} — bỏ qua, không ghi hàng nào: ${(e as Error).message.slice(0, 120)}`);
+      continue;
+    }
+    if (tt.trang_thai === 'mo') {
+      boQua += dsRun.length;
+      continue;
+    }
+    const hd = tt.trang_thai === 'merged' ? 'merge' : 'reject';
+    for (const runId of dsRun) {
+      // Kiểm LẠI ngay trước khi ghi: giữa lúc lấy danh sách và lúc ghi có thể có người vừa bấm cổng
+      // thật (R6.23 — chạy lại không được đẻ hàng trùng).
+      if (docSoCong(runId).length) {
+        boQua++;
+        continue;
+      }
+      const r = docMeta(runId);
+      const luc = new Date().toISOString();
+      const chiTiet = chiTietNgoaiCong(r?.verdict ?? null);
+      ghiSoCong({
+        run_id: runId,
+        luc,
+        hanh_dong: hd,
+        // R6.24 — người của hàng này lấy từ chính GitHub, hoặc để «không rõ». KHÔNG mượn tên tài
+        // khoản nào trong hệ này: hàng đó ghi lại việc người khác làm ở nơi khác (R11.1).
+        nguoi: tt.nguoi_merge ? `${tt.nguoi_merge} (GitHub)` : '(ngoài cổng — không rõ)',
+        tac_gia_pr: tt.tac_gia,
+        ngoai_cong: true,
+        chi_tiet: chiTiet,
+      });
+      capNhatCongRun(runId, hd, luc, tt.nguoi_merge ? `${tt.nguoi_merge} (GitHub)` : '(ngoài cổng — không rõ)', chiTiet);
+      daGhi++;
+      log(`Đối soát cổng: PR #${pr} đã ${tt.trang_thai} ngoài cổng — ghi sổ cho run ${runId}`);
+    }
+  }
+  return { daGhi, boQua, loi };
+}
+
 export function ghiSo(entry: Record<string, unknown>): void {
   const hd = entry.hanhDong === 'merge' ? 'merge' : entry.hanhDong === 'reject' ? 'reject' : null;
   if (!hd || typeof entry.run_id !== 'string') {

@@ -27,10 +27,10 @@ import { existsSync as coFile } from 'node:fs';
 import { join as noiDuong } from 'node:path';
 import { khoiNcc } from './ui-ncc.js';
 import { khoiRepo } from './ui-repo.js';
-import { cloneRepo, danhSachNhanh, danhSachPr, danhSachRepoCuaToken, dongPr, fetchVaRouter, ganTrangThaiCommit, kiemTraRepo, layPrHienTai, mergePr, binhLuanPr, tachOwnerRepo, traVeDev } from './github.js';
+import { cloneRepo, danhSachNhanh, danhSachPr, trangThaiPr, danhSachRepoCuaToken, dongPr, fetchVaRouter, ganTrangThaiCommit, kiemTraRepo, layPrHienTai, mergePr, binhLuanPr, tachOwnerRepo, traVeDev } from './github.js';
 import { coToken, docTokenRepo, docTokenRieng, ghiTokenRepo, xoaTokenRepo } from './kho-bi-mat.js';
 import { coDuongVaoGithub, coGhCli } from './github.js';
-import { banPhanQuyet, banReceipt, banVerdictTuDong, demMuc, ghiSo } from './cong.js';
+import { banPhanQuyet, banReceipt, banVerdictTuDong, demMuc, doiSoatCong, ghiSo } from './cong.js';
 import { backfillSoCai, docSoCai } from './ledger.js';
 import { docSoCai as docSoCaiKho, demSoCai as demSoCaiKho } from './kho/kho-socai.js';
 import { diTruTatCa, tomTatDiTru } from './kho/di-tru.js';
@@ -219,6 +219,14 @@ setInterval(() => {
     if (Date.now() - lanQuetCuoi < cfg.truc.chu_ky_giay * 1000) return;
     dangQuet = true;
     lanQuetCuoi = Date.now();
+    // R6.25 — đối soát chạy TÁCH khỏi đường chấm, khối try riêng: lỗi của nó không được làm dừng
+    // việc quét và chấm PR (cùng nguyên tắc ba khối try riêng của R6.15).
+    try {
+      const ds = await doiSoatCong((so) => trangThaiPr(cfg, so), (m) => console.log(m));
+      if (ds.daGhi || ds.loi) console.log(`Đối soát cổng: ghi ${ds.daGhi} hàng ngoài cổng · bỏ qua ${ds.boQua} · lỗi đọc ${ds.loi}`);
+    } catch (e) {
+      console.error('Đối soát cổng (không ảnh hưởng lượt chấm):', (e as Error).message);
+    }
     try {
       const prs = await danhSachPr(cfg);
       for (const p of prs) {

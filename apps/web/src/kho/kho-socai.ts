@@ -119,13 +119,35 @@ export interface MucSoCong {
   nguoi: string;
   /** R11.16 — tác giả PR ĐÓNG BĂNG tại thời điểm bấm; bảng `run` sửa được nên không nối sang đó để tra */
   tac_gia_pr?: string;
+  /** R6.21 — hàng này do ĐỐI SOÁT ghi: hành động đã xảy ra NGOÀI CheckMate, không qua cổng */
+  ngoai_cong?: boolean;
   chi_tiet?: string;
 }
 
 export function ghiSoCong(m: MucSoCong): void {
   moDb()
-    .prepare('INSERT INTO so_cong (run_id, luc, hanh_dong, nguoi, tac_gia_pr, chi_tiet) VALUES (?,?,?,?,?,?)')
-    .run(m.run_id, m.luc, m.hanh_dong, m.nguoi, m.tac_gia_pr ?? null, m.chi_tiet ?? null);
+    .prepare('INSERT INTO so_cong (run_id, luc, hanh_dong, nguoi, tac_gia_pr, ngoai_cong, chi_tiet) VALUES (?,?,?,?,?,?,?)')
+    .run(m.run_id, m.luc, m.hanh_dong, m.nguoi, m.tac_gia_pr ?? null, m.ngoai_cong ? 1 : 0, m.chi_tiet ?? null);
+}
+
+/**
+ * Run đã chấm một pull request nhưng sổ cổng chưa có hàng nào cho nó (R6.20).
+ *
+ * Đây là danh sách cần ĐỐI SOÁT: hoặc PR còn mở (chưa có hành động nào, đúng), hoặc PR đã merge/đóng
+ * bằng đường khác và sổ đang im lặng ở đúng chỗ cần nói.
+ */
+export function runChuaCoHanhDongCong(): Array<{ run_id: string; pr_so: number; repo: string }> {
+  const hang = moDb()
+    .prepare(
+      `SELECT r.id AS run_id, r.pr_so, r.repo
+         FROM run r
+        WHERE r.pr_so IS NOT NULL
+          AND r.verdict IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM so_cong s WHERE s.run_id = r.id)
+        ORDER BY r.rowid DESC`,
+    )
+    .all() as Array<{ run_id: unknown; pr_so: unknown; repo: unknown }>;
+  return hang.map((h) => ({ run_id: String(h.run_id), pr_so: Number(h.pr_so), repo: String(h.repo ?? '') }));
 }
 
 export function docSoCong(runId?: string): MucSoCong[] {
@@ -139,6 +161,7 @@ export function docSoCong(runId?: string): MucSoCong[] {
     luc: String(h.luc),
     hanh_dong: String(h.hanh_dong) as MucSoCong['hanh_dong'],
     nguoi: String(h.nguoi),
+    ngoai_cong: Number(h.ngoai_cong ?? 0) === 1,
     chi_tiet: h.chi_tiet == null ? undefined : String(h.chi_tiet),
   }));
 }

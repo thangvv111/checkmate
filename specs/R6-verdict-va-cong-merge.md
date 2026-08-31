@@ -68,3 +68,30 @@ tốn công mở lại, không hỏng gì. Bất đối xứng đó cho phép t�
   trách nhiệm khác nhau.
 - **R6.19** — Tác nhân máy KHÔNG ĐƯỢC merge trong mọi cấu hình. Không có công tắc nào bật được điều đó,
   và đây là điều khoản chứ không phải tuỳ chọn.
+
+## Đối soát: hành động cổng xảy ra NGOÀI cổng
+
+Một cổng không ngăn được người ta merge bằng đường khác — GitHub luôn có nút merge, và người vận hành
+đôi khi dùng nó. Đo trên prod 01/09: 66 lượt chấm có pull request mà sổ cổng không có một hàng nào,
+trong khi cùng ngày có 8 pull request được merge. Sổ kiểm toán im lặng ở đúng những lần merge THẬT thì
+nó không còn trả lời được câu hỏi nó sinh ra để trả lời.
+
+- **R6.20** — Hệ thống PHẢI đối soát trạng thái thật của pull request với sổ cổng. Pull request đã
+  merge hoặc đã đóng mà sổ chưa có hành động tương ứng thì PHẢI được ghi vào sổ, đánh dấu là hành động
+  **NGOÀI CỔNG**. Không ngăn được thì ít nhất phải BIẾT và GHI LẠI.
+- **R6.21** — Hàng ngoài-cổng PHẢI phân biệt được với hàng do người bấm trong CheckMate ở mức **dữ
+  liệu** (một trường riêng), không chỉ bằng chữ trong ghi chú: người kiểm toán lọc sổ theo hành động
+  phải tách được hai loại mà không phải đọc văn. Mọi phép đếm/lọc hành động cổng PHẢI xét trường này.
+- **R6.22** — Hàng ngoài-cổng PHẢI nói rõ **không có xác nhận finding nào**, kèm số finding
+  medium/low của verdict lúc đó. Để trống chỗ xác nhận là mời người đọc suy diễn thành «không có
+  finding nào để xác nhận» — hai điều đó khác hẳn nhau, và đường qua cổng vốn BẮT tick từng cái
+  ([R6.9](#)).
+- **R6.23** — Đối soát PHẢI idempotent: run đã có hành động cổng thì bỏ qua, chạy lại nhiều lần không
+  đẻ hàng trùng. Sổ chỉ ghi thêm và không sửa được ([R9.4](R9-tang-du-lieu.md)), nên một hàng thừa là
+  một hàng sai VĨNH VIỄN.
+- **R6.24** — Không đọc được trạng thái pull request (thiếu quyền, mạng hỏng, PR bị xoá) thì PHẢI bỏ
+  qua và nói ra, TUYỆT ĐỐI không ghi hàng suy đoán. Thà sổ thiếu một hàng còn hơn sổ mang một hàng sai
+  không gỡ được. Hệ quả: người của hàng ngoài-cổng lấy từ chính GitHub, hoặc để «không rõ» — KHÔNG
+  mượn tên tài khoản nào trong hệ này, vì hàng đó ghi lại việc người khác làm ở nơi khác ([R11.1](R11-danh-tinh-va-phien.md)).
+- **R6.25** — Đối soát PHẢI chạy tách khỏi đường chấm: lỗi của nó không được làm dừng chế độ trực hay
+  hỏng một lượt chấm đang chạy (cùng nguyên tắc khối `try` riêng của R6.15).

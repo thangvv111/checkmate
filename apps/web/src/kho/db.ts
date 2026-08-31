@@ -56,6 +56,9 @@ CREATE TABLE IF NOT EXISTS so_cong (
   -- R11.16: dong bang tai thoi diem bam. Bang run SUA DUOC, nen tra loi cau hoi kiem toan bang cach
   -- noi sang do la pha dung tinh chat ma trigger chi-ghi-them sinh ra de giu.
   tac_gia_pr TEXT,
+  -- R6.21: hang do DOI SOAT ghi (hanh dong xay ra NGOAI CheckMate) phai phan biet duoc voi hang do
+  -- nguoi bam trong cong, o muc DU LIEU chu khong chi bang chu trong ghi chu.
+  ngoai_cong INTEGER NOT NULL DEFAULT 0,
   chi_tiet  TEXT
 );
 CREATE INDEX IF NOT EXISTS ix_so_cong_run ON so_cong(run_id);
@@ -169,6 +172,10 @@ function napCotThieu(d: DatabaseSync): void {
   const them: Array<[string, string, string]> = [
     // [bảng, cột, kiểu] — R11.16: đóng băng tên tác giả PR vào chính hàng sổ cổng
     ['so_cong', 'tac_gia_pr', 'TEXT'],
+    // R6.21 — cờ hàng NGOÀI CỔNG. Thêm CỘT chứ không thêm giá trị cho `hanh_dong`: đổi `CHECK` đòi
+    // dựng lại bảng (SQLite không ALTER được CHECK), mà bảng này là sổ kiểm toán đang giữ dữ liệu
+    // thật và có trigger cấm XOÁ — dựng lại nó là thao tác nguy hiểm nhất có thể làm với một cuốn sổ.
+    ['so_cong', 'ngoai_cong', 'INTEGER NOT NULL DEFAULT 0'],
   ];
   for (const [bang, cot, kieu] of them) {
     const daCo = (d.prepare(`PRAGMA table_info(${bang})`).all() as Array<{ name: string }>).some((c) => c.name === cot);

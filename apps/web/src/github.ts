@@ -116,6 +116,23 @@ export async function layPrHienTai(cfg: CheckmateConfig, so: number): Promise<Pr
   return { headSha: p.head.sha, state: p.state, merged: p.merged, tacGia: p.user?.login };
 }
 
+/**
+ * Trạng thái THẬT của một pull request trên GitHub — dùng cho đối soát cổng (R6.20).
+ *
+ * Tách khỏi `layPrHienTai` vì hai câu hỏi khác nhau: cái kia hỏi «head sha bây giờ là gì» để chặn
+ * verdict hết hiệu lực; cái này hỏi «chuyện gì đã xảy ra với PR» để biết sổ có đang im lặng không.
+ */
+export async function trangThaiPr(cfg: CheckmateConfig, so: number): Promise<{ trang_thai: 'mo' | 'merged' | 'dong'; nguoi_merge?: string; tac_gia?: string }> {
+  const p = (await goiApi(cfg, `/repos/${cfg.repo.github}/pulls/${so}`)) as {
+    state: string;
+    merged: boolean;
+    merged_by?: { login?: string } | null;
+    user?: { login?: string };
+  };
+  const trang_thai = p.merged ? 'merged' : p.state === 'open' ? 'mo' : 'dong';
+  return { trang_thai, nguoi_merge: p.merged_by?.login ?? undefined, tac_gia: p.user?.login };
+}
+
 export async function binhLuanPr(cfg: CheckmateConfig, so: number, body: string): Promise<void> {
   await goiApiGhi(cfg, 'POST', `/repos/${cfg.repo.github}/issues/${so}/comments`, { body });
 }
