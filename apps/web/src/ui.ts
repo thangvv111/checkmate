@@ -300,7 +300,7 @@ ${v.khoiNccHtml}
 <div class="card" style="max-width:760px;margin-bottom:14px">
   <h3>Độ sâu review</h3>
   <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Số phép thử tối đa mỗi lượt (2–12)</label>
-  <input name="max_probe" type="number" min="2" max="12" value="${v.maxProbe}" ${ro} style="width:90px;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
+  <input name="max_probe" type="number" min="2" max="20" value="${v.maxProbe}" ${ro} style="width:90px;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
   <label style="display:block;font-size:12.5px;margin:10px 0 4px"><input type="checkbox" name="skeptic" value="1" ${v.skeptic ? 'checked' : ''} ${ro}> Bật vòng phản biện (skeptic) cho review tài liệu</label>
 </div>
 <div class="card" style="max-width:640px;margin-bottom:14px">
