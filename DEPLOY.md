@@ -23,9 +23,9 @@ sudo systemctl reload nginx
 
 | # | Trên máy dev | Trên server | Đã xử thế nào |
 |---|---|---|---|
-| 1 | Model gọi qua **Claude Code CLI** (đã đăng nhập) | Headless, không đăng nhập CLI được | Dùng **API key** trong `/etc/checkmate.env`. ⚠ Tài khoản API tính **credit riêng**, không dùng chung gói Claude Code — hết credit thì API trả 400 "credit balance is too low" |
+| 1 | Model gọi qua **Claude Code CLI** (đã đăng nhập) | Headless — nhưng CLI **vẫn đăng nhập được** qua terminal SSH (`claude login` bằng user `ubuntu`) hoặc dán token thuê bao qua giao diện; prod hiện chạy gói thuê bao theo đường này | Không có gói thuê bao thì dùng **API key** trong `/etc/checkmate.env`. ⚠ Tài khoản API tính **credit riêng** — hết credit thì API trả 400 "credit balance is too low" |
 | 2 | Không token thì lùi về lệnh **`gh`** của máy | Không có `gh` | Bắt buộc `GITHUB_TOKEN`; code đọc env (env thắng config.json) |
-| 3 | `git fetch` repo private dùng credential manager của Windows | Không có credential nào | Git credential helper đọc thẳng `$GITHUB_TOKEN` — **token không ghi ra đĩa lần hai** |
+| 3 | `git fetch` repo private dùng credential manager của Windows | Không có credential nào | **App** tự mang `GITHUB_TOKEN` vào URL của chính lệnh fetch, dùng một lần, không ghi ra đĩa (R4.28). **Shell tay thì KHÔNG** — `git pull` từ SSH trả Authentication failed vì shell không nạp `/etc/checkmate.env`; đó là lý do deploy đi đường tar chứ không git pull |
 | 4 | `HOME` luôn có | systemd không tự set | `Environment=HOME=/home/ubuntu` trong unit (nếu thiếu, git không đọc `~/.gitconfig` → mất helper ở mục 3) |
 
 **Token GitHub với repo private:** phải là fine-grained có repo đó trong *Only select repositories*.
@@ -92,7 +92,7 @@ bấm **Thử nguồn đang chọn**: xanh là dùng được, đỏ sẽ nói r
 ## Hai thứ CHỦ MÁY phải tự điền (không ai điền hộ được)
 ```
 sudo nano /etc/checkmate.env      # quyền 600
-  ANTHROPIC_API_KEY=sk-ant-...    # bắt buộc: server headless không đăng nhập Claude Code CLI được
+  ANTHROPIC_API_KEY=sk-ant-...    # CHỈ cần khi dùng phương thức API; gói thuê bao qua CLI thì không (xem «Ba cách cho CLI dùng gói thuê bao»)
   GITHUB_TOKEN=ghp_...            # để hàng đợi PR tự nạp (server không có lệnh gh như máy dev)
 sudo systemctl restart checkmate
 ```
@@ -183,6 +183,6 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:4001/     # phải 200
 `probes-lib/`; chúng phải bằng hoặc lớn hơn trước khi deploy. Nhỏ đi là đã mất dữ liệu — khôi phục
 ngay từ `~/checkmate-backup-<mốc>`.
 
-**Vì sao không `git pull`:** repo là private và trên server không có token cho git, `git fetch` trả
-`Authentication failed`. Cây trên server cũng đã lệch khỏi lịch sử git vì các lần deploy tar trước ghi
+**Vì sao không `git pull`:** repo là private, và token chỉ được APP tự mang vào lệnh fetch của nó
+(R4.28) — **shell tay không nạp** `/etc/checkmate.env`, nên `git pull` từ SSH trả `Authentication failed`. Cây trên server cũng đã lệch khỏi lịch sử git vì các lần deploy tar trước ghi
 đè lên nó — nên «deploy» ở đây là ghi đè source, không phải cập nhật theo git.
