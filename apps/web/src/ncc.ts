@@ -17,8 +17,21 @@ export interface DinhNghiaNcc {
   ngung?: string;
   phuong_thuc: PhuongThuc[]; // những phương thức nhà cung cấp này hỗ trợ
   models: string[];
+  /** R5.15 — model CHỈ dùng được với gói thuê bao, không mở cho đường API */
+  chi_thue_bao?: string[];
   khoa: { ten_bien: string; nhan: string; goi_y: string } | null; // khoá/token cần cho phương thức api
   ghi_chu: string;
+}
+
+/**
+ * R5.15 — tổ hợp model + phương thức có nằm trong giới hạn của danh mục không.
+ * MỌI cửa (form lưu, cổng kiểm, giao diện) hỏi cùng một hàm này — chặn ở một cửa mà hở cửa khác thì
+ * giới hạn chỉ là lời dặn.
+ */
+export function modelHopLe(dn: DinhNghiaNcc, phuongThuc: PhuongThuc, model: string): boolean {
+  if (!dn.models.includes(model)) return false;
+  if (phuongThuc !== 'thue_bao' && dn.chi_thue_bao?.includes(model)) return false;
+  return true;
 }
 
 export const DANH_MUC_NCC: DinhNghiaNcc[] = [
@@ -26,7 +39,9 @@ export const DANH_MUC_NCC: DinhNghiaNcc[] = [
     ma: 'anthropic',
     ten: 'Anthropic (Claude)',
     phuong_thuc: ['thue_bao', 'api'],
-    models: ['claude-sonnet-5', 'claude-opus-5', 'claude-haiku-4-5-20251001'],
+    models: ['claude-sonnet-5', 'claude-opus-5', 'claude-fable-5', 'claude-haiku-4-5-20251001'],
+    // Fable 5 đi theo gói thuê bao của chủ máy — cố ý KHÔNG mở cho đường API (PO chốt 31/08)
+    chi_thue_bao: ['claude-fable-5'],
     khoa: { ten_bien: 'ANTHROPIC_API_KEY', nhan: 'API key Anthropic', goi_y: 'sk-ant-api03-…' },
     ghi_chu:
       'Gói thuê bao chạy qua Claude Code CLI trên máy chủ (không tiêu credit API) — cần đăng nhập bằng `claude login` hoặc dán token `claude setup-token`. Phương thức API tính tiền theo token.',

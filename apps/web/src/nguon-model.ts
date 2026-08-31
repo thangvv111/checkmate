@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { cauHinhHienTai, docTokenThueBao, type CheckmateConfig } from './config.js';
-import { dinhNghia, docKhoa, ghiSoKiem, type CauHinhNcc, type KetQuaKiem, type MaNcc } from './ncc.js';
+import { dinhNghia, docKhoa, modelHopLe, ghiSoKiem, type CauHinhNcc, type KetQuaKiem, type MaNcc } from './ncc.js';
 
 // Kiểm một nhà cung cấp: gọi thử MỘT câu cực ngắn đúng cấu hình của nó.
 // Vừa là nút "Kiểm tra" trong giao diện, vừa là CỔNG: chưa kiểm thành công thì không được chọn để chấm.
@@ -122,6 +122,12 @@ export async function thuNcc(ma: MaNcc, cfg: CauHinhNcc): Promise<KetQuaThu> {
     ghiSoKiem(ma, { ok, luc, thong_diep, model: cfg.model, phuong_thuc: cfg.phuong_thuc });
     return { ok, thong_diep, ncc: ma, giay: giay(), luc, model: cfg.model, phuong_thuc: cfg.phuong_thuc };
   };
+
+  // R5.16 — tổ hợp ngoài giới hạn thì từ chối NGAY, không gọi model: gọi rồi để nhà cung cấp trả lỗi
+  // là bắt người dùng giải mã một thông điệp không nói đúng nguyên nhân.
+  if (!modelHopLe(dinhNghia(ma), cfg.phuong_thuc, cfg.model)) {
+    return xong(false, `Model ${cfg.model} không dùng được với phương thức «${cfg.phuong_thuc === 'api' ? 'API' : 'gói thuê bao'}» — xem giới hạn trong danh mục nhà cung cấp (R5.15).`);
+  }
 
   // ---- Anthropic · gói thuê bao: chạy qua Claude Code CLI ----
   if (ma === 'anthropic' && cfg.phuong_thuc === 'thue_bao') {

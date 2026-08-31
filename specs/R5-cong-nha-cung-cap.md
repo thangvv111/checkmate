@@ -44,3 +44,13 @@ Mỗi nhà cung cấp cấu hình độc lập, và chỉ nhà cung cấp đã *
   đã chạy ở đâu.
 - **R5.14** — Số token vào/ra PHẢI được ghi lại, và phải nêu rõ khi con số là **ước tính** chứ không phải
   số nhà cung cấp trả về.
+
+## Model giới hạn theo phương thức
+
+- **R5.15** — Danh mục nhà cung cấp được phép khai một model CHỈ dùng với một số phương thức (ví dụ:
+  model chỉ có trong gói thuê bao, không mở cho đường API). Khi đã khai, MỌI cửa phải tôn trọng giới
+  hạn đó: form lưu cấu hình, cổng kiểm nhà cung cấp, và giao diện chọn model. Chặn ở một cửa mà hở cửa
+  khác thì giới hạn chỉ là lời dặn.
+- **R5.16** — Cổng kiểm gặp tổ hợp model + phương thức nằm ngoài giới hạn PHẢI từ chối NGAY với lời nói
+  rõ vì sao, không gọi model — gọi rồi để nhà cung cấp trả lỗi là bắt người dùng giải mã một thông điệp
+  không nói đúng nguyên nhân.

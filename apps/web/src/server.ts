@@ -21,7 +21,7 @@ import {
 import { trangLogin, type TrangThaiLogin } from './ui-login.js';
 
 import { MODE, cauHinhHienTai, cheToken, cheToken2, docConfig, diTruTokenRepo, docTokenThueBao, envAgent, ghiConfig, ghiTokenThueBao } from './config.js';
-import { DANH_MUC_NCC, dinhNghia, docSoKiem, ghiKhoa, kiemConHieuLuc, type CauHinhNcc, type MaNcc, type PhuongThuc } from './ncc.js';
+import { DANH_MUC_NCC, dinhNghia, modelHopLe, docSoKiem, ghiKhoa, kiemConHieuLuc, type CauHinhNcc, type MaNcc, type PhuongThuc } from './ncc.js';
 import { GOC_REPO, slugRepoGithub, timRepo, type RepoConfig } from './config.js';
 import { existsSync as coFile } from 'node:fs';
 import { join as noiDuong } from 'node:path';
@@ -398,9 +398,12 @@ app.post('/settings', (req, res) => {
           const pt = b[`pt_${dn.ma}`] as PhuongThuc | undefined;
           const md = b[`model_${dn.ma}`];
           const cu = ra[dn.ma] ?? { phuong_thuc: dn.phuong_thuc[0], model: dn.models[0] };
+          const ptMoi = pt && dn.phuong_thuc.includes(pt) ? pt : cu.phuong_thuc;
+          // R5.15 — validate TỔ HỢP (phương thức mới, model mới), không validate rời từng ô: model
+          // chỉ-thuê-bao mà lọt vào cấu hình phương thức API là giới hạn chỉ còn là lời dặn.
           ra[dn.ma] = {
-            phuong_thuc: pt && dn.phuong_thuc.includes(pt) ? pt : cu.phuong_thuc,
-            model: md && dn.models.includes(md) ? md : cu.model,
+            phuong_thuc: ptMoi,
+            model: md && modelHopLe(dn, ptMoi, md) ? md : modelHopLe(dn, ptMoi, cu.model) ? cu.model : dn.models.find((m) => modelHopLe(dn, ptMoi, m)) ?? cu.model,
           };
         }
         return ra;
