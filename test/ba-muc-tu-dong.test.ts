@@ -43,3 +43,29 @@ describe('ba công tắc RIÊNG, không gộp (R6.15)', () => {
 });
 
 afterAll(() => rmSync(goc, { recursive: true, force: true }));
+
+describe('cửa ĐỌC cấu hình cũng phải gác giới hạn model (R5.15) — Opus bắt ở vòng ba', () => {
+  it('config sửa tay mang tổ hợp cấm thì đọc lên đã rơi về model hợp lệ, có kêu', () => {
+    // Ba cửa giao diện (form, cổng kiểm, select) đều gác — nhưng config.json sửa tay là đường cứu hộ
+    // hợp lệ (R9.13), và MỌI lượt chấm đi qua cửa đọc. Khai «mọi cửa phải tôn trọng» rồi bỏ sót đúng
+    // cửa thật là pull request tự mâu thuẫn.
+    writeFileSync(
+      join(goc, 'config.json'),
+      JSON.stringify({ agent: { ncc: 'anthropic', ncc_cau_hinh: { anthropic: { phuong_thuc: 'api', model: 'claude-fable-5' } }, max_probe: 6, skeptic: true } }),
+      'utf8',
+    );
+    const c = cfg.docConfig();
+    const hienTai = cfg.cauHinhHienTai(c);
+    expect(hienTai.model).not.toBe('claude-fable-5');
+    expect(hienTai.phuong_thuc).toBe('api');
+  });
+
+  it('tổ hợp hợp lệ thì đi qua nguyên vẹn — không được âm thầm đổi model của người ta', () => {
+    writeFileSync(
+      join(goc, 'config.json'),
+      JSON.stringify({ agent: { ncc: 'anthropic', ncc_cau_hinh: { anthropic: { phuong_thuc: 'thue_bao', model: 'claude-fable-5' } }, max_probe: 6, skeptic: true } }),
+      'utf8',
+    );
+    expect(cfg.cauHinhHienTai(cfg.docConfig()).model).toBe('claude-fable-5');
+  });
+});

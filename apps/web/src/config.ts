@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { dinhNghia, docKhoa, type CauHinhNcc, type MaNcc } from './ncc.js';
+import { dinhNghia, docKhoa, modelHopLe, type CauHinhNcc, type MaNcc } from './ncc.js';
 import { docKho, ghiKho, docTokenRieng, ghiTokenRepo } from './kho-bi-mat.js';
 
 // Chế độ vận hành (spec §9): demo = deploy public, khoá repo demo, Settings chỉ-đọc (fail-closed);
@@ -161,7 +161,23 @@ function nangCapAgent(a?: Partial<AgentConfig>): AgentConfig {
 
 export function cauHinhHienTai(c: CheckmateConfig): CauHinhNcc {
   const dn = dinhNghia(c.agent.ncc);
-  return c.agent.ncc_cau_hinh[c.agent.ncc] ?? { phuong_thuc: dn.phuong_thuc[0], model: dn.models[0] };
+  const cfg = c.agent.ncc_cau_hinh[c.agent.ncc] ?? { phuong_thuc: dn.phuong_thuc[0], model: dn.models[0] };
+  // R5.15 — cửa ĐỌC cũng phải gác, và nó mới là cửa thật: config.json sửa tay được (đường cứu hộ
+  // R9.13), nên tổ hợp cấm có thể vào đây mà không chạm form lưu hay cổng kiểm nào — ba cửa kia đều là
+  // cửa giao diện. Mọi lượt chấm đi qua đúng hàm này. (Opus bắt ở vòng ba trên chính PR khai R5.15:
+  // «khai MỌI cửa phải tôn trọng rồi bỏ sót một cửa».)
+  //
+  // Rơi về model hợp lệ đầu tiên của phương thức và KÊU RÕ — âm thầm đổi model là báo sai bản chất
+  // kiểu khác. Không vọng nguyên văn giá trị ngoài danh mục: nó có thể là một khoá dán nhầm.
+  if (!modelHopLe(dn, cfg.phuong_thuc, cfg.model)) {
+    const thay = dn.models.find((m) => modelHopLe(dn, cfg.phuong_thuc, m)) ?? dn.models[0];
+    const che = dn.models.includes(cfg.model) ? cfg.model : `(ngoài danh mục — ${cfg.model.length} ký tự)`;
+    console.error(
+      `Cấu hình ${dn.ten}: model ${che} không dùng được với phương thức «${cfg.phuong_thuc}» (R5.15) — lượt này chạy bằng ${thay}. Sửa lại trong ⚙ Cấu hình.`,
+    );
+    return { ...cfg, model: thay };
+  }
+  return cfg;
 }
 
 export function ghiConfig(c: CheckmateConfig): void {
