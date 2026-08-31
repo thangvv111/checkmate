@@ -176,29 +176,51 @@ export const KHO_KHUON: KhuonLoi[] = [
  *  · khuôn ép về MỘT dòng (R12.5 — chuỗi mang xuống-dòng vỡ danh sách bullet của prompt);
  *  · SẮP trước CẮT sau + log khuôn bị bỏ khi chạm trần (R12.3) — cho CẢ code lẫn doc.
  */
-function phatKhuon(loai: 'code' | 'doc', vanBanDieuKien: string): string[] {
-  const thap = vanBanDieuKien.toLowerCase();
+// Mốc định vị của án lệ (R12.2): số PR · vòng chấm · tên file · tên repo — thứ trỏ vào một nơi có thật.
+const MOC_AN_LE = /#\d+|vòng \d+|\.(md|ts|yml)|demo-[a-z-]+/;
+
+function phatKhuon(loai: 'code' | 'doc', vanBanDieuKien?: string): string[] {
+  // Chịu đầu vào khuyết như nhau ở CẢ HAI cửa (vòng ba: code ném TypeError còn doc thì không — chính
+  // là khuôn KL9 «cửa song sinh» + KL16 «hàm cuối đường không được nổ»).
+  const vanBan = String(vanBanDieuKien ?? '');
   const bat: KhuonLoi[] = [];
   for (const k of KHO_KHUON.filter((x) => x.loai === loai)) {
-    if (typeof k.an_le !== 'string' || !k.an_le.trim()) {
-      console.log(`[khuon-loi] TỪ CHỐI ${k.id}: không án lệ — phỏng đoán không được phát vào prompt (R12.2)`);
+    // R12.2 là GÁC theo đúng mức luật khai: án lệ phải CÓ và phải mang MỐC ĐỊNH VỊ — gác chỉ chặn
+    // chuỗi rỗng là luật nằm trong test chứ không nằm trong cửa (vòng ba của cổng bắt).
+    if (typeof k.an_le !== 'string' || !k.an_le.trim() || !MOC_AN_LE.test(k.an_le)) {
+      console.log(`[khuon-loi] TỪ CHỐI ${k.id}: án lệ thiếu hoặc không mốc định vị — phỏng đoán không được phát vào prompt (R12.2)`);
+      continue;
+    }
+    // R12.5: khuôn rỗng/toàn khoảng trắng thành bullet trống «- » vỡ danh sách mệnh lệnh (vòng ba).
+    if (typeof k.khuon !== 'string' || !k.khuon.trim()) {
+      console.log(`[khuon-loi] TỪ CHỐI ${k.id}: khuôn rỗng (R12.5)`);
       continue;
     }
     if (k.dieu_kien) {
-      const sach = new RegExp(k.dieu_kien.source, k.dieu_kien.flags.replace(/[gy]/g, ''));
-      if (!sach.test(thap)) continue;
+      // Gột cờ trạng thái g/y (lastIndex — vòng hai) và đánh KHÔNG phân biệt hoa thường trên văn bản
+      // GỐC: bản trước toLowerCase đầu vào rồi test regex mang chữ hoa (/PHẢI|HTTP/) — không bao giờ
+      // khớp, khuôn biến mất lặng, đúng họ KL11 «biến đổi lặng giá trị» (vòng ba của cổng bắt).
+      const co = k.dieu_kien.flags.replace(/[gy]/g, '');
+      const sach = new RegExp(k.dieu_kien.source, co.includes('i') ? co : co + 'i');
+      if (!sach.test(vanBan)) continue;
     }
     bat.push(k);
   }
+  // R12.3 đo TRÊN KHO, không đo trên tập đã lọc điều kiện — đo sau lọc thì trần thành ngẫu nhiên
+  // theo spec repo đang chấm, kho phình quá mức không ai đo được (vòng ba).
+  const tongKho = KHO_KHUON.filter((x) => x.loai === loai);
+  if (tongKho.length > TRAN_KHUON) {
+    console.log(`[khuon-loi] kho ${loai} đang giữ ${tongKho.length} khuôn, vượt trần ${TRAN_KHUON} — vượt: ${tongKho.slice(TRAN_KHUON).map((k) => k.id).join(', ')} (R12.3: sửa KHO_KHUON, thay khuôn là quyết định nói ra)`);
+  }
   const sap = [...bat.filter((k) => k.len_dau), ...bat.filter((k) => !k.len_dau)];
   if (sap.length > TRAN_KHUON) {
-    console.log(`[khuon-loi] kho ${loai} vượt trần ${TRAN_KHUON} — bỏ: ${sap.slice(TRAN_KHUON).map((k) => k.id).join(', ')} (R12.3: thay khuôn phải là quyết định nói ra, sửa KHO_KHUON thay vì để cắt ở đây)`);
+    console.log(`[khuon-loi] tập phát ${loai} vượt trần ${TRAN_KHUON} — bỏ: ${sap.slice(TRAN_KHUON).map((k) => k.id).join(', ')}`);
   }
   return sap.slice(0, TRAN_KHUON).map((k) => k.khuon.replace(/\s*\n\s*/g, ' ').trim());
 }
 
 /** Khuôn code phát cho repo có spec này (R12.4): bật khuôn điều kiện khớp, khuôn len_dau lên đầu. */
-export function layKhuonCode(specText: string): string[] {
+export function layKhuonCode(specText?: string): string[] {
   return phatKhuon('code', specText);
 }
 
@@ -207,6 +229,6 @@ export function layKhuonCode(specText: string): string[] {
  * dieu_kien (nếu khuôn có) đánh trên chính VĂN BẢN TÀI LIỆU — cửa song sinh của layKhuonCode, vòng
  * hai của cổng bắt đúng ca cửa code được vá mà cửa doc bỏ qua điều kiện lặng lẽ.
  */
-export function layKhuonDoc(vanBanTaiLieu = ''): string[] {
+export function layKhuonDoc(vanBanTaiLieu?: string): string[] {
   return phatKhuon('doc', vanBanTaiLieu);
 }
