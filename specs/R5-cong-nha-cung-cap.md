@@ -44,3 +44,41 @@ Mỗi nhà cung cấp cấu hình độc lập, và chỉ nhà cung cấp đã *
   đã chạy ở đâu.
 - **R5.14** — Số token vào/ra PHẢI được ghi lại, và phải nêu rõ khi con số là **ước tính** chứ không phải
   số nhà cung cấp trả về.
+
+## Model giới hạn theo phương thức
+
+- **R5.15** — Danh mục nhà cung cấp được phép khai một model CHỈ dùng với một số phương thức (ví dụ:
+  model chỉ có trong gói thuê bao, không mở cho đường API). Khi đã khai, MỌI cửa phải tôn trọng giới
+  hạn đó: form lưu cấu hình, cổng kiểm nhà cung cấp, và giao diện chọn model. Chặn ở một cửa mà hở cửa
+  khác thì giới hạn chỉ là lời dặn.
+- **R5.16** — Cổng kiểm gặp tổ hợp model + phương thức nằm ngoài giới hạn PHẢI từ chối NGAY với lời nói
+  rõ vì sao, không gọi model — gọi rồi để nhà cung cấp trả lỗi là bắt người dùng giải mã một thông điệp
+  không nói đúng nguyên nhân.
+- **R5.17** — Cửa đọc cấu hình KHÔNG ĐƯỢC tự thay tổ hợp cấm bằng một tổ hợp khác: tổ hợp thay chưa
+  từng qua cổng kiểm, nên «rơi mềm» là mở đường lách chính cái cổng bắt buộc của R5. Giao của hai yêu
+  cầu (tổ hợp cấm không được sống tới lượt chấm · không được tự thay) chỉ còn một đáp án: đường CHẤM
+  từ chối chạy với lỗi nói rõ, còn đường HIỂN THỊ vẫn trả cấu hình nguyên vẹn để người dùng còn vào
+  được màn Cấu hình mà sửa. Hai đường, hai hàm, không dùng lẫn.
+- **R5.18** — Danh mục `models` là GỢI Ý cho giao diện và nguồn giá trị mặc định, KHÔNG phải trần cứng.
+  Model ngoài danh mục được phép đi đường kiểm lẫn đường chấm — **nhà cung cấp là trọng tài** về việc
+  model có tồn tại: ngày họ ra model mới, đường cứu hộ config (R9.13) phải dùng được ngay, không chờ ai
+  sửa code. Giới hạn chỉ áp cho ràng buộc KHAI TƯỜNG MINH: `chi_thue_bao`, và phương thức phải thuộc
+  danh sách phương thức của nhà cung cấp.
+- **R5.19** — Đường chấm gặp cấu hình KHUYẾT trường (model rỗng/thiếu) thì HỎI, không ĐOÁN: từ chối chạy
+  với lời nói rõ trường nào khuyết. Tự điền mặc định ở đường chấm là tự thay bằng tổ hợp người dùng
+  chưa chọn — cùng họ với điều R5.17 cấm. Đường hiển thị điền mặc định CHỈ KHI trường THIẾU hẳn; giá
+  trị CÓ MẶT nhưng ngoài danh mục thì GIỮ NGUYÊN — thay nó bằng mặc định là màn Cấu hình trông như mọi
+  thứ ổn trong khi đường chấm đang chặn đúng giá trị đó, người dùng không thấy gì để sửa. Giao diện
+  render giá trị giữ lại qua bản che của R5.20 (một option phụ, value rỗng để lượt lưu form không đè
+  mất giá trị trong config).
+- **R5.20** — Giá trị NGOÀI danh mục — model, và MỌI trường gõ tay được, gồm cả `phuong_thuc` — không
+  được vọng nguyên văn ra bất kỳ thông điệp hay bề mặt nào — kể cả thông điệp lỗi nhà cung cấp trả về
+  (họ thường chép lại trường `model` của request, mà giá trị đó có thể là một khoá dán nhầm). Che bằng
+  MỘT phép chiếu chung: giá trị trong danh mục đi qua nguyên vẹn, giá trị ngoài thành bản che mang độ
+  dài + vân tay (hai giá trị khác nhau phải cho hai bản che khác nhau). Sổ kiểm lưu ẢNH của phép chiếu,
+  và mọi phép đối chiếu với sổ so ẢNH với ẢNH — chiếu vế sổ thêm lần nữa là che-của-che, không bao giờ
+  khớp, tổ hợp model-lạ vừa kiểm xong đã «hết hiệu lực» (vòng tám của cổng bắt đúng ca này). MIỀN
+  của phép chiếu đi theo BẢN CHẤT trường, không theo ngữ cảnh dùng: `model` chiếu qua danh mục của
+  nhà cung cấp, còn `phuong_thuc` chiếu qua enum HỆ THỐNG (`DS_PHUONG_THUC`) — «thue_bao» với một
+  nhà cung cấp chỉ-API là tổ hợp không hỗ trợ nhưng vẫn là giá trị hệ thống người dùng chọn từ
+  dropdown; băm nó là giấu chính nguyên nhân trong thông điệp lỗi, trái R5.7 (vòng mười một).

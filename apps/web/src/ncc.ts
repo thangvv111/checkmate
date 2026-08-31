@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { docKho, ghiKho } from './kho-bi-mat.js';
 
@@ -10,6 +11,12 @@ import { docKho, ghiKho } from './kho-bi-mat.js';
 export type MaNcc = 'anthropic' | 'github' | 'openai' | 'google';
 export type PhuongThuc = 'thue_bao' | 'api';
 
+// MIỀN CHE của trường phuong_thuc là enum HỆ THỐNG này, KHÔNG phải danh mục của từng nhà cung cấp:
+// «thue_bao» với một ncc chỉ-API là tổ hợp không hỗ trợ nhưng vẫn là giá trị hệ thống người dùng chọn
+// từ dropdown — băm nó là giấu chính nguyên nhân trong thông điệp lỗi (vòng mười một của cổng bắt).
+// Chỉ giá trị ngoài enum này (gõ tay/khoá dán nhầm) mới đáng che theo R5.20.
+export const DS_PHUONG_THUC: readonly PhuongThuc[] = ['thue_bao', 'api'];
+
 export interface DinhNghiaNcc {
   ma: MaNcc;
   ten: string;
@@ -17,8 +24,25 @@ export interface DinhNghiaNcc {
   ngung?: string;
   phuong_thuc: PhuongThuc[]; // những phương thức nhà cung cấp này hỗ trợ
   models: string[];
+  /** R5.15 — model CHỈ dùng được với gói thuê bao, không mở cho đường API */
+  chi_thue_bao?: string[];
   khoa: { ten_bien: string; nhan: string; goi_y: string } | null; // khoá/token cần cho phương thức api
   ghi_chu: string;
+}
+
+/**
+ * R5.15 — tổ hợp model + phương thức có nằm trong giới hạn của danh mục không.
+ * MỌI cửa (form lưu, cổng kiểm, giao diện) hỏi cùng một hàm này — chặn ở một cửa mà hở cửa khác thì
+ * giới hạn chỉ là lời dặn.
+ */
+export function modelHopLe(dn: DinhNghiaNcc, phuongThuc: PhuongThuc, model: string): boolean {
+  // NGHĨA HẸP có chủ đích (R5.18, chốt sau vòng sáu của cổng): chỉ chặn vi phạm ràng buộc KHAI TƯỜNG
+  // MINH. Model ngoài danh mục KHÔNG làm false — danh mục là gợi ý cho giao diện, không phải trần
+  // cứng; nhà cung cấp là trọng tài về việc model có tồn tại. Bản đầu coi danh mục là trần đã chặn
+  // luôn đường cứu hộ config với model mới ra — hồi quy do gác quá tay.
+  if (!dn.phuong_thuc.includes(phuongThuc)) return false;
+  if (phuongThuc !== 'thue_bao' && dn.chi_thue_bao?.includes(model)) return false;
+  return true;
 }
 
 export const DANH_MUC_NCC: DinhNghiaNcc[] = [
@@ -26,7 +50,9 @@ export const DANH_MUC_NCC: DinhNghiaNcc[] = [
     ma: 'anthropic',
     ten: 'Anthropic (Claude)',
     phuong_thuc: ['thue_bao', 'api'],
-    models: ['claude-sonnet-5', 'claude-opus-5', 'claude-haiku-4-5-20251001'],
+    models: ['claude-sonnet-5', 'claude-opus-5', 'claude-fable-5', 'claude-haiku-4-5-20251001'],
+    // Fable 5 đi theo gói thuê bao của chủ máy — cố ý KHÔNG mở cho đường API (PO chốt 31/08)
+    chi_thue_bao: ['claude-fable-5'],
     khoa: { ten_bien: 'ANTHROPIC_API_KEY', nhan: 'API key Anthropic', goi_y: 'sk-ant-api03-…' },
     ghi_chu:
       'Gói thuê bao chạy qua Claude Code CLI trên máy chủ (không tiêu credit API) — cần đăng nhập bằng `claude login` hoặc dán token `claude setup-token`. Phương thức API tính tiền theo token.',
@@ -114,9 +140,44 @@ export function ghiSoKiem(ma: MaNcc, kq: KetQuaKiem): void {
 
 // Kiểm còn hiệu lực = đã kiểm OK VỚI ĐÚNG cấu hình hiện tại (đổi model hay phương thức là phải kiểm lại,
 // vì cái chạy được với model này chưa chắc chạy được với model kia).
+/**
+ * PHÉP CHIẾU chung cho giá trị cấu hình trước khi vào sổ kiểm hay đem đối chiếu (R5.20 + R5.5).
+ * Giá trị NGOÀI danh mục có thể là khoá dán nhầm → che, nhưng che phải PHÂN BIỆT được (vân tay sha256
+ * 8 hex) và phép đối chiếu hiệu lực phải dùng CÙNG phép chiếu — vòng tám của cổng bắt đúng ca sổ lưu
+ * bản che còn đối chiếu so bản thô, làm tổ hợp đã kiểm không bao giờ còn hiệu lực.
+ */
+export function chieuGiaTri(giaTri: unknown, danhMuc: readonly string[]): string {
+  // TOÀN PHẦN có chủ đích: phép chiếu đứng ở cuối nhiều đường (thông điệp lỗi, sổ kiểm, đối chiếu,
+  // giao diện) — nó mà ném với đầu vào khuyết/sai kiểu là đánh sập cả lượt chấm ở đúng chỗ chỉ định
+  // hiển thị (vòng mười của cổng bắt: thuNcc nổ .length trên undefined). Khuyết → «(thiếu)»; sai
+  // kiểu → ép chuỗi rồi chiếu như thường (giá trị CÓ MẶT phải giữ dấu vết, không được nuốt).
+  if (giaTri == null || giaTri === '') return '(thiếu)';
+  const s = String(giaTri);
+  if (danhMuc.includes(s)) return s;
+  return `(ngoài danh mục — ${s.length} ký tự, sha256:${createHash('sha256').update(s).digest('hex').slice(0, 8)})`;
+}
+
 export function kiemConHieuLuc(ma: MaNcc, cfg: CauHinhNcc): KetQuaKiem | null {
   const k = docSoKiem()[ma];
   if (!k?.ok) return null;
-  if (k.model !== cfg.model || k.phuong_thuc !== cfg.phuong_thuc) return null;
+  // So bằng CÙNG phép chiếu với lúc ghi sổ: sổ giữ bản che của giá trị ngoài danh mục (R5.20), nên so
+  // bản thô là tổ hợp model-lạ vừa kiểm xong đã «hết hiệu lực» ngay — người dùng model mới không bao
+  // giờ chọn được nhà cung cấp.
+  // Cấu hình khuyết trường → từ chối ÊM (null), không ném: đường cứu hộ config (R9.13) không hứa
+  // hình dạng đủ, và cửa kiểm nổ TypeError là đánh sập cả lượt chấm thay vì bỏ qua một nhà cung cấp
+  // (vòng chín của cổng bắt hồi quy này trên chính bản vá vòng tám).
+  if (typeof cfg.model !== 'string' || !cfg.model.trim() || !cfg.phuong_thuc) return null;
+  const dn = dinhNghia(ma);
+  // R5.15 — «MỌI cửa phải tôn trọng giới hạn model», và cửa quyết định một nhà cung cấp có được dùng
+  // để chấm hay không chính là cửa này: hàng sổ đời cũ hay sửa tay mang tổ hợp cấm không được mở cổng,
+  // dù sổ nói đã kiểm OK (vòng chín).
+  if (!modelHopLe(dn, cfg.phuong_thuc, cfg.model)) return null;
+  // Sổ luôn lưu ẢNH của phép chiếu (xong() ghi bản che cho giá trị lạ) — nên chiếu vế cấu hình rồi so
+  // ảnh với ảnh, ĐỀU TAY cả hai trường (R5.20 gồm cả phuong_thuc — vòng chín bắt vế so lệch). Chiếu
+  // vế sổ thêm lần nữa là che-của-che, không bao giờ khớp — test của bản vá vòng tám bắt ra.
+  // Sổ đời cũ lỡ lưu giá trị lạ dạng thô thì so ảnh sẽ lệch → coi như hết hiệu lực, phải Kiểm tra
+  // lại — lệch về phía nói KHÔNG, đúng chiều an toàn.
+  if ((k.model ?? '') !== chieuGiaTri(cfg.model, dn.models)) return null;
+  if ((k.phuong_thuc ?? '') !== chieuGiaTri(String(cfg.phuong_thuc), DS_PHUONG_THUC)) return null;
   return k;
 }

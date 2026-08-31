@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { dinhNghia, docKhoa, type CauHinhNcc, type MaNcc } from './ncc.js';
+import { chieuGiaTri, dinhNghia, docKhoa, DS_PHUONG_THUC, modelHopLe, type CauHinhNcc, type MaNcc } from './ncc.js';
 import { docKho, ghiKho, docTokenRieng, ghiTokenRepo } from './kho-bi-mat.js';
 
 // Chế độ vận hành (spec §9): demo = deploy public, khoá repo demo, Settings chỉ-đọc (fail-closed);
@@ -150,8 +150,12 @@ export function docConfig(): CheckmateConfig {
 // mà không bắt người dùng cấu hình lại từ đầu.
 function nangCapAgent(a?: Partial<AgentConfig>): AgentConfig {
   if (!a) return structuredClone(MAC_DINH.agent);
-  if (a.ncc && a.ncc_cau_hinh) {
-    return { ...MAC_DINH.agent, ...a, ncc_cau_hinh: { ...MAC_DINH.agent.ncc_cau_hinh, ...a.ncc_cau_hinh } } as AgentConfig;
+  if (a.ncc) {
+    // Có `ncc` là config KIỂU MỚI — kể cả khi cụm ncc_cau_hinh null/thiếu (JSON.parse('null') hợp lệ,
+    // file sửa tay có thể mang nó). Bản trước đòi cả hai trường nên cụm null rơi xuống nhánh đời-cũ
+    // phía dưới và ÂM THẦM đổi ncc về anthropic — giấu mất lựa chọn của người dùng, cùng họ với lỗi
+    // «thay giá trị lạ bằng mặc định» mà vòng tám của cổng bắt.
+    return { ...MAC_DINH.agent, ...a, ncc_cau_hinh: { ...MAC_DINH.agent.ncc_cau_hinh, ...(a.ncc_cau_hinh ?? {}) } } as AgentConfig;
   }
   return {
     ncc: 'anthropic',
@@ -165,7 +169,70 @@ function nangCapAgent(a?: Partial<AgentConfig>): AgentConfig {
 
 export function cauHinhHienTai(c: CheckmateConfig): CauHinhNcc {
   const dn = dinhNghia(c.agent.ncc);
-  return c.agent.ncc_cau_hinh[c.agent.ncc] ?? { phuong_thuc: dn.phuong_thuc[0], model: dn.models[0] };
+  const tho = (c.agent.ncc_cau_hinh ?? {})[c.agent.ncc];
+  // Đường hiển thị: điền mặc định CHỈ KHI THIẾU, còn giá trị LẠ thì GIỮ NGUYÊN — thay nó bằng mặc định
+  // là màn Cấu hình trông như mọi thứ ổn trong khi đường chấm đang chặn đúng giá trị đó, và người dùng
+  // không thấy gì để sửa (vòng tám của cổng bắt). Đường chấm (cauHinhDeCham) tự validate, không dùng
+  // kết quả điền ở đây.
+  const cfg: CauHinhNcc = {
+    ...tho,
+    phuong_thuc: (tho?.phuong_thuc ?? dn.phuong_thuc[0]) as CauHinhNcc['phuong_thuc'],
+    // Giá trị CÓ MẶT nhưng SAI KIỂU (model: 42) cũng phải giữ — ép chuỗi để render, không thay bằng
+    // mặc định (vòng mười: màn hình báo model mặc định trong khi đường chấm chặn đúng giá trị này).
+    model: tho?.model != null && String(tho.model).trim() ? String(tho.model) : dn.models[0],
+  };
+  // Đường HIỂN THỊ: trả nguyên vẹn (kể cả tổ hợp cấm) để màn Cấu hình còn render được cho người dùng
+  // sửa. Gác giới hạn nằm ở cauHinhDeCham — đường CHẤM (R5.17).
+  return cfg;
+}
+
+/** Lỗi cấu hình nhà cung cấp — chỗ khởi chạy chấm bắt cái này để từ chối với lời rõ, không phải 500 */
+export class LoiCauHinhNcc extends Error {}
+
+/**
+ * Cấu hình cho ĐƯỜNG CHẤM — mọi lượt chấm phải lấy cấu hình qua đây, không qua cauHinhHienTai.
+ *
+ * R5.15 + R5.17, chốt sau HAI vòng cổng bắt hai hướng ngược nhau: vòng ba bắt «tổ hợp cấm từ config
+ * sửa tay sống tới lượt chấm» (ba cửa giao diện đều gác nhưng cửa đọc — cửa thật — thì không); bản vá
+ * rơi-mềm-về-model-khác bị vòng năm bắt tiếp «âm thầm thay model, mở cổng kiểm cho tổ hợp chưa kiểm».
+ * Giao của hai yêu cầu chỉ còn một đáp án: TỪ CHỐI CHẠY, nói rõ, để người dùng tự sửa — không dùng
+ * nguyên, không thay hộ. Không vọng nguyên văn giá trị ngoài danh mục (có thể là khoá dán nhầm).
+ */
+export function cauHinhDeCham(c: CheckmateConfig): CauHinhNcc {
+  const dn = dinhNghia(c.agent.ncc);
+  const tho = (c.agent.ncc_cau_hinh ?? {})[c.agent.ncc];
+  // R5.17 + R5.19, áp ĐỀU TAY (vòng bảy của cổng bắt ba chỗ áp lệch): đường chấm đọc cấu hình THÔ và
+  // tự validate từng trường — không mượn cauHinhHienTai, vì đường hiển thị có điền mặc định, mà điền ở
+  // đường chấm là tự thay thứ người dùng chưa chọn. Khuyết CẢ CỤM cũng hỏi, khuyết MỘT TRƯỜNG cũng hỏi,
+  // và PHƯƠNG THỨC lạ cũng hỏi — không riêng model.
+  const goiY = 'Lượt chấm không chạy — vào ⚙ Cấu hình chọn rồi bấm Kiểm tra.';
+  // `== null` loose CÓ CHỦ ĐÍCH: JSON sửa tay có thể mang `"anthropic": null` — null đè lên mặc định
+  // qua spread của nangCapAgent rồi lọt qua gác `=== undefined`, và dòng đọc tho.model phía dưới nổ
+  // TypeError thành 500 (vòng mười của cổng bắt). Null hay thiếu hẳn đều là «chưa được cấu hình».
+  if (tho == null) {
+    throw new LoiCauHinhNcc(`Nhà cung cấp ${dn.ten} chưa được cấu hình. ${goiY}`);
+  }
+  if (typeof tho.model !== 'string' || !tho.model.trim()) {
+    throw new LoiCauHinhNcc(`Cấu hình ${dn.ten} thiếu trường «model» (config.json sửa tay?). ${goiY}`);
+  }
+  if (!tho.phuong_thuc) {
+    // THIẾU HẲN nói «thiếu trường» — gộp vào nhánh «không hỗ trợ ((thiếu))» là sai nguyên nhân (R5.7,
+    // cùng họ với finding vòng một), và lệch lời với cửa song sinh thuNcc vốn nói «thiếu trường».
+    throw new LoiCauHinhNcc(`Cấu hình ${dn.ten} thiếu trường «phương thức» (config.json sửa tay?). ${goiY}`);
+  }
+  if (!dn.phuong_thuc.includes(tho.phuong_thuc)) {
+    // Che giá trị lạ (R5.20 áp cho MỌI trường gõ tay được, không riêng model): người dán nhầm khoá vào
+    // trường phương thức của config.json cũng không được thấy nó vọng ra thông điệp.
+    // Chiếu qua enum HỆ THỐNG, không phải danh mục ncc — «thue_bao» cho ncc chỉ-API phải hiện
+    // nguyên văn để người dùng biết đổi cái gì; toàn phần: khuyết → «(thiếu)» (vòng mười một).
+    const ptChe = chieuGiaTri(tho.phuong_thuc, DS_PHUONG_THUC);
+    throw new LoiCauHinhNcc(`Cấu hình ${dn.ten} mang phương thức không hỗ trợ (${ptChe}) — ${dn.ten} chỉ có: ${dn.phuong_thuc.join(', ')}. ${goiY}`);
+  }
+  if (!modelHopLe(dn, tho.phuong_thuc, tho.model)) {
+    const che = dn.models.includes(tho.model) ? tho.model : `(ngoài danh mục — ${tho.model.length} ký tự)`;
+    throw new LoiCauHinhNcc(`Cấu hình ${dn.ten} đang mang tổ hợp không được phép: model ${che} với phương thức «${tho.phuong_thuc}» (R5.15). ${goiY}`);
+  }
+  return tho as CauHinhNcc;
 }
 
 export function ghiConfig(c: CheckmateConfig): void {
@@ -236,7 +303,8 @@ export function cheToken2(t: string): string {
 }
 
 export function envAgent(c: CheckmateConfig): NodeJS.ProcessEnv {
-  const cfg = cauHinhHienTai(c);
+  // Đường chấm — tổ hợp cấm ném LoiCauHinhNcc tại đây, mọi đường khởi chạy đều đi qua (R5.17)
+  const cfg = cauHinhDeCham(c);
   const ncc = c.agent.ncc;
   const dn = dinhNghia(ncc);
   const tokenTb = docTokenThueBao();

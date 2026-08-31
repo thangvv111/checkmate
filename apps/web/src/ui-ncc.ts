@@ -1,5 +1,5 @@
 import { escHtml } from './ui.js';
-import { DANH_MUC_NCC, type CauHinhNcc, type KetQuaKiem, type MaNcc, type PhuongThuc } from './ncc.js';
+import { chieuGiaTri, DANH_MUC_NCC, DS_PHUONG_THUC, type CauHinhNcc, type KetQuaKiem, type MaNcc, type PhuongThuc } from './ncc.js';
 import type { TrangThaiNcc } from './nguon-model.js';
 
 // Khối "Nhà cung cấp model" trong Cấu hình: mỗi nhà cung cấp một thẻ gập cho gọn,
@@ -61,11 +61,31 @@ export function khoiNcc(v: KhoiNccView): string {
       <label style="font-size:12.5px;font-weight:600">Phương thức<br>
         <select name="pt_${dn.ma}" ${ro2} ${dn.phuong_thuc.length < 2 ? 'disabled' : ''} style="margin-top:4px;padding:6px 9px;border:1px solid var(--line);border-radius:7px">
           ${dn.phuong_thuc.map((p) => `<option value="${p}" ${cfg.phuong_thuc === p ? 'selected' : ''}>${NHAN_PT[p]}</option>`).join('')}
+          ${
+            // Giá trị trong config NGOÀI danh mục: không có option khớp thì trình duyệt lặng lẽ hiện
+            // option đầu — giấu đúng thứ đang làm đường chấm chặn (vòng tám, finding 3). Hiện bản che
+            // (R5.20 — có thể là khoá dán nhầm) để người dùng thấy có thứ phải sửa.
+            dn.phuong_thuc.includes(cfg.phuong_thuc) ? '' : `<option value="" selected disabled>⚠ trong config: ${escHtml(chieuGiaTri(cfg.phuong_thuc, DS_PHUONG_THUC))}</option>`
+          }
         </select>
       </label>
       <label style="font-size:12.5px;font-weight:600">Model<br>
         <select name="model_${dn.ma}" ${ro2} style="margin-top:4px;padding:6px 9px;border:1px solid var(--line);border-radius:7px">
-          ${dn.models.map((m) => `<option value="${m}" ${cfg.model === m ? 'selected' : ''}>${m}</option>`).join('')}
+          ${dn.models
+            .map((m) => {
+              const chiTb = dn.chi_thue_bao?.includes(m) ?? false;
+              // R5.15 — khoá ngay ở giao diện khi phương thức đang chọn là API; JS bên dưới cập nhật
+              // lại khi người dùng đổi phương thức. Server vẫn validate — UI chỉ là cửa thứ ba.
+              const khoa = chiTb && cfg.phuong_thuc === 'api' ? 'disabled' : '';
+              return `<option value="${m}" data-chi-thue-bao="${chiTb ? '1' : '0'}" ${khoa} ${cfg.model === m ? 'selected' : ''}>${m}${chiTb ? ' (chỉ gói thuê bao)' : ''}</option>`;
+            })
+            .join('')}
+          ${
+            // value RỖNG có chủ đích: server nhận rỗng thì GIỮ giá trị cũ trong config (round-trip an
+            // toàn), còn value thô là vọng nguyên văn ra HTML — R5.20 áp cho mọi bề mặt, giá trị này
+            // có thể là khoá dán nhầm.
+            dn.models.includes(cfg.model) ? '' : `<option value="" selected>⚠ trong config: ${escHtml(chieuGiaTri(cfg.model, dn.models))}</option>`
+          }
         </select>
       </label>
     </div>
@@ -100,6 +120,26 @@ export function khoiNcc(v: KhoiNccView): string {
 }
 
 export const JS_NCC = `
+  // R5.15 — đổi phương thức thì khoá/mở model chỉ-thuê-bao ngay tại chỗ (server vẫn validate lại)
+  document.querySelectorAll('select[name^="pt_"]').forEach(function (sel) {
+    var ma = sel.name.slice(3);
+    var selModel = document.querySelector('select[name="model_' + ma + '"]');
+    if (!selModel) return;
+    sel.addEventListener('change', function () {
+      var api = sel.value === 'api';
+      var doiLai = false;
+      selModel.querySelectorAll('option').forEach(function (o) {
+        if (o.dataset.chiThueBao === '1') {
+          o.disabled = api;
+          if (api && o.selected) { o.selected = false; doiLai = true; }
+        }
+      });
+      if (doiLai) {
+        var dau = selModel.querySelector('option:not([disabled])');
+        if (dau) dau.selected = true;
+      }
+    });
+  });
   function ganKq(ma, txt, mau){ var o=document.querySelector('.kq-kiem[data-ncc="'+ma+'"]'); if(o){ o.textContent=txt; o.style.color=mau; } }
   document.querySelectorAll('.nut-kiem').forEach(function(b){
     b.addEventListener('click', function(){
