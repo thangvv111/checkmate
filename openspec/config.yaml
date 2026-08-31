@@ -1,28 +1,50 @@
-schema: spec-driven
+# rules ở đây là MAP PHẲNG GLOBAL — inject vào MỌI schema có artifact ID trùng tên. Vì vậy chỉ
+# giữ key có mặt ở CẢ HAI schema (checkmate + checkmate-fix-bug): `tasks` và `test-cases`.
+# Luật riêng của proposal/specs/design/security nhúng vào instruction trong
+# schemas/checkmate/schema.yaml, KHÔNG thêm key vào đây (thêm sẽ bắn warning "Unknown artifact ID"
+# ở schema không có artifact đó — upstream Fission-AI/OpenSpec #1322, kiểm lại mỗi lần nâng CLI).
+schema: checkmate
 
 context: |
-  Language: vi
-  All artifacts must be written in vi.
-  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+  Ngôn ngữ artifact: tiếng Việt. Giữ nguyên tiếng Anh các heading cấu trúc của OpenSpec và từ khoá
+  SHALL/MUST. Thuật ngữ kỹ thuật giữ tiếng Anh + giải thích Việt trong ngoặc ở lần đầu xuất hiện.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  CheckMate — maker–checker cho code và tài liệu, TypeScript strict + Node 22 + vitest.
+  Monorepo: `apps/web` (server Express, UI dựng chuỗi HTML, cấu hình, cổng) · `packages/harness`
+  (engine chấm: target → sinh probe → sandbox git-worktree 2 nhánh → máy phân loại → verdict) ·
+  `packages/shared` (kiểu dùng chung). Dữ liệu: SQLite (`web-runs/`) + file JSON (`probes-lib/`,
+  `.ncc-verify.json`, `config.json`, `.secrets.json`).
 
-# Per-operation guidance (optional)
-# Add advisory guidance for how apply and archive work should be conducted.
-# This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+  ⛔ HAI TẦNG SPEC — KHÔNG TRỘN (PO chốt 31/08, phương án A):
+  · `specs/R1..R12*.md` ở gốc repo = LUẬT HÀNH VI, là ĐẦU VÀO MÁY ĐỌC của engine. Engine nạp thư
+    mục này để sinh probe; R1.19 so `specs/` giữa hai nhánh để phát hiện «luật chỉ có ở nhánh PR».
+    Đường dẫn hardcode trong `packages/harness/src/target.ts` — không di dời.
+  · `openspec/specs/<capability>/` = NĂNG LỰC theo ngôn ngữ quy trình, sinh ra từ các change.
+  Change đẻ luật mới thì viết vào CẢ HAI, và hai bên phải nói cùng một điều — lệch nhau thì chính
+  cổng chấm sẽ bắt.
+
+  CheckMate TỰ CHẤM CHÍNH NÓ: mọi PR đi qua bản CheckMate chạy trên prod (chế độ trực, poller
+  300s). Quy trình merge: mở PR → chờ verdict → PASS mới merge. KHÔNG merge khi FAIL; merge với
+  finding không-chặn phải ghi nợ CÔNG KHAI trong comment PR. Máy KHÔNG BAO GIỜ tự merge (R6.19).
+
+  Hợp đồng repo: `checkmate.yml` khai bảng module/hàm cho engine. Thêm/đổi export mà quên khai →
+  lưới `test/hop-dong-repo.test.ts` đỏ (đã bắt hụt 5 lần trong lịch sử repo).
+
+rules:
+  tasks:
+    - Task phải là checkbox `- [ ] X.Y` — pha apply đọc checkbox để theo dõi, dòng không đúng dạng sẽ không được tính
+    - Proposal khai CÓ chạm luật R → PHẢI có task tường minh viết luật vào `specs/R*.md`; engine chỉ biết luật nào có thật qua thư mục đó
+    - Thêm/đổi export → PHẢI có task khai vào bảng module của `checkmate.yml` (hoặc ghi N/A kèm lý do)
+  test-cases:
+    - Section "Trục nhạy cảm" trong template là BẮT BUỘC — điền test hoặc đánh `[N/A]` kèm lý do, KHÔNG được xoá
+    - Mỗi ca khoá lỗi phải ĐỎ trên code trước khi vá — test không đỏ trước fix là test mồ côi, không chứng minh được nó đang canh gì
+    - "Suite xanh KHÔNG đủ: hỏng nguy hiểm nhất của một cổng chấm là XANH GIẢ, nên phải có ca «đường sai / actor sai / đầu vào khuyết → bị chặn»"
+
+operations:
+  apply:
+    guidance:
+      - Chạy `npx tsc --noEmit` và `npm test` TOÀN BỘ trước khi mở PR — không chỉ file vừa sửa
+      - Verdict FAIL thì vá và push lại; cổng chấm lại tự động theo commit
+  archive:
+    guidance:
+      - Chỉ archive sau khi PR đã merge qua cổng; nợ chấp-nhận-có-ý-thức phải được ghi lại ở nơi tra được

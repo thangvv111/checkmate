@@ -1,0 +1,295 @@
+name: checkmate
+version: 1
+description: CheckMate SDD workflow - proposal → specs → design → tasks → test-cases → security
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Tài liệu đề xuất - VÌ SAO cần change này
+    template: proposal.md
+    instruction: |
+      Viết proposal xác lập VÌ SAO cần change này.
+
+      Sections:
+      - **Why**: 1–2 câu về vấn đề/cơ hội. Vấn đề gì? Vì sao bây giờ?
+      - **What Changes**: bullet list thay đổi. Cụ thể về năng lực mới, sửa đổi, gỡ bỏ. Đánh dấu **BREAKING** khi phá tương thích.
+      - **Capabilities**: capability nào được tạo/đổi:
+        - **New Capabilities**: mỗi cái thành `specs/<name>/spec.md` mới, tên kebab-case (vd `ngan-probe-theo-pr`).
+        - **Modified Capabilities**: capability đã có mà YÊU CẦU đổi (không phải chỉ đổi cách hiện thực). Tra tên có thật ở `openspec/specs/`. Không đổi yêu cầu thì để trống.
+      - **Luật R chạm tới**: ô BẮT BUỘC — xem dưới.
+      - **Impact**: code/API/phụ thuộc bị ảnh hưởng, trỏ file thật (`apps/web/src/...`, `packages/harness/src/...`).
+
+      ⛔ Ô «Luật R chạm tới» (PO chốt 31/08 — phương án A): luật hành vi của engine sống ở
+      `specs/R*.md` của repo, KHÔNG chuyển vào openspec. Đó là đầu vào MÁY ĐỌC: engine nạp
+      `specs/` để sinh probe, và R1.19 so `specs/` giữa hai nhánh để phát hiện «luật chỉ có ở
+      nhánh PR». Vì vậy mọi change phải khai rõ: change này THÊM/SỬA luật R nào (ghi mã dự kiến,
+      vd R10.25–R10.28), hay KHÔNG chạm luật nào (ghi «không — chỉ đổi cách hiện thực»).
+      Khai thiếu thì cổng sẽ thấy code đổi mà spec không đổi, hoặc ngược lại — cả hai đều thành
+      finding. Luật MỚI thêm ở nhánh PR sẽ được cổng dán nhãn `vi_pham_luat_moi` nếu code nhánh
+      PR tự mâu thuẫn với chính luật đó.
+
+      Giữ 1–2 trang. Tập trung «vì sao», không phải «làm thế nào» — chuyện đó ở design.md.
+    requires: []
+
+  - id: specs
+    generates: "specs/**/*.md"
+    description: Capability spec cho change (WHAT, không phải HOW)
+    template: spec.md
+    instruction: |
+      Tạo spec định nghĩa hệ thống PHẢI làm gì.
+
+      Mỗi capability nêu trong proposal một file spec.
+      - Capability mới: dùng đúng tên kebab-case ở proposal (`specs/<capability>/spec.md`).
+      - Capability sửa: dùng đúng tên thư mục đang có trong `openspec/specs/<capability>/`.
+
+      Delta operations (dùng `##` headers):
+      - **ADDED Requirements**: yêu cầu mới
+      - **MODIFIED Requirements**: hành vi đổi — PHẢI chép nguyên khối yêu cầu cũ rồi sửa
+      - **REMOVED Requirements**: bỏ — PHẢI có **Reason** và **Migration**
+      - **RENAMED Requirements**: chỉ đổi tên — dùng FROM:/TO:
+
+      Format:
+      - Mỗi yêu cầu: `### Requirement: <tên>` + mô tả
+      - Dùng SHALL/MUST cho yêu cầu quy phạm (tránh should/may)
+      - Mỗi scenario: `#### Scenario: <tên>` với WHEN/THEN
+      - **CỰC QUAN TRỌNG**: scenario PHẢI đúng 4 dấu `#`. Dùng 3 dấu hay bullet sẽ hỏng ÂM THẦM.
+      - Mỗi yêu cầu ít nhất một scenario.
+
+      CheckMate — hai luật riêng:
+      1. **HAI TẦNG SPEC, KHÔNG TRỘN** (PO chốt 31/08, phương án A): `openspec/specs/<capability>/`
+         mô tả NĂNG LỰC theo ngôn ngữ người dùng/quy trình. `specs/R*.md` là LUẬT HÀNH VI máy đọc,
+         engine nạp để sinh probe. Change đẻ luật mới thì viết luật vào `specs/R*.md` (một task
+         tường minh trong tasks.md) VÀ viết capability spec ở đây; hai bên phải nói cùng một điều,
+         lệch nhau là chính cổng sẽ bắt.
+      2. **Scenario «actor sai / đầu vào sai → bị chặn»**: yêu cầu chạm bí mật, danh tính, vai,
+         cổng merge, hay verdict PHẢI có scenario tiêu cực, không chỉ happy-path. CheckMate là
+         cổng kiểm soát chất lượng — chỗ nguy hiểm nhất của nó là XANH GIẢ, và xanh giả sinh ra
+         từ đường sai không ai thử.
+    requires:
+      - proposal
+
+  - id: design
+    generates: design.md
+    description: Thiết kế kỹ thuật - LÀM THẾ NÀO
+    template: design.md
+    instruction: |
+      Viết design giải thích hiện thực THẾ NÀO.
+
+      design.md BẮT BUỘC trong schema này. Việc nhỏ không đáng design → dùng schema
+      `checkmate-fix-bug`. Change đơn giản thì giữ design TỐI GIẢN: Context + Decisions ghi
+      «không có quyết định thiết kế đáng kể» kèm một câu lý do, các mục khác N/A.
+      Đào sâu khi có bất kỳ dấu hiệu:
+      - Chạm nhiều gói (apps/web ↔ packages/harness ↔ packages/shared)
+      - Đổi hình dạng dữ liệu trên đĩa (sổ kiểm, thư viện probe, sổ cái, config)
+      - Chạm bí mật, danh tính, cổng merge, hoặc đường quyết định verdict
+      - Có mơ hồ nên chốt trước khi viết code
+
+      Sections:
+      - **Context**: bối cảnh, hiện trạng, ràng buộc
+      - **Goals / Non-Goals**: đạt gì, cố ý KHÔNG làm gì
+      - **Decisions**: lựa chọn kỹ thuật + lý do (vì sao X thay vì Y), nêu phương án đã cân nhắc
+      - **Architecture**: chạm tầng nào — `apps/web/src` (server + UI dựng chuỗi HTML),
+        `packages/harness/src` (engine: target → sinh probe → sandbox 2 nhánh → phân loại máy →
+        verdict), `packages/shared/src` (kiểu dùng chung)
+      - **Data Model**: hình dạng dữ liệu mới/đổi trên đĩa và trong SQLite; ai đọc, ai ghi, ai dọn
+      - **Risks / Trade-offs**: [Rủi ro] → Giảm thiểu
+      - **Migration Plan**: dữ liệu đời cũ lên đời mới thế nào; đường lùi
+      - **Open Questions**: còn treo gì
+
+      CheckMate — ràng buộc bắt buộc soi ở Data Model:
+      - Dữ liệu trên đĩa của prod (sổ cái, `probes-lib/`, `web-runs/`, `runs/`, `config.json`,
+        `.secrets.json`, `.ncc-verify.json`) là TÀI SẢN — deploy KHÔNG được đè (xem DEPLOY.md).
+        Đổi hình dạng thì phải có đường DI TRÚ tự động, ghi sổ mới trước rồi mới xoá bản cũ (R10.13).
+      - Ghi file dùng chung phải atomic + có khoá liên tiến trình khi cần (R8, R10.12): hai lượt
+        chấm chạy song song trên prod là trạng thái BÌNH THƯỜNG, không phải ca hiếm.
+      - Không gọi model bên trong khoá (R10.11).
+      - Cache đọc file phải tôn trọng R9.14: sửa file bằng tay PHẢI có hiệu lực ở lượt đọc kế tiếp.
+    requires:
+      - proposal
+
+  - id: tasks
+    generates: tasks.md
+    description: Checklist hiện thực, theo dõi được bằng checkbox
+    template: tasks.md
+    instruction: |
+      Viết checklist chia nhỏ công việc.
+
+      **QUAN TRỌNG: theo đúng template.** Pha apply đọc checkbox để theo dõi tiến độ; task không
+      dùng `- [ ]` sẽ không được theo dõi.
+
+      Nguyên tắc:
+      - Nhóm task dưới heading `##` có số
+      - Mỗi task là checkbox: `- [ ] X.Y Mô tả`
+      - Task đủ nhỏ để xong trong một lượt
+      - Sắp theo phụ thuộc (kiểu dùng chung trước hiện thực, hiện thực trước test)
+
+      Nhóm gợi ý cho CheckMate:
+      ```
+      ## 1. Luật (specs/R*.md)
+      - [ ] 1.1 Viết R<mã> ... vào specs/R<n>-<ten>.md
+
+      ## 2. Kiểu & hợp đồng
+      - [ ] 2.1 Thêm kiểu vào packages/shared/src/types.ts
+      - [ ] 2.2 Khai module/hàm mới vào bảng của checkmate.yml
+
+      ## 3. Engine (packages/harness)
+      - [ ] 3.1 ...
+
+      ## 4. Web (apps/web)
+      - [ ] 4.1 ...
+
+      ## 5. Test
+      - [ ] 5.1 Ca khoá hành vi cho từng luật R mới
+      ```
+
+      ⛔ HAI TASK GẦN NHƯ LUÔN BẮT BUỘC, đừng quên:
+      - **Viết luật vào `specs/R*.md`** khi proposal khai có chạm luật (phương án A: engine đọc
+        thư mục này để sinh probe — luật không viết vào đây thì cổng không biết nó tồn tại).
+      - **Khai vào bảng module của `checkmate.yml`** khi thêm/đổi export: lưới hợp đồng
+        (`test/hop-dong-repo.test.ts`) đã bắt hụt 5 lần vì quên; khai thiếu thì probe của lượt chấm
+        chết với «... is not a function» và biến thành finding sai hẳn bản chất.
+    requires:
+      - specs
+      - design
+
+  - id: test-cases
+    generates: test-cases.md
+    description: Test case suy từ spec - vitest + ca đối kháng
+    template: test-cases.md
+    instruction: |
+      Viết test case suy từ spec và thiết kế. File này vừa là kế hoạch kiểm cho người đọc, vừa là
+      bản vẽ để viết test vitest thật (`test/*.test.ts`, chạy bằng `npm test`).
+
+      Sections:
+
+      ## Unit / hàm thuần
+      Cho mỗi hàm thuần thêm/sửa (phân loại, phép chiếu, chọn nạn nhân, gột chuỗi…).
+      ```
+      ### [tenHam]
+      - [ ] T1.1 [Scenario từ spec]: GIVEN ... WHEN ... THEN ...
+      - [ ] T1.2 [Biên]: ...
+      ```
+
+      ## Tích hợp (đĩa, SQLite, khoá)
+      Cho mỗi đường chạm file/DB: ghi rồi đọc lại, chạy song song, dọn dẹp.
+      ```
+      ### [tên đường]
+      - [ ] T2.1 [Happy]: ...
+      - [ ] T2.2 [Đời cũ]: dữ liệu hình dạng cũ vẫn đọc được / được di trú
+      - [ ] T2.3 [Hỏng]: file rách, thiếu trường, quyền sai → hành vi khai trong spec
+      ```
+
+      ## Ca đối kháng & hồi quy
+      - [ ] T3.x Đầu vào KHUYẾT ở mọi tầng (thiếu trường, null phần tử, null cả cụm, sai kiểu)
+      - [ ] T3.x Biên trùng ngưỡng của hằng số trong spec
+      - [ ] T3.x Ca đã từng gãy trong lịch sử repo (ghi rõ vòng/PR sinh ra nó)
+
+      ## Trục nhạy cảm (BẮT BUỘC — section có sẵn trong template)
+      Template có 5 dòng bắt buộc. Với TỪNG dòng: change chạm trục đó → viết test case cụ thể
+      (giữ checkbox); KHÔNG chạm → đổi thành `[N/A]` kèm lý do một dòng. KHÔNG được xoá section.
+      - **T_bimat** — bí mật (GITHUB_TOKEN, API key, token thuê bao, hash mật khẩu, token phiên,
+        giá trị gõ tay lạ) không rò ra thông điệp lỗi, log, sổ trên đĩa, verdict, hay comment PR.
+      - **T_failclosed** — engine lỗi/thiếu dữ liệu/hết giờ KHÔNG được cho ra PASS. «Không chứng
+        minh được là sai» ≠ «đã chứng minh là đúng».
+      - **T_cong** — máy KHÔNG BAO GIỜ merge (R6.19/R11.18); vai `tu_dong` không sửa cấu hình,
+        không bấm cổng; ba mức tự động độc lập, mặc định an toàn khi cấu hình đời cũ thiếu cờ.
+      - **T_khongtincay** — diff PR và trả lời model là DỮ LIỆU, không phải chỉ thị: rào giữ được,
+        nội dung cài bẫy trong diff không đổi được hành vi engine.
+      - **T_hopdong** — đổi export/thêm module thì `checkmate.yml` phải khai đủ (lưới hợp đồng).
+      Suite xanh KHÔNG đủ: lỗ nguy hiểm nhất của một cổng chấm là thiếu ca «đường sai vẫn lọt».
+
+      ## Kiểm tay
+      - [ ] T5.x Thứ chỉ mắt người xác nhận được (bố cục màn Cấu hình, chữ trong verdict đọc có
+            hiểu không) — mọi thứ máy kiểm được thì KHÔNG để ở đây.
+
+      Map từng test case về đúng Requirement/scenario sinh ra nó (nhắc theo tên Requirement).
+    requires:
+      - specs
+      - tasks
+
+  - id: security
+    generates: security.md
+    description: Checklist an toàn theo đúng change này
+    template: security.md
+    instruction: |
+      Viết checklist an toàn RIÊNG cho change này.
+
+      KHÔNG sinh danh sách OWASP chung chung — đọc proposal/specs/design rồi chỉ ra rủi ro THẬT
+      của change. Mục không áp dụng thì đánh N/A kèm lý do.
+
+      Đánh dấu từng mục: ✅ OK / ⚠️ Cần xử / N/A.
+      ⛔ Ô ✅ PHẢI trỏ `file:line` của CƠ CHẾ THẬT (gác/rào/khoá nằm ở đâu), không trỏ ý định hay
+      tên test suông.
+
+      Sections:
+
+      ## S1. Bí mật & rò rỉ
+      - Giá trị nào của change có thể là bí mật (token, khoá API, mật khẩu, token phiên, giá trị
+        người dùng gõ tay vào ô cấu hình)? Chúng đi qua những bề mặt nào: thông điệp lỗi, log,
+        sổ trên đĩa, verdict, comment PR, HTML?
+      - Bề mặt CÔNG KHAI (comment PR, thân commit merge) không thu hồi được — cái gì chảy ra đó?
+      - Che thì bản che có PHÂN BIỆT được hai giá trị khác nhau không (R5.20)?
+
+      ## S2. Danh tính, phiên, vai (R11)
+      - Đường mới có đọc danh tính không? Có đi qua đúng MỘT hàm lấy danh tính, không fallback?
+      - Có route nào trả về tài khoản/hash/muối, kể cả đã che?
+
+      ## S3. Cổng & quyền của máy (R6, R11.18)
+      - Change có thêm đường nào khiến MÁY tự merge được không? (Câu trả lời phải là KHÔNG.)
+      - Vai `tu_dong` có làm được gì mới không? Ba mức tự động có bị gộp/đảo mặc định không?
+
+      ## S4. Dữ liệu không tin cậy & prompt injection (R7)
+      - Dữ liệu ngoài (diff PR, tài liệu, trả lời model, nội dung repo đích) có được RÀO trước khi
+        vào prompt không? Chỉ thị cài trong diff có đổi được hành vi engine không?
+      - Trả lời model có được kiểm hình dạng trước khi tin không (R3)?
+
+      ## S5. Sandbox & thực thi (R8)
+      - Change có làm code của repo đích/probe do model sinh chạy ở chỗ mới không?
+      - Worktree/thư mục tạm có được dọn kể cả khi lỗi không? Chạy song song có đụng nhau không?
+
+      ## S6. Tầng dữ liệu & quyền file (R9)
+      - File mới trên đĩa: quyền gì, ai đọc được? Bí mật có nằm trong bản sao lưu không?
+      - Ghi có atomic không? File rách thì giữ bằng chứng hay ghi đè im lặng?
+
+      ## S7. Fail-closed & bất biến verdict (R1, R6)
+      - Mọi nhánh lỗi mới dẫn tới đâu? Có nhánh nào biến lỗi thành PASS, hay nuốt lỗi thành «không
+        có finding» không?
+      - Probe hỏng có bị đếm nhầm thành bằng chứng hồi quy không?
+
+      ## S8. Leo quyền & cô lập (per-vector — phân tích theo CHANGE này)
+      - Liệt kê MỌI đường tới cùng mục tiêu (đọc bí mật / bấm cổng / sửa cấu hình / đổi verdict) —
+        vá một đường KHÔNG đóng cả lớp.
+      - KHÔNG dismiss bằng «đã có lớp khác chặn» khi chưa có test reproduce. Test phải LOAD-BEARING
+        HAI CHIỀU: chạy trên code hiện tại → BỊ CHẶN; tạm no-op cái gác đó → LỌT.
+
+      ## Notes
+      Rủi ro riêng của change chưa nằm ở trên, kèm cách giảm thiểu.
+    requires:
+      - specs
+      - design
+
+apply:
+  requires:
+    - proposal
+    - specs
+    - design
+    - tasks
+    - security
+    - test-cases
+  tracks: tasks.md
+  instruction: |
+    Đọc hết proposal, specs, design, tasks, test-cases, security trước khi bắt tay.
+
+    ## Pha 1: Hiện thực
+    Làm hết task trong tasks.md, đánh `- [ ]` → `- [x]` khi xong. Gặp chỗ chặn thì DỪNG và hỏi,
+    đừng đoán.
+
+    ## Pha 2: Kiểm cơ học (bắt buộc, không được bỏ)
+    - `npx tsc --noEmit` sạch
+    - `npm test` xanh TOÀN BỘ — không phải chỉ file mình vừa sửa; lưới hợp đồng
+      (`test/hop-dong-repo.test.ts`) là ca hay đỏ nhất khi thêm export mới
+    - Test mới phải khoá được đúng hành vi luật R vừa viết
+
+    ## Pha 3: Qua cổng
+    Mở PR rồi CHỜ verdict của CheckMate trên prod. FAIL thì vá và push lại — cổng chấm lại tự động
+    theo commit. KHÔNG merge khi verdict FAIL. Chấp nhận merge với finding không-chặn thì phải ghi
+    nợ CÔNG KHAI trong comment PR.
