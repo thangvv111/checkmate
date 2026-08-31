@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { docKho, ghiKho } from './kho-bi-mat.js';
 
@@ -133,9 +134,30 @@ export function ghiSoKiem(ma: MaNcc, kq: KetQuaKiem): void {
 
 // Kiểm còn hiệu lực = đã kiểm OK VỚI ĐÚNG cấu hình hiện tại (đổi model hay phương thức là phải kiểm lại,
 // vì cái chạy được với model này chưa chắc chạy được với model kia).
+/**
+ * PHÉP CHIẾU chung cho giá trị cấu hình trước khi vào sổ kiểm hay đem đối chiếu (R5.20 + R5.5).
+ * Giá trị NGOÀI danh mục có thể là khoá dán nhầm → che, nhưng che phải PHÂN BIỆT được (vân tay sha256
+ * 8 hex) và phép đối chiếu hiệu lực phải dùng CÙNG phép chiếu — vòng tám của cổng bắt đúng ca sổ lưu
+ * bản che còn đối chiếu so bản thô, làm tổ hợp đã kiểm không bao giờ còn hiệu lực.
+ */
+export function chieuGiaTri(giaTri: string, danhMuc: readonly string[]): string {
+  if (danhMuc.includes(giaTri)) return giaTri;
+  return `(ngoài danh mục — ${giaTri.length} ký tự, sha256:${createHash('sha256').update(giaTri).digest('hex').slice(0, 8)})`;
+}
+
 export function kiemConHieuLuc(ma: MaNcc, cfg: CauHinhNcc): KetQuaKiem | null {
   const k = docSoKiem()[ma];
   if (!k?.ok) return null;
-  if (k.model !== cfg.model || k.phuong_thuc !== cfg.phuong_thuc) return null;
+  // So bằng CÙNG phép chiếu với lúc ghi sổ: sổ giữ bản che của giá trị ngoài danh mục (R5.20), nên so
+  // bản thô là tổ hợp model-lạ vừa kiểm xong đã «hết hiệu lực» ngay — người dùng model mới không bao
+  // giờ chọn được nhà cung cấp.
+  // Sổ luôn lưu ẢNH của phép chiếu (xong() ghi bản che cho giá trị lạ) — nên chỉ chiếu vế cấu hình
+  // rồi so ảnh với ảnh. Chiếu cả vế sổ là chiếu hai lần: bản che không nằm trong danh mục nên bị che
+  // tiếp, và che-của-che không bao giờ bằng che — chính test của bản vá này bắt ra.
+  // Sổ đời cũ lỡ lưu model lạ dạng thô thì so ảnh sẽ lệch → coi như hết hiệu lực, phải Kiểm tra lại —
+  // lệch về phía nói KHÔNG, đúng chiều an toàn.
+  const dn = dinhNghia(ma);
+  if ((k.model ?? '') !== chieuGiaTri(cfg.model, dn.models)) return null;
+  if (k.phuong_thuc !== cfg.phuong_thuc) return null;
   return k;
 }

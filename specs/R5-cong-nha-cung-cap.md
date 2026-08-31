@@ -66,7 +66,15 @@ Mỗi nhà cung cấp cấu hình độc lập, và chỉ nhà cung cấp đã *
   danh sách phương thức của nhà cung cấp.
 - **R5.19** — Đường chấm gặp cấu hình KHUYẾT trường (model rỗng/thiếu) thì HỎI, không ĐOÁN: từ chối chạy
   với lời nói rõ trường nào khuyết. Tự điền mặc định ở đường chấm là tự thay bằng tổ hợp người dùng
-  chưa chọn — cùng họ với điều R5.17 cấm. Đường hiển thị vẫn điền mặc định để màn Cấu hình render được.
-- **R5.20** — Giá trị model NGOÀI danh mục không được vọng nguyên văn ra bất kỳ thông điệp nào — kể cả
-  thông điệp lỗi nhà cung cấp trả về (họ thường chép lại trường `model` của request, mà giá trị đó có
-  thể là một khoá dán nhầm). Che bằng độ dài trước khi cho hiển thị.
+  chưa chọn — cùng họ với điều R5.17 cấm. Đường hiển thị điền mặc định CHỈ KHI trường THIẾU hẳn; giá
+  trị CÓ MẶT nhưng ngoài danh mục thì GIỮ NGUYÊN — thay nó bằng mặc định là màn Cấu hình trông như mọi
+  thứ ổn trong khi đường chấm đang chặn đúng giá trị đó, người dùng không thấy gì để sửa. Giao diện
+  render giá trị giữ lại qua bản che của R5.20 (một option phụ, value rỗng để lượt lưu form không đè
+  mất giá trị trong config).
+- **R5.20** — Giá trị NGOÀI danh mục — model, và MỌI trường gõ tay được, gồm cả `phuong_thuc` — không
+  được vọng nguyên văn ra bất kỳ thông điệp hay bề mặt nào — kể cả thông điệp lỗi nhà cung cấp trả về
+  (họ thường chép lại trường `model` của request, mà giá trị đó có thể là một khoá dán nhầm). Che bằng
+  MỘT phép chiếu chung: giá trị trong danh mục đi qua nguyên vẹn, giá trị ngoài thành bản che mang độ
+  dài + vân tay (hai giá trị khác nhau phải cho hai bản che khác nhau). Sổ kiểm lưu ẢNH của phép chiếu,
+  và mọi phép đối chiếu với sổ so ẢNH với ẢNH — chiếu vế sổ thêm lần nữa là che-của-che, không bao giờ
+  khớp, tổ hợp model-lạ vừa kiểm xong đã «hết hiệu lực» (vòng tám của cổng bắt đúng ca này).

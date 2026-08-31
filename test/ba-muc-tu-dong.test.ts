@@ -110,12 +110,69 @@ describe('cửa đọc không được ném với config KHUYẾT — vòng bố
     expect(() => cfg.cauHinhDeCham(cfg.docConfig())).toThrow(/chưa được cấu hình/);
   });
 
-  it('phương thức lạ trong config tay cũng rơi về mặc định', () => {
+  it('đường HIỂN THỊ giữ NGUYÊN phương thức lạ — không thay bằng mặc định (vòng tám, finding 3)', () => {
+    // Bản trước thay giá trị lạ bằng mặc định: màn Cấu hình trông ổn trong khi đường chấm đang chặn
+    // đúng giá trị đó — người dùng không thấy gì để sửa. Hiển thị phải cho thấy thứ đang chặn.
     writeFileSync(
       join(goc, 'config.json'),
       JSON.stringify({ agent: { ncc: 'anthropic', ncc_cau_hinh: { anthropic: { phuong_thuc: 'phuong-thuc-bia', model: 'claude-sonnet-5' } }, max_probe: 6, skeptic: true } }),
       'utf8',
     );
+    const hienTai = cfg.cauHinhHienTai(cfg.docConfig());
+    expect(hienTai.phuong_thuc).toBe('phuong-thuc-bia');
+    // điền mặc định CHỈ KHI THIẾU hẳn
+    writeFileSync(
+      join(goc, 'config.json'),
+      JSON.stringify({ agent: { ncc: 'anthropic', ncc_cau_hinh: { anthropic: { model: 'claude-sonnet-5' } }, max_probe: 6, skeptic: true } }),
+      'utf8',
+    );
+    expect(cfg.cauHinhHienTai(cfg.docConfig()).phuong_thuc).toBe('thue_bao'); // dn.phuong_thuc[0] của anthropic
+  });
+});
+
+describe('vòng tám: phép chiếu chung + cụm null + không vọng phương thức lạ', () => {
+  it('cụm ncc_cau_hinh là null → LoiCauHinhNcc, không TypeError thành 500 (finding 4)', () => {
+    // JSON.parse('null') hợp lệ; config sửa tay có thể mang "ncc_cau_hinh": null — đường cứu hộ
+    // ném TypeError thì hết là đường cứu hộ (cùng họ với ca vòng bốn, nhưng ở tầng CỤM chứ không tầng trường)
+    writeFileSync(
+      join(goc, 'config.json'),
+      JSON.stringify({ agent: { ncc: 'google', ncc_cau_hinh: null, max_probe: 6, skeptic: true } }),
+      'utf8',
+    );
+    expect(() => cfg.cauHinhDeCham(cfg.docConfig())).toThrow(/chưa được cấu hình/);
     expect(() => cfg.cauHinhHienTai(cfg.docConfig())).not.toThrow();
+  });
+
+  it('phương thức lạ KHÔNG vọng nguyên văn ra thông điệp lỗi của đường chấm (finding 2)', () => {
+    // Người dán nhầm khoá vào trường phuong_thuc cũng được bảo vệ như dán nhầm vào trường model
+    const keyGia = 'sk-ant-api03-DAN-NHAM-VAO-PHUONG-THUC-42';
+    writeFileSync(
+      join(goc, 'config.json'),
+      JSON.stringify({ agent: { ncc: 'anthropic', ncc_cau_hinh: { anthropic: { phuong_thuc: keyGia, model: 'claude-sonnet-5' } }, max_probe: 6, skeptic: true } }),
+      'utf8',
+    );
+    let loi = '';
+    try { cfg.cauHinhDeCham(cfg.docConfig()); } catch (e) { loi = (e as Error).message; }
+    expect(loi).toMatch(/phương thức không hỗ trợ/);
+    expect(loi).not.toContain(keyGia);
+    expect(loi).toContain('sha256:'); // che nhưng PHÂN BIỆT được (vân tay, vòng bảy)
+  });
+
+  it('sổ kiểm lưu bản CHE nhưng tổ hợp model lạ vừa kiểm vẫn CÒN hiệu lực (finding 1 — HIGH)', async () => {
+    // Vòng tám bắt: sổ ghi bản che (R5.20) mà kiemConHieuLuc so bản THÔ → tổ hợp model-lạ không bao
+    // giờ «đã kiểm» — người dùng model mới không chọn được ncc. Phép so phải dùng CÙNG phép chiếu với lúc ghi.
+    const { chieuGiaTri, dinhNghia, ghiSoKiem, kiemConHieuLuc } = await import('../apps/web/src/ncc.js');
+    const cauHinh = { phuong_thuc: 'api' as const, model: 'model-moi-ra-chua-co-trong-danh-muc' };
+    const dn = dinhNghia('openai');
+    ghiSoKiem('openai', {
+      ok: true,
+      luc: new Date().toISOString(),
+      thong_diep: 'ok',
+      model: chieuGiaTri(cauHinh.model, dn.models), // đúng thứ xong() ghi: bản che
+      phuong_thuc: 'api',
+    });
+    expect(kiemConHieuLuc('openai', cauHinh), 'tổ hợp vừa kiểm xong phải còn hiệu lực').not.toBeNull();
+    // và đổi sang model lạ KHÁC thì hết hiệu lực — vân tay phân biệt, không phải «lạ nào cũng như nhau»
+    expect(kiemConHieuLuc('openai', { ...cauHinh, model: 'model-la-khac-cung-do-dai-x' })).toBeNull();
   });
 });

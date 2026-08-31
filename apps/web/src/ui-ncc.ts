@@ -1,5 +1,5 @@
 import { escHtml } from './ui.js';
-import { DANH_MUC_NCC, type CauHinhNcc, type KetQuaKiem, type MaNcc, type PhuongThuc } from './ncc.js';
+import { chieuGiaTri, DANH_MUC_NCC, type CauHinhNcc, type KetQuaKiem, type MaNcc, type PhuongThuc } from './ncc.js';
 import type { TrangThaiNcc } from './nguon-model.js';
 
 // Khối "Nhà cung cấp model" trong Cấu hình: mỗi nhà cung cấp một thẻ gập cho gọn,
@@ -61,6 +61,12 @@ export function khoiNcc(v: KhoiNccView): string {
       <label style="font-size:12.5px;font-weight:600">Phương thức<br>
         <select name="pt_${dn.ma}" ${ro2} ${dn.phuong_thuc.length < 2 ? 'disabled' : ''} style="margin-top:4px;padding:6px 9px;border:1px solid var(--line);border-radius:7px">
           ${dn.phuong_thuc.map((p) => `<option value="${p}" ${cfg.phuong_thuc === p ? 'selected' : ''}>${NHAN_PT[p]}</option>`).join('')}
+          ${
+            // Giá trị trong config NGOÀI danh mục: không có option khớp thì trình duyệt lặng lẽ hiện
+            // option đầu — giấu đúng thứ đang làm đường chấm chặn (vòng tám, finding 3). Hiện bản che
+            // (R5.20 — có thể là khoá dán nhầm) để người dùng thấy có thứ phải sửa.
+            dn.phuong_thuc.includes(cfg.phuong_thuc) ? '' : `<option value="" selected disabled>⚠ trong config: ${escHtml(chieuGiaTri(String(cfg.phuong_thuc ?? ''), dn.phuong_thuc))}</option>`
+          }
         </select>
       </label>
       <label style="font-size:12.5px;font-weight:600">Model<br>
@@ -74,6 +80,12 @@ export function khoiNcc(v: KhoiNccView): string {
               return `<option value="${m}" data-chi-thue-bao="${chiTb ? '1' : '0'}" ${khoa} ${cfg.model === m ? 'selected' : ''}>${m}${chiTb ? ' (chỉ gói thuê bao)' : ''}</option>`;
             })
             .join('')}
+          ${
+            // value RỖNG có chủ đích: server nhận rỗng thì GIỮ giá trị cũ trong config (round-trip an
+            // toàn), còn value thô là vọng nguyên văn ra HTML — R5.20 áp cho mọi bề mặt, giá trị này
+            // có thể là khoá dán nhầm.
+            dn.models.includes(cfg.model) ? '' : `<option value="" selected>⚠ trong config: ${escHtml(chieuGiaTri(cfg.model, dn.models))}</option>`
+          }
         </select>
       </label>
     </div>

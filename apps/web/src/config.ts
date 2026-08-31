@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { dinhNghia, docKhoa, modelHopLe, type CauHinhNcc, type MaNcc } from './ncc.js';
+import { chieuGiaTri, dinhNghia, docKhoa, modelHopLe, type CauHinhNcc, type MaNcc } from './ncc.js';
 import { docKho, ghiKho, docTokenRieng, ghiTokenRepo } from './kho-bi-mat.js';
 
 // Chế độ vận hành (spec §9): demo = deploy public, khoá repo demo, Settings chỉ-đọc (fail-closed);
@@ -146,8 +146,12 @@ export function docConfig(): CheckmateConfig {
 // mà không bắt người dùng cấu hình lại từ đầu.
 function nangCapAgent(a?: Partial<AgentConfig>): AgentConfig {
   if (!a) return structuredClone(MAC_DINH.agent);
-  if (a.ncc && a.ncc_cau_hinh) {
-    return { ...MAC_DINH.agent, ...a, ncc_cau_hinh: { ...MAC_DINH.agent.ncc_cau_hinh, ...a.ncc_cau_hinh } } as AgentConfig;
+  if (a.ncc) {
+    // Có `ncc` là config KIỂU MỚI — kể cả khi cụm ncc_cau_hinh null/thiếu (JSON.parse('null') hợp lệ,
+    // file sửa tay có thể mang nó). Bản trước đòi cả hai trường nên cụm null rơi xuống nhánh đời-cũ
+    // phía dưới và ÂM THẦM đổi ncc về anthropic — giấu mất lựa chọn của người dùng, cùng họ với lỗi
+    // «thay giá trị lạ bằng mặc định» mà vòng tám của cổng bắt.
+    return { ...MAC_DINH.agent, ...a, ncc_cau_hinh: { ...MAC_DINH.agent.ncc_cau_hinh, ...(a.ncc_cau_hinh ?? {}) } } as AgentConfig;
   }
   return {
     ncc: 'anthropic',
@@ -161,13 +165,14 @@ function nangCapAgent(a?: Partial<AgentConfig>): AgentConfig {
 
 export function cauHinhHienTai(c: CheckmateConfig): CauHinhNcc {
   const dn = dinhNghia(c.agent.ncc);
-  const tho = c.agent.ncc_cau_hinh[c.agent.ncc];
-  // Chuẩn hoá TRƯỚC khi gác: config sửa tay có thể KHUYẾT trường (đường cứu hộ R9.13 không hứa hình
-  // dạng đủ), mà đường cứu hộ ném TypeError thì không còn là đường cứu hộ. Vòng bốn của Opus bắt đúng
-  // ca này trên bản vá vòng ba — bản gác cửa gọi cfg.model.length khi model là undefined.
+  const tho = (c.agent.ncc_cau_hinh ?? {})[c.agent.ncc];
+  // Đường hiển thị: điền mặc định CHỈ KHI THIẾU, còn giá trị LẠ thì GIỮ NGUYÊN — thay nó bằng mặc định
+  // là màn Cấu hình trông như mọi thứ ổn trong khi đường chấm đang chặn đúng giá trị đó, và người dùng
+  // không thấy gì để sửa (vòng tám của cổng bắt). Đường chấm (cauHinhDeCham) tự validate, không dùng
+  // kết quả điền ở đây.
   const cfg: CauHinhNcc = {
     ...tho,
-    phuong_thuc: tho?.phuong_thuc && dn.phuong_thuc.includes(tho.phuong_thuc) ? tho.phuong_thuc : dn.phuong_thuc[0],
+    phuong_thuc: (tho?.phuong_thuc ?? dn.phuong_thuc[0]) as CauHinhNcc['phuong_thuc'],
     model: typeof tho?.model === 'string' && tho.model.trim() ? tho.model : dn.models[0],
   };
   // Đường HIỂN THỊ: trả nguyên vẹn (kể cả tổ hợp cấm) để màn Cấu hình còn render được cho người dùng
@@ -189,7 +194,7 @@ export class LoiCauHinhNcc extends Error {}
  */
 export function cauHinhDeCham(c: CheckmateConfig): CauHinhNcc {
   const dn = dinhNghia(c.agent.ncc);
-  const tho = c.agent.ncc_cau_hinh[c.agent.ncc];
+  const tho = (c.agent.ncc_cau_hinh ?? {})[c.agent.ncc];
   // R5.17 + R5.19, áp ĐỀU TAY (vòng bảy của cổng bắt ba chỗ áp lệch): đường chấm đọc cấu hình THÔ và
   // tự validate từng trường — không mượn cauHinhHienTai, vì đường hiển thị có điền mặc định, mà điền ở
   // đường chấm là tự thay thứ người dùng chưa chọn. Khuyết CẢ CỤM cũng hỏi, khuyết MỘT TRƯỜNG cũng hỏi,
@@ -202,7 +207,10 @@ export function cauHinhDeCham(c: CheckmateConfig): CauHinhNcc {
     throw new LoiCauHinhNcc(`Cấu hình ${dn.ten} thiếu trường «model» (config.json sửa tay?). ${goiY}`);
   }
   if (!tho.phuong_thuc || !dn.phuong_thuc.includes(tho.phuong_thuc)) {
-    throw new LoiCauHinhNcc(`Cấu hình ${dn.ten} mang phương thức không hỗ trợ («${String(tho.phuong_thuc ?? '(thiếu)')}») — ${dn.ten} chỉ có: ${dn.phuong_thuc.join(', ')}. ${goiY}`);
+    // Che giá trị lạ (R5.20 áp cho MỌI trường gõ tay được, không riêng model): người dán nhầm khoá vào
+    // trường phương thức của config.json cũng không được thấy nó vọng ra thông điệp.
+    const ptChe = tho.phuong_thuc ? chieuGiaTri(String(tho.phuong_thuc), dn.phuong_thuc) : '(thiếu)';
+    throw new LoiCauHinhNcc(`Cấu hình ${dn.ten} mang phương thức không hỗ trợ (${ptChe}) — ${dn.ten} chỉ có: ${dn.phuong_thuc.join(', ')}. ${goiY}`);
   }
   if (!modelHopLe(dn, tho.phuong_thuc, tho.model)) {
     const che = dn.models.includes(tho.model) ? tho.model : `(ngoài danh mục — ${tho.model.length} ký tự)`;

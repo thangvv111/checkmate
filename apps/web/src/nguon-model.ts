@@ -1,9 +1,8 @@
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { cauHinhHienTai, docTokenThueBao, type CheckmateConfig } from './config.js';
-import { dinhNghia, docKhoa, modelHopLe, ghiSoKiem, type CauHinhNcc, type KetQuaKiem, type MaNcc } from './ncc.js';
+import { chieuGiaTri, dinhNghia, docKhoa, modelHopLe, ghiSoKiem, type CauHinhNcc, type KetQuaKiem, type MaNcc } from './ncc.js';
 
 // Kiểm một nhà cung cấp: gọi thử MỘT câu cực ngắn đúng cấu hình của nó.
 // Vừa là nút "Kiểm tra" trong giao diện, vừa là CỔNG: chưa kiểm thành công thì không được chọn để chấm.
@@ -114,15 +113,6 @@ export interface KetQuaThu extends KetQuaKiem {
   giay: number;
 }
 
-/**
- * Bản che cho giá trị model NGOÀI danh mục (R5.20). Kèm vân tay sha256 8 hex vì che-theo-độ-dài trần
- * làm hai model khác nhau cùng độ dài TRÙNG một hàng sổ kiểm — tổ hợp B được coi «đã kiểm» nhờ hàng
- * của A (vòng bảy của cổng bắt). Vân tay phân biệt được mà không đảo ngược được, không lộ gì.
- */
-function cheModelLa(model: string): string {
-  return `(ngoài danh mục — ${model.length} ký tự, sha256:${createHash('sha256').update(model).digest('hex').slice(0, 8)})`;
-}
-
 export async function thuNcc(ma: MaNcc, cfg: CauHinhNcc): Promise<KetQuaThu> {
   const t0 = Date.now();
   const giay = (): number => Math.round((Date.now() - t0) / 100) / 10;
@@ -131,16 +121,17 @@ export async function thuNcc(ma: MaNcc, cfg: CauHinhNcc): Promise<KetQuaThu> {
     // R5.20 — giá trị model NGOÀI danh mục có thể là khoá dán nhầm, và nhà cung cấp thường chép lại
     // trường model vào thông điệp lỗi của họ. Gột nó khỏi MỌI thông điệp trước khi ra ngoài.
     if (cfg.model && !dinhNghia(ma).models.includes(cfg.model) && thong_diep.includes(cfg.model)) {
-      thong_diep = thong_diep.split(cfg.model).join(cheModelLa(cfg.model));
+      thong_diep = thong_diep.split(cfg.model).join(chieuGiaTri(cfg.model, dinhNghia(ma).models));
     }
     const luc = new Date().toISOString();
     // modelAnToan: khi giá trị model KHÔNG thuộc danh mục thì nó là thứ người dùng gõ tay — có thể là
     // một khoá dán nhầm. Sổ kiểm và kết quả trả về chỉ được mang bản đã che, không mang nguyên văn.
     // Che TỰ ĐỘNG, không lệ thuộc chỗ gọi nhớ truyền modelAnToan: nhánh nào quên (vd nhánh «chưa có
     // khoá» dừng trước khi chạm model) là key giả đi nguyên vào sổ — đã xảy ra, test bắt được.
-    const md = modelAnToan ?? (dinhNghia(ma).models.includes(cfg.model) ? cfg.model : cheModelLa(cfg.model));
-    ghiSoKiem(ma, { ok, luc, thong_diep, model: md, phuong_thuc: cfg.phuong_thuc });
-    return { ok, thong_diep, ncc: ma, giay: giay(), luc, model: md, phuong_thuc: cfg.phuong_thuc };
+    const md = modelAnToan ?? chieuGiaTri(cfg.model, dinhNghia(ma).models);
+    const pt = chieuGiaTri(String(cfg.phuong_thuc ?? ''), dinhNghia(ma).phuong_thuc) as typeof cfg.phuong_thuc;
+    ghiSoKiem(ma, { ok, luc, thong_diep, model: md, phuong_thuc: pt });
+    return { ok, thong_diep, ncc: ma, giay: giay(), luc, model: md, phuong_thuc: pt };
   };
 
   // R5.16 + R5.18 — chỉ từ chối sớm khi vi phạm ràng buộc KHAI TƯỜNG MINH (chi_thue_bao, phương thức
@@ -150,11 +141,14 @@ export async function thuNcc(ma: MaNcc, cfg: CauHinhNcc): Promise<KetQuaThu> {
   const dn = dinhNghia(ma);
   const laModelLa = !dn.models.includes(cfg.model);
   if (!modelHopLe(dn, cfg.phuong_thuc, cfg.model)) {
-    const che = laModelLa ? cheModelLa(cfg.model) : cfg.model;
+    const che = chieuGiaTri(cfg.model, dn.models);
+    // phuong_thuc cũng qua phép chiếu (R5.20 áp cho MỌI trường gõ tay được): giá trị hợp lệ đi qua
+    // nguyên vẹn, còn thứ dán nhầm vào trường này không được vọng ra thông điệp.
+    const ptChe = chieuGiaTri(String(cfg.phuong_thuc ?? ''), dn.phuong_thuc);
     const lyDo = dn.chi_thue_bao?.includes(cfg.model)
       ? 'model này chỉ mở cho gói thuê bao (R5.15)'
-      : `nhà cung cấp không hỗ trợ phương thức «${cfg.phuong_thuc}»`;
-    return xong(false, `Model ${che} không đi được với phương thức «${cfg.phuong_thuc}» của ${dn.ten} — ${lyDo}. Đổi trong ⚙ Cấu hình rồi Kiểm tra lại.`, laModelLa ? che : undefined);
+      : `nhà cung cấp không hỗ trợ phương thức «${ptChe}»`;
+    return xong(false, `Model ${che} không đi được với phương thức «${ptChe}» của ${dn.ten} — ${lyDo}. Đổi trong ⚙ Cấu hình rồi Kiểm tra lại.`, laModelLa ? che : undefined);
   }
 
   // ---- Anthropic · gói thuê bao: chạy qua Claude Code CLI ----
