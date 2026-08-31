@@ -76,6 +76,27 @@ export function vanTayChat(msg: string): string {
 //   'test_P1_...'      pytest / junit
 //   'nhóm > P1: ...'   JUnit XML — vitest và surefire ghép tên describe/class vào trước tên test
 // Ranh giới sau id phải KHÔNG phải chữ số, kẻo P1 nuốt kết quả của P10 khi chạy trên 10 probe trở lên.
+/**
+ * Nhãn NGẮN cho một probe trong dòng log tóm tắt.
+ *
+ * Bản đời trước lấy `title.split(':')[0].slice(0, 24)` — cắt 24 ký tự TỪ ĐẦU title, mà đầu title là
+ * tên `describe` DÙNG CHUNG cho cả nhóm probe, nên năm phép thử khác nhau hiện ra y hệt
+ * («cửa đọc cấu hình máy chủ=f» ×5) và người đọc log không lần ra được probe nào đỏ. Phần phân biệt
+ * (mã probe P1…Pn) nằm ở ĐOẠN CUỐI sau dấu `>` — đúng phần bị cắt mất.
+ *
+ * Nay lấy đoạn cuối rồi mới cắt: cắt từ đầu đoạn RIÊNG, không phải đầu chuỗi chung.
+ */
+export function nhanProbe(title: string): string {
+  const doan = (title ?? '')
+    .split('>')
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const cuoi = doan[doan.length - 1] ?? '';
+  const sach = cuoi.replace(/\s+/g, ' ').trim();
+  if (!sach) return '(probe không tên)';
+  return sach.length <= 40 ? sach : `${sach.slice(0, 39)}…`;
+}
+
 export function khopIdProbe(title: string, id: string): boolean {
   return title
     .split('>')
@@ -437,7 +458,22 @@ export async function chaySkillCode(
       continue;
     }
 
-    const tomTatKq = (kq: KetQuaProbe[] | undefined) => (kq ?? []).map((p) => `${p.title.split(':')[0].slice(0, 24)}=${p.status[0]}`).join(' ') || '(rỗng)';
+    const tomTatKq = (kq: KetQuaProbe[] | undefined) => {
+      const daDung = new Map<string, number>();
+      return (
+        (kq ?? [])
+          .map((p) => {
+            let nhan = nhanProbe(p.title);
+            // Hai probe trùng tên thật vẫn phải phân biệt được — nếu không, người đọc log lại rơi
+            // đúng vào chỗ «năm dòng giống hệt» mà bản vá này sinh ra để sửa.
+            const lan = (daDung.get(nhan) ?? 0) + 1;
+            daDung.set(nhan, lan);
+            if (lan > 1) nhan = `${nhan}#${lan}`;
+            return `${nhan}=${p.status[0]}`;
+          })
+          .join(' ') || '(rỗng)'
+      );
+    };
     phat({ type: 'log', msg: `Nhánh PR:  ${tomTatKq(branchKq)}` });
     phat({ type: 'log', msg: `Nhánh gốc: ${tomTatKq(baseKq)}` });
     const timKq = (kq: KetQuaProbe[] | undefined, file: string, id: string) =>

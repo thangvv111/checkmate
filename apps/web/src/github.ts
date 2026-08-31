@@ -301,7 +301,19 @@ export function phanLoaiPr(dsVao: readonly string[]): { loai: 'code' | 'doc'; ly
     // phân biệt được thủ phạm nào (R13.6).
     return `(phần tử${oViTri} không phải chuỗi: ${mo})`;
   };
-  const keTen = (ds: readonly unknown[]): string[] => ds.map((f) => ten(f, filesDoi.indexOf(f as string)));
+  // Chỉ số THẬT theo danh sách gốc, không dùng indexOf: `indexOf` trả vị trí KHỚP ĐẦU TIÊN nên hai
+  // phần tử méo giống hệt nhau (vd [null, null]) đều báo cùng một vị trí — nợ medium công khai của
+  // PR #19, cùng họ với lỗi nhãn probe trùng nhau trong log.
+  const viTri = new Map<unknown, number[]>();
+  filesDoi.forEach((f, i) => viTri.set(f, [...(viTri.get(f) ?? []), i]));
+  const daDung = new Map<unknown, number>();
+  const keTen = (ds: readonly unknown[]): string[] =>
+    ds.map((f) => {
+      const ds2 = viTri.get(f) ?? [];
+      const lan = daDung.get(f) ?? 0;
+      daDung.set(f, lan + 1);
+      return ten(f, ds2[Math.min(lan, ds2.length - 1)] ?? -1);
+    });
   const ke = (ds: readonly unknown[], tran = 20): string =>
     ds.length <= tran ? keTen(ds).join(', ') : `${keTen(ds.slice(0, tran)).join(', ')} và ${ds.length - tran} file nữa`;
 
@@ -332,7 +344,7 @@ export function phanLoaiPr(dsVao: readonly string[]): { loai: 'code' | 'doc'; ly
   // Nên `khongDoc` chỉ gồm những file CHẮC CHẮN không ai đọc; các ứng viên .md được nêu riêng kèm
   // câu «chỉ MỘT được chấm». Khai đích danh một ứng viên là «sẽ được chấm» khi chưa chốt là nói sai
   // sự thật ngay lúc nói (vòng bốn của cổng bắt) — vùng mù THẬT do fetchVaRouter dựng lại sau.
-  const khongDoc = filesDoi.filter((f) => !md.includes(f as string)).map((f) => ten(f, filesDoi.indexOf(f)));
+  const khongDoc = keTen(filesDoi.filter((f) => !md.includes(f as string)));
   const lyDo =
     `${filesDoi.length} file đổi đều là văn bản thuần. Tài liệu ứng viên (${md.length}): ${ke(md)} — CHỈ MỘT được chấm, ` +
     (md.length > 1 ? `${md.length - 1} ứng viên còn lại KHÔNG được đọc (chốt ở bước chọn tài liệu)` : 'không có ứng viên nào bị bỏ') +
