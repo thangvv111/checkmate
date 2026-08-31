@@ -114,6 +114,54 @@ describe('kho khuôn lỗi common (R12)', () => {
     } finally { khoGiaVao(goc); }
   });
 
+  it('án lệ CÓ chữ nhưng KHÔNG mốc định vị cũng bị từ chối — gác theo đúng mức luật khai (vòng ba, HIGH)', () => {
+    const goc = khoGiaVao([khuonThuong('CO_MOC', 'code'), khuonThuong('KHONG_MOC', 'code', { an_le: 'đúc từ trực giác của người viết, nghe rất hợp lý' })]);
+    try {
+      const ra = layKhuonCode('spec bất kỳ');
+      expect(ra).toHaveLength(1);
+      expect(ra[0]).toContain('CO_MOC');
+    } finally { khoGiaVao(goc); }
+  });
+
+  it('điều kiện đánh KHÔNG phân biệt hoa thường trên văn bản GỐC — regex chữ hoa vẫn bật (vòng ba, HIGH)', () => {
+    // Bản trước toLowerCase đầu vào rồi test /PHẢI|HTTP/ — không bao giờ khớp, khuôn biến mất lặng (họ KL11)
+    const goc = khoGiaVao([khuonThuong('HOA', 'code', { dieu_kien: /PHẢI có probe|HTTP/ })]);
+    try {
+      expect(layKhuonCode('spec nói route http phải có probe đối kháng')).toHaveLength(1);
+      expect(layKhuonCode('spec Nói Rõ: HTTP route')).toHaveLength(1);
+      expect(layKhuonCode('spec không liên quan')).toHaveLength(0);
+    } finally { khoGiaVao(goc); }
+  });
+
+  it('khuôn RỖNG/toàn khoảng trắng bị từ chối + log, không thành bullet trống (vòng ba)', () => {
+    const goc = khoGiaVao([khuonThuong('OK2', 'doc'), khuonThuong('TRANG', 'doc', { khuon: '   ' })]);
+    try {
+      const ra = layKhuonDoc('văn bản');
+      expect(ra).toHaveLength(1);
+      expect(ra[0]).toContain('OK2');
+    } finally { khoGiaVao(goc); }
+  });
+
+  it('trần đo TRÊN KHO, không đo trên tập đã lọc — kho quá tải phải kêu dù tập phát nhỏ (vòng ba)', () => {
+    const goc = khoGiaVao([
+      ...Array.from({ length: TRAN_KHUON + 5 }, (_, i) => khuonThuong(`C${i}`, 'code', i >= 15 ? { dieu_kien: /không-khớp-đâu/ } : {})),
+    ]);
+    const daLog: string[] = [];
+    const logGoc = console.log;
+    console.log = (m: string) => { daLog.push(String(m)); };
+    try {
+      const ra = layKhuonCode('spec thường');
+      expect(ra.length).toBeLessThanOrEqual(TRAN_KHUON);
+      expect(daLog.some((m) => m.includes('đang giữ') && m.includes(String(TRAN_KHUON + 5))), 'phải cảnh báo kích thước KHO').toBe(true);
+    } finally { console.log = logGoc; khoGiaVao(goc); }
+  });
+
+  it('hai cửa CÙNG hành vi với đầu vào khuyết — không cửa nào ném (vòng ba, KL9 + KL16)', () => {
+    expect(() => layKhuonCode(undefined as never)).not.toThrow();
+    expect(() => layKhuonDoc(undefined as never)).not.toThrow();
+    expect(layKhuonCode(undefined as never).length).toBeGreaterThan(0); // khuôn vô điều kiện vẫn phát
+  });
+
   it('khuôn doc là «nơi hay giấu lỗi», không mở rộng rubric — không dòng nào tự đặt loại finding mới', () => {
     for (const k of layKhuonDoc()) {
       expect(k).not.toMatch(/rubric mới|loại mới|loại thứ 8/i);

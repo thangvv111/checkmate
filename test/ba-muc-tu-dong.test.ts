@@ -42,4 +42,17 @@ describe('ba công tắc RIÊNG, không gộp (R6.15)', () => {
   });
 });
 
+describe('cache config theo NỘI DUNG — R9.14 tuyệt đối, không ngoại lệ (vòng ba PR khuôn)', () => {
+  it('hai bản CÙNG SỐ BYTE chỉ hoán cờ boolean, ghi liền tay — lượt đọc kế vẫn thấy bản mới', () => {
+    // mtime granularity thô + size không đổi là hai lớp vá trước đều thủng; khoá theo nội dung thô
+    // thì không còn ca nào lọt — đường cứu hộ sửa-tay không được hỏng im lặng đúng lúc cần nó nhất.
+    writeFileSync(join(goc, 'config.json'), JSON.stringify({ truc: { bat: true, chu_ky_giay: 300, tu_dong_comment: true, tu_dong_trang_thai: false } }), 'utf8');
+    expect(cfg.docConfig().truc.tu_dong_comment).toBe(true);
+    writeFileSync(join(goc, 'config.json'), JSON.stringify({ truc: { bat: true, chu_ky_giay: 300, tu_dong_comment: false, tu_dong_trang_thai: true } }), 'utf8');
+    const c = cfg.docConfig();
+    expect(c.truc.tu_dong_comment, 'bản mới cùng size phải có hiệu lực ngay').toBe(false);
+    expect(c.truc.tu_dong_trang_thai).toBe(true);
+  });
+});
+
 afterAll(() => rmSync(goc, { recursive: true, force: true }));

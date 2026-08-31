@@ -13,8 +13,12 @@ từng byte, nên thư viện phình bằng bản sao (đo được: 8 file thì
   cắt các phép thử khác. Tách không được thì **bỏ qua và nói ra**, không nạp mù.
 - **R10.3** — File tách là artifact MỚI chưa từng chạy. Trước khi nạp PHẢI verify nó chạy sạch một mình
   trên nhánh gốc — đây là lưới đỡ cho mọi ca tách hỏng (decorator mồ côi, helper bị cắt nhầm...).
-- **R10.4** — Trần thư viện đếm theo **probe** (mặc định 40, chỉnh qua `CHECKER_LIB_TRAN`), đào thải
-  FIFO và phải xoá cả file trên đĩa (giữ [R8.9](R8-chay-song-song.md)).
+- **R10.4** — Trần thư viện đếm theo **probe** (mặc định 100, chỉnh qua `CHECKER_LIB_TRAN`, kẹp
+  [6, 200]), đào thải theo điểm GIỮ/LOẠI (R10.22) và phải xoá cả file trên đĩa (giữ
+  [R8.9](R8-chay-song-song.md)). MỌI probe trong thư viện đều CHẠY ở mọi lượt — không có trần chạy
+  riêng: chạy probe kho tốn 0 token và vài giây vitest, trong khi một «top N hiệu quả» tạo ra nửa kho
+  không bao giờ chạy, lịch sử đóng băng, không bao giờ được chọn lại. Điểm quyết ai được Ở, không
+  quyết ai được CHẠY (PO chốt 31/08).
 - **R10.5** — Thư viện đời bộ được di trú tự động sang đời probe ở lần đọc đầu: tách từng probe, loại
   bản trùng chạy-lại, ghi chú kết quả di trú vào sổ thư viện. File bộ cũ chỉ bị xoá khi ĐÃ di trú trọn
   vẹn — chi tiết ở [R10.13](#an-toàn-dữ-liệu-của-thư-viện-bài-học-từ-dàn-review-đối-kháng).
@@ -41,7 +45,8 @@ phải ghi log: probe nào, trùng với probe nào, vì sao.
   bằng chứng. Hai probe cùng xanh suốt KHÔNG bị coi là trùng — đồng thuận khi không có gì xảy ra không
   phải bằng chứng.
 - **R10.10** — Lịch sử hành vi có trần (20 lượt gần nhất); cùng một lượt chạy lại thì thay bản ghi cũ
-  của lượt đó, không nhân đôi.
+  của lượt đó, không nhân đôi — với một ngoại lệ khai ở R10.24: nhãn hoàn cảnh không đè nhãn hành-vi-
+  riêng đã ghi cho cùng lượt.
 
 ## Ranh giới với khoá liên tiến trình
 
@@ -75,3 +80,29 @@ phải ghi log: probe nào, trùng với probe nào, vì sao.
   để bắt. Tầng 4 PHẢI thấy ít nhất một lượt cả hai cùng `hoi_quy` hoặc cùng `cai_thien` mới được gỡ.
   Rủi ro ở đây không đối xứng: giữ nhầm một probe thừa tốn vài giây mỗi lượt, gỡ nhầm một probe thật
   là mất vĩnh viễn một phép thử đã từng bắt được hồi quy.
+
+## Đào thải theo điểm GIỮ/LOẠI (thay FIFO — PO chốt 31/08)
+
+Nguyên tắc: **probe regression giá trị nhất thường là probe im lặng lâu năm** — nó pass đều vì đang
+canh một biên chưa ai phá lại, không phải vì vô dụng. Đào thải theo tuổi (FIFO) hay theo «tần suất
+nổ» đều loại đúng lưới an toàn đang im lặng. Điểm chỉ nhìn tín hiệu XẤU đo được và thành tích THẬT.
+
+- **R10.22** — Khi thư viện vượt trần, nạn nhân chọn theo thứ tự: (1) probe **chết kéo dài** — cả
+  `CHET_KEO_DAI_NGUONG` lượt gần nhất trong lịch sử đều mang nhãn hoàn cảnh chết (`nghi_loi_co_san` ·
+  `khong_chay`), tức API đích đã đổi và probe không còn chạy được — giữ là giữ xác, kể cả xác từng
+  bắt hồi quy; (2) probe **flaky** — `flaky_diem` cao nhất trong nhóm ≥ 2; (3) probe **cũ nhất chưa
+  từng bắt hồi quy** — KHÔNG tính probe vừa nạp, và «vừa nạp» phải nhận diện bằng DẤU HIỆU DỮ LIỆU
+  (định danh truyền từ chỗ nạp), không đoán theo vị trí trong mảng: kho toàn hàng miễn trừ mà đá luôn
+  probe mới là van nấc (4) không bao giờ mở, kho hoá thạch, không nhận được phép thử cho biên mới; (4) probe cũ nhất
+  tuyệt đối (khi mọi probe cũ đều miễn trừ — van chống kẹt trần). Mọi lần loại PHẢI log: probe nào,
+  nấc nào, bằng chứng gì.
+- **R10.23** — Probe từng bắt hồi quy mang cờ `da_bat_hoi_quy` **vĩnh viễn** (không trôi theo trần
+  lịch sử 20 lượt) và được **miễn trừ** nấc (3) — thành tích thật không hết hạn. Cờ không cứu được
+  probe chết kéo dài (R10.22 nấc 1) và không cứu khỏi tầng 4 (trùng hành vi có bằng chứng).
+- **R10.24** — `flaky_diem` đếm số lần **cùng một sha lượt chấm** cho ra hai trạng thái KHÁC nhau ở
+  hai lần chạy — và CHỈ khi cả hai trạng thái đều là nhãn hành vi riêng (`pass` · `hoi_quy` ·
+  `cai_thien`): cùng commit khác kết quả là phép thử không tất định. Nhãn hoàn cảnh đổi qua lại
+  (spec đổi, fixture đổi) KHÔNG tính — đó là chuyện của lượt, không phải của probe. Điểm cộng dồn
+  vĩnh viễn, không reset. Hệ quả buộc phải có: nhãn hoàn cảnh KHÔNG ĐÈ nhãn hành-vi-riêng đã ghi cho
+  cùng sha (mở rộng R10.10) — đè là xoá dấu, chuỗi pass → nghi_loi_co_san → hoi_quy trên cùng sha sẽ
+  sót mất cặp pass↔hoi_quy, và tầng 4 mất một lượt so được.

@@ -29,7 +29,9 @@ interface KetQuaSkillCode {
 
 type PhatEvent = (e: RunEvent) => void;
 
-const MAX_PROBE = Math.min(12, Math.max(2, Number(process.env.CHECKER_MAX_PROBE ?? 6)));
+// Trần 20 + mặc định 10 (PO chốt 31/08): chuỗi 11 vòng của PR #12 cho thấy 6 probe/lượt chỉ khoét
+// quanh diff mới nhất — 4 lỗi có từ commit đầu bị bắt muộn 3–8 vòng vì không còn suất quét lại toàn mặt.
+const MAX_PROBE = Math.min(20, Math.max(2, Number(process.env.CHECKER_MAX_PROBE ?? 10)));
 const FILE_PROBE_MOI = 'checker.probe.test.ts';
 
 // ---------- Phân loại MÁY (spec §11-A): model không được tự giác luật này ----------

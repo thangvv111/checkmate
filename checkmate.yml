@@ -19,7 +19,7 @@ runner:
       ../packages/harness/src/target.js      → dungDiff · docTarget · trichMaLuat · timLuatMoi · goiYDuongDanModule
       ../packages/harness/src/runner.js      → parseJUnit · docRunnerCfg · docReviewCfg · mauBoQuaDiff
       ../packages/harness/src/sandbox.js     → loiNapFile · Sandbox
-      ../packages/harness/src/thu-vien.js    → nhanVaoThuVien · docThuVien · voiKhoaThuVien · slugRepo · tachMotProbe · catKhoiTest · coKhoiTest · kiemCanBang · tachRule · capNhatLichSu · timVaGoTrungHanhVi
+      ../packages/harness/src/thu-vien.js    → nhanVaoThuVien · chonNanNhan · docThuVien · voiKhoaThuVien · slugRepo · tachMotProbe · catKhoiTest · coKhoiTest · kiemCanBang · tachRule · capNhatLichSu · timVaGoTrungHanhVi
       ../packages/harness/src/khuon-loi.js   → layKhuonCode · layKhuonDoc · KHO_KHUON · TRAN_KHUON
       ../packages/harness/src/dedup-probe.js → tachRule · timTrungChayLai · timNghiTrung · apDungPhanXu · promptPhanXuTrung
       ../packages/harness/src/jsonx.js       → bocJson · bocCode · LoiModelDungTool · goiJson · goiCode
