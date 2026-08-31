@@ -23,10 +23,10 @@ sudo systemctl reload nginx
 
 | # | Trên máy dev | Trên server | Đã xử thế nào |
 |---|---|---|---|
-| 1 | Model gọi qua **Claude Code CLI** (đã đăng nhập) | Headless, không đăng nhập CLI được | Dùng **API key** trong `/etc/checkmate.env`. ⚠ Tài khoản API tính **credit riêng**, không dùng chung gói Claude Code — hết credit thì API trả 400 "credit balance is too low" |
+| 1 | Model gọi qua **Claude Code CLI** (đã đăng nhập) | Headless — nhưng CLI **vẫn đăng nhập được** qua terminal SSH (`claude login` bằng user `ubuntu`) hoặc dán token thuê bao qua giao diện; prod hiện chạy gói thuê bao theo đường này | Không có gói thuê bao thì dùng **API key** trong `/etc/checkmate.env`. ⚠ Tài khoản API tính **credit riêng** — hết credit thì API trả 400 "credit balance is too low" |
 | 2 | Không token thì lùi về lệnh **`gh`** của máy | Không có `gh` | Bắt buộc `GITHUB_TOKEN`; code đọc env (env thắng config.json) |
-| 3 | `git fetch` repo private dùng credential manager của Windows | Không có credential nào | Git credential helper đọc thẳng `$GITHUB_TOKEN` — **token không ghi ra đĩa lần hai** |
-| 4 | `HOME` luôn có | systemd không tự set | `Environment=HOME=/home/ubuntu` trong unit (nếu thiếu, git không đọc `~/.gitconfig` → mất helper ở mục 3) |
+| 3 | `git fetch` repo private dùng credential manager của Windows | Không có credential nào | **App** tự mang `GITHUB_TOKEN` vào URL của chính lệnh fetch, dùng một lần, không ghi ra đĩa (R4.28). **Shell tay thì KHÔNG** — `git pull` từ SSH trả Authentication failed vì shell không nạp `/etc/checkmate.env`; đó là lý do deploy đi đường tar chứ không git pull |
+| 4 | `HOME` luôn có | systemd không tự set | `Environment=HOME=/home/ubuntu` trong unit — thiếu thì git không đọc `~/.gitconfig` (safe.directory…) và Claude Code CLI không tìm thấy phiên đăng nhập ở `~/.claude` |
 
 **Token GitHub với repo private:** phải là fine-grained có repo đó trong *Only select repositories*.
 Nếu chưa cấp, GitHub trả **404 (không phải 403)** để giấu sự tồn tại của repo — đừng tưởng sai tên repo.
@@ -50,12 +50,16 @@ nên đổi qua đổi lại không mất thiết lập.
 được với model kia, và một verdict sai vì chọn nhầm nguồn thì tốn hơn nhiều so với 3 giây bấm kiểm.
 
 Khoá của từng nhà cung cấp lưu ở `.secrets.json` quyền 600 (gitignore); trạng thái kiểm ở
-`.ncc-verify.json`. Biến môi trường của dịch vụ luôn **thắng** khoá dán qua giao diện.
+`.ncc-verify.json`. Biến môi trường của dịch vụ **thắng** khoá dán qua giao diện — với MỘT ngoại lệ có
+chủ đích: khi phương thức là **gói thuê bao**, `ANTHROPIC_API_KEY` bị CẮT khỏi môi trường của tiến trình
+CLI (danh sách cho phép R8.12), vì Claude Code thấy key là lặng lẽ tính tiền API trong khi người vận
+hành tưởng đang tiêu gói. «Thắng» áp cho việc CHỌN khoá của phương thức đang dùng, không có nghĩa là
+key API len được vào đường thuê bao.
 
 ## Chọn nguồn model: gói Claude Code hay API — đổi ngay trong Cấu hình
 
 Trang **⚙ Cấu hình → Agent review** hiện trạng thái cả hai đường trên chính máy chủ này, và có nút
-**Thử nguồn đang chọn** (gọi một câu cực ngắn, vài giây, gần như không tốn gì) để biết ngay dùng được chưa.
+**Thử nguồn đang chọn** để biết ngay dùng được chưa — prompt cố định `«Trả lời đúng hai ký tự: OK»` (~10 token vào), trần **16 token ra** ở đường API, timeout **120 giây** ở đường CLI.
 
 | Nguồn | Khi nào chọn | Điều kiện trên máy chủ |
 |---|---|---|
@@ -92,10 +96,47 @@ bấm **Thử nguồn đang chọn**: xanh là dùng được, đỏ sẽ nói r
 ## Hai thứ CHỦ MÁY phải tự điền (không ai điền hộ được)
 ```
 sudo nano /etc/checkmate.env      # quyền 600
-  ANTHROPIC_API_KEY=sk-ant-...    # bắt buộc: server headless không đăng nhập Claude Code CLI được
+  ANTHROPIC_API_KEY=sk-ant-...    # CHỈ cần khi dùng phương thức API; gói thuê bao qua CLI thì không (xem «Ba cách cho CLI dùng gói thuê bao»)
   GITHUB_TOKEN=ghp_...            # để hàng đợi PR tự nạp (server không có lệnh gh như máy dev)
 sudo systemctl restart checkmate
 ```
+
+## Tự động ở cổng — ba công tắc riêng (R6.15)
+
+| việc | mặc định | ghi chú |
+|---|---|---|
+| đăng verdict + finding lên PR | **bật** | chạy cho MỌI lượt chấm, không riêng chế độ trực |
+| gắn trạng thái commit success/failure | **bật** | chặn nút merge trên GitHub, gỡ được |
+| tự trả về dev (ĐÓNG pull request) | **tắt** | chỉ khi FAIL có finding mức high; bật trong ⚙ Cấu hình |
+
+Nguyên tắc: tự động hoá được phép nói KHÔNG, không được phép nói CÓ — máy không bao giờ tự merge,
+không có công tắc nào bật được điều đó. Hành động do máy ghi sổ dưới tên `ci-bot`, không mượn tên người.
+
+Tài khoản cho tác nhân máy dùng vai `tu_dong` (chạy chấm + trả về dev, KHÔNG sửa cấu hình, KHÔNG merge):
+
+```
+npm run tai-khoan -- them ci-bot --vai tu_dong
+```
+
+## Chấm độc lập repo checkmate từ prod
+
+Từ 31/08: CheckMate trên máy chủ giữ một **bản clone riêng** của repo `thangvv111/checkmate` tại
+`~/checkmate-app/checkmate/repos/thangvv111-checkmate` và trực nó (`repo_dang_chon` trỏ vào đó,
+`truc.bat: true`). Mỗi PR mở trên repo này được prod tự chấm rồi đăng verdict + gắn commit status —
+một lượt chấm **độc lập với máy dev**: engine prod, clone riêng, hợp đồng đọc từ clone.
+
+Quy trình merge từ đây: mở PR → chờ verdict độc lập từ prod trên PR → merge khi PASS.
+Lượt chấm local vẫn chạy được khi cần lặp nhanh, nhưng verdict tính cho cổng là verdict prod.
+
+Clone này KHÔNG tự cập nhật cây làm việc (fetch chỉ cập nhật refs). Hợp đồng `checkmate.yml` đọc từ cây
+làm việc của clone — mỗi lần deploy cập nhật nó bằng lệnh MANG TOKEN (shell tay không nạp env, `git pull`
+trần sẽ trả Authentication failed như bảng trên đã nói):
+
+```
+sudo bash -c '. /etc/checkmate.env; git -C /home/ubuntu/checkmate-app/checkmate/repos/thangvv111-checkmate   pull https://x-access-token:$GITHUB_TOKEN@github.com/thangvv111/checkmate.git main'
+```
+
+Token chỉ nằm trong URL của đúng lệnh đó, không ghi vào `.git/config` (R4.6).
 
 ## Lệnh hay dùng
 ```
@@ -153,6 +194,6 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:4001/     # phải 200
 `probes-lib/`; chúng phải bằng hoặc lớn hơn trước khi deploy. Nhỏ đi là đã mất dữ liệu — khôi phục
 ngay từ `~/checkmate-backup-<mốc>`.
 
-**Vì sao không `git pull`:** repo là private và trên server không có token cho git, `git fetch` trả
-`Authentication failed`. Cây trên server cũng đã lệch khỏi lịch sử git vì các lần deploy tar trước ghi
+**Vì sao không `git pull`:** repo là private, và token chỉ được APP tự mang vào lệnh fetch của nó
+(R4.28) — **shell tay không nạp** `/etc/checkmate.env`, nên `git pull` từ SSH trả `Authentication failed`. Cây trên server cũng đã lệch khỏi lịch sử git vì các lần deploy tar trước ghi
 đè lên nó — nên «deploy» ở đây là ghi đè source, không phải cập nhật theo git.
