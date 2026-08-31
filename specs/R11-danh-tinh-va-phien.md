@@ -67,8 +67,12 @@ máy chủ đó là `ubuntu`. Sổ có hàng, chỉ là hàng vô nghĩa.
   ghi dấu vào sổ, nhưng KHÔNG chặn. Lý do không chặn: chặn cứng đòi một ánh xạ tài khoản ↔ định danh
   GitHub, mà ánh xạ sai thì chặn nhầm đúng lúc cần merge gấp. Lý do vẫn phải ghi: hai cái tên nằm cạnh
   nhau trên cùng một hàng thì người kiểm toán tự thấy được — kể cả những ca hệ thống nhận diện sót.
-- **R11.18** — Tác nhân máy (agent, lượt chạy tự động) PHẢI mang danh tính riêng và KHÔNG được bấm cổng.
+- **R11.18** — Tác nhân máy (agent, lượt chạy tự động) PHẢI mang danh tính riêng và KHÔNG được **merge**.
   Trong một cổng phê duyệt, "tác nhân tự động không tự merge được" là điều khoản, không phải tuỳ chọn.
+- **R11.18b** — Vai dành cho tác nhân máy là `tu_dong`: chạy chấm và — khi được bật theo R6.17 — trả về
+  dev, nhưng KHÔNG sửa cấu hình và KHÔNG merge. Tách khỏi `van_hanh` vì vai đó sửa được cấu hình, trong
+  đó có cả token và nhà cung cấp model; một tài khoản chạy tự động không cần quyền ấy, và mọi quyền thừa
+  của một tài khoản chạy không người trông là bề mặt tấn công không ai canh.
 
 ## Vòng đời tài khoản
 

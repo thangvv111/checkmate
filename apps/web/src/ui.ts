@@ -266,6 +266,8 @@ export interface SettingsView {
   trucBat: boolean;
   trucChuKy: number;
   trucComment: boolean;
+  trucTrangThai: boolean;
+  trucTraVe: boolean;
   daLuu?: boolean;
 }
 
@@ -307,7 +309,14 @@ ${v.khoiNccHtml}
   <label style="display:block;font-size:12.5px;margin:8px 0"><input type="checkbox" name="truc_bat" value="1" ${v.trucBat ? 'checked' : ''} ${ro}> Bật chế độ trực</label>
   <label style="display:block;font-size:12.5px;font-weight:600;margin:8px 0 4px">Chu kỳ quét (giây, 60–3600)</label>
   <input name="truc_chu_ky" type="number" min="60" max="3600" value="${v.trucChuKy}" ${ro} style="width:110px;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
-  <label style="display:block;font-size:12.5px;margin:10px 0 4px"><input type="checkbox" name="truc_comment" value="1" ${v.trucComment ? 'checked' : ''} ${ro}> Tự post verdict comment + check status lên GitHub khi chấm xong</label>
+  <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+    <div style="font-size:12.5px;font-weight:600;margin-bottom:3px">Tự động ở cổng</div>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 9px">Ba việc riêng, không gộp — mức gây hại khác hẳn nhau. Ba việc này chạy cho MỌI lượt chấm, không riêng chế độ trực.</p>
+    <label style="display:block;font-size:12.5px;margin:7px 0"><input type="checkbox" name="truc_comment" value="1" ${v.trucComment ? 'checked' : ''} ${ro}> Đăng verdict và finding lên pull request <span style="color:var(--muted)">— dev đọc ngay tại chỗ họ làm việc</span></label>
+    <label style="display:block;font-size:12.5px;margin:7px 0"><input type="checkbox" name="truc_trang_thai" value="1" ${v.trucTrangThai ? 'checked' : ''} ${ro}> Gắn trạng thái commit <span style="color:var(--muted)">— chặn nút merge trên GitHub, gỡ được</span></label>
+    <label style="display:block;font-size:12.5px;margin:7px 0"><input type="checkbox" name="truc_tra_ve" value="1" ${v.trucTraVe ? 'checked' : ''} ${ro}> <b>Tự trả về dev</b> khi verdict FAIL có finding mức chặn <span style="color:var(--fail)">— ĐÓNG pull request, người viết phải mở lại</span></label>
+    <p style="font-size:11.5px;color:var(--muted);margin:9px 0 0">Máy không bao giờ tự merge — không có công tắc nào bật được điều đó. Hành động do máy thực hiện được ghi vào sổ cổng dưới tên <code>ci-bot</code>, không mượn tên người.</p>
+  </div>
 </div>
 ${v.mode === 'org' ? '<button>Lưu cấu hình</button>' : '<p class="goiy">Bản demo public không cho sửa — self-host với cờ <code>--org</code> để mở cấu hình.</p>'}
 </form>`,

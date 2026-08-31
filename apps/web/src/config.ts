@@ -33,7 +33,16 @@ export interface RepoConfig {
 export interface TrucConfig {
   bat: boolean; // chế độ trực: poller tự chấm PR mới — mặc định TẮT (không tự đốt model khi chưa ai bật)
   chu_ky_giay: number;
-  tu_dong_comment: boolean; // post verdict comment + commit status lên GitHub khi run xong
+  /**
+   * R6.15 — BA công tắc RIÊNG, không gộp, vì mức gây hại khác hẳn nhau. Gộp làm một nghĩa là ai muốn có
+   * comment tự động cũng phải chấp nhận máy đóng pull request của mình.
+   */
+  /** Đăng verdict + finding lên PR. Gần như vô hại, và chạy cả với lượt bấm tay (R6.16) */
+  tu_dong_comment: boolean;
+  /** Gắn trạng thái commit success/failure — chặn nút merge trên GitHub, gỡ được */
+  tu_dong_trang_thai: boolean;
+  /** ĐÓNG pull request, trả về dev. Người viết phải mở lại — mặc định TẮT (R6.15, R6.17) */
+  tu_dong_tra_ve: boolean;
 }
 
 export interface CheckmateConfig {
@@ -85,14 +94,18 @@ const MAC_DINH: CheckmateConfig = {
     max_probe: 6,
     skeptic: true,
   },
-  truc: { bat: false, chu_ky_giay: 300, tu_dong_comment: true },
+  truc: { bat: false, chu_ky_giay: 300, tu_dong_comment: true, tu_dong_trang_thai: true, tu_dong_tra_ve: false },
 };
 
 // Cấu hình và kho khoá CỐ Ý không vào cơ sở dữ liệu (specs/R9.13): sửa file bằng tay là đường cứu hộ
 // khi cấu hình sai làm giao diện không lên, và bí mật nằm trong cơ sở dữ liệu thì mọi bản sao lưu đều
 // mang theo khoá. File này đóng vai lớp kho cho phần đó.
 // Cache theo thời điểm sửa file: đọc lại chỉ khi file thật sự đổi, nên sửa tay vẫn có hiệu lực ngay.
-let cache: { mtimeMs: number; token: string; c: CheckmateConfig } | null = null;
+// Khoá cache theo mtime NANO giây, không phải mili giây. Với mili giây, hai lần ghi trong cùng một
+// mili giây cho cùng một khoá — lần thứ hai bị cache che, và R9.14 («sửa file bằng tay phải có hiệu lực
+// ở lượt đọc kế tiếp») không còn đúng. Hiếm khi xảy ra lúc người dùng bấm, nhưng chắc chắn xảy ra khi
+// một script ghi liên tiếp — và một đường cứu hộ chỉ đúng «hầu hết thời gian» thì không phải đường cứu hộ.
+let cache: { mtimeNs: bigint; token: string; c: CheckmateConfig } | null = null;
 
 /**
  * Danh sách repo suy từ cấu hình đã lưu — R4.3: bản đời cũ chỉ có MỘT `repo` phải được nâng thành
@@ -111,8 +124,8 @@ export function docConfig(): CheckmateConfig {
   if (!existsSync(FILE)) {
     return structuredClone(MAC_DINH);
   }
-  const mtimeMs = statSync(FILE).mtimeMs;
-  if (cache && cache.mtimeMs === mtimeMs && cache.token === tokenEnv) return cache.c;
+  const mtimeNs = statSync(FILE, { bigint: true }).mtimeNs;
+  if (cache && cache.mtimeNs === mtimeNs && cache.token === tokenEnv) return cache.c;
   const luu = JSON.parse(readFileSync(FILE, 'utf8')) as Partial<CheckmateConfig>;
   // Config đời cũ chỉ có MỘT repo — nâng thành danh sách mà không mất thiết lập nào
   const repos = dsRepoTuLuu(luu);
@@ -125,7 +138,7 @@ export function docConfig(): CheckmateConfig {
     agent: nangCapAgent(luu.agent),
     truc: { ...MAC_DINH.truc, ...luu.truc },
   };
-  cache = { mtimeMs, token: tokenEnv, c };
+  cache = { mtimeNs, token: tokenEnv, c };
   return c;
 }
 

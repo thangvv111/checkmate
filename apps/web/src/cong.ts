@@ -50,6 +50,8 @@ export function ghiSo(entry: Record<string, unknown>): void {
   const tuDuyet = tacGiaPr && typeof entry.nguoi === 'string' && trungNguoi(entry.nguoi, tacGiaPr);
   const moTaXacNhan = ds.length ? `chấp nhận ${ds.length} cảnh báo medium: ${ds.join(', ')}` : '';
   const ghiChu = typeof entry.ghi_chu === 'string' ? entry.ghi_chu.trim() : '';
+  // R6.18 — sổ phải phân biệt «người trả về» với «máy trả về»: hai mức trách nhiệm khác nhau
+  const boiMay = entry.tu_dong === true ? 'do TÁC NHÂN MÁY thực hiện tự động' : '';
   ghiSoCong({
     run_id: entry.run_id,
     luc: new Date().toISOString(),
@@ -57,7 +59,10 @@ export function ghiSo(entry: Record<string, unknown>): void {
     nguoi: typeof entry.nguoi === 'string' ? entry.nguoi : 'không rõ',
     // Cả hai vế đều giữ khi cùng có — ghi chú của người và danh sách đã chấp nhận trả lời hai câu khác nhau
     tac_gia_pr: tacGiaPr,
-    chi_tiet: [ghiChu, moTaXacNhan, tuDuyet ? '⚠ người bấm cổng TRÙNG tác giả PR (tự duyệt)' : ''].filter(Boolean).join(' · ') || undefined,
+    chi_tiet:
+      [boiMay, ghiChu, moTaXacNhan, tuDuyet ? '⚠ người bấm cổng TRÙNG tác giả PR (tự duyệt)' : '']
+        .filter(Boolean)
+        .join(' · ') || undefined,
   });
 }
 
