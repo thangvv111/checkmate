@@ -42,3 +42,29 @@ hết hiệu lực khi commit đổi.
   luật này một mình không đủ: nó từng được thoả bằng tài khoản hệ điều hành chạy tiến trình, tức sổ có
   hàng nhưng mọi hàng mang cùng một cái tên.
 - **R6.12** — Chế độ demo KHÔNG ĐƯỢC cho thao tác cổng merge và KHÔNG ĐƯỢC cho sửa cấu hình.
+
+## Tự động hoá ở cổng
+
+*Nguyên tắc chi phối cả mục này: **tự động hoá được phép nói KHÔNG, không được phép nói CÓ.** Merge là
+cho code vào trunk — rủi ro một chiều, phải người quyết. Trả về dev là KHÔNG cho vào trunk — sai thì chỉ
+tốn công mở lại, không hỏng gì. Bất đối xứng đó cho phép tác nhân máy tự trả về mà vẫn giữ nguyên câu
+«máy không bao giờ tự merge».*
+
+- **R6.15** — Ba việc tự động ở cổng PHẢI là ba công tắc RIÊNG, không được gộp thành một, vì mức độ gây
+  hại của chúng khác hẳn nhau:
+  | việc | gây hại nếu sai | mặc định |
+  |---|---|---|
+  | đăng verdict và finding lên pull request | gần như không — chỉ là một comment | **bật** |
+  | gắn trạng thái commit `failure` | chặn nút merge trên GitHub, gỡ được | **bật** |
+  | đóng pull request, trả về dev | người viết phải mở lại, mất công thật | **tắt** |
+  Gộp làm một nghĩa là ai muốn có comment tự động cũng phải chấp nhận máy đóng pull request của mình.
+- **R6.16** — Đăng verdict tự động KHÔNG ĐƯỢC giới hạn ở chế độ trực. Lượt chấm bấm tay cũng sinh ra
+  verdict, và người viết code cũng cần đọc finding ở đúng chỗ họ làm việc — trên pull request.
+- **R6.17** — Tự động trả về dev CHỈ được chạy khi verdict là `FAIL` **và** có ít nhất một finding mức
+  `high`. Nói cách khác: chỉ đóng khi có probe chạy thật và đỏ. Đóng dựa trên suy đoán là thứ làm người
+  ta tắt cổng.
+- **R6.18** — Hành động cổng do máy thực hiện PHẢI ghi vào sổ với danh tính của **tác nhân máy**, không
+  mượn tên người. Sổ kiểm toán phải phân biệt được «người trả về» với «máy trả về» — hai chuyện có mức
+  trách nhiệm khác nhau.
+- **R6.19** — Tác nhân máy KHÔNG ĐƯỢC merge trong mọi cấu hình. Không có công tắc nào bật được điều đó,
+  và đây là điều khoản chứ không phải tuỳ chọn.

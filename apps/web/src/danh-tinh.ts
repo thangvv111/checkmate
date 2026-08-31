@@ -13,7 +13,7 @@ import { moDb } from './kho/db.js';
  * nhiên — cùng tinh thần zero-install với `node:sqlite` của lớp kho.
  */
 
-export type Vai = 'nguoi_xem' | 'van_hanh' | 'duyet_cong';
+export type Vai = 'nguoi_xem' | 'tu_dong' | 'van_hanh' | 'duyet_cong';
 
 export interface DanhTinh {
   ten: string;
@@ -216,6 +216,20 @@ export function epBamCong(dt: DanhTinh): void {
 }
 
 export function duocVanHanh(dt: DanhTinh): boolean {
+  return dt.vai === 'van_hanh' || dt.vai === 'duyet_cong';
+}
+
+/**
+ * R11.18b — vai `tu_dong` chạy chấm và trả về dev được, nhưng KHÔNG sửa cấu hình.
+ *
+ * Tách khỏi `van_hanh` vì vai đó sửa được cấu hình, trong đó có cả token và nhà cung cấp model. Một tài
+ * khoản chạy không người trông không cần quyền ấy, và mọi quyền thừa của nó là bề mặt tấn công không ai canh.
+ */
+export function duocChayCham(dt: DanhTinh): boolean {
+  return dt.vai === 'tu_dong' || dt.vai === 'van_hanh' || dt.vai === 'duyet_cong';
+}
+
+export function duocSuaCauHinh(dt: DanhTinh): boolean {
   return dt.vai === 'van_hanh' || dt.vai === 'duyet_cong';
 }
 

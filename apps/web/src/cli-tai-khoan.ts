@@ -15,11 +15,12 @@ import { doiMatKhau, doiVai, dsTaiKhoan, taoTaiKhoan, xoaTaiKhoan, type Vai } fr
  *   npm run tai-khoan -- xoa thang.vv
  */
 
-const VAI_HOP_LE: Vai[] = ['nguoi_xem', 'van_hanh', 'duyet_cong'];
+const VAI_HOP_LE: Vai[] = ['nguoi_xem', 'tu_dong', 'van_hanh', 'duyet_cong'];
 
 const GIAI_THICH_VAI: Record<Vai, string> = {
   nguoi_xem: 'chỉ xem — không chạy chấm, không bấm cổng',
-  van_hanh: 'chạy chấm và sửa cấu hình — KHÔNG bấm được cổng merge (vai dành cho tác nhân máy, R11.18)',
+  tu_dong: 'vai của TÁC NHÂN MÁY — chạy chấm và trả về dev, KHÔNG sửa cấu hình, KHÔNG merge (R11.18b)',
+  van_hanh: 'chạy chấm và sửa cấu hình — KHÔNG bấm được cổng merge',
   duyet_cong: 'bấm được cổng merge / trả về dev',
 };
 

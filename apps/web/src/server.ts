@@ -139,20 +139,59 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 *
 // ---- Chế độ trực (B4.3): hook run-xong + poller ----
 rm.onXong = (meta) => {
   const cfg = docConfig();
-  if (!meta.pr || !meta.verdict || !cfg.truc.bat || !cfg.truc.tu_dong_comment) return;
+  if (!meta.pr || !meta.verdict) return;
   const v = meta.verdict;
   const pr = meta.pr;
+  const d = demMuc(v.findings);
+  // R6.17 — chỉ đóng khi có probe CHẠY THẬT và đỏ. Đóng dựa trên suy đoán là thứ làm người ta tắt cổng.
+  const dangDongPr = cfg.truc.tu_dong_tra_ve && v.result === 'FAIL' && d.high > 0;
   void (async () => {
+    // R6.16 — đăng verdict KHÔNG giới hạn ở chế độ trực: lượt bấm tay cũng sinh verdict, và người viết
+    // code cũng cần đọc finding ở đúng chỗ họ làm việc.
+    if (cfg.truc.tu_dong_comment) {
+      try {
+        await binhLuanPr(cfg, pr.so, banVerdictTuDong(v));
+        console.log(`Tự động: đã đăng verdict ${v.result} lên PR #${pr.so}`);
+      } catch (e) {
+        console.error('Tự động (đăng verdict):', (e as Error).message);
+      }
+    }
+    // Ba việc là ba công tắc riêng (R6.15) nên cũng là ba khối try riêng: đăng comment hỏng không được
+    // kéo theo việc gắn trạng thái, và cả hai hỏng cũng không được che mất việc trả về dev.
+    if (cfg.truc.tu_dong_trang_thai) {
+      try {
+        await ganTrangThaiCommit(cfg, pr.headSha, v.result === 'PASS' ? 'success' : 'failure',
+          v.result === 'PASS' ? 'CheckMate: PASS' : `CheckMate: FAIL — ${v.findings.length} finding`);
+      } catch (e) {
+        console.error('Tự động (gắn trạng thái commit):', (e as Error).message);
+      }
+    }
+    if (!dangDongPr) return;
     try {
-      await binhLuanPr(cfg, pr.so, banVerdictTuDong(v));
-      await ganTrangThaiCommit(cfg, pr.headSha, v.result === 'PASS' ? 'success' : 'failure',
-        v.result === 'PASS' ? 'CheckMate: PASS' : `CheckMate: FAIL — ${v.findings.length} finding`);
-      console.log(`Chế độ trực: đã báo verdict ${v.result} lên PR #${pr.so}`);
+      // R6.18 — ghi sổ bằng danh tính của TÁC NHÂN MÁY, không mượn tên người: sổ kiểm toán phải phân
+      // biệt «người trả về» với «máy trả về», hai chuyện có mức trách nhiệm khác nhau.
+      const nguoi = TEN_TAC_NHAN_MAY;
+      await dongPr(cfg, pr.so);
+      let kenh: 'review' | 'comment' | 'loi_comment' = 'comment';
+      try {
+        kenh = await traVeDev(cfg, pr.so, banPhanQuyet(v, 'Trả về tự động: verdict FAIL có finding mức chặn.', true));
+      } catch {
+        kenh = 'loi_comment';
+      }
+      const kq = { hanhDong: 'reject' as const, luc: new Date().toISOString(), nguoi,
+        chiTiet: `tự động trả về PR #${pr.so} @ ${pr.headSha.slice(0, 7)} — FAIL, ${d.high} finding mức chặn` };
+      rm.ghiKetQuaCong(meta.id, kq);
+      ghiSo({ hanhDong: 'reject', pr: pr.so, sha: pr.headSha, run_id: meta.id, verdict: v.result, nguoi,
+        tac_gia_pr: pr.tacGia, kenh, dong_pr: true, tu_dong: true });
+      console.log(`Tự động: đã trả về dev PR #${pr.so} (FAIL, ${d.high} finding mức chặn)`);
     } catch (e) {
-      console.error('Chế độ trực (báo verdict):', (e as Error).message);
+      console.error('Tự động (trả về dev):', (e as Error).message);
     }
   })();
 };
+
+/** R6.18 — tên ghi vào sổ cho hành động do máy thực hiện. Không mượn tên người dùng nào. */
+const TEN_TAC_NHAN_MAY = 'ci-bot';
 
 // Chấm một PR — dùng chung cho nút bấm lẫn poller
 async function chamPr(cfg: ReturnType<typeof docConfig>, soPr: number): Promise<{ id: string } | { daChamRunId: string }> {
@@ -309,6 +348,8 @@ app.get('/settings', (req, res) => {
       trucBat: c.truc.bat,
       trucChuKy: c.truc.chu_ky_giay,
       trucComment: c.truc.tu_dong_comment,
+      trucTrangThai: c.truc.tu_dong_trang_thai,
+      trucTraVe: c.truc.tu_dong_tra_ve,
       daLuu: req.query.luu === '1',
     }),
   );
@@ -371,6 +412,8 @@ app.post('/settings', (req, res) => {
       bat: b.truc_bat === '1',
       chu_ky_giay: Math.min(3600, Math.max(60, Number(b.truc_chu_ky) || 300)),
       tu_dong_comment: b.truc_comment === '1',
+      tu_dong_trang_thai: b.truc_trang_thai === '1',
+      tu_dong_tra_ve: b.truc_tra_ve === '1',
     },
   };
   if (!/^[\w.-]+\/[\w.-]+$/.test(repoSua.github)) return res.status(422).send('Repo phải dạng owner/tên');

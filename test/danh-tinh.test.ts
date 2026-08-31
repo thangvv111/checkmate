@@ -140,3 +140,28 @@ describe('máy không bao giờ tự merge (R11.18)', () => {
     expect(() => dt.epBamCong({ ten: 'ci-bot', vai: 'van_hanh' })).toThrow(/không được thao tác cổng/);
   });
 });
+
+describe('vai tác nhân máy (R11.18b, R6.19)', () => {
+  it('vai tu_dong chạy chấm được nhưng KHÔNG sửa cấu hình, KHÔNG merge', () => {
+    const bot = { ten: 'ci-bot', vai: 'tu_dong' } as const;
+    expect(dt.duocChayCham(bot)).toBe(true);
+    expect(dt.duocSuaCauHinh(bot), 'không cần quyền sửa token và nhà cung cấp model').toBe(false);
+    expect(dt.duocBamCong(bot), 'máy không bao giờ tự merge — điều khoản, không phải tuỳ chọn').toBe(false);
+  });
+
+  it('tách khỏi van_hanh vì vai đó sửa được cấu hình', () => {
+    expect(dt.duocSuaCauHinh({ ten: 'a', vai: 'van_hanh' })).toBe(true);
+    expect(dt.duocSuaCauHinh({ ten: 'ci-bot', vai: 'tu_dong' })).toBe(false);
+  });
+
+  it('người xem không chạy chấm được', () => {
+    expect(dt.duocChayCham({ ten: 'b', vai: 'nguoi_xem' })).toBe(false);
+  });
+
+  it('KHÔNG vai nào ngoài duyet_cong mở được cổng merge', () => {
+    for (const vai of ['nguoi_xem', 'tu_dong', 'van_hanh'] as const) {
+      expect(dt.duocBamCong({ ten: 'x', vai }), `vai ${vai} không được merge`).toBe(false);
+    }
+    expect(dt.duocBamCong({ ten: 'y', vai: 'duyet_cong' })).toBe(true);
+  });
+});

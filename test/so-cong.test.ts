@@ -82,3 +82,16 @@ describe('so tên người bấm với tác giả PR', () => {
     expect(trungNguoi('', 'thang.vv')).toBe(false);
   });
 });
+
+describe('sổ phân biệt người trả về với máy trả về (R6.18)', () => {
+  it('hành động do máy được ghi dấu rõ trong sổ', () => {
+    // Hai chuyện có mức trách nhiệm khác nhau — kiểm toán phải phân biệt được
+    ghiSo({ hanhDong: 'reject', run_id: 'r-may', nguoi: 'ci-bot', tu_dong: true, tac_gia_pr: 'ai-do' });
+    expect(docSoCong('r-may')[0]?.chi_tiet ?? '').toMatch(/TÁC NHÂN MÁY/i);
+  });
+
+  it('hành động do người thì KHÔNG mang dấu đó', () => {
+    ghiSo({ hanhDong: 'reject', run_id: 'r-nguoi', nguoi: 'thang.vv', tac_gia_pr: 'ai-do' });
+    expect(docSoCong('r-nguoi')[0]?.chi_tiet ?? '').not.toMatch(/TÁC NHÂN MÁY/i);
+  });
+});
