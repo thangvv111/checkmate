@@ -151,13 +151,21 @@ export function kiemConHieuLuc(ma: MaNcc, cfg: CauHinhNcc): KetQuaKiem | null {
   // So bằng CÙNG phép chiếu với lúc ghi sổ: sổ giữ bản che của giá trị ngoài danh mục (R5.20), nên so
   // bản thô là tổ hợp model-lạ vừa kiểm xong đã «hết hiệu lực» ngay — người dùng model mới không bao
   // giờ chọn được nhà cung cấp.
-  // Sổ luôn lưu ẢNH của phép chiếu (xong() ghi bản che cho giá trị lạ) — nên chỉ chiếu vế cấu hình
-  // rồi so ảnh với ảnh. Chiếu cả vế sổ là chiếu hai lần: bản che không nằm trong danh mục nên bị che
-  // tiếp, và che-của-che không bao giờ bằng che — chính test của bản vá này bắt ra.
-  // Sổ đời cũ lỡ lưu model lạ dạng thô thì so ảnh sẽ lệch → coi như hết hiệu lực, phải Kiểm tra lại —
-  // lệch về phía nói KHÔNG, đúng chiều an toàn.
+  // Cấu hình khuyết trường → từ chối ÊM (null), không ném: đường cứu hộ config (R9.13) không hứa
+  // hình dạng đủ, và cửa kiểm nổ TypeError là đánh sập cả lượt chấm thay vì bỏ qua một nhà cung cấp
+  // (vòng chín của cổng bắt hồi quy này trên chính bản vá vòng tám).
+  if (typeof cfg.model !== 'string' || !cfg.model.trim() || !cfg.phuong_thuc) return null;
   const dn = dinhNghia(ma);
+  // R5.15 — «MỌI cửa phải tôn trọng giới hạn model», và cửa quyết định một nhà cung cấp có được dùng
+  // để chấm hay không chính là cửa này: hàng sổ đời cũ hay sửa tay mang tổ hợp cấm không được mở cổng,
+  // dù sổ nói đã kiểm OK (vòng chín).
+  if (!modelHopLe(dn, cfg.phuong_thuc, cfg.model)) return null;
+  // Sổ luôn lưu ẢNH của phép chiếu (xong() ghi bản che cho giá trị lạ) — nên chiếu vế cấu hình rồi so
+  // ảnh với ảnh, ĐỀU TAY cả hai trường (R5.20 gồm cả phuong_thuc — vòng chín bắt vế so lệch). Chiếu
+  // vế sổ thêm lần nữa là che-của-che, không bao giờ khớp — test của bản vá vòng tám bắt ra.
+  // Sổ đời cũ lỡ lưu giá trị lạ dạng thô thì so ảnh sẽ lệch → coi như hết hiệu lực, phải Kiểm tra
+  // lại — lệch về phía nói KHÔNG, đúng chiều an toàn.
   if ((k.model ?? '') !== chieuGiaTri(cfg.model, dn.models)) return null;
-  if (k.phuong_thuc !== cfg.phuong_thuc) return null;
+  if ((k.phuong_thuc ?? '') !== chieuGiaTri(String(cfg.phuong_thuc), dn.phuong_thuc)) return null;
   return k;
 }

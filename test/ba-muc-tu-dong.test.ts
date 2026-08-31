@@ -175,4 +175,44 @@ describe('vòng tám: phép chiếu chung + cụm null + không vọng phương 
     // và đổi sang model lạ KHÁC thì hết hiệu lực — vân tay phân biệt, không phải «lạ nào cũng như nhau»
     expect(kiemConHieuLuc('openai', { ...cauHinh, model: 'model-la-khac-cung-do-dai-x' })).toBeNull();
   });
+
+  it('cấu hình KHUYẾT trường → kiemConHieuLuc trả null ÊM, không TypeError (vòng chín, finding 1)', async () => {
+    // Cửa kiểm nổ là đánh sập cả lượt chấm thay vì bỏ qua một nhà cung cấp — hồi quy do chính bản
+    // vá vòng tám gây ra (chieuGiaTri gọi .length trên undefined)
+    const { ghiSoKiem, kiemConHieuLuc } = await import('../apps/web/src/ncc.js');
+    ghiSoKiem('openai', { ok: true, luc: new Date().toISOString(), thong_diep: 'ok', model: 'gpt-5.2', phuong_thuc: 'api' });
+    expect(() => kiemConHieuLuc('openai', {} as never)).not.toThrow();
+    expect(kiemConHieuLuc('openai', {} as never)).toBeNull();
+    expect(kiemConHieuLuc('openai', { phuong_thuc: 'api' } as never)).toBeNull();
+    expect(kiemConHieuLuc('openai', { model: 'gpt-5.2' } as never)).toBeNull();
+  });
+
+  it('hàng sổ mang tổ hợp BỊ CẤM không mở cổng — MỌI cửa tôn trọng R5.15 (vòng chín, finding 2)', async () => {
+    // Sổ đời cũ / sửa tay có thể mang anthropic + claude-fable-5 + api với ok:true. Cửa quyết định
+    // nhà cung cấp có được dùng để chấm là kiemConHieuLuc — nó phải hỏi modelHopLe, không tin sổ suông.
+    const { ghiSoKiem, kiemConHieuLuc } = await import('../apps/web/src/ncc.js');
+    const cam = { phuong_thuc: 'api' as const, model: 'claude-fable-5' };
+    ghiSoKiem('anthropic', { ok: true, luc: new Date().toISOString(), thong_diep: 'ok', ...cam });
+    expect(kiemConHieuLuc('anthropic', cam), 'tổ hợp chỉ-thuê-bao đi đường API không được mở cổng').toBeNull();
+    // cùng model đi đúng phương thức thuê bao thì vẫn khớp bình thường
+    const dung = { phuong_thuc: 'thue_bao' as const, model: 'claude-fable-5' };
+    ghiSoKiem('anthropic', { ok: true, luc: new Date().toISOString(), thong_diep: 'ok', ...dung });
+    expect(kiemConHieuLuc('anthropic', dung)).not.toBeNull();
+  });
+
+  it('vế phuong_thuc cũng so ẢNH với ẢNH — áp đều tay hai trường (vòng chín, finding 3)', async () => {
+    // Giá trị trong danh mục: ảnh = chính nó, so nào cũng khớp — ca này khoá HÀNH VI để phép so hai
+    // trường không lệch nhau lần nữa; giá trị lạ thì modelHopLe đã chặn từ trước theo R5.15.
+    const { chieuGiaTri, dinhNghia, ghiSoKiem, kiemConHieuLuc } = await import('../apps/web/src/ncc.js');
+    const dn = dinhNghia('openai');
+    const cauHinh = { phuong_thuc: 'api' as const, model: 'model-moi-openai-vua-ra' };
+    ghiSoKiem('openai', {
+      ok: true,
+      luc: new Date().toISOString(),
+      thong_diep: 'ok',
+      model: chieuGiaTri(cauHinh.model, dn.models),
+      phuong_thuc: chieuGiaTri('api', dn.phuong_thuc) as 'api', // đúng thứ xong() ghi: ảnh của phép chiếu
+    });
+    expect(kiemConHieuLuc('openai', cauHinh)).not.toBeNull();
+  });
 });
