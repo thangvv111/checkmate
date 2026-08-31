@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { chuanMuc, type Finding, type RunEvent, type Severity } from '../../shared/src/types.js';
 import type { ModelProvider } from './model.js';
 import { goiCode, goiJson } from './jsonx.js';
@@ -92,17 +93,15 @@ export function nhanProbe(title: string): string {
     .map((x) => x.replace(/\s+/g, ' ').trim())
     .filter(Boolean);
   if (!doan.length) return '(probe không tên)';
-  // KHÔNG đoán mã probe bằng regex: một `describe` tên «P1 hay P2» làm nhãn mang mã SAI — tệ hơn
-  // không có mã, và lệch luật với khopIdProbe vốn nối theo id ĐÃ BIẾT (vòng hai của cổng bắt).
-  // Phép dựng không cần biết id: THÂN = mọi đoạn TRỪ describe ngoài cùng, cắt từ ĐẦU (mã probe nằm
-  // ngay đầu tên `it`, kể cả khi tên đó chứa dấu `>` như «P1: kỳ vọng a > phải chặn»); ĐUÔI describe
-  // ngoài cùng đi kèm để hai probe cùng tên `it` mà khác nhóm vẫn phân biệt được.
+  // KHÔNG đoán mã probe, và KHÔNG ghép tên describe vào nhãn: cả hai đều làm nhãn mang mã SAI —
+  // «P1 hay P2 > P10: …» từng ra nhãn chứa cả P1 lẫn P2 trong khi probe thật là P10 (hai vòng của
+  // cổng bắt liên tiếp). Nhãn chỉ lấy phần đầu tên `it` (nơi mã probe thật sự nằm, kể cả khi tên đó
+  // chứa dấu `>`), rồi gắn VÂN TAY 4 hex của TRỌN title để hai title khác nhau không bao giờ ra cùng
+  // một nhãn — kể cả khi phần chữ bị cắt trùng khít.
   const than = doan.length > 1 ? doan.slice(1).join(' > ') : doan[0];
-  const thanNgan = than.length <= 28 ? than : `${than.slice(0, 27)}…`;
-  if (doan.length === 1) return thanNgan || '(probe không tên)';
-  const dau = doan[0];
-  const boi = dau.length <= 10 ? dau : `…${dau.slice(-9)}`;
-  return `${thanNgan} ⟨${boi}⟩`;
+  const van = createHash('sha256').update(title ?? '').digest('hex').slice(0, 4);
+  const thanNgan = than.length <= 30 ? than : `${than.slice(0, 29)}…`;
+  return `${thanNgan || '(probe không tên)'}·${van}`;
 }
 
 export function khopIdProbe(title: string, id: string): boolean {

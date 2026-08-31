@@ -58,7 +58,7 @@ describe('A · nhãn probe trong log giữ đúng phần phân biệt', () => {
     const n = nhanProbe(`nhóm > P3: ${'x'.repeat(200)}`);
     expect(n).toContain('P3');
     expect(n).toContain('…');
-    expect(n.length).toBeLessThanOrEqual(45);
+    expect(n.length).toBeLessThanOrEqual(40);
   });
 
   it('KHÔNG đoán mã: describe tên «P1 hay P2» không được làm nhãn mang mã SAI (vòng hai, HIGH)', () => {
@@ -67,13 +67,26 @@ describe('A · nhãn probe trong log giữ đúng phần phân biệt', () => {
     const n = nhanProbe('P1 hay P2 > P10: nối đúng id');
     expect(n).toContain('P10');
     expect(khopIdProbe('P1 hay P2 > P10: nối đúng id', 'P10')).toBe(true);
-    expect(n.startsWith('P1:')).toBe(false);
+    // Vòng ba của cổng bắt tiếp: ghép tên describe vào đuôi ⟨…⟩ vẫn là mang mã SAI vào nhãn
+    expect(n, 'nhãn KHÔNG được chứa mã của describe').not.toMatch(/P1 hay P2|⟨/);
   });
 
   it('probe KHÔNG mang mã: hai title khác describe vẫn ra hai nhãn khác nhau (vòng hai, MEDIUM)', () => {
     const a = nhanProbe('cửa đọc cấu hình máy chủ > phải chặn');
     const b = nhanProbe('cửa đọc cấu hình repo đích > phải chặn');
     expect(a).not.toBe(b);
+  });
+
+  it('VÂN TAY bảo đảm không bao giờ trùng — kể cả khi phần chữ bị cắt trùng khít (vòng ba)', () => {
+    // Ca vòng ba: mã nằm CUỐI tên it dài thì thân bị cắt, hai nhãn trùng khít và mất luôn mã.
+    const dai = 'x'.repeat(60);
+    const a = nhanProbe(`nhóm > ${dai} P1`);
+    const b = nhanProbe(`nhóm > ${dai} P2`);
+    expect(a).not.toBe(b);
+    // và hai describe trùng 9 ký tự cuối cũng không được ra cùng nhãn
+    const c = nhanProbe('nhóm alpha chung cuối > phải chặn');
+    const d = nhanProbe('nhóm beta chung cuối > phải chặn');
+    expect(c).not.toBe(d);
   });
 });
 
