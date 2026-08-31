@@ -259,7 +259,8 @@ function nguonFetch(github: string): string {
 export function phanLoaiPr(dsVao: readonly string[]): { loai: 'code' | 'doc'; lyDo: string; fileDocUngVien: string[]; khongDoc: string[] } {
   // R13.8 áp cho CẢ CỤM, không chỉ từng phần tử: gọi với null/undefined/chuỗi/đối tượng đều phải rơi
   // về code, không ném — hàm đứng đầu pipeline mà ném là cả lượt chấm chết (vòng ba của cổng bắt).
-  const filesDoi: readonly string[] = Array.isArray(dsVao) ? dsVao : [];
+  const laMang = Array.isArray(dsVao);
+  const filesDoi: readonly string[] = laMang ? dsVao : [];
   // Đuôi VĂN BẢN THUẦN — áp ở mọi nơi trong repo.
   const DUOI_VAN_BAN = ['.md', '.txt'];
   // Đuôi CẤU HÌNH QUY TRÌNH — chỉ có nghĩa BÊN TRONG `openspec/`. Engine chấm không đọc thư mục đó.
@@ -285,13 +286,33 @@ export function phanLoaiPr(dsVao: readonly string[]): { loai: 'code' | 'doc'; ly
 
   // R13.6 — lý do nói CÓ thủ phạm thì phải nêu được dấu hiệu đọc được của nó; in nguyên chuỗi rỗng
   // ra thì phần liệt kê trống trơn, người đọc không biết file nào (vòng ba của cổng bắt).
-  const ten = (f: unknown): string => {
-    if (typeof f !== 'string') return `(phần tử không phải chuỗi: ${String(f)})`;
-    return f.trim() ? f : `(tên file rỗng, ${f.length} ký tự trắng)`;
+  const ten = (f: unknown, i = -1): string => {
+    const oViTri = i >= 0 ? ` ở vị trí ${i}` : '';
+    if (typeof f === 'string') return f.trim() ? f : `(tên file rỗng${oViTri}, ${f.length} ký tự trắng)`;
+    // String() ném với object không prototype (Object.create(null)) hoặc toString bị vô hiệu — hàm
+    // MÔ TẢ lỗi mà tự ném thì cả lượt chấm chết, đúng thứ R13.8 cấm (vòng bốn của cổng bắt).
+    let mo: string;
+    try {
+      mo = String(f);
+    } catch {
+      mo = Object.prototype.toString.call(f);
+    }
+    // Kèm vị trí: hai object khác nhau đều cho «[object Object]», không có vị trí thì lý do không
+    // phân biệt được thủ phạm nào (R13.6).
+    return `(phần tử${oViTri} không phải chuỗi: ${mo})`;
   };
+  const keTen = (ds: readonly unknown[]): string[] => ds.map((f) => ten(f, filesDoi.indexOf(f as string)));
   const ke = (ds: readonly unknown[], tran = 20): string =>
-    ds.length <= tran ? ds.map(ten).join(', ') : `${ds.slice(0, tran).map(ten).join(', ')} và ${ds.length - tran} file nữa`;
+    ds.length <= tran ? keTen(ds).join(', ') : `${keTen(ds.slice(0, tran)).join(', ')} và ${ds.length - tran} file nữa`;
 
+  // Nói ĐÚNG BẢN CHẤT đầu vào: mượn lời R13.4 («toàn văn bản thuần nhưng không có .md») cho một cụm
+  // không phải mảng là khẳng định sai về thứ mình vừa nhận (vòng bốn của cổng bắt).
+  if (!laMang) {
+    return { loai: 'code', lyDo: `danh sách file không phải mảng (${Object.prototype.toString.call(dsVao)}) — không phân loại được, fail-closed về code theo R13.8`, fileDocUngVien: [], khongDoc: [] };
+  }
+  if (filesDoi.length === 0) {
+    return { loai: 'code', lyDo: 'danh sách file RỖNG — không có gì để phân loại, fail-closed về code theo R13.8', fileDocUngVien: [], khongDoc: [] };
+  }
   const md = filesDoi.filter((f) => typeof f === 'string' && f.toLowerCase().endsWith('.md') && !f.startsWith('specs/'));
   const thucThi = filesDoi.filter((f) => !laVanBan(f));
   if (thucThi.length > 0) {
@@ -307,12 +328,15 @@ export function phanLoaiPr(dsVao: readonly string[]): { loai: 'code' | 'doc'; ly
   // nhóm .md ra khỏi vùng mù là giấu đúng phần người đọc cần biết (vòng ba của cổng bắt).
   // Ở tầng này chưa biết tài liệu nào sẽ được chọn (fetchVaRouter chọn theo số dòng đổi), nên lấy
   // ứng viên đầu làm dự kiến; fetchVaRouter dựng lại vùng mù theo tài liệu THẬT sau khi chốt.
-  const duKien = md[0];
-  const khongDoc = filesDoi.filter((f) => f !== duKien).map(ten);
+  // Ở TẦNG NÀY chưa biết tài liệu nào sẽ được chấm — fetchVaRouter chọn theo số dòng đổi nhiều nhất.
+  // Nên `khongDoc` chỉ gồm những file CHẮC CHẮN không ai đọc; các ứng viên .md được nêu riêng kèm
+  // câu «chỉ MỘT được chấm». Khai đích danh một ứng viên là «sẽ được chấm» khi chưa chốt là nói sai
+  // sự thật ngay lúc nói (vòng bốn của cổng bắt) — vùng mù THẬT do fetchVaRouter dựng lại sau.
+  const khongDoc = filesDoi.filter((f) => !md.includes(f as string)).map((f) => ten(f, filesDoi.indexOf(f)));
   const lyDo =
-    `${filesDoi.length} file đổi đều là văn bản thuần. Tài liệu ứng viên (${md.length}): ${ke(md)} — CHỈ MỘT được chấm` +
-    (khongDoc.length ? `; KHÔNG được đọc ở lượt này (${khongDoc.length}): ${ke(khongDoc)}` : '') +
-    (md.length > 1 ? `; ${md.length - 1} tài liệu ứng viên còn lại cũng không được đọc` : '') +
+    `${filesDoi.length} file đổi đều là văn bản thuần. Tài liệu ứng viên (${md.length}): ${ke(md)} — CHỈ MỘT được chấm, ` +
+    (md.length > 1 ? `${md.length - 1} ứng viên còn lại KHÔNG được đọc (chốt ở bước chọn tài liệu)` : 'không có ứng viên nào bị bỏ') +
+    (khongDoc.length ? `; CHẮC CHẮN không được đọc (${khongDoc.length}): ${ke(khongDoc)}` : '') +
     ' — R13.1/R13.7';
   return { loai: 'doc', lyDo, fileDocUngVien: md, khongDoc };
 }

@@ -87,16 +87,46 @@ describe('vòng hai: đuôi file trong openspec · specs là luật · vùng mù
     const kq = phanLoaiPr(['a.md', 'b.md', 'c.md', 'd.md']);
     expect(kq.lyDo).toContain('d.md');
     expect(kq.lyDo).toMatch(/CHỈ MỘT được chấm/);
-    expect(kq.lyDo).toMatch(/3 tài liệu ứng viên còn lại cũng không được đọc/);
+    expect(kq.lyDo).toMatch(/3 ứng viên còn lại KHÔNG được đọc/);
   });
 
-  it('vùng mù gồm CẢ tài liệu ứng viên không được chọn — chỉ MỘT được đọc (R13.7, vòng ba)', () => {
+  it('vùng mù: nêu ứng viên chưa chốt mà KHÔNG khai đích danh cái nào được chấm (R13.7, vòng ba+bốn)', () => {
+    // Vòng ba đòi ứng viên không được chọn phải hiện ra; vòng bốn bác việc khai ĐÍCH DANH md[0] là
+    // «sẽ được chấm» khi fetchVaRouter mới là nơi chọn (theo số dòng đổi). Hoà hai đòi hỏi: khongDoc
+    // chỉ gồm file CHẮC CHẮN mù, còn ứng viên nêu riêng kèm câu «chỉ MỘT được chấm».
     const kq = phanLoaiPr(['CLAUDE.md', 'NOTES.md', 'openspec/config.yaml', 'notes.txt']);
     expect(kq.loai).toBe('doc');
-    expect(kq.khongDoc).toContain('NOTES.md'); // ứng viên còn lại cũng không ai xem
-    expect(kq.khongDoc).toContain('openspec/config.yaml');
-    expect(kq.khongDoc).toContain('notes.txt');
-    expect(kq.khongDoc).not.toContain('CLAUDE.md'); // đúng một tài liệu được chấm
+    expect(kq.khongDoc).toEqual(['openspec/config.yaml', 'notes.txt']);
+    expect(kq.fileDocUngVien).toEqual(['CLAUDE.md', 'NOTES.md']);
+    expect(kq.lyDo).toContain('NOTES.md');
+    expect(kq.lyDo).toMatch(/1 ứng viên còn lại KHÔNG được đọc/);
+    expect(kq.lyDo).toMatch(/CHẮC CHẮN không được đọc/);
+  });
+
+  it('ten() KHÔNG được ném với object không prototype hay toString vô hiệu (R13.8, vòng bốn)', () => {
+    const quai = Object.create(null);
+    const hong = { toString: null } as unknown;
+    for (const x of [quai, hong]) {
+      expect(() => phanLoaiPr(['docs.md', x] as never)).not.toThrow();
+      expect(phanLoaiPr(['docs.md', x] as never).loai).toBe('code');
+    }
+  });
+
+  it('hai object khác nhau phải cho hai lý do KHÁC nhau — nêu được thủ phạm (R13.6, vòng bốn)', () => {
+    const a = phanLoaiPr(['docs.md', { ten: 'hack.ts' }] as never).lyDo;
+    const b = phanLoaiPr(['docs.md', { ten: 'khac.py' }, { ten: 'them.rb' }] as never).lyDo;
+    expect(a).not.toBe(b);
+    expect(a).toMatch(/vị trí 1/);
+  });
+
+  it('cụm đầu vào méo phải nói ĐÚNG bản chất, không mượn lời R13.4 (vòng bốn)', () => {
+    for (const x of [null, undefined, 'chuoi', 123]) {
+      const kq = phanLoaiPr(x as never);
+      expect(kq.loai).toBe('code');
+      expect(kq.lyDo, `${JSON.stringify(x)}`).toMatch(/không phải mảng/);
+      expect(kq.lyDo).not.toMatch(/toàn văn bản thuần/);
+    }
+    expect(phanLoaiPr([]).lyDo).toMatch(/RỖNG/);
   });
 
   it('CẢ CỤM đầu vào méo cũng không được ném — R13.8 áp cho cụm, không chỉ phần tử (vòng ba)', () => {
