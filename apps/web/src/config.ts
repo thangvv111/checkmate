@@ -173,7 +173,9 @@ export function cauHinhHienTai(c: CheckmateConfig): CauHinhNcc {
   const cfg: CauHinhNcc = {
     ...tho,
     phuong_thuc: (tho?.phuong_thuc ?? dn.phuong_thuc[0]) as CauHinhNcc['phuong_thuc'],
-    model: typeof tho?.model === 'string' && tho.model.trim() ? tho.model : dn.models[0],
+    // Giá trị CÓ MẶT nhưng SAI KIỂU (model: 42) cũng phải giữ — ép chuỗi để render, không thay bằng
+    // mặc định (vòng mười: màn hình báo model mặc định trong khi đường chấm chặn đúng giá trị này).
+    model: tho?.model != null && String(tho.model).trim() ? String(tho.model) : dn.models[0],
   };
   // Đường HIỂN THỊ: trả nguyên vẹn (kể cả tổ hợp cấm) để màn Cấu hình còn render được cho người dùng
   // sửa. Gác giới hạn nằm ở cauHinhDeCham — đường CHẤM (R5.17).
@@ -200,7 +202,10 @@ export function cauHinhDeCham(c: CheckmateConfig): CauHinhNcc {
   // đường chấm là tự thay thứ người dùng chưa chọn. Khuyết CẢ CỤM cũng hỏi, khuyết MỘT TRƯỜNG cũng hỏi,
   // và PHƯƠNG THỨC lạ cũng hỏi — không riêng model.
   const goiY = 'Lượt chấm không chạy — vào ⚙ Cấu hình chọn rồi bấm Kiểm tra.';
-  if (tho === undefined) {
+  // `== null` loose CÓ CHỦ ĐÍCH: JSON sửa tay có thể mang `"anthropic": null` — null đè lên mặc định
+  // qua spread của nangCapAgent rồi lọt qua gác `=== undefined`, và dòng đọc tho.model phía dưới nổ
+  // TypeError thành 500 (vòng mười của cổng bắt). Null hay thiếu hẳn đều là «chưa được cấu hình».
+  if (tho == null) {
     throw new LoiCauHinhNcc(`Nhà cung cấp ${dn.ten} chưa được cấu hình. ${goiY}`);
   }
   if (typeof tho.model !== 'string' || !tho.model.trim()) {
@@ -209,7 +214,7 @@ export function cauHinhDeCham(c: CheckmateConfig): CauHinhNcc {
   if (!tho.phuong_thuc || !dn.phuong_thuc.includes(tho.phuong_thuc)) {
     // Che giá trị lạ (R5.20 áp cho MỌI trường gõ tay được, không riêng model): người dán nhầm khoá vào
     // trường phương thức của config.json cũng không được thấy nó vọng ra thông điệp.
-    const ptChe = tho.phuong_thuc ? chieuGiaTri(String(tho.phuong_thuc), dn.phuong_thuc) : '(thiếu)';
+    const ptChe = chieuGiaTri(tho.phuong_thuc, dn.phuong_thuc); // toàn phần: khuyết → «(thiếu)»
     throw new LoiCauHinhNcc(`Cấu hình ${dn.ten} mang phương thức không hỗ trợ (${ptChe}) — ${dn.ten} chỉ có: ${dn.phuong_thuc.join(', ')}. ${goiY}`);
   }
   if (!modelHopLe(dn, tho.phuong_thuc, tho.model)) {

@@ -216,3 +216,47 @@ describe('vòng tám: phép chiếu chung + cụm null + không vọng phương 
     expect(kiemConHieuLuc('openai', cauHinh)).not.toBeNull();
   });
 });
+
+describe('vòng mười: áp đều tay luật «khuyết thì hỏi, có mặt thì giữ» sang các cửa còn lại', () => {
+  it('thuNcc với cấu hình khuyết model → resolve ok:false nói rõ trường khuyết, KHÔNG reject (finding 1 — HIGH)', async () => {
+    // Cửa song sinh của kiemConHieuLuc — vòng chín gác một cửa, vòng mười bắt cửa kia. Cửa kiểm nổ
+    // giữa chừng là đánh sập cả lượt thay vì trả một kết quả kiểm thất bại đọc được (R5.7 + R5.19).
+    const { thuNcc } = await import('../apps/web/src/nguon-model.js');
+    const kq = await thuNcc('anthropic', { phuong_thuc: 'api' } as never);
+    expect(kq.ok).toBe(false);
+    expect(kq.thong_diep).toMatch(/thiếu trường/);
+  });
+
+  it('phần tử ncc_cau_hinh[ncc] là null → LoiCauHinhNcc «chưa được cấu hình», không TypeError (finding 2)', () => {
+    // Vòng tám vá cụm null ở tầng CỤM; null ở tầng PHẦN TỬ đè lên mặc định qua spread rồi lọt qua
+    // gác `=== undefined` — cùng họ, tầng sâu hơn một nấc.
+    writeFileSync(
+      join(goc, 'config.json'),
+      JSON.stringify({ agent: { ncc: 'anthropic', ncc_cau_hinh: { anthropic: null }, max_probe: 6, skeptic: true } }),
+      'utf8',
+    );
+    expect(() => cfg.cauHinhDeCham(cfg.docConfig())).toThrow(/chưa được cấu hình/);
+    expect(() => cfg.cauHinhHienTai(cfg.docConfig())).not.toThrow();
+  });
+
+  it('model SAI KIỂU (42) — đường hiển thị giữ dấu vết «42», không thay lặng bằng mặc định (finding 3)', () => {
+    // «Có mặt thì giữ» không phân biệt sai-danh-mục với sai-kiểu: cả hai đều là thứ đang làm đường
+    // chấm chặn, thay bằng mặc định là người dùng không thấy gì để sửa (R5.19).
+    writeFileSync(
+      join(goc, 'config.json'),
+      JSON.stringify({ agent: { ncc: 'anthropic', ncc_cau_hinh: { anthropic: { phuong_thuc: 'api', model: 42 } }, max_probe: 6, skeptic: true } }),
+      'utf8',
+    );
+    expect(() => cfg.cauHinhDeCham(cfg.docConfig())).toThrow(cfg.LoiCauHinhNcc);
+    expect(cfg.cauHinhHienTai(cfg.docConfig()).model).toBe('42');
+  });
+
+  it('chieuGiaTri toàn phần: khuyết → «(thiếu)», sai kiểu → ép chuỗi rồi chiếu như thường', async () => {
+    const { chieuGiaTri } = await import('../apps/web/src/ncc.js');
+    expect(chieuGiaTri(undefined, ['a'])).toBe('(thiếu)');
+    expect(chieuGiaTri(null, ['a'])).toBe('(thiếu)');
+    expect(chieuGiaTri('', ['a'])).toBe('(thiếu)');
+    expect(chieuGiaTri('a', ['a'])).toBe('a');
+    expect(chieuGiaTri(42, ['a'])).toMatch(/ngoài danh mục — 2 ký tự/);
+  });
+});

@@ -140,9 +140,15 @@ export function ghiSoKiem(ma: MaNcc, kq: KetQuaKiem): void {
  * 8 hex) và phép đối chiếu hiệu lực phải dùng CÙNG phép chiếu — vòng tám của cổng bắt đúng ca sổ lưu
  * bản che còn đối chiếu so bản thô, làm tổ hợp đã kiểm không bao giờ còn hiệu lực.
  */
-export function chieuGiaTri(giaTri: string, danhMuc: readonly string[]): string {
-  if (danhMuc.includes(giaTri)) return giaTri;
-  return `(ngoài danh mục — ${giaTri.length} ký tự, sha256:${createHash('sha256').update(giaTri).digest('hex').slice(0, 8)})`;
+export function chieuGiaTri(giaTri: unknown, danhMuc: readonly string[]): string {
+  // TOÀN PHẦN có chủ đích: phép chiếu đứng ở cuối nhiều đường (thông điệp lỗi, sổ kiểm, đối chiếu,
+  // giao diện) — nó mà ném với đầu vào khuyết/sai kiểu là đánh sập cả lượt chấm ở đúng chỗ chỉ định
+  // hiển thị (vòng mười của cổng bắt: thuNcc nổ .length trên undefined). Khuyết → «(thiếu)»; sai
+  // kiểu → ép chuỗi rồi chiếu như thường (giá trị CÓ MẶT phải giữ dấu vết, không được nuốt).
+  if (giaTri == null || giaTri === '') return '(thiếu)';
+  const s = String(giaTri);
+  if (danhMuc.includes(s)) return s;
+  return `(ngoài danh mục — ${s.length} ký tự, sha256:${createHash('sha256').update(s).digest('hex').slice(0, 8)})`;
 }
 
 export function kiemConHieuLuc(ma: MaNcc, cfg: CauHinhNcc): KetQuaKiem | null {

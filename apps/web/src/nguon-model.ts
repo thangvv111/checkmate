@@ -134,6 +134,14 @@ export async function thuNcc(ma: MaNcc, cfg: CauHinhNcc): Promise<KetQuaThu> {
     return { ok, thong_diep, ncc: ma, giay: giay(), luc, model: md, phuong_thuc: pt };
   };
 
+  // R5.19 áp cho CẢ cửa kiểm, không riêng đường chấm (vòng mười: kiemConHieuLuc được gác mà cửa song
+  // sinh này thì không): cấu hình khuyết → HỎI bằng ok:false nói rõ trường khuyết — reject là đánh
+  // sập cả lượt thay vì trả một kết quả kiểm thất bại đọc được.
+  if (typeof cfg?.model !== 'string' || !cfg.model.trim() || !cfg?.phuong_thuc) {
+    const thieu = typeof cfg?.model !== 'string' || !cfg.model.trim() ? 'model' : 'phương thức';
+    return xong(false, `Cấu hình thiếu trường «${thieu}» — điền trong ⚙ Cấu hình rồi Kiểm tra lại.`);
+  }
+
   // R5.16 + R5.18 — chỉ từ chối sớm khi vi phạm ràng buộc KHAI TƯỜNG MINH (chi_thue_bao, phương thức
   // nhà cung cấp không hỗ trợ). Model NGOÀI danh mục thì GỌI THẬT: nhà cung cấp là trọng tài về việc
   // model có tồn tại — họ trả lỗi thật, đúng bản chất. Từ-chối-sớm theo danh mục cứng là chặn luôn
