@@ -39,7 +39,10 @@ export function demMuc(findings: Finding[]): { high: number; medium: number; low
  * tick từng cái.
  */
 export function chiTietNgoaiCong(v: { result?: string; findings?: Finding[] } | null): string {
-  const d = demMuc(v?.findings ?? []);
+  // Hàm đứng CUỐI mọi đường ghi hàng ngoài-cổng: nó mà ném thì hàng không được ghi và lượt đối soát
+  // gãy — lệch ngược hướng an toàn. Lọc phần tử méo thay vì tin hình dạng (vòng một của cổng bắt).
+  const ds = Array.isArray(v?.findings) ? v.findings.filter((f) => f && typeof f === 'object') : [];
+  const d = demMuc(ds);
   const chuaTick = d.medium + d.low;
   return [
     '⚠ Hành động xảy ra NGOÀI CheckMate (không qua cổng)',
@@ -84,8 +87,20 @@ export async function doiSoatCong(
       boQua += dsRun.length;
       continue;
     }
-    const hd = tt.trang_thai === 'merged' ? 'merge' : 'reject';
+    // R6.24 — chỉ HAI giá trị nói được điều gì. Mọi thứ khác (giá trị lạ, trường khuyết) là «không
+    // đọc được trạng thái» ⇒ BỎ QUA. Rơi mềm thành `reject` là ghi một hàng SUY ĐOÁN vào cuốn sổ
+    // không sửa được — đúng thứ R6.24 cấm (vòng một của cổng bắt).
+    const hd = tt.trang_thai === 'merged' ? 'merge' : tt.trang_thai === 'dong' ? 'reject' : null;
+    if (!hd) {
+      loi++;
+      log(`Đối soát cổng: PR #${pr} trả trạng thái ngoài miền («${String(tt.trang_thai)}») — bỏ qua, không ghi hàng suy đoán`);
+      continue;
+    }
     for (const runId of dsRun) {
+      // R6.25 — một run hỏng KHÔNG được giết trọn lượt đối soát các run còn lại. Lưới bọc TỪNG run,
+      // không chỉ bọc lời gọi GitHub (vòng một của cổng bắt: verdict hỏng ở run giữa làm hàm ném ra
+      // ngoài và hai run kia không bao giờ được ghi).
+      try {
       // Kiểm LẠI ngay trước khi ghi: giữa lúc lấy danh sách và lúc ghi có thể có người vừa bấm cổng
       // thật (R6.23 — chạy lại không được đẻ hàng trùng).
       if (docSoCong(runId).length) {
@@ -106,9 +121,13 @@ export async function doiSoatCong(
         ngoai_cong: true,
         chi_tiet: chiTiet,
       });
-      capNhatCongRun(runId, hd, luc, tt.nguoi_merge ? `${tt.nguoi_merge} (GitHub)` : '(ngoài cổng — không rõ)', chiTiet);
+      capNhatCongRun(runId, hd, luc, tt.nguoi_merge ? `${tt.nguoi_merge} (GitHub)` : '(ngoài cổng — không rõ)', chiTiet, true);
       daGhi++;
       log(`Đối soát cổng: PR #${pr} đã ${tt.trang_thai} ngoài cổng — ghi sổ cho run ${runId}`);
+      } catch (e) {
+        loi++;
+        log(`Đối soát cổng: run ${runId} lỗi khi ghi — bỏ qua run này, các run khác vẫn chạy: ${(e as Error).message.slice(0, 120)}`);
+      }
     }
   }
   return { daGhi, boQua, loi };

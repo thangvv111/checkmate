@@ -22,7 +22,8 @@ export interface RunMeta {
   repo?: string;
   verdict?: Verdict;
   pr?: { so: number; headSha: string; tacGia?: string };
-  ketQuaCong?: { hanhDong: 'merge' | 'reject'; luc: string; nguoi: string; chiTiet: string };
+  /** `ngoaiCong` — R6.21: hàng do ĐỐI SOÁT ghi (hành động xảy ra ngoài CheckMate) phải phân biệt được ở mức DỮ LIỆU, kể cả trên bề mặt này */
+  ketQuaCong?: { hanhDong: 'merge' | 'reject'; luc: string; nguoi: string; chiTiet: string; ngoaiCong?: boolean };
 }
 
 interface RunState {

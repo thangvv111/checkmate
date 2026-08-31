@@ -43,6 +43,7 @@ function veMeta(h: Hang): RunMeta {
       luc: String(h.cong_luc ?? ''),
       nguoi: String(h.cong_nguoi ?? ''),
       chiTiet: String(h.cong_chi_tiet ?? ''),
+      ngoaiCong: Number(h.cong_ngoai_cong ?? 0) === 1,
     };
   }
   return meta;
@@ -77,10 +78,17 @@ export function luuMeta(m: RunMeta): void {
  * Không dùng `luuMeta` vì nó ghi đè cả hàng: đối soát chỉ biết chuyện xảy ra ở cổng, không có bản
  * meta đầy đủ trong tay, và ghi đè bằng dữ liệu thiếu là làm hỏng hàng đang đúng.
  */
-export function capNhatCongRun(id: string, hanhDong: 'merge' | 'reject', luc: string, nguoi: string, chiTiet?: string): void {
+export function capNhatCongRun(
+  id: string,
+  hanhDong: 'merge' | 'reject',
+  luc: string,
+  nguoi: string,
+  chiTiet?: string,
+  ngoaiCong = false,
+): void {
   moDb()
-    .prepare('UPDATE run SET cong_hanh_dong=?, cong_luc=?, cong_nguoi=?, cong_chi_tiet=? WHERE id=?')
-    .run(hanhDong, luc, nguoi, chiTiet ?? null, id);
+    .prepare('UPDATE run SET cong_hanh_dong=?, cong_luc=?, cong_nguoi=?, cong_chi_tiet=?, cong_ngoai_cong=? WHERE id=?')
+    .run(hanhDong, luc, nguoi, chiTiet ?? null, ngoaiCong ? 1 : 0, id);
 }
 
 /** Ghi trọn dòng sự kiện của một lượt. Xoá bản cũ trước để ghi lại không đẻ ra bản trùng. */

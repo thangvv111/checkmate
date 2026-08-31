@@ -149,6 +149,54 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     expect(hang[0].nguoi).toBe('thang.vv');
   });
 
+  it('PR đã qua cổng ở MỘT run → các run anh em cùng PR KHÔNG bị vu là ngoài cổng (vòng một, HIGH)', async () => {
+    // PR vá nhiều vòng có nhiều lượt chấm; chỉ lượt được bấm merge mới có hàng sổ. Lọc theo run thì
+    // các lượt anh em lọt vào diện đối soát và bị ghi «NGOÀI CỔNG, không ai tick» — vu oan cho một
+    // merge ĐÃ qua cổng đàng hoàng.
+    themRun('rA', 201);
+    themRun('rB', 201);
+    so.ghiSoCong({ run_id: 'rA', luc: new Date().toISOString(), hanh_dong: 'merge', nguoi: 'thang.vv' });
+    const kq = await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'ai-do' }));
+    expect(kq.daGhi, 'PR này đã qua cổng — không hàng ngoài-cổng nào được ghi').toBe(0);
+    expect(so.docSoCong('rB')).toHaveLength(0);
+  });
+
+  it('trạng thái NGOÀI MIỀN hoặc khuyết → bỏ qua, KHÔNG rơi mềm thành reject (vòng một, HIGH)', async () => {
+    themRun('rC', 202);
+    for (const tt of ['khong_ro', undefined, null, '']) {
+      const kq = await cong.doiSoatCong(async () => ({ trang_thai: tt }) as never);
+      expect(kq.daGhi, `trạng thái ${JSON.stringify(tt)} không được ghi hàng`).toBe(0);
+    }
+    expect(so.docSoCong('rC')).toHaveLength(0);
+  });
+
+  it('run KHÔNG có verdict vẫn được đối soát — điều kiện verdict là em tự thêm (vòng một, HIGH)', async () => {
+    kho.luuMeta({ id: 'rD', tieuDe: 'chết giữa chừng', skill: 'code', trangThai: 'loi', batDau: new Date().toISOString(), repo: 'chu/repo', pr: { so: 203, headSha: 'c'.repeat(40) } } as never);
+    const kq = await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
+    expect(kq.daGhi).toBe(1);
+    expect(so.docSoCong('rD')[0].chi_tiet).toMatch(/không rõ/);
+  });
+
+  it('cờ ngoài-cổng sang CẢ bề mặt run, không chỉ sổ (vòng một, HIGH — R6.21)', async () => {
+    themRun('rE', 204);
+    await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
+    expect(kho.docMeta('rE')?.ketQuaCong?.ngoaiCong, 'giao diện đọc ketQuaCong — nó phải phân biệt được').toBe(true);
+  });
+
+  it('một run hỏng KHÔNG giết trọn lượt: các run còn lại vẫn được ghi (vòng một, HIGH — R6.25)', async () => {
+    themRun('rF1', 205);
+    kho.luuMeta({ id: 'rF2', tieuDe: 'verdict méo', skill: 'code', trangThai: 'xong', batDau: new Date().toISOString(), repo: 'chu/repo', pr: { so: 205, headSha: 'd'.repeat(40) }, verdict: { findings: [null] } } as never);
+    themRun('rF3', 205);
+    const kq = await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
+    expect(kq.daGhi, 'ba run cùng PR, không run nào được phép kéo cả lượt xuống').toBe(3);
+  });
+
+  it('chiTietNgoaiCong KHÔNG ném với findings méo (vòng một, MEDIUM)', () => {
+    for (const v of [{ findings: [null] }, { findings: 'không phải mảng' }, { findings: [undefined, { severity: 'medium' }] }, {}]) {
+      expect(() => cong.chiTietNgoaiCong(v as never)).not.toThrow();
+    }
+  });
+
   it('nhiều run cùng một PR → mỗi run một hàng, nhưng chỉ MỘT lời gọi GitHub', async () => {
     themRun('r7a', 107);
     themRun('r7b', 107);

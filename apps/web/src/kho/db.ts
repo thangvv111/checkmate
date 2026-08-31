@@ -176,6 +176,9 @@ function napCotThieu(d: DatabaseSync): void {
     // dựng lại bảng (SQLite không ALTER được CHECK), mà bảng này là sổ kiểm toán đang giữ dữ liệu
     // thật và có trigger cấm XOÁ — dựng lại nó là thao tác nguy hiểm nhất có thể làm với một cuốn sổ.
     ['so_cong', 'ngoai_cong', 'INTEGER NOT NULL DEFAULT 0'],
+    // R6.21 — cờ phải sang CẢ bảng `run`: `ketQuaCong` là bề mặt mà giao diện và API đọc, nếu chỉ
+    // sổ mang cờ thì hàng máy-đối-soát và hàng người-bấm nhìn giống hệt nhau ở đó.
+    ['run', 'cong_ngoai_cong', 'INTEGER NOT NULL DEFAULT 0'],
   ];
   for (const [bang, cot, kieu] of them) {
     const daCo = (d.prepare(`PRAGMA table_info(${bang})`).all() as Array<{ name: string }>).some((c) => c.name === cot);

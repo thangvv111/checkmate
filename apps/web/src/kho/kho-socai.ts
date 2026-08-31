@@ -139,11 +139,20 @@ export function ghiSoCong(m: MucSoCong): void {
 export function runChuaCoHanhDongCong(): Array<{ run_id: string; pr_so: number; repo: string }> {
   const hang = moDb()
     .prepare(
+      // Lọc theo PULL REQUEST, không theo từng run: một PR vá nhiều vòng có nhiều lượt chấm, và chỉ
+      // lượt được bấm merge mới có hàng sổ. Lọc theo run thì các lượt anh em vẫn lọt vào diện đối
+      // soát và bị ghi «NGOÀI CỔNG, không ai tick» — vu oan cho một merge ĐÃ qua cổng đàng hoàng
+      // (vòng một của cổng bắt).
+      // KHÔNG đòi `verdict IS NOT NULL`: R6.20 không nêu điều kiện đó, số đo «66 run có pr_so mà
+      // cong_hanh_dong rỗng» cũng không, và run chết giữa chừng vẫn cần biết PR của nó ra sao.
       `SELECT r.id AS run_id, r.pr_so, r.repo
          FROM run r
         WHERE r.pr_so IS NOT NULL
-          AND r.verdict IS NOT NULL
           AND NOT EXISTS (SELECT 1 FROM so_cong s WHERE s.run_id = r.id)
+          AND NOT EXISTS (
+                SELECT 1 FROM so_cong s2
+                  JOIN run r2 ON r2.id = s2.run_id
+                 WHERE r2.pr_so = r.pr_so AND r2.repo IS r.repo)
         ORDER BY r.rowid DESC`,
     )
     .all() as Array<{ run_id: unknown; pr_so: unknown; repo: unknown }>;

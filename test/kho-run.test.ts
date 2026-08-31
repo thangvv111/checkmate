@@ -58,7 +58,9 @@ describe('lưu và đọc lượt chấm', () => {
 
   it('kết quả cổng đọc lại được nguyên vẹn', () => {
     k.luuMeta({ ...k.docMeta('b')!, ketQuaCong: { hanhDong: 'reject', luc: '2026-08-27T12:00:00.000Z', nguoi: 'thang', chiTiet: 'thiếu test' } });
-    expect(k.docMeta('b')!.ketQuaCong).toEqual({ hanhDong: 'reject', luc: '2026-08-27T12:00:00.000Z', nguoi: 'thang', chiTiet: 'thiếu test' });
+    // R6.21 — hàng do NGƯỜI bấm trong CheckMate KHÔNG mang cờ ngoài-cổng; cờ là thứ phân biệt hai
+    // loại hành động ở mức DỮ LIỆU, nên nó phải có mặt và bằng false, không phải vắng mặt.
+    expect(k.docMeta('b')!.ketQuaCong).toEqual({ hanhDong: 'reject', luc: '2026-08-27T12:00:00.000Z', nguoi: 'thang', chiTiet: 'thiếu test', ngoaiCong: false });
   });
 });
 
