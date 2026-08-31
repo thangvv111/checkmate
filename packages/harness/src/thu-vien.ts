@@ -18,7 +18,7 @@ const GOC_LIB = process.env.CHECKER_LIB_DIR ?? resolve('probes-lib');
 // (dàn review bắt được) — giá trị hỏng thì dùng mặc định, không đoán.
 function docTranProbe(): number {
   const tho = (process.env.CHECKER_LIB_TRAN ?? '').trim();
-  if (!/^\d+$/.test(tho)) return 40;
+  if (!/^\d+$/.test(tho)) return 100;
   return Math.min(200, Math.max(6, Number(tho)));
 }
 const TRAN_PROBE = docTranProbe();
@@ -37,6 +37,42 @@ export interface MucProbeLib {
   hash: string; // sha256 code của RIÊNG probe này
   plan: KeHoachProbe; // MỘT probe
   lich_su: LuotLichSu[]; // tầng 4 (R10.9): hành vi đo được qua các lượt
+  // Hai trường của đào thải theo điểm (R10.22–R10.24). VĨNH VIỄN có chủ đích — lich_su trôi theo
+  // trần 20 lượt, mà thành tích bắt hồi quy và tật không-tất-định thì không được phép trôi theo.
+  da_bat_hoi_quy?: boolean; // R10.23 — từng mang nhãn hoi_quy ít nhất một lượt
+  flaky_diem?: number; // R10.24 — số lần cùng sha cho hai trạng thái hành-vi-riêng khác nhau
+}
+
+// Nhãn nói về hành vi RIÊNG của probe (R10.20) — dùng cho tầng 4 và phép đếm flaky R10.24.
+const NHAN_HANH_VI_RIENG = new Set<string>(['pass', 'hoi_quy', 'cai_thien']);
+// R10.22 — nhãn «hoàn cảnh chết»: probe không chạy được trên repo hiện tại (API đích đã đổi).
+const NHAN_CHET = new Set(['nghi_loi_co_san', 'khong_chay']);
+const CHET_KEO_DAI_NGUONG = 5;
+
+function chetKeoDai(m: MucProbeLib): boolean {
+  const ls = m.lich_su ?? [];
+  if (ls.length < CHET_KEO_DAI_NGUONG) return false;
+  return ls.slice(-CHET_KEO_DAI_NGUONG).every((h) => NHAN_CHET.has(h.trang_thai));
+}
+
+/**
+ * Chọn nạn nhân đào thải khi thư viện vượt trần (R10.22) — trả về index + lý do để log.
+ * Thứ tự: chết kéo dài → flaky nhất (≥2) → cũ nhất chưa từng bắt hồi quy → cũ nhất tuyệt đối.
+ * FIFO cũ loại theo tuổi là loại đúng probe im lặng lâu năm — lưới an toàn đang canh biên chưa ai
+ * phá lại; điểm chỉ nhìn tín hiệu XẤU đo được (chết, flaky) và miễn trừ thành tích thật (R10.23).
+ */
+export function chonNanNhan(probes: readonly MucProbeLib[]): { i: number; ly_do: string } {
+  const iChet = probes.findIndex(chetKeoDai);
+  if (iChet >= 0) return { i: iChet, ly_do: `chết kéo dài — ${CHET_KEO_DAI_NGUONG} lượt gần nhất đều ${[...NHAN_CHET].join('/')} (R10.22.1)` };
+  let iFlaky = -1;
+  for (let i = 0; i < probes.length; i++) {
+    const d = probes[i].flaky_diem ?? 0;
+    if (d >= 2 && (iFlaky < 0 || d > (probes[iFlaky].flaky_diem ?? 0))) iFlaky = i;
+  }
+  if (iFlaky >= 0) return { i: iFlaky, ly_do: `flaky — ${probes[iFlaky].flaky_diem} lần cùng sha khác kết quả (R10.22.2)` };
+  const iThuong = probes.findIndex((m) => !m.da_bat_hoi_quy);
+  if (iThuong >= 0) return { i: iThuong, ly_do: 'cũ nhất chưa từng bắt hồi quy (R10.22.3)' };
+  return { i: 0, ly_do: 'cả kho toàn probe từng bắt hồi quy — loại cũ nhất tuyệt đối, van chống kẹt trần (R10.22.4)' };
 }
 
 export interface ProbeThuVien extends MucProbeLib {
@@ -479,9 +515,11 @@ export function nhanVaoThuVien(slug: string, code: string, plan: KeHoachProbe, s
     writeFileSync(join(GOC_LIB, slug, ten), code, 'utf8');
     meta.probes.push({ ten, sha_sinh: shaSinh, luc: new Date().toISOString(), hash, plan, lich_su: [] });
 
-    // trần FIFO theo PROBE (R10.4) — đào thải phải xoá cả file, không để mồ côi
+    // trần theo PROBE (R10.4), đào thải theo điểm GIỮ/LOẠI (R10.22) — xoá cả file, không để mồ côi
     while (meta.probes.length > TRAN_PROBE) {
-      const cu = meta.probes.shift()!;
+      const { i, ly_do } = chonNanNhan(meta.probes);
+      const cu = meta.probes.splice(i, 1)[0];
+      console.log(`[thu-vien] đào thải «${cu.ten}»: ${ly_do}`);
       try {
         rmSync(join(GOC_LIB, slug, cu.ten));
       } catch {
@@ -512,6 +550,14 @@ export function capNhatLichSu(slug: string, shaLuot: string, ghi: Array<{ ten: s
     for (const g of ghi) {
       const m = meta.probes.find((x) => x.ten === g.ten);
       if (!m) continue;
+      // R10.23 — thành tích bắt hồi quy là VĨNH VIỄN, không trôi theo trần lịch sử 20 lượt.
+      if (g.trangThai === 'hoi_quy') m.da_bat_hoi_quy = true;
+      // R10.24 — cùng sha mà hai lần chạy cho hai trạng thái hành-vi-riêng khác nhau = không tất
+      // định. Nhãn hoàn cảnh (nghi_loi_co_san…) đổi qua lại là chuyện của lượt, không tính.
+      const cuSha = (m.lich_su ?? []).find((h) => h.sha === shaLuot);
+      if (cuSha && cuSha.trang_thai !== g.trangThai && NHAN_HANH_VI_RIENG.has(cuSha.trang_thai) && NHAN_HANH_VI_RIENG.has(g.trangThai)) {
+        m.flaky_diem = (m.flaky_diem ?? 0) + 1;
+      }
       m.lich_su = [...(m.lich_su ?? []).filter((h) => h.sha !== shaLuot), { sha: shaLuot, luc, trang_thai: g.trangThai }].slice(-TRAN_LICH_SU);
     }
     ghiMeta(slug, meta);
@@ -533,7 +579,6 @@ export interface GoTrungHanhVi {
  * Nhãn nói về hành vi RIÊNG của một probe — nó chạy được, và kết quả là do chính nó quyết định.
  * Mọi nhãn khác nói về hoàn cảnh chung của lượt chấm, không phân biệt được probe này với probe kia.
  */
-const NHAN_HANH_VI_RIENG = new Set<string>(['pass', 'hoi_quy', 'cai_thien']);
 
 export function timVaGoTrungHanhVi(slug: string): GoTrungHanhVi[] {
   return voiKhoaThuVien(slug, () => {
