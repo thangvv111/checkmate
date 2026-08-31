@@ -43,9 +43,14 @@
 
 ## S8. Leo quyền & cô lập (per-vector)
 
-- ✅ S8.1 Mục tiêu duy nhất kẻ xấu nhắm tới ở đây là **né probe**. Các vector: (a) đuôi file lạ,
-  (b) đường dẫn giả dạng `openspec` bằng tiền tố chuỗi, (c) diff rỗng, (d) chữ hoa/thường trong đuôi.
-  Cả bốn đều có ca test và đều mặc định về code
+- ✅ S8.1 Mục tiêu duy nhất kẻ xấu nhắm tới ở đây là **né probe**. Vector đã enumerate và khoá ca test:
+  (a) đuôi file lạ · (b) giả dạng `openspec` bằng tiền tố chuỗi · (c) diff rỗng · (d) hoa/thường ở ĐUÔI
+  · (e) **hoa/thường ở TÊN THƯ MỤC** (`OpenSpec/`) · (f) **dấu `\` trong tên file** · (g) **file trơ
+  tên `openspec` ở gốc**.
+  ⚠ GHI NHẬN TRUNG THỰC: bản đầu của mục này khai «cả bốn vector đều có ca test và đều mặc định về
+  code» — **tuyên bố đó SAI**. Vòng chấm đầu tiên của cổng bắt đúng ba vector (e), (f), (g) mà bản
+  hiện thực để lọt, và hai ca test khi đó còn MÃ HOÁ chính cái bug (khẳng định `\` được chuẩn hoá
+  thành `/`). Bài học ghi vào luật R13.5, và ✅ ở đây chỉ được đánh sau khi ba ca mới đã đỏ-rồi-xanh.
 - ✅ S8.2 Test load-bearing hai chiều — ĐÃ THỬ THẬT (github.ts:~250 `laVanBan`): tạm đổi allowlist
   thành `startsWith('openspec')` → `test/dinh-tuyen-skill.test.ts` ca «openspec là TIỀN TỐ» ĐỎ;
   phục hồi → xanh. Bản test ĐẦU TIÊN của ca này là test MỒ CÔI (xanh cả hai chiều) vì thiếu một

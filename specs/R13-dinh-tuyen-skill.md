@@ -32,6 +32,15 @@ Hai thiệt hại không đối xứng, nên luật dưới đây lệch hẳn v
 - **R13.5** — Phép so đường dẫn PHẢI khớp **cấu trúc**, không khớp tiền tố chuỗi: `openspec/` là một
   thư mục, nên `openspec-notes.js` KHÔNG được nhận nhầm là văn bản thuần. Tên file trong diff là dữ
   liệu do maker viết ([R7](R7-tam-nhin-diff.md)) — ai muốn né probe sẽ đặt tên nhắm đúng chỗ hở này.
+  Ba hệ quả bắt buộc, cả ba đều do vòng chấm đầu tiên của chính luật này bắt ra:
+  - **Đuôi file** so KHÔNG phân biệt hoa thường (`README.MD` vẫn là tài liệu), nhưng **tên thư mục**
+    so ĐÚNG HOA THƯỜNG: engine chạy trên Linux, nơi `OpenSpec/` là thư mục KHÁC `openspec/`. Gột hoa
+    thường cả đường dẫn là tự mở cửa: đặt mã nguồn vào `OpenSpec/` là PR đi đường tài liệu.
+  - KHÔNG được chuẩn hoá dấu `\` thành `/`. `git diff --name-only` luôn trả dấu `/`, nên đường dẫn
+    chứa `\` là **tên file thật** do maker đặt — `openspec\hack.ts` là MỘT file ở gốc repo.
+    Chuẩn hoá nó là cho maker tự chọn đường chấm nhẹ tay cho PR của chính mình.
+  - KHÔNG được nhận chuỗi `openspec` trơ là văn bản thuần: git liệt kê FILE chứ không liệt kê thư
+    mục, nên khớp đúng chuỗi đó chỉ có thể là một file thực thi được ở gốc repo.
 
 ## Nói ra quyết định
 

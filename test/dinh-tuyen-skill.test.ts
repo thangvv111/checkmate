@@ -10,10 +10,12 @@ import { phanLoaiPr } from '../apps/web/src/github.js';
  */
 
 describe('phanLoaiPr — allowlist hẹp, fail-closed (R13.1–R13.5)', () => {
-  it('PR chỉ đổi tài liệu và cấu hình quy trình → doc', () => {
+  it('PR chỉ đổi tài liệu và cấu hình quy trình → doc, và lý do NÊU TÊN tài liệu (R13.6)', () => {
     const kq = phanLoaiPr(['CLAUDE.md', 'openspec/config.yaml', 'openspec/schemas/checkmate/schema.yaml']);
     expect(kq.loai).toBe('doc');
     expect(kq.fileDocUngVien).toEqual(['CLAUDE.md']);
+    // Hai cửa của một luật phải nói cùng một lời: đường code nêu tên file thì đường doc cũng phải nêu
+    expect(kq.lyDo).toContain('CLAUDE.md');
   });
 
   it('PR trộn tài liệu với mã nguồn → code, và lý do nêu ĐÚNG file gây ra quyết định', () => {
@@ -66,8 +68,26 @@ describe('ca đối kháng — tên file là dữ liệu do maker viết (R13.5,
     expect(phanLoaiPr(['openspec-notes.js']).loai).toBe('code');
   });
 
-  it('đường dẫn kiểu Windows vẫn nhận đúng thư mục openspec', () => {
-    expect(phanLoaiPr(['openspec\\changes\\x\\proposal.md']).loai).toBe('doc');
+  it('dấu chéo ngược trong tên file KHÔNG được chuẩn hoá thành thư mục — nó là TÊN FILE thật', () => {
+    // `git diff --name-only` luôn trả dấu `/`. Một đường dẫn chứa `\` là tên file do maker đặt:
+    // `openspec\hack.ts` là MỘT file ở gốc repo, không phải file nằm dưới `openspec/`.
+    // (Ca test đời trước ở đây MÃ HOÁ chính cái bug: nó khẳng định `\` được chuẩn hoá.)
+    expect(phanLoaiPr(['docs.md', 'openspec\\hack.ts']).loai).toBe('code');
+    expect(phanLoaiPr(['docs.md', 'openspec\\x\\y.py']).loai).toBe('code');
+  });
+
+  it('thư mục HOA THƯỜNG khác nhau là thư mục KHÁC NHAU trên Linux', () => {
+    // Đuôi file so không phân biệt hoa thường, nhưng tên THƯ MỤC thì có — gột hoa thường cả đường
+    // dẫn là mở đúng cửa né probe (vòng một của cổng bắt).
+    expect(phanLoaiPr(['docs.md', 'OpenSpec/hack.ts']).loai).toBe('code');
+    expect(phanLoaiPr(['docs.md', 'OPENSPEC/x.py']).loai).toBe('code');
+    expect(phanLoaiPr(['docs.md', 'openspec/that.yaml']).loai).toBe('doc');
+  });
+
+  it('FILE tên đúng «openspec» ở gốc là file thực thi được, không phải thư mục', () => {
+    // git liệt kê FILE chứ không liệt kê thư mục, nên khớp đúng chuỗi «openspec» chỉ có thể là một
+    // file ở gốc — cùng loại với Makefile hay bin/tool mà luật đã xếp là code.
+    expect(phanLoaiPr(['docs.md', 'openspec']).loai).toBe('code');
   });
 
   it('file .md nằm sâu trong thư mục code vẫn là văn bản thuần', () => {
