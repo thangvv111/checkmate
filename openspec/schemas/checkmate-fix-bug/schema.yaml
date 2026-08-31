@@ -1,0 +1,87 @@
+name: checkmate-fix-bug
+version: 1
+description: CheckMate bug-fix flow (rút gọn) - tasks → test-cases, KHÔNG proposal/design/security.
+  Fix làm ĐỔI hành vi so với luật hiện hành thì KHÔNG phải bug fix - chuyển sang schema checkmate.
+  Fix phát hiện luật/tài liệu MÔ TẢ SAI hành vi đã chốt → sửa specs/R*.md ngay trong change này
+  (một task tường minh) - xem instruction artifact tasks.
+artifacts:
+  - id: tasks
+    generates: tasks.md
+    description: Checklist sửa lỗi (ngắn — root cause + fix + file chạm)
+    template: tasks.md
+    instruction: |
+      Bug fix / sửa lệch hiện thực KHÔNG đổi luật — checklist ngắn gọn.
+
+      Format (checkbox bắt buộc để pha apply theo dõi được):
+      ```
+      ## 1. Fix
+      - [ ] 1.1 <root cause: một dòng — lỗi gì + nguyên nhân>
+      - [ ] 1.2 <fix: file/hàm chạm + thay đổi>
+      ```
+
+      RANH GIỚI với schema `checkmate` (đọc kỹ, đây là chỗ hay chọn nhầm):
+      - Fix làm ĐỔI hành vi so với luật `specs/R*.md` hiện hành → KHÔNG phải bug fix. Đó là change
+        đổi luật, dùng schema `checkmate` (có proposal/design/security).
+      - Fix chỉ làm hiện thực KHỚP LẠI với luật đã khai → đúng chỗ, dùng schema này.
+      - Fix phát hiện luật `specs/R*.md` MÔ TẢ SAI hành vi đã chốt (văn bản lệch với thứ PO/cổng
+        đã duyệt) → sửa luật NGAY trong change này bằng một task tường minh, và nói rõ ở task đó
+        rằng đây là sửa-mô-tả chứ không phải đổi-hành-vi.
+
+      ⛔ Ba thứ hay quên trong một bug fix ở repo này:
+      1. **Khai `checkmate.yml`** khi fix thêm/đổi export — lưới hợp đồng đã bắt hụt 5 lần.
+      2. **Nguyên nhân đúng trong thông điệp**: nhiều finding của chính cổng là «gộp hai nguyên
+         nhân khác nhau vào một lời» — sửa lỗi thì sửa luôn lời cho đúng bản chất.
+      3. **Cửa song sinh**: vá một cửa (đường ghi / đường đọc / cửa kiểm / đường hiển thị) thì soi
+         những cửa cùng vai — khuôn lỗi lặp nhiều nhất trong lịch sử repo này.
+    requires: []
+
+  - id: test-cases
+    generates: test-cases.md
+    description: Test khoá lỗi — phải ĐỎ trước khi fix, XANH sau khi fix
+    template: test-cases.md
+    instruction: |
+      Test case cho bug fix. Yêu cầu cốt lõi: mỗi lỗi có ÍT NHẤT một ca khoá được đúng lỗi đó, và
+      ca đó phải ĐỎ trên code TRƯỚC khi fix — test không đỏ trước fix thì không chứng minh được nó
+      đang canh cái gì (nó là «test mồ côi», refactor sau sẽ gỡ đi với 0 test đỏ).
+
+      Format:
+      ```
+      ## Ca khoá lỗi
+      - [ ] T1.1 [reproduce]: GIVEN <trạng thái sinh lỗi> WHEN <thao tác> THEN <hành vi ĐÚNG>
+            (trước fix: đỏ vì <triệu chứng thật>)
+
+      ## Ca lân cận (chống vá-một-vá-hụt)
+      - [ ] T2.1 Cửa song sinh cùng vai với chỗ vừa vá
+      - [ ] T2.2 Biên gần chỗ vừa vá (khuyết trường · null · sai kiểu · giá trị lạ)
+      ```
+
+      Trục nhạy cảm: schema fix KHÔNG bắt điền đủ 5 trục như schema đầy đủ, NHƯNG nếu fix chạm bí
+      mật, danh tính, vai, cổng merge, hay đường quyết định verdict thì BẮT BUỘC có ca tiêu cực
+      tương ứng — và cân nhắc chuyển sang schema `checkmate` vì những chỗ đó hiếm khi là «chỉ fix».
+
+      Chạy: `npx tsc --noEmit` + `npm test` (toàn bộ, không riêng file vừa sửa).
+    requires:
+      - tasks
+
+apply:
+  requires:
+    - tasks
+    - test-cases
+  tracks: tasks.md
+  instruction: |
+    Đọc tasks + test-cases trước khi bắt tay.
+
+    ## Pha 1: Reproduce TRƯỚC
+    Viết ca khoá lỗi và chạy để thấy nó ĐỎ đúng triệu chứng đã mô tả. Không reproduce được thì DỪNG
+    và báo — «sửa một lỗi chưa từng thấy tái lập» là cách sinh ra bản vá không vá gì.
+
+    ## Pha 2: Fix
+    Làm hết task, đánh `- [ ]` → `- [x]`. Vá đúng gốc, không né triệu chứng.
+
+    ## Pha 3: Kiểm cơ học
+    - `npx tsc --noEmit` sạch
+    - `npm test` xanh TOÀN BỘ
+    - Ca khoá lỗi nay xanh; tạm no-op bản vá thì nó phải đỏ lại (test load-bearing)
+
+    ## Pha 4: Qua cổng
+    Mở PR, chờ verdict CheckMate trên prod. KHÔNG merge khi FAIL.
