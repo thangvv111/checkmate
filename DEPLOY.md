@@ -26,7 +26,7 @@ sudo systemctl reload nginx
 | 1 | Model gọi qua **Claude Code CLI** (đã đăng nhập) | Headless — nhưng CLI **vẫn đăng nhập được** qua terminal SSH (`claude login` bằng user `ubuntu`) hoặc dán token thuê bao qua giao diện; prod hiện chạy gói thuê bao theo đường này | Không có gói thuê bao thì dùng **API key** trong `/etc/checkmate.env`. ⚠ Tài khoản API tính **credit riêng** — hết credit thì API trả 400 "credit balance is too low" |
 | 2 | Không token thì lùi về lệnh **`gh`** của máy | Không có `gh` | Bắt buộc `GITHUB_TOKEN`; code đọc env (env thắng config.json) |
 | 3 | `git fetch` repo private dùng credential manager của Windows | Không có credential nào | **App** tự mang `GITHUB_TOKEN` vào URL của chính lệnh fetch, dùng một lần, không ghi ra đĩa (R4.28). **Shell tay thì KHÔNG** — `git pull` từ SSH trả Authentication failed vì shell không nạp `/etc/checkmate.env`; đó là lý do deploy đi đường tar chứ không git pull |
-| 4 | `HOME` luôn có | systemd không tự set | `Environment=HOME=/home/ubuntu` trong unit (nếu thiếu, git không đọc `~/.gitconfig` → mất helper ở mục 3) |
+| 4 | `HOME` luôn có | systemd không tự set | `Environment=HOME=/home/ubuntu` trong unit — thiếu thì git không đọc `~/.gitconfig` (safe.directory…) và Claude Code CLI không tìm thấy phiên đăng nhập ở `~/.claude` |
 
 **Token GitHub với repo private:** phải là fine-grained có repo đó trong *Only select repositories*.
 Nếu chưa cấp, GitHub trả **404 (không phải 403)** để giấu sự tồn tại của repo — đừng tưởng sai tên repo.
@@ -50,12 +50,16 @@ nên đổi qua đổi lại không mất thiết lập.
 được với model kia, và một verdict sai vì chọn nhầm nguồn thì tốn hơn nhiều so với 3 giây bấm kiểm.
 
 Khoá của từng nhà cung cấp lưu ở `.secrets.json` quyền 600 (gitignore); trạng thái kiểm ở
-`.ncc-verify.json`. Biến môi trường của dịch vụ luôn **thắng** khoá dán qua giao diện.
+`.ncc-verify.json`. Biến môi trường của dịch vụ **thắng** khoá dán qua giao diện — với MỘT ngoại lệ có
+chủ đích: khi phương thức là **gói thuê bao**, `ANTHROPIC_API_KEY` bị CẮT khỏi môi trường của tiến trình
+CLI (danh sách cho phép R8.12), vì Claude Code thấy key là lặng lẽ tính tiền API trong khi người vận
+hành tưởng đang tiêu gói. «Thắng» áp cho việc CHỌN khoá của phương thức đang dùng, không có nghĩa là
+key API len được vào đường thuê bao.
 
 ## Chọn nguồn model: gói Claude Code hay API — đổi ngay trong Cấu hình
 
 Trang **⚙ Cấu hình → Agent review** hiện trạng thái cả hai đường trên chính máy chủ này, và có nút
-**Thử nguồn đang chọn** (gọi một câu cực ngắn, vài giây, gần như không tốn gì) để biết ngay dùng được chưa.
+**Thử nguồn đang chọn** để biết ngay dùng được chưa — prompt cố định `«Trả lời đúng hai ký tự: OK»` (~10 token vào), trần **16 token ra** ở đường API, timeout **120 giây** ở đường CLI.
 
 | Nguồn | Khi nào chọn | Điều kiện trên máy chủ |
 |---|---|---|
@@ -125,7 +129,14 @@ Quy trình merge từ đây: mở PR → chờ verdict độc lập từ prod tr
 Lượt chấm local vẫn chạy được khi cần lặp nhanh, nhưng verdict tính cho cổng là verdict prod.
 
 Clone này KHÔNG tự cập nhật cây làm việc (fetch chỉ cập nhật refs). Hợp đồng `checkmate.yml` đọc từ cây
-làm việc của clone — mỗi lần deploy nên `git -C repos/thangvv111-checkmate pull` để hợp đồng theo kịp.
+làm việc của clone — mỗi lần deploy cập nhật nó bằng lệnh MANG TOKEN (shell tay không nạp env, `git pull`
+trần sẽ trả Authentication failed như bảng trên đã nói):
+
+```
+sudo bash -c '. /etc/checkmate.env; git -C /home/ubuntu/checkmate-app/checkmate/repos/thangvv111-checkmate   pull https://x-access-token:$GITHUB_TOKEN@github.com/thangvv111/checkmate.git main'
+```
+
+Token chỉ nằm trong URL của đúng lệnh đó, không ghi vào `.git/config` (R4.6).
 
 ## Lệnh hay dùng
 ```
