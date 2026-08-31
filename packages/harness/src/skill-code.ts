@@ -89,16 +89,20 @@ export function vanTayChat(msg: string): string {
 export function nhanProbe(title: string): string {
   const doan = (title ?? '')
     .split('>')
-    .map((x) => x.trim())
+    .map((x) => x.replace(/\s+/g, ' ').trim())
     .filter(Boolean);
-  // Ưu tiên đoạn MANG MÃ PROBE, dùng cùng phép tách với khopIdProbe để hai cửa đọc title không lệch
-  // nhau (khuôn KL9 «cửa song sinh»): `>` là ký tự BÌNH THƯỜNG trong tên test («kỳ vọng a > b»), nên
-  // lấy đoạn cuối vô điều kiện sẽ ném mất đúng mã probe — và hai probe khác nhau lại ra cùng nhãn.
-  const mangMa = doan.find((d) => /^(test_)?P\d+/.test(d));
-  const chon = mangMa ?? doan[doan.length - 1] ?? '';
-  const sach = chon.replace(/\s+/g, ' ').trim();
-  if (!sach) return '(probe không tên)';
-  return sach.length <= 40 ? sach : `${sach.slice(0, 39)}…`;
+  if (!doan.length) return '(probe không tên)';
+  // KHÔNG đoán mã probe bằng regex: một `describe` tên «P1 hay P2» làm nhãn mang mã SAI — tệ hơn
+  // không có mã, và lệch luật với khopIdProbe vốn nối theo id ĐÃ BIẾT (vòng hai của cổng bắt).
+  // Phép dựng không cần biết id: THÂN = mọi đoạn TRỪ describe ngoài cùng, cắt từ ĐẦU (mã probe nằm
+  // ngay đầu tên `it`, kể cả khi tên đó chứa dấu `>` như «P1: kỳ vọng a > phải chặn»); ĐUÔI describe
+  // ngoài cùng đi kèm để hai probe cùng tên `it` mà khác nhóm vẫn phân biệt được.
+  const than = doan.length > 1 ? doan.slice(1).join(' > ') : doan[0];
+  const thanNgan = than.length <= 28 ? than : `${than.slice(0, 27)}…`;
+  if (doan.length === 1) return thanNgan || '(probe không tên)';
+  const dau = doan[0];
+  const boi = dau.length <= 10 ? dau : `…${dau.slice(-9)}`;
+  return `${thanNgan} ⟨${boi}⟩`;
 }
 
 export function khopIdProbe(title: string, id: string): boolean {

@@ -54,11 +54,26 @@ describe('A · nhãn probe trong log giữ đúng phần phân biệt', () => {
     }
   });
 
-  it('nhãn dài bị cắt nhưng có dấu … để người đọc biết còn nữa', () => {
+  it('nhãn dài bị cắt nhưng GIỮ đầu tên it (nơi mã probe nằm) và báo còn nữa bằng dấu …', () => {
     const n = nhanProbe(`nhóm > P3: ${'x'.repeat(200)}`);
-    expect(n.length).toBeLessThanOrEqual(40);
-    expect(n.endsWith('…')).toBe(true);
     expect(n).toContain('P3');
+    expect(n).toContain('…');
+    expect(n.length).toBeLessThanOrEqual(45);
+  });
+
+  it('KHÔNG đoán mã: describe tên «P1 hay P2» không được làm nhãn mang mã SAI (vòng hai, HIGH)', () => {
+    // Lối đoán bằng regex lấy đoạn khớp P\d+ ĐẦU TIÊN — trúng ngay tên describe, nên nhãn mang «P1»
+    // trong khi khopIdProbe nối đúng «P10». Nhãn mang mã sai còn tệ hơn nhãn không mã.
+    const n = nhanProbe('P1 hay P2 > P10: nối đúng id');
+    expect(n).toContain('P10');
+    expect(khopIdProbe('P1 hay P2 > P10: nối đúng id', 'P10')).toBe(true);
+    expect(n.startsWith('P1:')).toBe(false);
+  });
+
+  it('probe KHÔNG mang mã: hai title khác describe vẫn ra hai nhãn khác nhau (vòng hai, MEDIUM)', () => {
+    const a = nhanProbe('cửa đọc cấu hình máy chủ > phải chặn');
+    const b = nhanProbe('cửa đọc cấu hình repo đích > phải chặn');
+    expect(a).not.toBe(b);
   });
 });
 
