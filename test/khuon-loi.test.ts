@@ -1,0 +1,50 @@
+import { describe, it, expect } from 'vitest';
+import { KHO_KHUON, TRAN_KHUON, layKhuonCode, layKhuonDoc } from '../packages/harness/src/khuon-loi.js';
+
+// Kho khuôn lỗi common (specs/R12) — tri thức đúc từ finding thật, phát vào prompt của cả hai skill.
+
+describe('kho khuôn lỗi common (R12)', () => {
+  it('mỗi khuôn PHẢI kèm án lệ — không án lệ là phỏng đoán (R12.2)', () => {
+    for (const k of KHO_KHUON) {
+      expect(k.an_le.trim().length, `${k.id} thiếu án lệ`).toBeGreaterThan(10);
+      expect(k.khuon.trim().length, `${k.id} khuôn rỗng`).toBeGreaterThan(20);
+    }
+  });
+
+  it('trần 20 khuôn mỗi loại (R12.3) — prompt phình là loãng chú ý model', () => {
+    for (const loai of ['code', 'doc'] as const) {
+      expect(KHO_KHUON.filter((k) => k.loai === loai).length).toBeLessThanOrEqual(TRAN_KHUON);
+    }
+    // và hai hàm phát không bao giờ vượt trần dù kho về sau có phình
+    expect(layKhuonCode('quyền http validate đầu vào').length).toBeLessThanOrEqual(TRAN_KHUON);
+    expect(layKhuonDoc().length).toBeLessThanOrEqual(TRAN_KHUON);
+  });
+
+  it('id không trùng nhau', () => {
+    const ids = KHO_KHUON.map((k) => k.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('khuôn điều kiện chỉ bật khi spec repo có loại luật đó (R12.4)', () => {
+    const khongQuyen = layKhuonCode('spec chỉ nói về tính tổng tiền');
+    expect(khongQuyen.some((k) => k.includes('VƯỢT QUYỀN'))).toBe(false);
+    const coQuyen = layKhuonCode('chỉ vai trò duyệt cấp 2 được phê duyệt hồ sơ');
+    expect(coQuyen.some((k) => k.includes('VƯỢT QUYỀN'))).toBe(true);
+    // khuôn bắt buộc đứng ĐẦU danh sách — giữ ngữ nghĩa unshift của đời trước
+    expect(coQuyen[0]).toContain('VƯỢT QUYỀN');
+  });
+
+  it('khuôn vô điều kiện phát cho MỌI repo — gồm các khuôn đúc từ chuỗi PR #12', () => {
+    const bat = layKhuonCode('spec tối giản không khớp regex nào');
+    for (const manh of ['KHUYẾT ở MỌI TẦNG', 'CỬA SONG SINH', 'NGUYÊN VĂN', 'thay LẶNG', 'ảnh-với-ảnh']) {
+      expect(bat.some((k) => k.includes(manh)), `thiếu khuôn «${manh}»`).toBe(true);
+    }
+  });
+
+  it('khuôn doc là «nơi hay giấu lỗi», không mở rộng rubric — không dòng nào tự đặt loại finding mới', () => {
+    for (const k of layKhuonDoc()) {
+      expect(k).not.toMatch(/rubric mới|loại mới|loại thứ 8/i);
+    }
+    expect(layKhuonDoc().length).toBeGreaterThanOrEqual(3);
+  });
+});

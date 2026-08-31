@@ -4,6 +4,7 @@ import { goiCode, goiJson } from './jsonx.js';
 import { docTarget, goiYDuongDanModule, trichMaLuat, type TargetInfo } from './target.js';
 import { Sandbox, type KetQuaProbe } from './sandbox.js';
 import { capNhatLichSu, docThuVien, nhanVaoThuVien, slugRepo, tachMotProbe, timVaGoTrungHanhVi } from './thu-vien.js';
+import { layKhuonCode } from './khuon-loi.js';
 import { apDungPhanXu, promptPhanXuTrung, timNghiTrung, timTrungChayLai, type PhanXu, type UngPhanXu } from './dedup-probe.js';
 import { docReviewCfg, docRunnerCfg, mauBoQuaDiff, parseJUnit, type ReviewCfg, type RunnerCfg } from './runner.js';
 import { LOI_RAO, taoRao, type Rao } from './rao.js';
@@ -186,23 +187,11 @@ function trichCode(nguon: string, probeId: string): string {
 // C6: bộ khuôn lỗi = tổng quát (mọi phần mềm) + có-điều-kiện (kích hoạt theo nội dung spec) + per-repo (checkmate.yml).
 // Engine không hiểu domain — spec của repo và cấu hình repo là nguồn tri thức nghiệp vụ.
 function xayKhuonLoi(t: TargetInfo, review: ReviewCfg | null): string {
-  const khuon: string[] = [
-    'điều kiện KÉP bị gộp sai: thử TỪNG VẾ riêng (vế này đúng + vế kia sai, và ngược lại);',
-    'giá trị BIÊN đúng ngưỡng của hằng số trong spec (biên đóng/mở);',
-    'phép tính số học: tổng các phần phải bằng đúng tổng gốc, thử số CHIA KHÔNG HẾT / làm tròn;',
-    'hành vi cũ không bị PR phá (probe kỳ vọng qua, để chứng minh PASS xứng đáng khi PR sạch).',
-  ];
-  const specText = t.specs.map((s) => s.noiDung).join('\n').toLowerCase();
-  // khuôn CÓ ĐIỀU KIỆN — chỉ bật khi spec của repo thực sự có loại luật đó
-  if (/quyền|vai trò|role|permission|phân cấp|thẩm quyền|actor|chỉ .* được/.test(specText)) {
-    khuon.unshift('PHÂN QUYỀN (spec repo này có luật về quyền/vai): BẮT BUỘC có probe thử VƯỢT QUYỀN — actor không đủ quyền thực hiện hành động của actor đủ quyền, và tự thao tác trên đối tượng của chính mình nếu spec cấm;');
-  }
-  if (/4\d\d|http|route|endpoint|api|status/.test(specText) || t.apiDoc.length > 0) {
-    khuon.push('đường SAI phải trả lỗi nghiệp vụ 4xx kèm thông báo (trùng khoá, tham chiếu không tồn tại) — app-guard, không được vỡ thành 500;');
-  }
-  if (/đầu vào|validate|bắt buộc|không được rỗng|required/.test(specText)) {
-    khuon.push('VALIDATION đầu vào: trường bắt buộc bỏ trống / kiểu sai / giá trị ngoài miền — phải bị chặn đúng như spec khai;');
-  }
+  // Hai tầng (R12.1): kho khuôn COMMON đúc từ án lệ mọi repo (khuon-loi.ts — khuôn điều kiện tự bật
+  // theo spec) + khuôn PER-REPO khai trong checkmate.yml của repo đích, luôn đứng đầu.
+  // apiDoc có mặt cũng bật nhóm khuôn HTTP như đời trước (spec không nhắc http vẫn bật khi có API doc).
+  const specText = t.specs.map((s) => s.noiDung).join('\n') + (t.apiDoc.length > 0 ? '\nhttp' : '');
+  const khuon = layKhuonCode(specText);
   if (review?.khuon_loi?.length) {
     khuon.unshift(...review.khuon_loi.map((k) => `[repo khai] ${k};`));
   }
