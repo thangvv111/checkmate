@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { nhanProbe } from '../packages/harness/src/skill-code.js';
+import { khopIdProbe, nhanProbe } from '../packages/harness/src/skill-code.js';
 import { phanLoaiPr } from '../apps/web/src/github.js';
 
 /**
@@ -23,6 +23,22 @@ describe('A · nhãn probe trong log giữ đúng phần phân biệt', () => {
     expect(b).toContain('P2');
     // đúng lỗi cũ: cắt từ đầu title thì cả hai đều ra tên describe dùng chung
     expect(a.startsWith('cửa đọc cấu hình')).toBe(false);
+  });
+
+  it('«>» trong TÊN TEST không được làm mất mã probe (vòng hai của cổng)', () => {
+    // `>` là ký tự bình thường trong tên test; lấy đoạn cuối vô điều kiện thì «kỳ vọng a > phải chặn»
+    // ném mất «P1», và hai probe khác nhau lại ra cùng một nhãn.
+    const a = nhanProbe('nhóm chung > P1: kỳ vọng a > phải chặn');
+    const b = nhanProbe('nhóm chung > P2: kỳ vọng b > phải chặn');
+    expect(a).toContain('P1');
+    expect(b).toContain('P2');
+    expect(a).not.toBe(b);
+  });
+
+  it('hai cửa đọc title KHÔNG lệch nhau: khopIdProbe nối được id thì nhãn cũng phải mang id', () => {
+    const title = 'nhóm > P1: kỳ vọng a > b';
+    expect(khopIdProbe(title, 'P1')).toBe(true);
+    expect(nhanProbe(title)).toContain('P1');
   });
 
   it('title KHÔNG có dấu «>» vẫn cho nhãn đọc được — probe thư viện đời cũ', () => {

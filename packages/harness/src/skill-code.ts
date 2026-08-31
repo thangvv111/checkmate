@@ -91,8 +91,12 @@ export function nhanProbe(title: string): string {
     .split('>')
     .map((x) => x.trim())
     .filter(Boolean);
-  const cuoi = doan[doan.length - 1] ?? '';
-  const sach = cuoi.replace(/\s+/g, ' ').trim();
+  // Ưu tiên đoạn MANG MÃ PROBE, dùng cùng phép tách với khopIdProbe để hai cửa đọc title không lệch
+  // nhau (khuôn KL9 «cửa song sinh»): `>` là ký tự BÌNH THƯỜNG trong tên test («kỳ vọng a > b»), nên
+  // lấy đoạn cuối vô điều kiện sẽ ném mất đúng mã probe — và hai probe khác nhau lại ra cùng nhãn.
+  const mangMa = doan.find((d) => /^(test_)?P\d+/.test(d));
+  const chon = mangMa ?? doan[doan.length - 1] ?? '';
+  const sach = chon.replace(/\s+/g, ' ').trim();
   if (!sach) return '(probe không tên)';
   return sach.length <= 40 ? sach : `${sach.slice(0, 39)}…`;
 }
