@@ -123,10 +123,17 @@ export async function thuNcc(ma: MaNcc, cfg: CauHinhNcc): Promise<KetQuaThu> {
     return { ok, thong_diep, ncc: ma, giay: giay(), luc, model: cfg.model, phuong_thuc: cfg.phuong_thuc };
   };
 
-  // R5.16 — tổ hợp ngoài giới hạn thì từ chối NGAY, không gọi model: gọi rồi để nhà cung cấp trả lỗi
-  // là bắt người dùng giải mã một thông điệp không nói đúng nguyên nhân.
-  if (!modelHopLe(dinhNghia(ma), cfg.phuong_thuc, cfg.model)) {
-    return xong(false, `Model ${cfg.model} không dùng được với phương thức «${cfg.phuong_thuc === 'api' ? 'API' : 'gói thuê bao'}» — xem giới hạn trong danh mục nhà cung cấp (R5.15).`);
+  // R5.16 — tổ hợp ngoài giới hạn thì từ chối NGAY, không gọi model. Nhưng phải TÁCH hai nguyên nhân:
+  // modelHopLe trả false cho cả «model không có trong danh mục» lẫn «model chỉ-thuê-bao đi đường API»,
+  // mà hai chuyện đó dẫn người dùng đi hai hướng sửa khác hẳn nhau. Gộp chung một câu là báo sai bản
+  // chất — người gõ nhầm tên model sẽ đi đổi phương thức thay vì sửa tên (Opus bắt được đúng ca này
+  // khi chấm chính PR đưa cổng này vào: hồi quy so với thông điệp đúng ở nhánh gốc).
+  const dn = dinhNghia(ma);
+  if (!dn.models.includes(cfg.model)) {
+    return xong(false, `Model «${cfg.model}» không có trong danh mục của ${dn.ten} — kiểm lại tên model (danh mục: ${dn.models.join(', ')}).`);
+  }
+  if (!modelHopLe(dn, cfg.phuong_thuc, cfg.model)) {
+    return xong(false, `Model ${cfg.model} chỉ dùng được với gói thuê bao, không mở cho đường API (R5.15) — đổi phương thức sang «gói thuê bao» hoặc chọn model khác.`);
   }
 
   // ---- Anthropic · gói thuê bao: chạy qua Claude Code CLI ----

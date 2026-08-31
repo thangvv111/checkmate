@@ -43,8 +43,26 @@ describe('cổng kiểm từ chối tổ hợp ngoài giới hạn TRƯỚC khi 
     const t0 = Date.now();
     const kq = await thuNcc('anthropic', { phuong_thuc: 'api', model: 'claude-fable-5' });
     expect(kq.ok).toBe(false);
-    expect(kq.thong_diep).toMatch(/không dùng được với phương thức/);
+    expect(kq.thong_diep).toMatch(/chỉ dùng được với gói thuê bao/);
     // từ chối tại chỗ — không có lời gọi mạng nào ăn vài giây
     expect(Date.now() - t0).toBeLessThan(1500);
+  });
+});
+
+describe('hai nguyên nhân phải nói hai lời khác nhau — Opus bắt trên chính PR này', () => {
+  it('model KHÔNG CÓ trong danh mục → nói đúng «không có trong danh mục», tuyệt đối không đổ cho phương thức', async () => {
+    const { thuNcc } = await import('../apps/web/src/nguon-model.js');
+    const kq = await thuNcc('anthropic', { phuong_thuc: 'api', model: 'model-khong-co-that-xyz' });
+    expect(kq.ok).toBe(false);
+    expect(kq.thong_diep).toMatch(/không có trong danh mục/);
+    expect(kq.thong_diep).not.toMatch(/dùng được với phương thức|chỉ dùng được với gói/);
+  });
+
+  it('model chỉ-thuê-bao đi đường API → nói đúng chuyện phương thức, kèm hướng sửa', async () => {
+    const { thuNcc } = await import('../apps/web/src/nguon-model.js');
+    const kq = await thuNcc('anthropic', { phuong_thuc: 'api', model: 'claude-fable-5' });
+    expect(kq.ok).toBe(false);
+    expect(kq.thong_diep).toMatch(/chỉ dùng được với gói thuê bao/);
+    expect(kq.thong_diep).not.toMatch(/không có trong danh mục/);
   });
 });
