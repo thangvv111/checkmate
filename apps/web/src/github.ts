@@ -71,6 +71,7 @@ export interface PrDaFetch {
   filesDoi: string[];
   loai: 'code' | 'doc';
   fileDoc?: string; // file .md được chọn khi loai=doc
+  lyDoDinhTuyen: string; // R13.6 — vì sao chọn skill đó, nêu đúng file gây ra quyết định
 }
 
 // Ghi lên GitHub (merge / comment / review) — token hoặc gh CLI của máy
@@ -247,8 +248,36 @@ function nguonFetch(github: string): string {
   return token ? `https://x-access-token:${token}@github.com/${github}.git` : 'origin';
 }
 
-// Fetch PR + nhánh đích về ref local rồi ROUTER theo nội dung diff:
-// chỉ toàn .md → skill doc (chọn file .md đổi nhiều dòng nhất); còn lại → skill code.
+/**
+ * Phân loại PR theo loại file đã đổi (specs/R13) — hàm THUẦN, không I/O, để mọi scenario của luật
+ * thành một ca test chạy bằng danh sách tên file.
+ *
+ * Allowlist HẸP chứ không phải blocklist (R13.2): hai hướng sai không đối xứng. Doc bị đẩy sang code
+ * chỉ tốn tiền và ồn; code bị đẩy sang doc thì KHÔNG probe nào chạy và verdict xanh trên vùng chưa ai
+ * thử — xanh giả, đúng thứ công cụ này sinh ra để chống. Nghi ngờ thì chọn code.
+ */
+export function phanLoaiPr(filesDoi: readonly string[]): { loai: 'code' | 'doc'; lyDo: string; fileDocUngVien: string[] } {
+  // Khớp CẤU TRÚC đường dẫn, không khớp tiền tố chuỗi (R13.5): `openspec-notes.js` không được ăn nhầm
+  // allowlist của thư mục `openspec/`. Tên file trong diff là dữ liệu do maker viết.
+  const laVanBan = (f: string): boolean => {
+    const t = f.toLowerCase().split('\\').join('/');
+    if (t.endsWith('.md') || t.endsWith('.txt')) return true;
+    return t === 'openspec' || t.startsWith('openspec/');
+  };
+  const md = filesDoi.filter((f) => f.toLowerCase().endsWith('.md'));
+  const thucThi = filesDoi.filter((f) => !laVanBan(f));
+  if (thucThi.length > 0) {
+    const vd = thucThi.slice(0, 3).join(', ');
+    return { loai: 'code', lyDo: `có ${thucThi.length} file không phải văn bản thuần (${vd}${thucThi.length > 3 ? '…' : ''}) — R13.1`, fileDocUngVien: md };
+  }
+  // R13.4 — skill doc chấm MỘT tài liệu bằng trích dẫn nguyên văn; không .md nào thì không có gì để đọc
+  if (md.length === 0) {
+    return { loai: 'code', lyDo: 'toàn văn bản thuần nhưng không có file .md nào để skill doc đọc — R13.4', fileDocUngVien: [] };
+  }
+  return { loai: 'doc', lyDo: `${filesDoi.length} file đổi đều là văn bản thuần, có ${md.length} file .md — R13.1`, fileDocUngVien: md };
+}
+
+// Fetch PR + nhánh đích về ref local rồi ROUTER theo loại file đã đổi (specs/R13).
 export function fetchVaRouter(cfg: CheckmateConfig, so: number): PrDaFetch {
   const lp = cfg.repo.local_path;
   const headRef = `refs/checkmate/pr${so}`;
@@ -260,10 +289,14 @@ export function fetchVaRouter(cfg: CheckmateConfig, so: number): PrDaFetch {
   const filesDoi = git(lp, ['diff', '--name-only', `${baseRef}...${headRef}`]).split('\n').filter(Boolean);
   if (filesDoi.length === 0) throw new Error(`PR #${so} không có file thay đổi so với ${cfg.repo.base_branch}`);
 
-  const toanMd = filesDoi.every((f) => f.toLowerCase().endsWith('.md'));
-  if (!toanMd) return { so, headSha, baseRef, headRef, filesDoi, loai: 'code' };
+  const pl = phanLoaiPr(filesDoi);
+  // R13.6 — nói ra quyết định: router quyết trong im lặng thì người đọc verdict không biết vì sao PR
+  // của mình đi đường nào, và một quyết định không ai thấy là quyết định không ai kiểm được.
+  console.log(`Định tuyến PR #${so}: skill ${pl.loai} — ${pl.lyDo}`);
+  if (pl.loai === 'code') return { so, headSha, baseRef, headRef, filesDoi, loai: 'code', lyDoDinhTuyen: pl.lyDo };
 
-  // chọn file .md đổi nhiều dòng nhất
+  // chọn file .md đổi nhiều dòng nhất TRONG SỐ ứng viên .md (numstat liệt kê cả file không phải .md)
+  const ungVien = new Set(pl.fileDocUngVien);
   const numstat = git(lp, ['diff', '--numstat', `${baseRef}...${headRef}`])
     .split('\n')
     .filter(Boolean)
@@ -271,8 +304,11 @@ export function fetchVaRouter(cfg: CheckmateConfig, so: number): PrDaFetch {
       const [them, xoa, file] = l.split('\t');
       return { file, doi: (Number(them) || 0) + (Number(xoa) || 0) };
     })
+    .filter((x) => ungVien.has(x.file))
     .sort((a, b) => b.doi - a.doi);
-  return { so, headSha, baseRef, headRef, filesDoi, loai: 'doc', fileDoc: numstat[0].file };
+  // numstat có thể không khớp ứng viên nào (đổi tên, file nhị phân) — rơi về ứng viên đầu, không ném
+  const fileDoc = numstat[0]?.file ?? pl.fileDocUngVien[0];
+  return { so, headSha, baseRef, headRef, filesDoi, loai: 'doc', fileDoc, lyDoDinhTuyen: `${pl.lyDo}; chấm tài liệu ${fileDoc}` };
 }
 
 // ---- Kết nối repo: liệt kê repo mà token nhìn thấy, rồi clone về máy chủ ----
