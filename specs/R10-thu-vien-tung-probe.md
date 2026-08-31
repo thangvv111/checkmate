@@ -90,8 +90,10 @@ nổ» đều loại đúng lưới an toàn đang im lặng. Điểm chỉ nhì
   `CHET_KEO_DAI_NGUONG` lượt gần nhất trong lịch sử đều mang nhãn hoàn cảnh chết (`nghi_loi_co_san` ·
   `khong_chay`), tức API đích đã đổi và probe không còn chạy được — giữ là giữ xác, kể cả xác từng
   bắt hồi quy; (2) probe **flaky** — `flaky_diem` cao nhất trong nhóm ≥ 2; (3) probe **cũ nhất chưa
-  từng bắt hồi quy**; (4) probe cũ nhất tuyệt đối (chỉ khi cả kho toàn hàng miễn trừ — van chống kẹt
-  trần). Mọi lần loại PHẢI log: probe nào, nấc nào, bằng chứng gì.
+  từng bắt hồi quy** — KHÔNG tính probe vừa nạp: kho toàn hàng miễn trừ mà đá luôn probe mới là van
+  nấc (4) không bao giờ mở, kho hoá thạch, không nhận được phép thử cho biên mới; (4) probe cũ nhất
+  tuyệt đối (khi mọi probe cũ đều miễn trừ — van chống kẹt trần). Mọi lần loại PHẢI log: probe nào,
+  nấc nào, bằng chứng gì.
 - **R10.23** — Probe từng bắt hồi quy mang cờ `da_bat_hoi_quy` **vĩnh viễn** (không trôi theo trần
   lịch sử 20 lượt) và được **miễn trừ** nấc (3) — thành tích thật không hết hạn. Cờ không cứu được
   probe chết kéo dài (R10.22 nấc 1) và không cứu khỏi tầng 4 (trùng hành vi có bằng chứng).
@@ -99,4 +101,6 @@ nổ» đều loại đúng lưới an toàn đang im lặng. Điểm chỉ nhì
   hai lần chạy — và CHỈ khi cả hai trạng thái đều là nhãn hành vi riêng (`pass` · `hoi_quy` ·
   `cai_thien`): cùng commit khác kết quả là phép thử không tất định. Nhãn hoàn cảnh đổi qua lại
   (spec đổi, fixture đổi) KHÔNG tính — đó là chuyện của lượt, không phải của probe. Điểm cộng dồn
-  vĩnh viễn, không reset.
+  vĩnh viễn, không reset. Hệ quả buộc phải có: nhãn hoàn cảnh KHÔNG ĐÈ nhãn hành-vi-riêng đã ghi cho
+  cùng sha (mở rộng R10.10) — đè là xoá dấu, chuỗi pass → nghi_loi_co_san → hoi_quy trên cùng sha sẽ
+  sót mất cặp pass↔hoi_quy, và tầng 4 mất một lượt so được.

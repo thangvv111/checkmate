@@ -70,9 +70,12 @@ export function chonNanNhan(probes: readonly MucProbeLib[]): { i: number; ly_do:
     if (d >= 2 && (iFlaky < 0 || d > (probes[iFlaky].flaky_diem ?? 0))) iFlaky = i;
   }
   if (iFlaky >= 0) return { i: iFlaky, ly_do: `flaky — ${probes[iFlaky].flaky_diem} lần cùng sha khác kết quả (R10.22.2)` };
-  const iThuong = probes.findIndex((m) => !m.da_bat_hoi_quy);
+  // Nấc 3 loại trừ phần tử CUỐI (probe vừa nạp — chonNanNhan chỉ được gọi ngay sau push): kho toàn
+  // hàng miễn trừ mà đá luôn probe mới thì van nấc 4 không bao giờ mở, kho hoá thạch — không nhận
+  // được phép thử cho biên MỚI nữa (quan sát P1 của cổng trên chính PR này).
+  const iThuong = probes.slice(0, -1).findIndex((m) => !m.da_bat_hoi_quy);
   if (iThuong >= 0) return { i: iThuong, ly_do: 'cũ nhất chưa từng bắt hồi quy (R10.22.3)' };
-  return { i: 0, ly_do: 'cả kho toàn probe từng bắt hồi quy — loại cũ nhất tuyệt đối, van chống kẹt trần (R10.22.4)' };
+  return { i: 0, ly_do: 'mọi probe cũ đều từng bắt hồi quy — loại cũ nhất tuyệt đối, van chống kẹt trần (R10.22.4)' };
 }
 
 export interface ProbeThuVien extends MucProbeLib {
@@ -558,6 +561,10 @@ export function capNhatLichSu(slug: string, shaLuot: string, ghi: Array<{ ten: s
       if (cuSha && cuSha.trang_thai !== g.trangThai && NHAN_HANH_VI_RIENG.has(cuSha.trang_thai) && NHAN_HANH_VI_RIENG.has(g.trangThai)) {
         m.flaky_diem = (m.flaky_diem ?? 0) + 1;
       }
+      // Nhãn HOÀN CẢNH không đè nhãn hành-vi-riêng cùng sha (R10.20 — nó nói về lượt, không về
+      // probe): đè là xoá dấu để lần chạy lại kế so flaky (pass→nghi_loi→hoi_quy sót mất cặp
+      // pass↔hoi_quy — quan sát P2), và làm tầng 4 mất lượt so được.
+      if (cuSha && NHAN_HANH_VI_RIENG.has(cuSha.trang_thai) && !NHAN_HANH_VI_RIENG.has(g.trangThai)) continue;
       m.lich_su = [...(m.lich_su ?? []).filter((h) => h.sha !== shaLuot), { sha: shaLuot, luc, trang_thai: g.trangThai }].slice(-TRAN_LICH_SU);
     }
     ghiMeta(slug, meta);

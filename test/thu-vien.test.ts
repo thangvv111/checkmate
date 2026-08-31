@@ -241,6 +241,26 @@ describe('đào thải theo điểm GIỮ/LOẠI (R10.22–R10.24) — thay FIFO
     expect(kq.ly_do).toContain('van chống kẹt trần');
   });
 
+  it('nấc 3 KHÔNG đá probe VỪA NẠP: kho toàn miễn trừ + probe mới → van nấc 4 mở, không hoá thạch', () => {
+    // Quan sát P1 của cổng trên chính PR này: probe vừa push là phần tử CUỐI và là đứa duy nhất
+    // chưa-từng-bắt — nấc 3 mù vị trí sẽ đá đúng nó, kho không bao giờ nhận máu mới.
+    const kq = tv.chonNanNhan([muc('a', { da_bat_hoi_quy: true }), muc('b', { da_bat_hoi_quy: true }), muc('moi')]);
+    expect(kq.i).toBe(0); // loại probe MIỄN TRỪ cũ nhất, không phải probe mới
+    expect(kq.ly_do).toContain('van chống kẹt trần');
+  });
+
+  it('nhãn hoàn cảnh KHÔNG đè nhãn hành-vi-riêng cùng sha — chuỗi pass→nghi_loi→hoi_quy vẫn ra flaky (P2)', () => {
+    const kq = tv.nhanVaoThuVien(SLUG, codeProbe('PG', `'PG'`), plan('PG'), 'shaG');
+    tv.capNhatLichSu(SLUG, 'z1', [{ ten: kq.ten!, trangThai: 'pass' }]);
+    tv.capNhatLichSu(SLUG, 'z1', [{ ten: kq.ten!, trangThai: 'nghi_loi_co_san' }]); // hoàn cảnh — không đè
+    let d = tv.docThuVien(SLUG)[0];
+    expect(d.lich_su.find((h) => h.sha === 'z1')?.trang_thai).toBe('pass');
+    tv.capNhatLichSu(SLUG, 'z1', [{ ten: kq.ten!, trangThai: 'hoi_quy' }]); // so được với pass còn giữ → +1
+    d = tv.docThuVien(SLUG)[0];
+    expect(d.flaky_diem).toBe(1);
+    expect(d.da_bat_hoi_quy).toBe(true);
+  });
+
   it('capNhatLichSu: nhãn hoi_quy đóng cờ VĨNH VIỄN — không trôi theo trần lịch sử 20 lượt', () => {
     const kq = tv.nhanVaoThuVien(SLUG, codeProbe('PV', `'PV'`), plan('PV'), 'shaV');
     tv.capNhatLichSu(SLUG, 'x0', [{ ten: kq.ten!, trangThai: 'hoi_quy' }]);
