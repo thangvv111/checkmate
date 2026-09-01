@@ -154,11 +154,24 @@ export function docConfig(): CheckmateConfig {
  * Chỉ giữ những khoá CÓ TRONG bản mặc định — khoá lạ trong file sửa tay bị bỏ và nói ra.
  * Bỏ trong im lặng cũng không được: người vừa gõ một khoá cần biết nó không có tác dụng.
  */
+// Khoá KHÔNG BAO GIỜ được nhận, kể cả khi bản mặc định «có» chúng qua chuỗi prototype.
+const KHOA_CAM = new Set(['__proto__', 'constructor', 'prototype']);
+
 function locKhoaBiet<T extends object>(macDinh: T, luu: Partial<T> | undefined): T {
   const ra = { ...macDinh };
   const la: string[] = [];
   for (const [k, v] of Object.entries(luu ?? {})) {
-    if (k in macDinh) (ra as Record<string, unknown>)[k] = v;
+    // `k in macDinh` duyệt CẢ chuỗi prototype, nên `'__proto__' in macDinh` là true — khoá đó lọt bộ
+    // lọc, và phép gán `ra[k] = v` kích hoạt setter của Object.prototype, thay prototype của chính
+    // object cấu hình. Bản vá công-tắc-ma đời trước vì thế MỞ lại đúng công tắc ma đó bằng một đường
+    // nguy hiểm hơn: `{"truc":{"__proto__":{"tu_dong_merge":true}}}` làm `truc.tu_dong_merge` thành
+    // true (vòng sáu của cổng bắt — lỗi do chính bản vá đẻ ra).
+    // Hai lớp: chặn tên nguy hiểm tường minh, và chỉ nhận khoá SỞ HỮU RIÊNG của bản mặc định.
+    if (KHOA_CAM.has(k)) {
+      la.push(k);
+      continue;
+    }
+    if (Object.prototype.hasOwnProperty.call(macDinh, k)) (ra as Record<string, unknown>)[k] = v;
     else la.push(k);
   }
   if (la.length) console.error(`config.json có khoá KHÔNG được hỗ trợ, đã bỏ qua: ${la.join(', ')} — không khoá nào trong số này có tác dụng`);

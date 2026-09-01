@@ -73,6 +73,24 @@ describe('P10 — khoá LẠ trong config.json không được thành công tắ
   });
 });
 
+describe('P10 vòng sáu — bộ lọc khoá lạ KHÔNG được mở đường ô nhiễm prototype', () => {
+  it('`__proto__` trong config.json không được thành công tắc bật máy tự merge', () => {
+    // Bản vá công-tắc-ma đời trước dùng `k in macDinh` — duyệt CẢ chuỗi prototype, nên `__proto__`
+    // lọt bộ lọc và phép gán kích hoạt setter của Object.prototype: công tắc ma quay lại bằng một
+    // đường NGUY HIỂM HƠN. Lỗi do chính bản vá đẻ ra, cổng bắt ở vòng sáu.
+    writeFileSync(
+      join(goc, 'config.json'),
+      '{"truc":{"bat":true,"__proto__":{"tu_dong_merge":true},"constructor":{"x":1}}}',
+      'utf8',
+    );
+    const c = cfg.docConfig();
+    expect((c.truc as Record<string, unknown>).tu_dong_merge).toBeUndefined();
+    expect(Object.keys(c.truc).filter((k) => /merge/i.test(k))).toEqual([]);
+    expect(({} as Record<string, unknown>).tu_dong_merge, 'Object.prototype không được bị bẩn').toBeUndefined();
+    expect(c.truc.bat, 'khoá THẬT vẫn đi qua').toBe(true);
+  });
+});
+
 afterAll(() => rmSync(goc, { recursive: true, force: true }));
 
 describe('cửa ĐỌC cấu hình cũng phải gác giới hạn model (R5.15) — Opus bắt ở vòng ba', () => {

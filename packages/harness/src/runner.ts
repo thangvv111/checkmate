@@ -37,7 +37,11 @@ export function docReviewCfg(repoPath: string): ReviewCfg | null {
       severity_map: r.severity_map,
       bo_qua_diff: Array.isArray(r.bo_qua_diff) ? r.bo_qua_diff.map(String) : undefined,
     };
-  } catch {
+  } catch (e) {
+    // Cùng một lời với cửa song sinh `docRunnerCfg`: nuốt lỗi thành im lặng thì người vận hành không
+    // biết hợp đồng repo đích đang hỏng, và lượt chấm cứ chạy bằng đường mặc định như thể mọi thứ ổn
+    // (vòng sáu của cổng bắt: một nửa được vá, nửa còn lại bỏ quên).
+    console.error(`checkmate.yml của repo đích sai cú pháp — bỏ qua cấu hình review, rơi về mặc định (R2.12): ${(e as Error).message.slice(0, 160)}`);
     return null; // yml hỏng: đường runner sẽ tự báo; review cfg thì fail-safe về default
   }
 }

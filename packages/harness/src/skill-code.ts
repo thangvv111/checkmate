@@ -87,7 +87,10 @@ export function vanTayChat(msg: string): string {
  *
  * Nay lấy đoạn cuối rồi mới cắt: cắt từ đầu đoạn RIÊNG, không phải đầu chuỗi chung.
  */
-export function nhanProbe(title: string, idBiet: readonly string[] = []): string {
+export function nhanProbe(titleTho: unknown, idBiet: readonly string[] = []): string {
+  // `title` có thể KHÔNG phải chuỗi: bộ đọc JUnit XML của repo đích ép kiểu thuộc tính số, nên một
+  // test tên «123» đến đây là số. Hàm đứng cuối đường ghi log mà ném là chết cả lượt chấm (KL16).
+  const title = typeof titleTho === 'string' ? titleTho : titleTho == null ? '' : String(titleTho);
   const tho = (title ?? '').replace(/\s+/g, ' ').trim();
   const van = createHash('sha256').update(title ?? '').digest('hex').slice(0, 4);
   // KHÔNG đoán cấu trúc title nữa. Bốn vòng của cổng đã bác bốn lối đoán (cắt từ đầu · lấy đoạn cuối

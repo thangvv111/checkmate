@@ -40,3 +40,17 @@
       như R1.5/R1.14 khai; probe của cổng sai contract chứ engine không sai. Đã khoá hành vi bằng
       test để lần sau không ai phải tái lập lần nữa.
 
+## 4. Vòng sáu — cổng bắt lỗi DO CHÍNH BẢN VÁ ở mục 3 đẻ ra
+
+- [x] 4.1 **HIGH — ô nhiễm prototype**: bộ lọc khoá lạ (mục 3.2) dùng `k in macDinh`, mà phép `in`
+      duyệt CẢ chuỗi prototype nên `'__proto__' in macDinh` là true → khoá `__proto__` lọt bộ lọc và
+      phép gán kích hoạt setter của `Object.prototype`. Kết quả: `{"truc":{"__proto__":{"tu_dong_merge":true}}}`
+      làm `truc.tu_dong_merge` thành `true` — **bản vá công-tắc-ma mở lại đúng công tắc đó bằng một
+      đường nguy hiểm hơn**. Nay chặn tên nguy hiểm tường minh + chỉ nhận khoá SỞ HỮU RIÊNG
+      (`hasOwnProperty`).
+- [x] 4.2 **MEDIUM — vá một nửa**: `docRunnerCfg` được thêm `console.error` còn cửa song sinh
+      `docReviewCfg` vẫn nuốt lỗi im lặng. Hai cửa cùng vai nói hai lời (khuôn KL9). Nay cùng nói ra.
+- [x] 4.3 **MEDIUM — `nhanProbe` ném với `title` không phải chuỗi**: bộ đọc JUnit XML của repo đích
+      ép kiểu thuộc tính số, nên test tên «123» đến đây là số. Lưới `.filter(Boolean)` nằm ở CHỖ GỌI
+      nên không bảo vệ được hàm. Nay ép kiểu trong hàm (KL16 — hàm cuối đường không được ném).
+

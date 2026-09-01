@@ -95,6 +95,16 @@ describe('A · nhãn probe trong log giữ đúng phần phân biệt', () => {
     expect(nhanProbe('nhóm > P1: một', ['P1', 'P10'])).toContain('P1');
   });
 
+  it('title KHÔNG phải chuỗi (JUnit XML ép kiểu số) không được làm hàm ném (vòng sáu)', () => {
+    // Hàm đứng cuối đường ghi log: ném ở đây là chết cả lượt chấm. Lưới `.filter(Boolean)` cho idBiet
+    // nằm ở CHỖ GỌI nên không bảo vệ được hàm.
+    for (const x of [123, true, {}, [], Symbol('x')]) {
+      expect(() => nhanProbe(x as never), `${String(x)}`).not.toThrow();
+      expect(nhanProbe(x as never).length).toBeGreaterThan(3);
+    }
+    expect(nhanProbe(123 as never)).toContain('123');
+  });
+
   it('KHÔNG biết mã thì vẫn cho nhãn đọc được và không trùng', () => {
     const a = nhanProbe('cửa đọc cấu hình máy chủ > phải chặn');
     const b = nhanProbe('cửa đọc cấu hình repo đích > phải chặn');

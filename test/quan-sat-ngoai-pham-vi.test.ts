@@ -45,6 +45,26 @@ describe('P8 — checkmate.yml sai cú pháp phải FAIL-SAFE về null, không 
   });
 });
 
+describe('P8 vòng sáu — CẢ HAI cửa phải NÓI RA khi hợp đồng hỏng, không nuốt im lặng', () => {
+  it('docReviewCfg cũng phát thông điệp như docRunnerCfg', () => {
+    // Vá một nửa: docRunnerCfg có console.error còn docReviewCfg chỉ trả null lặng lẽ — người vận
+    // hành không biết hợp đồng đang hỏng, lượt chấm cứ chạy như thể mọi thứ ổn.
+    const d = tam('review:\n  khuon_loi: [\"thiếu đóng\n');
+    const goc = console.error;
+    let dem = 0;
+    console.error = () => {
+      dem++;
+    };
+    try {
+      expect(docReviewCfg(d)).toBeNull();
+      expect(dem, 'cửa review phải nói ra như cửa runner').toBeGreaterThan(0);
+    } finally {
+      console.error = goc;
+      rmSync(d, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('P6 — timLuatMoi chịu được danh sách spec méo, không ném', () => {
   it('khuyết / không phải mảng / phần tử lạ đều rơi về «không có luật mới»', () => {
     // Hàm nằm trên đường quyết định nhãn `vi_pham_luat_moi`; ném ở đây là cả lượt chấm chết thay vì

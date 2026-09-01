@@ -26,3 +26,10 @@
 
 - [x] T5.1 Mã probe khớp DÀI NHẤT: title `P1 hay P2 > P10: …` với idBiet `['P1','P10']` → nhãn mang `P10`, không mang `P1`
 
+## Ca cho vòng sáu
+
+- [x] T6.1 `{"truc":{"__proto__":{"tu_dong_merge":true}}}` → `truc.tu_dong_merge` là `undefined`,
+      `Object.prototype` KHÔNG bị bẩn, khoá THẬT vẫn đi qua
+- [x] T6.2 `docReviewCfg` với YAML hỏng → trả `null` VÀ phát thông điệp (spy đếm > 0)
+- [x] T6.3 `nhanProbe` với 123 / true / {} / [] / Symbol → không ném, nhãn không rỗng
+
