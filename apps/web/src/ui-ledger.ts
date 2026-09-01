@@ -3,7 +3,7 @@ import { shell, escHtml } from './ui.js';
 
 // Sổ cái là một dạng lịch sử, nên nó cũng phải tách được theo repo (specs/R4.9) — trộn verdict của
 // nhiều repo vào một bảng thì con số tổng ở đầu trang không nói lên điều gì về repo nào cả.
-export function ledgerPage(muc: VerdictLedgerEntry[], congTheoRun: Map<string, string>, repos: string[] = [], locRepo?: string): string {
+export function ledgerPage(muc: VerdictLedgerEntry[], congTheoRun: Map<string, string>, repos: string[] = [], locRepo?: string, nguoi = ''): string {
   const theoRepo = locRepo ? muc.filter((m) => (m.repo ?? '') === locRepo) : muc;
   const sx = [...theoRepo].sort((a, b) => b.luc.localeCompare(a.luc));
   const demPass = sx.filter((m) => m.verdict === 'PASS').length;
@@ -44,5 +44,7 @@ export function ledgerPage(muc: VerdictLedgerEntry[], congTheoRun: Map<string, s
 ${locBox}
 ${sx.length ? `<div style="overflow-x:auto"><table class="runs"><tr><th>Lúc</th><th>Artifact</th><th>Repo</th><th>Commit</th><th>Tác giả</th><th>Verdict</th><th>Finding</th><th title="token vào / token ra — dấu ~ nghĩa là ước tính (đường Claude Code CLI không trả usage)">Token (vào/ra)</th><th>Cổng</th></tr>${rows}</table></div>` : '<p class="sub">Chưa có verdict nào.</p>'}
 <p class="goiy" style="margin-top:12px">Sổ hành động cổng (ai merge/trả-về, chấp nhận cảnh báo nào) nay nằm trong bảng <code>so_cong</code> của cơ sở dữ liệu, không còn ở <code>web-runs/review-log.jsonl</code> — file cũ chỉ giữ lại làm bản lưu trước khi di trú. Sổ trên trang này ghi KẾT LUẬN chấm; hai sổ đối chiếu với nhau qua <code>run_id</code>.</p>`,
+    '',
+    { muc: 'ledger', nguoi },
   );
 }

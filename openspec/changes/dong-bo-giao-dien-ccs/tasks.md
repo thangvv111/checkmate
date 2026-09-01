@@ -27,19 +27,19 @@ Bốn commit tách bạch: token → shell → dashboard → màn probes.
 
 ## 2. Commit 2 — SHELL
 
-- [ ] 2.1 `shell()` dựng lại: header (wordmark → Dashboard · repo switcher mono · badge trực · user
+- [x] 2.1 `shell()` dựng lại: header (wordmark → Dashboard · repo switcher mono · badge trực · user
       menu) rule 2px dưới; sidebar 210px rule 2px phải; main `max-width:1240px; padding:26px 32px 64px`.
-- [ ] 2.2 Sidebar **đủ 8 mục** (PO chốt B): Dashboard · Lịch sử chạy · Sổ cái · **Thư viện probe** ·
+- [x] 2.2 Sidebar **đủ 7 mục** (PO chốt B): Dashboard · Lịch sử chạy · Sổ cái · **Thư viện probe** ·
       Tin cậy · Cấu hình · Nguyên tắc — cộng mục đang-chọn được đánh dấu (nền accent, chữ đảo, nhãn
       flush-left theo Modernist).
-- [ ] 2.3 Chân sidebar: dòng mono nhỏ «chế độ ‹mode› · v‹version›».
-- [ ] 2.4 Bỏ panel Handoff của prototype — công cụ bàn giao, không phải tính năng (ghi rõ trong commit).
-- [ ] 2.5 **Chuyển cảnh** (PO chốt 01/09): khối `@view-transition { navigation: auto }` trong hằng
+- [x] 2.3 Chân sidebar: dòng mono nhỏ «chế độ ‹mode› · v‹version›».
+- [x] 2.4 Bỏ panel Handoff của prototype — công cụ bàn giao, không phải tính năng (ghi rõ trong commit).
+- [x] 2.5 **Chuyển cảnh** (PO chốt 01/09): khối `@view-transition { navigation: auto }` trong hằng
       `CSS` + `<script type="speculationrules">` prerender-on-hover trong `shell()`. Đặt tên
       `view-transition-name` cho header và sidebar để chúng đứng yên khi main đổi.
-- [ ] 2.6 Bọc trong `@supports` / khai báo tĩnh sao cho trình duyệt không hỗ trợ **chạy y như cũ** —
+- [x] 2.6 Bọc trong `@supports` / khai báo tĩnh sao cho trình duyệt không hỗ trợ **chạy y như cũ** —
       và kiểm bằng cách tắt hỗ trợ, không chỉ tin vào lý thuyết.
-- [ ] 2.7 Xác nhận **7 trang hiện có đều nhận vỏ mới** mà không sửa nội dung: mở lần lượt, không trang
+- [x] 2.7 Xác nhận **7 trang hiện có đều nhận vỏ mới** mà không sửa nội dung: mở lần lượt, không trang
       nào vỡ layout hay mất chức năng.
 
 ## 3. Commit 3 — DASHBOARD
@@ -56,21 +56,21 @@ Bốn commit tách bạch: token → shell → dashboard → màn probes.
 
 ## 4. Commit 4 — MÀN THƯ VIỆN PROBE (có design, thiếu API)
 
-- [ ] 4.1 Route mới cho màn Thư viện probe.
-- [ ] 4.2 Màn nói **thẳng vì sao chưa có** — API chưa dựng. **KHÔNG** dựng màn thật rồi cho hiện trạng
+- [x] 4.1 Route mới cho màn Thư viện probe.
+- [x] 4.2 Màn nói **thẳng vì sao chưa có** — API chưa dựng. **KHÔNG** dựng màn thật rồi cho hiện trạng
       thái rỗng của gói («thư viện dựng dần từ các lượt chấm trên repo này»): câu đó nghĩa là *đã tra,
       chưa có gì*, còn sự thật là *chưa hề tra*. Mượn trạng thái rỗng để khoả lấp chỗ chưa dựng đúng là
       thứ spec «rỗng ≠ hỏng» của change này cấm — làm thế thì lưới của chính mình mất nghĩa.
-- [ ] 4.3 Ghi vào commit rằng markup màn này **đã có sẵn trong gói** (5.809 ký tự, có dải hành vi 20 ô)
+- [x] 4.3 Ghi vào commit rằng markup màn này **đã có sẵn trong gói** (5.809 ký tự, có dải hành vi 20 ô)
       — khi API xong thì là việc chép thẳng, không phải thiết kế lại.
 
 ## 5. Lưới
 
 - [x] 5.1 Lưới token: cấm hard-code hex trong `apps/web/src/ui*.ts`, **trừ** đúng bộ semantic đã khai.
       Cấm hết là lưới báo oan — mà lưới báo oan thì người ta tắt chứ không sửa code.
-- [ ] 5.2 Lưới shell: mọi trang đi qua `shell()`; không trang nào tự dựng thẻ `html`/`body`.
-- [ ] 5.3 Lưới sidebar: đủ 8 mục, mục đang-chọn đánh dấu đúng.
-- [ ] 5.4 Lưới chuyển cảnh: **không gói phụ thuộc nào được thêm** cho việc này (đọc `package.json`),
+- [x] 5.2 Lưới shell: mọi trang đi qua `shell()`; không trang nào tự dựng thẻ `html`/`body`.
+- [x] 5.3 Lưới sidebar: đủ 7 mục, mục đang-chọn đánh dấu đúng.
+- [x] 5.4 Lưới chuyển cảnh: **không gói phụ thuộc nào được thêm** cho việc này (đọc `package.json`),
       và `shell()` phát đủ hai khai báo. Đây là lưới chống «thêm framework cho tiện».
 - [x] 5.5 Chứng minh các lưới trên **load-bearing**: tạm hard-code một hex lạ và tạm gỡ một mục
       sidebar, thấy chúng ĐỎ đúng chỗ, rồi khôi phục.

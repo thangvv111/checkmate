@@ -31,6 +31,7 @@ runner:
       ../apps/web/src/secret-vault.js          → readRepoToken · readOwnToken · writeRepoToken · deleteRepoToken · hasToken · repoKey · readVault · writeVault
       ../apps/web/src/identity.js           → getIdentity · identityIfAny · verifyPassword · createSession · deleteSession · cleanupExpiredSessions · createAccount · changePassword · changeRole · deleteAccount · listAccounts · hasAnyAccount · validName · readCookie · canOperateGate · requireGateRole · canOperate · IdentityError · SESSION_COOKIE_NAME · canRunReview · canEditConfig
       ../apps/web/src/ui-login.js            → loginPage
+      ../apps/web/src/ui-probes.js           → probesPage
       ../apps/web/src/ledger.js              → entryFromMeta · appendVerdictLedger · readVerdictLedger · backfillVerdictLedger
       ../apps/web/src/trust.js              → computeProfile
       ../apps/web/src/model-source.js         → readProviderState · tryProvider · trySource

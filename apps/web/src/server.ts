@@ -19,6 +19,7 @@ import {
   deleteSession,
 } from './identity.js';
 import { loginPage, type LoginState } from './ui-login.js';
+import { probesPage } from './ui-probes.js';
 
 import { MODE, ProviderConfigErrorCfg, configForReview, currentConfig, maskToken, maskToken2, readConfig, migrateRepoToken, readSubscriptionToken, agentEnv, writeConfig, writeSubscriptionToken } from './config.js';
 import { PROVIDER_CATALOG, providerDefinition, validModel, readProviderCheck, writeKey, checkStillValid, type ProviderConfig, type ProviderId, type Method } from './provider.js';
@@ -261,7 +262,7 @@ setInterval(() => {
   })();
 }, 30_000);
 
-app.get('/', async (_req, res) => {
+app.get('/', async (req, res) => {
   const cfg = readConfig();
   let prBlock: string;
   try {
@@ -279,11 +280,15 @@ app.get('/', async (_req, res) => {
   } catch (e) {
     prBlock = prListSection(cfg.repo.github, cfg.repo.base_branch, null, (e as Error).message.slice(0, 200));
   }
-  res.send(homePage(rm.danhSach(), prBlock, returnedToDevSection(rm.returnedToDev(), cfg.repo.github)));
+  res.send(homePage(rm.danhSach(), prBlock, returnedToDevSection(rm.returnedToDev(), cfg.repo.github), ai(req)));
 });
 
-app.get('/docs', (_req, res) => {
-  res.send(docsPage());
+app.get('/docs', (req, res) => {
+  res.send(docsPage(ai(req)));
+});
+
+app.get('/probes', (req, res) => {
+  res.send(probesPage(ai(req)));
 });
 
 app.get('/lich-su', (req, res) => {
@@ -307,9 +312,14 @@ app.get('/lich-su', (req, res) => {
       rm.danhSach({ repo: loc.repo || undefined, skill: loc.skill === 'code' || loc.skill === 'doc' ? loc.skill : undefined, gioi_han: 1000 }),
       loc,
       c.repos.map((r) => r.github),
+      ai(req),
     ),
   );
 });
+
+// Tên người đang đăng nhập, để header hiện ô danh tính. Không có phiên thì trả chuỗi rỗng và
+// header hiện nhãn chung — thà nói «Tài khoản» còn hơn bịa ra một cái tên.
+const ai = (req: Parameters<typeof identityIfAny>[0]): string => identityIfAny(req)?.ten ?? '';
 
 // Danh sách repo để đổ vào ô lọc của sổ cái / tin cậy / lịch sử
 const dsRepo = (): string[] => readConfig().repos.map((r) => r.github);
@@ -321,14 +331,14 @@ app.get('/ledger', (req, res) => {
   for (const m of rm.danhSach({ repo, gioi_han: 1000 })) {
     if (m.ketQuaCong) congTheoRun.set(m.id, `${m.ketQuaCong.hanhDong === 'merge' ? 'đã merge' : 'trả về dev'} · ${m.ketQuaCong.nguoi}`);
   }
-  res.send(ledgerPage(docSoCaiKho(repo ? { repo } : {}), congTheoRun, dsRepo(), repo));
+  res.send(ledgerPage(docSoCaiKho(repo ? { repo } : {}), congTheoRun, dsRepo(), repo, ai(req)));
 });
 
 app.get('/tin-cay', (req, res) => {
   // Lọc theo repo TRƯỚC khi tính hồ sơ: track record của một người ở repo này không nói thay cho repo khác
   const locRepo = String(req.query.repo ?? '') || undefined;
   const soCai = locRepo ? readVerdictLedger().filter((m) => (m.repo ?? '') === locRepo) : readVerdictLedger();
-  res.send(trustPage(computeProfile(soCai), dsRepo(), locRepo));
+  res.send(trustPage(computeProfile(soCai), dsRepo(), locRepo, ai(req)));
 });
 
 app.get('/tin-cay/:tacGia', (req, res) => {
@@ -336,7 +346,7 @@ app.get('/tin-cay/:tacGia', (req, res) => {
   const soCai = locRepo ? readVerdictLedger().filter((m) => (m.repo ?? '') === locRepo) : readVerdictLedger();
   const tacGia = req.params.tacGia;
   const hoSo = computeProfile(soCai).find((h) => h.tacGia === tacGia);
-  res.send(authorProfilePage(tacGia, hoSo, soCai.filter((m) => m.tac_gia === tacGia && m.pr), locRepo));
+  res.send(authorProfilePage(tacGia, hoSo, soCai.filter((m) => m.tac_gia === tacGia && m.pr), locRepo, ai(req)));
 });
 
 app.get('/settings', (req, res) => {
@@ -372,7 +382,7 @@ app.get('/settings', (req, res) => {
       trucTrangThai: c.truc.tu_dong_trang_thai,
       trucTraVe: c.truc.tu_dong_tra_ve,
       daLuu: req.query.luu === '1',
-    }),
+    }, ai(req)),
   );
 });
 
@@ -821,7 +831,7 @@ app.get('/api/runs/:id/info', (req, res) => {
 app.get('/runs/:id', (req, res) => {
   const st = rm.lay(req.params.id);
   if (!st) return res.status(404).send(shell('CheckMate', '<h1>Không tìm thấy run</h1><p class="sub"><a href="/">← quay lại</a></p>'));
-  res.send(runPage(st.meta, req.query.replay === '1', Math.min(32, Math.max(1, Number(req.query.speed) || 1))));
+  res.send(runPage(st.meta, req.query.replay === '1', Math.min(32, Math.max(1, Number(req.query.speed) || 1)), ai(req)));
 });
 
 // ---- Cổng merge / trả về dev (spec §10) ----

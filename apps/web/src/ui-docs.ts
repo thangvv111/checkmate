@@ -54,7 +54,7 @@ const JS_SPY = `
   document.addEventListener('scroll',danhDau,{passive:true}); danhDau();
 `;
 
-export function docsPage(): string {
+export function docsPage(nguoi = ''): string {
   const nav = `
   <nav class="docs-nav" aria-label="Mục lục">
     <div class="nhom">Nền tảng</div>
@@ -316,5 +316,6 @@ export function docsPage(): string {
      <p class="sub">Vì sao một verdict của CheckMate đáng tin — và nó không được phép làm gì.</p>
      <div class="docs">${nav}${body}</div>`,
     JS_SPY,
+    { muc: 'rules', nguoi },
   );
 }

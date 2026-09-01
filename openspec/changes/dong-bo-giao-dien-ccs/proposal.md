@@ -23,7 +23,7 @@ nhật đến đó».
    đổi sang biến `var(--color-*)`, cộng bộ **semantic riêng của CheckMate** (PASS/jade `#0E9F7E` ·
    FAIL/crimson `#D0342C` · medium/amber `#C77A16`) mà gói khai là hard-code đúng hex.
 2. **`shell()` thành app shell mới** — header (wordmark · repo switcher · badge trực · user menu) +
-   sidebar 210px 8 mục + main 1240px. Bảy trang hiện có đi qua hàm này nên đổi một lần là xong vỏ.
+   sidebar 210px 7 mục + main 1240px. Bảy trang hiện có đi qua hàm này nên đổi một lần là xong vỏ.
 3. **Dashboard dựng lại theo gói** — hàng đợi PR grid `52px 1.5fr 1.1fr 90px 170px 290px`, khối «đã
    trả về dev», card kiểm nhanh tài liệu rời, card lượt chấm gần đây, hai trạng thái (repo trống ·
    lỗi token).
@@ -32,7 +32,7 @@ nhật đến đó».
    thật, cộng **Speculation Rules** prerender khi chuột vào link cho cảm giác tức thì. Khoảng 10 dòng,
    **không build step, không dependency, không state client**. Trình duyệt chưa hỗ trợ thì trang chạy
    y như cũ — thoái hoá sạch, không hỏng.
-5. **Mục «Thư viện probe» trong sidebar hiện ĐANG XÂY** (PO chốt phương án B 01/09): dựng đủ 8 mục để
+5. **Mục «Thư viện probe» trong sidebar hiện ĐANG XÂY** (PO chốt phương án B 01/09): dựng đủ 7 mục để
    không phải sửa sidebar lần hai; mục này mở ra một màn nói thẳng là chưa có, kèm lý do. Cửa cụt có
    nhãn thành thật hơn một sidebar lệch gói.
 
@@ -70,5 +70,5 @@ nhật đến đó».
 - `apps/web/src/server.ts` — route cho màn Thư viện probe (trạng thái đang xây).
 - Chuyển cảnh: khối `@view-transition` trong hằng `CSS` + `<script type="speculationrules">` trong
   `shell()` — không thêm gói phụ thuộc nào.
-- `test/` — lưới token (cấm hard-code hex ngoài bộ semantic) + lưới shell (8 mục sidebar).
+- `test/` — lưới token (cấm hard-code hex ngoài bộ semantic) + lưới shell (7 mục sidebar).
 - **Không đụng**: API JSON, schema dữ liệu, đường quyết định verdict, cổng merge.

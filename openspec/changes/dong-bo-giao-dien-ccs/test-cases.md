@@ -15,7 +15,7 @@
 
 - [ ] T2.1 [reproduce] Một trang tự dựng thẻ `html`/`body` thay vì gọi vỏ chung → lưới ĐỎ, nêu tên
       trang. Đây là ca canh chuyện «trang rơi lại phía sau trong im lặng» khi vỏ đổi.
-- [ ] T2.2 Sidebar khai **đủ 8 mục**; gỡ một mục → ĐỎ. Con số này là quyết định của PO (phương án B),
+- [x] T2.2 Sidebar khai **đủ 7 mục**; gỡ một mục → ĐỎ. Con số này là quyết định của PO (phương án B),
       không phải chi tiết cài đặt.
 - [ ] T2.3 Mục đang-chọn được đánh dấu khác các mục còn lại, và **đúng mục** ứng với trang đang mở.
 - [ ] T2.4 Cả 7 trang hiện có render qua vỏ mới **không ném lỗi** — chạy hàm dựng của từng trang với

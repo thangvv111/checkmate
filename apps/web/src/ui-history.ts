@@ -40,7 +40,7 @@ export function filterRuns(runs: RunMeta[], loc: HistoryFilter): RunMeta[] {
   });
 }
 
-export function historyPage(runs: RunMeta[], loc: HistoryFilter, repos: string[]): string {
+export function historyPage(runs: RunMeta[], loc: HistoryFilter, repos: string[], nguoi = ''): string {
   const daLoc = filterRuns(runs, loc);
   const soTrang = Math.max(1, Math.ceil(daLoc.length / MOI_TRANG));
   const trang = Math.min(Math.max(1, loc.trang), soTrang);
@@ -131,5 +131,7 @@ ${
 }`
     : '<p class="sub">Không có lượt chấm nào khớp bộ lọc.</p>'
 }`,
+    '',
+    { muc: 'hist', nguoi },
   );
 }

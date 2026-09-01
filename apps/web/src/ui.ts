@@ -1,8 +1,20 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { GOC } from '../../../packages/shared/src/paths.js';
 import { chuanMuc } from '../../../packages/shared/src/types.js';
-import { readConfig } from './config.js';
+import { MODE, readConfig } from './config.js';
 import type { RunMeta } from './runs.js';
 import { JS_PROVIDER } from './ui-provider.js';
 import { JS_REPO } from './ui-repo.js';
+
+/** Phiên bản hiện ở chân sidebar — đọc từ package.json để không trôi khỏi bản thật. */
+const PHIEN_BAN: string = (() => {
+  try {
+    return (JSON.parse(readFileSync(join(GOC, 'package.json'), 'utf8')) as { version?: string }).version ?? '?';
+  } catch {
+    return '?';
+  }
+})();
 
 export const CSS = `
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -180,26 +192,52 @@ textarea.input { min-height:90px; resize:vertical; }
 }
 
 .mono { font-family:var(--font-mono); }
-.wrap { max-width:1240px; margin:0 auto; padding:0 var(--space-8); }
-main.wrap { padding-top:26px; padding-bottom:64px; }
-.sub { color:var(--muted); font-size:13.5px; margin:0 0 18px; }
-.goiy { font-size:12.5px; color:var(--muted); margin:6px 0 10px; }
-.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:var(--space-3); }
+/* — vỏ ứng dụng: header 2px rule dưới · sidebar 210px 2px rule phải · main 1240 — */
+body.app { display:flex; flex-direction:column; min-height:100vh; }
+.app-hd { background:var(--color-bg); position:sticky; top:0; z-index:40; gap:14px;
+  view-transition-name:cm-hd; }
+.wordmark { font-family:var(--font-heading); font-weight:var(--font-heading-weight);
+  font-size:18px; letter-spacing:-0.015em; color:var(--color-text); text-decoration:none; }
+.wordmark .mate { color:var(--color-accent); }
+.hd-space { flex:1; }
+.hd-menu { position:relative; }
+.repo-btn { font-family:var(--font-mono); font-weight:500; font-size:13px; white-space:nowrap; }
+.user-btn { gap:8px; font-size:13px; }
+.ava { width:22px; height:22px; flex:none; background:var(--color-text); color:var(--color-bg);
+  display:inline-grid; place-items:center; font-family:var(--font-mono); font-size:10px; }
+.hd-drop { position:absolute; top:calc(100% + 4px); min-width:280px; z-index:50;
+  background:var(--color-bg); border:1px solid var(--color-divider); box-shadow:var(--shadow-md);
+  display:flex; flex-direction:column; }
+#repo-sw .hd-drop { left:0; }
+#user-mn .hd-drop { right:0; min-width:220px; }
+.hd-drop button, .hd-drop a { display:block; width:100%; text-align:left; padding:10px 14px;
+  background:none; border:0; border-radius:0; cursor:pointer; font:inherit; font-size:14px;
+  color:var(--color-text); text-decoration:none; }
+.hd-drop form { margin:0; }
+.hd-drop button:hover, .hd-drop a:hover { background:color-mix(in srgb, var(--color-text) 6%, transparent); }
+.hd-drop-them { border-top:1px solid var(--color-divider); color:var(--color-accent); }
+.hd-drop-trong { padding:10px 14px; font-size:13px; color:var(--color-neutral-600); }
+.truc { font-family:var(--font-mono); font-size:12px; text-decoration:none; padding:4px 10px;
+  border:1px solid var(--color-divider); white-space:nowrap; }
+.truc.on { color:var(--pass-ink); background:var(--pass-tint); border-color:var(--pass); }
+.truc.off { color:var(--color-neutral-600); }
+.app-body { flex:1; display:flex; align-items:stretch; }
+.app-nav { width:210px; flex:none; border-right:2px solid var(--color-divider);
+  padding:16px 12px; display:flex; flex-direction:column; gap:2px; view-transition-name:cm-nav; }
+.app-nav a { display:block; padding:8px 10px; text-align:left; font-size:14px;
+  font-family:var(--font-heading); font-weight:600; color:var(--color-text); text-decoration:none; }
+.app-nav a:hover { background:color-mix(in srgb, var(--color-text) 7%, transparent); }
+.app-nav a.on { background:var(--color-accent); color:var(--color-bg); }
+.app-nav-day { flex:1; }
+.app-nav-chan { font-family:var(--font-mono); font-size:10px; color:var(--color-neutral-500);
+  padding:0 10px; }
+.app-main { flex:1; min-width:0; max-width:1240px; padding:26px 32px 64px; }
 
-.top { background:var(--color-neutral-900); color:var(--color-bg); padding:14px 0; }
-.top .wrap { display:flex; align-items:center; gap:14px; }
-.logo { font-family:var(--font-heading); font-weight:var(--font-heading-weight);
-  font-size:19px; letter-spacing:-0.015em; color:var(--color-bg); text-decoration:none; }
-.logo .mate { color:var(--color-accent); }
-a.logo:hover .mate { color:var(--color-accent-400); }
-.hdr-note { font-family:var(--font-mono); font-size:11px; letter-spacing:0.1em;
-  text-transform:uppercase; color:var(--color-neutral-400); }
-.navlink { color:var(--color-neutral-300); font-size:13px; font-weight:600;
-  text-decoration:none; padding:5px 10px; }
-.navlink:hover { color:var(--color-bg); background:color-mix(in srgb, var(--color-bg) 14%, transparent); }
-.gear { margin-left:auto; color:var(--color-neutral-300); font-size:21px; line-height:1;
-  text-decoration:none; padding:4px 8px; }
-.gear:hover { color:var(--color-bg); background:color-mix(in srgb, var(--color-bg) 14%, transparent); }
+/* Chuyển cảnh — hai khai báo tĩnh, không thư viện. Trình duyệt chưa hỗ trợ bỏ qua cả khối này và
+   trang chạy y như cũ: mất hiệu ứng, không mất nội dung. Header và sidebar mang tên riêng để chúng
+   đứng yên trong lúc vùng nội dung đổi. */
+@view-transition { navigation: auto; }
+@media (prefers-reduced-motion: reduce) { ::view-transition-group(*) { animation:none; } }
 
 .badge { display:inline-block; font-size:10.5px; font-weight:650; letter-spacing:.05em;
   text-transform:uppercase; padding:2px 8px; border-radius:var(--radius-pill); margin-bottom:8px; }
@@ -291,27 +329,144 @@ export function escHtml(s: unknown): string {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 }
 
-export function shell(tieuDe: string, than: string, js = '', repoNhanEp = ''): string {
-  // Badge repo đang chọn hiện trên MỌI trang — đọc thẳng config thay vì bắt từng trang truyền xuống
-  let repoNhan = repoNhanEp;
+/** Mục điều hướng của sidebar — BẢY mục, đúng như gói design CCS khai ở mục «App shell». */
+export type NavKey = 'dashboard' | 'hist' | 'ledger' | 'probes' | 'trust' | 'config' | 'rules';
+
+export const NAV_ITEMS: { readonly key: NavKey; readonly nhan: string; readonly duong: string }[] = [
+  { key: 'dashboard', nhan: 'Dashboard', duong: '/' },
+  { key: 'hist', nhan: 'Lịch sử chạy', duong: '/lich-su' },
+  { key: 'ledger', nhan: 'Sổ cái', duong: '/ledger' },
+  { key: 'probes', nhan: 'Thư viện probe', duong: '/probes' },
+  { key: 'trust', nhan: 'Tin cậy', duong: '/tin-cay' },
+  { key: 'config', nhan: 'Cấu hình', duong: '/settings' },
+  { key: 'rules', nhan: 'Nguyên tắc', duong: '/docs' },
+];
+
+export interface ShellOpts {
+  /** mục sidebar đang mở — để đánh dấu đang-chọn */
+  muc?: NavKey;
+  /** tên người đang đăng nhập; rỗng thì ô danh tính hiện nhãn chung, KHÔNG bịa tên */
+  nguoi?: string;
+  /** nhãn repo ép sẵn (test / trang lỗi) — thường để trống, shell tự đọc config */
+  repoNhan?: string;
+}
+
+/**
+ * Chuyển cảnh giữa hai trang, bằng đúng thứ trình duyệt có sẵn.
+ *
+ * Hai khai báo tĩnh, không thư viện, không build step, không router phía máy khách:
+ *   - `@view-transition { navigation: auto }` trong hằng CSS — chuyển cảnh cross-document
+ *   - speculation rules dưới đây — prerender khi chuột đi vào link sidebar
+ *
+ * Trình duyệt chưa hỗ trợ thì bỏ qua cả hai và trang chạy Y NHƯ CŨ: mất hiệu ứng, không mất nội
+ * dung, không mất chức năng. Đó là điều kiện phải giữ chứ không phải lời hứa miệng — lưới chuyển
+ * cảnh canh đúng chỗ đó.
+ *
+ * Prerender là một LỜI GỌI HTTP THẬT, kèm cookie phiên. Nên nó bị giới hạn vào đúng link trong
+ * sidebar: cùng origin, và toàn bộ là điều hướng GET. Mọi hành động đổi trạng thái (merge, trả về
+ * dev, đăng xuất) đều là POST, mà speculation rules không áp cho POST — nhưng ranh giới đó phải
+ * khai tường minh ở đây chứ không dựa vào may.
+ */
+const RULE_PRERENDER = JSON.stringify({
+  prerender: [{ where: { selector_matches: '.app-nav a' }, eagerness: 'moderate' }],
+});
+
+/**
+ * Đóng/mở hai menu của header, và đổi repo đang chọn.
+ *
+ * Đây là lớp tiện, không phải đường sống: không có JS thì menu không bung, nhưng mọi trang vẫn đọc
+ * được đủ nội dung và mọi link sidebar vẫn đi đúng chỗ.
+ */
+const JS_SHELL = `
+(function(){
+  var mo=null;
+  function dong(){
+    if(!mo) return;
+    mo.querySelector('.hd-drop').hidden=true;
+    mo.querySelector('button[aria-haspopup]').setAttribute('aria-expanded','false');
+    mo=null;
+  }
+  document.addEventListener('click',function(e){
+    var nut=e.target.closest('.hd-menu > button[aria-haspopup]');
+    if(nut){
+      var hop=nut.parentElement, dangMo=(mo===hop);
+      dong();
+      if(!dangMo){ hop.querySelector('.hd-drop').hidden=false; nut.setAttribute('aria-expanded','true'); mo=hop; }
+      e.stopPropagation();
+      return;
+    }
+    var b=e.target.closest('[data-repo]');
+    if(b){
+      b.disabled=true;
+      fetch('/api/repo/chon',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({github:b.dataset.repo})})
+        .then(function(r){ return r.json(); })
+        .then(function(k){ if(k.ok){ location.reload(); } else { b.disabled=false; b.textContent=b.dataset.repo+' — '+(k.loi||'không đổi được'); } })
+        .catch(function(){ b.disabled=false; });
+      return;
+    }
+    if(!e.target.closest('.hd-drop')) dong();
+  });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') dong(); });
+})();`;
+
+export function shell(tieuDe: string, than: string, js = '', opts: ShellOpts = {}): string {
+  // Repo đang chọn hiện trên MỌI trang — đọc thẳng config thay vì bắt từng trang truyền xuống
+  let repoNhan = opts.repoNhan ?? '';
+  let repoKhac: string[] = [];
+  let truc: { bat: boolean; chuKy: number } | null = null;
   if (!repoNhan) {
     try {
       const c = readConfig();
-      repoNhan = c.repos.length > 1 ? `${c.repo_dang_chon} ▾` : c.repo_dang_chon;
+      repoNhan = c.repo_dang_chon;
+      repoKhac = c.repos.map((r) => r.github).filter((g) => g !== c.repo_dang_chon);
+      truc = { bat: c.truc.bat, chuKy: c.truc.chu_ky_giay };
     } catch {
       repoNhan = '';
     }
   }
+
+  const navHtml = NAV_ITEMS.map(
+    (n) =>
+      `<a href="${n.duong}"${n.key === opts.muc ? ' class="on" aria-current="page"' : ''}>${escHtml(n.nhan)}</a>`,
+  ).join('');
+
+  const repoHtml = repoNhan
+    ? `<div class="hd-menu" id="repo-sw">
+<button type="button" class="btn btn-secondary repo-btn" aria-haspopup="true" aria-expanded="false">${escHtml(repoNhan)} ▾</button>
+<div class="hd-drop" hidden>${
+        repoKhac.length
+          ? repoKhac.map((g) => `<button type="button" data-repo="${escHtml(g)}">${escHtml(g)}</button>`).join('')
+          : '<div class="hd-drop-trong">Chỉ có một repo trong danh sách.</div>'
+      }<a class="hd-drop-them" href="/settings">＋ Thêm repo…</a></div></div>`
+    : '';
+
+  const trucHtml = truc
+    ? `<a class="truc ${truc.bat ? 'on' : 'off'}" href="/settings" title="chế độ trực — đổi trong Cấu hình">${
+        truc.bat ? `● Trực · ${truc.chuKy}s` : '○ Trực tắt'
+      }</a>`
+    : '';
+
+  // Chưa biết tên thì hiện nhãn chung — ô danh tính vẫn đúng chỗ, và không bịa ra một cái tên
+  const ten = opts.nguoi ?? '';
+  const userHtml = `<div class="hd-menu" id="user-mn">
+<button type="button" class="btn btn-secondary user-btn" aria-haspopup="true" aria-expanded="false"><span class="ava">${
+    ten ? escHtml(ten.slice(0, 2).toUpperCase()) : '··'
+  }</span>${ten ? escHtml(ten) : 'Tài khoản'} ▾</button>
+<div class="hd-drop" hidden><form method="post" action="/logout"><button type="submit">Đăng xuất</button></form></div></div>`;
+
   return `<!doctype html><html lang="vi"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>${tieuDe}</title><style>${CSS}</style></head>
-<body><div class="top"><div class="wrap"><a class="logo" href="/" title="Về trang chính">Check<span class="mate">Mate</span> ♞</a>
-<span class="hdr-note">maker–checker cho code và tài liệu — checker không tin ai, chỉ tin bằng chứng</span>
-${repoNhan ? `<span class="mono" style="margin-left:auto;font-size:12px;color:var(--color-neutral-300);border:1px solid var(--color-neutral-700);border-radius:var(--radius-pill);padding:3px 11px" title="repo đang chọn — đổi trong Cấu hình">${escHtml(repoNhan)}</span>` : ''}
-<a class="navlink" href="/docs" ${repoNhan ? '' : 'style="margin-left:auto"'}>Nguyên tắc</a>
-<a class="gear" href="/tin-cay" title="Thang tin cậy tác giả" aria-label="Thang tin cậy tác giả" style="margin-left:0">👤</a>
-<a class="gear" href="/ledger" title="Sổ cái verdict" aria-label="Sổ cái verdict" style="margin-left:0">📒</a>
-<a class="gear" href="/settings" title="Cài đặt" aria-label="Cài đặt" style="margin-left:0">⚙</a></div></div>
-<main class="wrap">${than}</main>${js ? `<script>${js}</script>` : ''}</body></html>`;
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>${tieuDe}</title>
+<style>${CSS}</style>
+<script type="speculationrules">${RULE_PRERENDER}</script></head>
+<body class="app">
+<header class="nav app-hd">
+<a class="wordmark" href="/" title="Về Dashboard">Check<span class="mate">[Mate]♞</span></a>
+${repoHtml}<div class="hd-space"></div>${trucHtml}${userHtml}</header>
+<div class="app-body">
+<nav class="app-nav">${navHtml}<div class="app-nav-day"></div>
+<div class="app-nav-chan">chế độ ${MODE} · v${PHIEN_BAN}</div></nav>
+<main class="app-main">${than}</main></div>
+<script>${JS_SHELL}</script>${js ? `<script>${js}</script>` : ''}</body></html>`;
 }
 
 export interface PrDisplay {
@@ -402,7 +557,7 @@ function nguonO(model?: string): string {
   return `<span title="${giaiThich}">${n.nguon}</span>`;
 }
 
-export function homePage(runs: RunMeta[], prBlock = '', daTraVeBlock = ''): string {
+export function homePage(runs: RunMeta[], prBlock = '', daTraVeBlock = '', nguoi = ''): string {
   const rows = runs
     .map((r) => {
       // run cũ (trước khi có trường ketThuc) vẫn lấy được mốc kết thúc từ verdict
@@ -449,6 +604,7 @@ ta.addEventListener('input',()=>{const v=ta.value;
 if(/^diff --git|^@@|^index [0-9a-f]+\\.\\./m.test(v)) gy.textContent='Router: nội dung giống DIFF CODE — code chỉ kiểm qua PR trong danh sách bên trên.';
 else if(v.trim()) gy.textContent='Router: nhận diện TÀI LIỆU YÊU CẦU → skill B (rubric 4 loại lỗi khách quan).';
 else gy.textContent='Router: dán vào để nhận diện loại artifact.';});`,
+    { muc: 'dashboard', nguoi },
   );
 }
 
@@ -470,7 +626,7 @@ export interface SettingsView {
   daLuu?: boolean;
 }
 
-export function settingsPage(v: SettingsView): string {
+export function settingsPage(v: SettingsView, nguoi = ''): string {
   const ro = v.mode === 'demo' ? 'disabled' : '';
   return shell(
     'Cấu hình — CheckMate',
@@ -520,6 +676,7 @@ ${v.khoiNccHtml}
 ${v.mode === 'org' ? '<button>Lưu cấu hình</button>' : '<p class="goiy">Bản demo public không cho sửa — self-host với cờ <code>--org</code> để mở cấu hình.</p>'}
 </form>`,
     JS_PROVIDER + JS_REPO,
+    { muc: 'config', nguoi },
   );
 }
 
@@ -552,7 +709,7 @@ ${nutMerge}
 <p class="goiy" style="margin-top:8px">Trả về dev = post phán quyết đầy đủ lên PR <b>và đóng PR</b> để nó rời hàng đợi chờ duyệt (khỏi bị chạy kiểm lại vô ích). Dev vá xong push lên nhánh cũ rồi <b>Reopen</b> chính PR này — lịch sử review giữ nguyên.</p></div>`;
 }
 
-export function runPage(meta: RunMeta, replay: boolean, speed = 1): string {
+export function runPage(meta: RunMeta, replay: boolean, speed = 1, nguoi = ''): string {
   const stages = ['Nhận artifact', 'Nạp spec / rubric', 'Sinh phép thử đối kháng', 'Chạy & đối chiếu bằng chứng', 'Kết luận'];
   return shell(
     `${escHtml(meta.tieuDe)} — CheckMate`,
@@ -614,5 +771,6 @@ document.querySelectorAll('.tick-med').forEach(c=>c.addEventListener('change',()
 const es=new EventSource('/api/runs/${meta.id}/events${replay ? (speed > 1 ? `?timed=1&speed=${speed}` : '?timed=1') : ''}');
 es.onmessage=m=>{const{e}=JSON.parse(m.data);if(e.type==='log'&&e.msg==='__END__'){es.close();return;}ve(e);};
 es.onerror=()=>{};`,
+    { nguoi },
   );
 }

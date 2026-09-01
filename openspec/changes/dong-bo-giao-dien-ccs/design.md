@@ -118,9 +118,10 @@ thì người ta tắt chứ không sửa code.
 Gói cũng đã tự giới hạn: accent chỉ chạy **thành mảng** ở đúng hai chỗ (nền đăng nhập, poster Nguyên
 tắc). Chỗ còn lại nó là viền, chữ, nền nút — không cạnh tranh thị giác với pill FAIL.
 
-## Quyết định 3 — sidebar đủ 8 mục, mục chưa có DỮ LIỆU nói thẳng (PO chốt B)
+## Quyết định 3 — sidebar đủ BẢY mục, mục chưa có DỮ LIỆU nói thẳng (PO chốt B)
 
-Nav của gói có 8 mục. Điều dễ hiểu nhầm: **Thư viện probe KHÔNG thiếu design** — template vẽ nó đủ
+Nav của gói có **bảy** mục — không phải tám. Tám là số ROUTE; route «run» không có mục sidebar, vì
+vào một lượt chấm là từ Dashboard hoặc Lịch sử chứ không từ điều hướng. Điều dễ hiểu nhầm thứ hai: **Thư viện probe KHÔNG thiếu design** — template vẽ nó đủ
 (5.809 ký tự markup, có cả dải hành vi 20 ô và trạng thái rỗng «thư viện dựng dần từ các lượt chấm
 trên repo này»). Thứ thiếu là **API** (README: «backend làm sau khi chốt design»).
 
@@ -129,9 +130,9 @@ nguồn dữ liệu thì hiện gì»**:
 
 | | Cách | Đổi lại |
 |---|---|---|
-| A | dựng 7 mục | sidebar lệch gói, phải sửa lần hai khi có API |
-| **B** ✔ | **dựng đủ 8, mục đó nói thẳng chưa có nguồn** | có một cửa cụt — nhưng cụt **có nhãn** |
-| C | dựng đủ 8 + làm luôn API | change phình gấp đôi, gộp giao diện với tính năng |
+| A | dựng 6 mục | sidebar lệch gói, phải sửa lần hai khi có API |
+| **B** ✔ | **dựng đủ 7, mục đó nói thẳng chưa có nguồn** | có một cửa cụt — nhưng cụt **có nhãn** |
+| C | dựng đủ 7 + làm luôn API | change phình gấp đôi, gộp giao diện với tính năng |
 
 Chọn **B**, và chọn dứt khoát **không** dựng màn thật rồi cho nó hiện trạng thái rỗng của gói. Câu
 «thư viện dựng dần từ các lượt chấm trên repo này» nghĩa là *đã tra, chưa có gì* — trong khi sự thật
@@ -146,7 +147,7 @@ trong gói.
 
 Gói khai **14** `data-screen-label`, nhưng đó là 14 *trạng thái màn*, không phải 14 route: «Cổng
 merge» nối liền dưới verdict trong màn Run, «Kiểm nhanh tài liệu» là một `.card` trong lưới 1fr 1fr
-của Dashboard, và Cấu hình tách 3 tab. Rút gọn còn đúng 8 route — khớp 8 mục sidebar:
+của Dashboard, và Cấu hình tách 3 tab. Rút gọn còn đúng 8 route, trong đó **bảy** route có mục sidebar (route «run» không có):
 
 | Route gói | Trang hiện có | Trạng thái màn gói khai | Đợt này làm gì |
 |---|---|---|---|

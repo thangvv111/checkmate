@@ -16,7 +16,7 @@ function locRepoBox(duong: string, repos: string[], locRepo?: string): string {
 </form>`;
 }
 
-export function trustPage(hoSo: AuthorProfile[], repos: string[] = [], locRepo?: string): string {
+export function trustPage(hoSo: AuthorProfile[], repos: string[] = [], locRepo?: string, nguoi = ''): string {
   const rows = hoSo
     .map(
       (h) => `<tr>
@@ -39,14 +39,18 @@ export function trustPage(hoSo: AuthorProfile[], repos: string[] = [], locRepo?:
 ${locRepoBox('/tin-cay', repos, locRepo)}
 ${hoSo.length ? `<table class="runs"><tr><th>Tác giả</th><th>PR</th><th>Verdict</th><th>PASS vòng đầu</th><th>Finding tích luỹ</th><th>Streak PASS</th><th>Gần nhất</th></tr>${rows}</table>` : '<p class="sub">Chưa có verdict nào gắn tác giả (run tự động / chạy qua PR mới có tác giả).</p>'}
 <div class="card" style="max-width:640px;margin-top:16px"><b>Nguyên tắc:</b> điểm tin cậy KHÔNG nới lỏng cổng — PR của ai cũng bị chấm như nhau. Hồ sơ dùng để nhìn sức khoẻ đội và (về sau) xếp thứ tự ưu tiên chấm tự động.</div>`,
+    '',
+    { muc: 'trust', nguoi },
   );
 }
 
-export function authorProfilePage(tacGia: string, hoSo: AuthorProfile | undefined, verdicts: VerdictLedgerEntry[], locRepo?: string): string {
+export function authorProfilePage(tacGia: string, hoSo: AuthorProfile | undefined, verdicts: VerdictLedgerEntry[], locRepo?: string, nguoi = ''): string {
   if (!hoSo) {
     return shell(
       'Hồ sơ tác giả — CheckMate',
       `<h1>${escHtml(tacGia)}</h1><p class="sub">Chưa có verdict nào của tác giả này${locRepo ? ` trong ${escHtml(locRepo)}` : ''}. <a href="/tin-cay">← thang tin cậy</a></p>`,
+    '',
+    { muc: 'trust', nguoi },
     );
   }
   const rows = [...verdicts]
@@ -70,5 +74,7 @@ export function authorProfilePage(tacGia: string, hoSo: AuthorProfile | undefine
   <div style="background:var(--surface);padding:12px 14px"><b style="font-size:20px;color:var(--teal)">${hoSo.streakPass}</b><br><span style="font-size:11.5px;color:var(--muted)">streak PASS hiện tại</span></div>
 </div>
 <table class="runs"><tr><th>Lúc</th><th>Artifact</th><th>Commit</th><th>Verdict</th><th>Finding</th></tr>${rows}</table>`,
+    '',
+    { muc: 'trust', nguoi },
   );
 }
