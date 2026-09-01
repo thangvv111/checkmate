@@ -115,6 +115,16 @@ nó không còn trả lời được câu hỏi nó sinh ra để trả lời.
     SAI: máy không merge gì cả, và [R6.19](#) nói máy KHÔNG BAO GIỜ merge — một cuốn sổ ghi
     «ci-bot merge» thì tự mâu thuẫn với chính điều khoản ấy.
   - Việc «máy ghi nhận» thể hiện bằng cờ `ngoai_cong` và phần mô tả, KHÔNG chiếm cột «người».
+- **R6.26** — Cụm cột hành động cổng trên bề mặt lượt chấm là bản **phái sinh** của sổ cổng, KHÔNG
+  phải một bản ghi song song. Cửa ghi bề mặt PHẢI tìm hàng sổ làm bằng chứng rồi chép đúng hàng đó;
+  không có hàng thì KHÔNG ghi gì và bề mặt giữ nguyên «chưa thao tác». Cửa ghi KHÔNG được nhận
+  `luc` / `nguoi` / `chi_tiet` / `ngoai_cong` từ người gọi — nhận là mở đường cho bề mặt nói khác sổ.
+
+  Lý do phải là luật riêng chứ không phải thêm một điều kiện vào [R6.12](#): khuôn «cửa song sinh» đã
+  bị bắt **tám lần**, mỗi lần một lối vào khác (một vòng đi bằng chế độ demo, vòng sau đi bằng chế độ
+  `org` với lời gọi thẳng không phiên không vai). Gác theo lối vào là đuổi theo lối vào; bỏ hẳn khả
+  năng truyền giá trị thì mọi lối vào đều hết đường, vì không còn giá trị nào để truyền.
+
 - **R6.25** — Đối soát PHẢI chạy tách khỏi đường chấm: lỗi của nó không được làm dừng chế độ trực hay
   hỏng một lượt chấm đang chạy (cùng nguyên tắc khối `try` riêng của R6.15). Lưới bọc phải theo TỪNG
   pull request và TỪNG lượt ghi, không chỉ bọc lời gọi ra ngoài: một pull request hỏng làm chết lượt

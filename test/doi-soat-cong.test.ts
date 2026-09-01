@@ -337,6 +337,28 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     expect(s).toContain('1 medium');
   });
 
+  it('chế độ org: gọi thẳng cửa ghi mà SỔ RỖNG thì KHÔNG ghi được gì (vòng mười, HIGH)', () => {
+    // Vòng chín gác demo, vòng mười đi bằng org: một lời gọi thẳng không phiên, không vai vẫn đặt
+    // được ketQuaCong='merge' lên bề mặt trong khi docSoCong rỗng. Gác theo từng lối vào là đuổi
+    // theo lối vào — nay cửa ghi ĐÒI hàng sổ làm bằng chứng (R6.26).
+    themRun('rGiaMao', 900);
+    kho.capNhatCongRun('rGiaMao', 'merge');
+    expect(so.docSoCong('rGiaMao'), 'sổ vẫn phải rỗng').toHaveLength(0);
+    expect(kho.docMeta('rGiaMao')?.ketQuaCong, 'bề mặt KHÔNG được khai hành động nào').toBeUndefined();
+  });
+
+  it('bề mặt chép TỪ hàng sổ, không lấy giá trị người gọi truyền vào (R6.26)', () => {
+    themRun('rChep', 901);
+    const luc = new Date().toISOString();
+    so.ghiSoCong({ run_id: 'rChep', luc, hanh_dong: 'merge', nguoi: 'nguoi-that (GitHub)', ngoai_cong: true, chi_tiet: 'mô tả trong sổ' });
+    kho.capNhatCongRun('rChep', 'merge');
+    const kq = kho.docMeta('rChep')?.ketQuaCong;
+    expect(kq?.nguoi).toBe('nguoi-that (GitHub)');
+    expect(kq?.ngoaiCong).toBe(true);
+    expect(kq?.chiTiet).toBe('mô tả trong sổ');
+    expect(kq?.luc).toBe(luc);
+  });
+
   it('findings SAI KIỂU phải NÓI RA «không đọc được», không khai thành BẰNG KHÔNG (vòng chín, HIGH)', () => {
     // Rơi mềm về mảng rỗng rồi ghi «0 high · không có cảnh báo» là khai dữ liệu KHÔNG ĐỌC ĐƯỢC thành
     // BẰNG KHÔNG — người đọc sổ tưởng lượt chấm sạch.

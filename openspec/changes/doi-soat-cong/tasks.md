@@ -116,6 +116,15 @@ Vòng chín — 3 finding (2 HIGH + 1 BÁO OAN):
       `critical`/`blocker`/`HIGH` về high và phép đếm ĐÚNG (3 high · 1 medium · 1 low). Không sửa gì;
       đã khoá bằng test để lần sau khỏi phải tái lập lại.
 
+Vòng mười — 1 finding HIGH, **khuôn «cửa song sinh» lần thứ TÁM**:
+- [x] 6.28 **HIGH — gác vòng chín chỉ bịt một lối vào.** Vòng chín chặn chế độ demo; vòng mười đi
+      bằng chế độ `org`: một lời gọi thẳng `capNhatCongRun`, không phiên, không vai, vẫn đặt được
+      `ketQuaCong={hanhDong:'merge', nguoi:'ke-gia-mao', ngoaiCong:false}` lên bề mặt run trong khi
+      `docSoCong` cho run đó **rỗng hoàn toàn**.
+      Bài học: **gác theo lối vào là đuổi theo lối vào.** Nay bỏ hẳn khả năng truyền giá trị —
+      `capNhatCongRun(id, hanhDong)` tự tìm hàng sổ làm bằng chứng rồi **chép đúng hàng đó**; không
+      có hàng thì không ghi gì. Thành luật R6.26.
+
 ## 7. Nợ ghi nhận, chưa xử trong change này
 
 - [ ] 7.1 **M12 — test phụ thuộc mạng thật**: `token-repo.test.ts` gọi GitHub API không token, nên

@@ -1,5 +1,6 @@
 import { moDb } from './db.js';
 import { MODE } from '../config.js';
+import { docSoCong } from './kho-socai.js';
 import type { RunMeta, StoredEvent } from '../runs.js';
 import type { Verdict } from '../../../../packages/shared/src/types.js';
 
@@ -85,26 +86,29 @@ export function luuMeta(m: RunMeta): void {
  * meta đầy đủ trong tay, và ghi đè bằng dữ liệu thiếu là làm hỏng hàng đang đúng.
  */
 /**
- * R6.12 — chế độ demo KHÔNG được thao tác cổng, và luật đó phải gác ở CỬA GHI chứ không chỉ ở một
- * đường gọi: `doiSoatCong` đã chặn demo, nhưng gọi thẳng hàm này vẫn đặt được `ketQuaCong='merge'`
- * lên bề mặt run — trong khi sổ chỉ-ghi-thêm KHÔNG có hàng nào. Bề mặt khai một hành động cổng mà
- * sổ không có bằng chứng tương ứng là đúng thứ cuốn sổ sinh ra để chống (vòng chín của cổng bắt).
+ * R6.12 / R6.26 — bề mặt run là bản **phái sinh** của sổ cổng, không phải một bản ghi song song.
+ *
+ * Hai vòng chấm liên tiếp bắt cùng một khuôn «cửa song sinh» ở đây, mỗi vòng một lối vào: vòng chín
+ * đi bằng chế độ demo, vòng mười đi bằng chế độ `org` với một lời gọi thẳng không phiên, không vai.
+ * Gác thêm điều kiện cho từng lối vào là đuổi theo lối vào; nên hàm này nay **không nhận giá trị nào
+ * từ người gọi nữa** — nó tìm hàng sổ làm bằng chứng rồi chép đúng hàng đó lên bề mặt. Không có hàng
+ * thì không có gì để chép, và bề mặt giữ nguyên «chưa thao tác».
  */
-export function capNhatCongRun(
-  id: string,
-  hanhDong: 'merge' | 'reject',
-  luc: string,
-  nguoi: string,
-  chiTiet?: string,
-  ngoaiCong = false,
-): void {
+export function capNhatCongRun(id: string, hanhDong: 'merge' | 'reject'): void {
   if (MODE === 'demo') {
     console.error(`Chế độ demo: từ chối ghi hành động cổng «${hanhDong}» lên run ${id} (R6.12)`);
     return;
   }
+  const bang = docSoCong(id).find((h) => h.hanh_dong === hanhDong);
+  if (!bang) {
+    console.error(
+      `Từ chối ghi hành động cổng «${hanhDong}» lên run ${id}: sổ chỉ-ghi-thêm KHÔNG có hàng nào làm bằng chứng (R6.26)`,
+    );
+    return;
+  }
   moDb()
     .prepare('UPDATE run SET cong_hanh_dong=?, cong_luc=?, cong_nguoi=?, cong_chi_tiet=?, cong_ngoai_cong=? WHERE id=?')
-    .run(hanhDong, luc, nguoi, chiTiet ?? null, ngoaiCong ? 1 : 0, id);
+    .run(bang.hanh_dong, bang.luc, bang.nguoi, bang.chi_tiet ?? null, bang.ngoai_cong ? 1 : 0, id);
 }
 
 /** Ghi trọn dòng sự kiện của một lượt. Xoá bản cũ trước để ghi lại không đẻ ra bản trùng. */

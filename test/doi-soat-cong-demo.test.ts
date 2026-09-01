@@ -46,7 +46,7 @@ describe('đối soát ở chế độ demo', () => {
   it('gọi THẲNG capNhatCongRun ở demo cũng bị từ chối — gác ở CỬA GHI, không chỉ ở một đường (vòng chín)', () => {
     // doiSoatCong đã chặn demo, nhưng cửa ghi gọi trực tiếp thì hở: bề mặt run khai một hành động
     // cổng trong khi sổ chỉ-ghi-thêm KHÔNG có hàng nào — đúng thứ cuốn sổ sinh ra để chống.
-    kho.capNhatCongRun('rDemo', 'merge', new Date().toISOString(), 'ai-do', 'thử', true);
+    kho.capNhatCongRun('rDemo', 'merge');
     expect(kho.docMeta('rDemo')?.ketQuaCong).toBeUndefined();
     expect(so.docSoCong('rDemo')).toHaveLength(0);
   });

@@ -220,7 +220,7 @@ export async function doiSoatCong(
           // (Vòng ba của cổng đẩy sang danh tính máy, vòng bốn bác lại — chốt ở đây, ghi vào R6.24.)
           const nguoi = tt?.nguoi_merge ? `${tt.nguoi_merge} (GitHub)` : '(ngoài cổng — không rõ)';
           ghiSoCong({ run_id: runId, luc, hanh_dong: hd, nguoi, tac_gia_pr: tt?.tac_gia, ngoai_cong: true, chi_tiet: chiTiet });
-          capNhatCongRun(runId, hd, luc, nguoi, chiTiet, true);
+          capNhatCongRun(runId, hd); // bề mặt chép TỪ hàng sổ vừa ghi — không truyền giá trị song song (R6.26)
           daGhi++;
           log(`Đối soát cổng: ${repo}#${pr} đã ${tthai} ngoài cổng — ghi sổ cho run ${runId}`);
         } catch (e) {
