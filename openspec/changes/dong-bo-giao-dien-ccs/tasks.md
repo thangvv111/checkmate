@@ -4,15 +4,22 @@ Bốn commit tách bạch: token → shell → dashboard → màn probes.
 
 ## 1. Commit 1 — TOKEN
 
-- [ ] 1.1 Chép bộ token Modernist từ `design-ccs/styles.css` vào hằng `CSS` của `apps/web/src/ui.ts`:
-      `--color-bg` · `--color-surface` · `--color-text` · `--color-accent` + ramp 100–900 ·
-      ramp neutral · `--color-divider` · `--shadow-sm/md/lg` · `--font-heading`/`--font-body`.
-      **Radius 0 mọi nơi** — bỏ mọi `border-radius` khác 0 và 99px (pill vẫn tròn).
+- [ ] 1.1 Chép **cả `design-ccs/styles.css`** vào hằng `CSS` của `apps/web/src/ui.ts` — không port tay
+      từng token. Nó mang **12 nhóm token** (`--color-bg/surface/text/accent` + ramp 100–900 · ramp
+      neutral · `--color-divider` · `--shadow-sm/md/lg` · `--font-heading/body` · `--space-*` ·
+      `--radius-*`) **và cả 22 class component** template dùng (`.btn` + 5 biến thể · `.input`
+      `.field` · `.card` `.card-kicker` · `.tag` `.tag-accent` · `.hr` `.nav` `.seg` `.elev-sm`
+      `.text-muted` · `.dialog` + 4 phần). Chép nguyên là có luôn bộ component; port tay là tự tạo
+      chỗ lệch.
+- [ ] 1.1b Sau khi chép, **đọc lại** phần token: `radius: 0` mọi nơi (pill 99px là ngoại lệ duy nhất),
+      và `--font-heading-weight` phải theo `theme.json` của gói.
 - [ ] 1.2 Khai bộ **semantic CheckMate** thành biến riêng, KHÔNG gộp vào accent (xem `design.md`
       quyết định 2): PASS `#0E9F7E` / đậm `#08655A` / tint `#E2F3EE` · FAIL `#D0342C` / chữ `#A3271F`
       / tint `#F9E4E2` · medium `#C77A16` / chữ `#8F5810` / tint `#F7ECDA`.
-- [ ] 1.3 Nạp font Archivo + IBM Plex Mono, **kèm fallback stack thật** — trang phải đọc được khi
-      Google Fonts không tải (prod chạy sau nginx, không giả định mạng ra ngoài luôn thông).
+- [ ] 1.3 Font: `styles.css` **tự `@import` Archivo** ở dòng 2, nên việc còn lại là (a) nạp IBM Plex
+      Mono — template gói nạp riêng, `styles.css` không mang — và (b) thêm **fallback stack thật** vào
+      `--font-heading`/`--font-body`. Trang phải đọc được khi Google Fonts không tải: prod chạy sau
+      nginx, không giả định mạng ra ngoài luôn thông.
 - [ ] 1.4 Rule 2px giữa section lớn, 1px giữa dòng — thay các đường kẻ hiện tại.
 - [ ] 1.5 Gỡ hard-code màu cũ trong 7 file `ui-*.ts`; giữ nguyên nội dung, chỉ đổi màu sang biến.
       `ui-docs.ts` (320 dòng) nhiều khả năng là chỗ đỏ nhất.
@@ -47,11 +54,15 @@ Bốn commit tách bạch: token → shell → dashboard → màn probes.
 - [ ] 3.4 Khối «Đã trả về dev — chờ vá & reopen»: dòng rule 1px + ghi chú + nút xem phán quyết.
 - [ ] 3.5 Card «Kiểm nhanh tài liệu rời» + card «Lượt chấm gần đây» (5 dòng, link toàn bộ lịch sử).
 
-## 4. Commit 4 — MÀN THƯ VIỆN PROBE (đang xây)
+## 4. Commit 4 — MÀN THƯ VIỆN PROBE (có design, thiếu API)
 
 - [ ] 4.1 Route mới cho màn Thư viện probe.
-- [ ] 4.2 Màn nói **thẳng vì sao chưa có** — API chưa dựng — chứ không phải «coming soon» trống rỗng.
-      Cùng nguyên tắc với mọi chỗ khác: không đủ dữ liệu thì nói ra, không giả vờ.
+- [ ] 4.2 Màn nói **thẳng vì sao chưa có** — API chưa dựng. **KHÔNG** dựng màn thật rồi cho hiện trạng
+      thái rỗng của gói («thư viện dựng dần từ các lượt chấm trên repo này»): câu đó nghĩa là *đã tra,
+      chưa có gì*, còn sự thật là *chưa hề tra*. Mượn trạng thái rỗng để khoả lấp chỗ chưa dựng đúng là
+      thứ spec «rỗng ≠ hỏng» của change này cấm — làm thế thì lưới của chính mình mất nghĩa.
+- [ ] 4.3 Ghi vào commit rằng markup màn này **đã có sẵn trong gói** (5.809 ký tự, có dải hành vi 20 ô)
+      — khi API xong thì là việc chép thẳng, không phải thiết kế lại.
 
 ## 5. Lưới
 
@@ -77,5 +88,6 @@ Bốn commit tách bạch: token → shell → dashboard → màn probes.
 - [ ] 7.1 Dựng lại **nội dung** 6 màn còn lại theo gói (run · lịch sử · sổ cái · tin cậy · cấu hình ·
       nguyên tắc) — đợt này chúng mới chỉ nhận vỏ.
 - [ ] 7.2 **Thư viện probe thật** — cần API trước (README gói ghi rõ backend làm sau khi chốt design).
-- [ ] 7.3 Xin gói bổ sung `support.js` + `_ds_bundle.js` để prototype chạy được, hoặc chốt cách xem
-      nó trong Claude Design.
+- [ ] 7.3 *(tuỳ chọn, KHÔNG chặn)* Xin gói bổ sung `support.js` + `_ds_bundle.js` nếu muốn xem
+      prototype chạy sống. Đã kiểm: chúng là **runtime** của Claude Design, không mang thông tin
+      design — gói hiện tại đủ để dựng mà không cần chúng.

@@ -1,20 +1,36 @@
 # Design — đồng bộ giao diện theo gói CCS
 
-## Đọc gói: prototype không chạy được, nhưng template đọc được
+## Đọc gói: đo độ đầy trước, rồi mới nhận việc
 
-Gói ở `E:\Projects\ai-checker\design-ccs` gồm `CheckMate SPA.dc.html` (150KB) · `README.md` ·
-`styles.css` · `modernist-goc/`. File `.dc.html` là **Design Component** — chạy bằng runtime Claude
-Design (`sc-if`, `sc-for`, binding `{{ }}`), và nó gọi ba tệp **không có trong gói**:
+Gói ở `E:\Projects\ai-checker\design-ccs` gồm `CheckMate SPA.dc.html` (150KB, 1.594
+dòng) · `README.md` · `styles.css` (252 dòng, 59 selector) · `modernist-goc/`. File `.dc.html` là
+**Design Component** — chạy bằng runtime Claude Design (`<sc-if>`, `<sc-for>`, binding `{{ }}`).
 
-```
-./support.js                                    thieu
-_ds/modernist-a23baac0-.../\_ds_bundle.js       thieu
-_ds/modernist-a23baac0-.../styles.css           co o goc, sai duong dan
-```
+**Nó không chạy được từ gói**: thiếu `./support.js` và `_ds/…/_ds_bundle.js`. Nhưng hai tệp đó là
+**runtime**, không mang thông tin design — còn tệp thứ ba nó gọi, `_ds/…/styles.css`, chính là
+`styles.css` ở gốc gói, chỉ khác đường dẫn. Nên **không cần xin gói bổ sung gì để dựng**; chỉ cần
+chúng nếu muốn xem prototype chạy sống.
 
-Mở bằng trình duyệt chỉ thấy khung và `{{ }}` chưa render. **Layout dưới đây đọc từ chính template**,
-không suy từ mô tả — chính xác hơn nhìn ảnh. Muốn xem nó sống thì mở trong Claude Design, hoặc đồng bộ
-thêm hai tệp kia về `design-ccs/`.
+Đo độ đầy trước khi nhận việc — đếm trên chính gói, không tin cảm giác:
+
+| Thứ cần để dựng | Có? | Đo được |
+|---|---|---|
+| Token | ✔ | 12/12 nhóm trong `styles.css` |
+| Class component | ✔ | **22/22** class template dùng đều có định nghĩa |
+| Font | ✔ | `styles.css` tự `@import` Archivo; template nạp IBM Plex Mono |
+| Màn | ✔ | **14** `data-screen-label`, markup thật — không phải ảnh |
+| Trạng thái rỗng/lỗi | ✔ | **16/16** trạng thái README tả đều có markup (63 `<sc-if>`) |
+| Lời văn | ✔ | README chép nguyên văn từng câu |
+| Ảnh, icon | — | **0** `<img>`, **0** `<svg>` — thuần type, màu, kẻ, glyph Unicode |
+| Luật tương tác | ✔ | `modernist-goc/readme.md`: hover tint, `:focus-visible`, nhãn flush-left |
+
+**Gói đủ để dựng — không chỗ nào phải tự bịa.** Đó là điều kiện khiến change này là việc *chép cho
+đúng*, không phải việc *thiết kế lại*; hai loại việc đó sai theo hai kiểu khác nhau, và lẫn chúng là
+cách nhanh nhất để trôi khỏi gói.
+
+Một chênh lệch nhỏ đã chốt: `modernist-goc/readme.md` khai «Lucide icons throughout», nhưng template
+vẽ **0 SVG** — nó dùng glyph Unicode (♞ ▾ ＋ ⛔ ●). Theo **template**, vì đó là thứ gói vẽ thật, và nó
+tránh được một phụ thuộc icon.
 
 ## Layout đọc được từ template
 
@@ -37,12 +53,13 @@ thêm hai tệp kia về `design-ccs/`.
 +---------+-----------------------------------------------------+
 ```
 
-Ba điều template nói mà `README` không nói:
+Ba điều đọc được từ template mà `README` không nói:
 
-1. **Prototype không có class riêng** — CSS inline của nó vỏn vẹn **108 ký tự**; mọi thứ dựng bằng
-   `style=""` cộng `var(--*)` của Modernist. Nghĩa là **không copy được class**, phải tự đặt tên theo
-   cấu trúc của mình và chỉ mượn token. Đó lại là chỗ tốt: tên class là của repo này, không phải của
-   prototype.
+1. **Class dùng được thẳng, không phải port tay.** CSS inline trong `.dc.html` vỏn vẹn 108 ký tự nên
+   thoạt nhìn tưởng mọi thứ là `style=""`. Không phải: template dùng **22 class** — `.btn` +
+   `.btn-primary/secondary/ghost/icon/block` · `.input` `.field` · `.card` `.card-kicker` · `.tag`
+   `.tag-accent` · `.hr` `.nav` `.seg` `.elev-sm` `.text-muted` · `.dialog` cùng 4 phần của nó — và
+   **cả 22 đều có định nghĩa trong `styles.css`**. Chép `styles.css` là có luôn bộ component.
 2. **Grid hàng đợi là hằng số cứng**, lặp ở cả hàng tiêu đề lẫn hàng dữ liệu:
    `52px minmax(220px,1.5fr) 1.1fr 90px 170px 290px`.
 3. **Có panel `Handoff` 300px gập phải** — công cụ ghi chú bàn giao của prototype, không phải tính
@@ -101,32 +118,47 @@ thì người ta tắt chứ không sửa code.
 Gói cũng đã tự giới hạn: accent chỉ chạy **thành mảng** ở đúng hai chỗ (nền đăng nhập, poster Nguyên
 tắc). Chỗ còn lại nó là viền, chữ, nền nút — không cạnh tranh thị giác với pill FAIL.
 
-## Quyết định 3 — sidebar đủ 8 mục, mục chưa có màn nói thẳng (PO chốt B)
+## Quyết định 3 — sidebar đủ 8 mục, mục chưa có DỮ LIỆU nói thẳng (PO chốt B)
 
-Nav của gói có 8 mục, trong đó **Thư viện probe** chưa có API (README ghi rõ «backend làm sau khi chốt
-design»).
+Nav của gói có 8 mục. Điều dễ hiểu nhầm: **Thư viện probe KHÔNG thiếu design** — template vẽ nó đủ
+(5.809 ký tự markup, có cả dải hành vi 20 ô và trạng thái rỗng «thư viện dựng dần từ các lượt chấm
+trên repo này»). Thứ thiếu là **API** (README: «backend làm sau khi chốt design»).
+
+Chênh lệch đó đổi câu hỏi. Không phải «vẽ gì cho màn chưa có design» mà **«màn có design, không có
+nguồn dữ liệu thì hiện gì»**:
 
 | | Cách | Đổi lại |
 |---|---|---|
 | A | dựng 7 mục | sidebar lệch gói, phải sửa lần hai khi có API |
-| **B** ✔ | **dựng đủ 8, mục đó mở màn «đang xây»** | có một cửa cụt — nhưng cụt **có nhãn** |
+| **B** ✔ | **dựng đủ 8, mục đó nói thẳng chưa có nguồn** | có một cửa cụt — nhưng cụt **có nhãn** |
 | C | dựng đủ 8 + làm luôn API | change phình gấp đôi, gộp giao diện với tính năng |
 
-Chọn **B**. Màn «đang xây» phải nói **vì sao** chưa có (API chưa dựng) chứ không chỉ «coming soon» —
-cùng nguyên tắc với mọi chỗ khác trong sản phẩm: không đủ dữ liệu thì nói ra, không giả vờ.
+Chọn **B**, và chọn dứt khoát **không** dựng màn thật rồi cho nó hiện trạng thái rỗng của gói. Câu
+«thư viện dựng dần từ các lượt chấm trên repo này» nghĩa là *đã tra, chưa có gì* — trong khi sự thật
+là *chưa hề tra*. Mượn trạng thái rỗng để khoả lấp chỗ chưa dựng chính là kiểu nói dối mà spec
+«rỗng ≠ hỏng» của change này cấm; làm thế ở đây thì lưới của chính mình mất nghĩa. Màn phải nói **vì
+sao** chưa có — API chưa dựng — chứ không «coming soon», cũng không giả vờ đã tra.
 
-## Bảy trang hiện có ánh xạ vào 8 route của gói
+Đổi lại, khi API xong thì màn là việc **chép thẳng**, không phải thiết kế lại: markup đã nằm sẵn
+trong gói.
 
-| Route gói | Trang hiện có | Đợt này làm gì |
-|---|---|---|
-| `dashboard` | `homePage` (`/`) | **dựng lại nội dung** |
-| `run` | `runPage` (`/runs/:id`) | nhận vỏ mới |
-| `hist` | `historyPage` (`/lich-su`) | nhận vỏ mới |
-| `ledger` | `ledgerPage` (`/ledger`) | nhận vỏ mới |
-| `trust` | `trustPage` (`/tin-cay`) | nhận vỏ mới |
-| `config` | `settingsPage` (`/settings`) | nhận vỏ mới |
-| `rules` | `docsPage` (`/docs`) | nhận vỏ mới |
-| `probes` | **chưa có** | route mới, màn «đang xây» |
+## Mười bốn màn của gói ánh xạ vào 8 route
+
+Gói khai **14** `data-screen-label`, nhưng đó là 14 *trạng thái màn*, không phải 14 route: «Cổng
+merge» nối liền dưới verdict trong màn Run, «Kiểm nhanh tài liệu» là một `.card` trong lưới 1fr 1fr
+của Dashboard, và Cấu hình tách 3 tab. Rút gọn còn đúng 8 route — khớp 8 mục sidebar:
+
+| Route gói | Trang hiện có | Trạng thái màn gói khai | Đợt này làm gì |
+|---|---|---|---|
+| `dashboard` | `homePage` (`/`) | Dashboard + card Kiểm nhanh tài liệu | **dựng lại nội dung** |
+| `run` | `runPage` (`/runs/:id`) | Run — lượt chấm + Cổng merge | nhận vỏ mới |
+| `hist` | `historyPage` (`/lich-su`) | Lịch sử chạy | nhận vỏ mới |
+| `ledger` | `ledgerPage` (`/ledger`) | Sổ cái verdict | nhận vỏ mới |
+| `trust` | `trustPage` (`/tin-cay`) | Tin cậy | nhận vỏ mới |
+| `config` | `settingsPage` (`/settings`) | Cấu hình + 3 tab (Repos · NCC model · Review & Trực) | nhận vỏ mới |
+| `rules` | `docsPage` (`/docs`) | Nguyên tắc | nhận vỏ mới |
+| `probes` | **chưa có** | Thư viện probe (design đủ, **thiếu API**) | route mới, màn nói thiếu nguồn |
+| — | `loginPage` | Đăng nhập | nhận token mới |
 
 Bảy trang chỉ **nhận vỏ** vì chúng đi qua `shell()`. Việc còn lại của mỗi trang là gỡ chỗ hard-code
 màu cũ — lưới token sẽ chỉ đúng chỗ nào.
