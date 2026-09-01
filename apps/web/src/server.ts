@@ -928,7 +928,26 @@ app.get('/api/runs/:id/events', (req, res) => {
   const st = rm.lay(req.params.id);
   if (!st) return res.status(404).end();
   res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
-  const gui = (ev: { t: number; e: unknown }) => res.write(`data: ${JSON.stringify(ev)}\n\n`);
+  /**
+   * Đánh số từng sự kiện và tiếp từ chỗ đứt.
+   *
+   * Trước đây không có `id:`, nên khi trình duyệt tự nối lại (mất mạng, máy ngủ) máy chủ đổ lại
+   * TOÀN BỘ từ đầu trong khi giao diện chỉ nối thêm — một lần rớt mạng cho ra hai bản finding giống
+   * hệt nhau, và người đọc không có cách nào biết đó là trùng lặp hay hai phát hiện thật.
+   *
+   * Số hiệu là CHỈ SỐ trong dòng sự kiện, nên nó bền qua cả việc máy chủ khởi động lại: sổ trên đĩa
+   * giữ đúng thứ tự đó.
+   */
+  const daCo = Number(req.headers['last-event-id']);
+  const batTu = Number.isFinite(daCo) && daCo >= 0 ? daCo + 1 : 0;
+  let ke = batTu;
+  const gui = (ev: { t: number; e: unknown }) => {
+    res.write(`id: ${ke}\ndata: ${JSON.stringify(ev)}\n\n`);
+    ke++;
+  };
+  // `__END__` là dấu chấm hết, không phải một sự kiện của lượt chấm — phát KHÔNG kèm số hiệu để lần
+  // nối lại sau vẫn tiếp đúng từ sự kiện thật cuối cùng.
+  const guiHet = () => res.write(`data: ${JSON.stringify({ t: 0, e: { type: 'log', msg: '__END__' } })}\n\n`);
 
   const timed = req.query.timed === '1' && st.meta.trangThai !== 'dang_chay';
   if (timed) {
@@ -936,14 +955,14 @@ app.get('/api/runs/:id/events', (req, res) => {
     const speed = Math.min(32, Math.max(1, Number(req.query.speed) || 1));
     const timers = st.events.map((ev) => setTimeout(() => gui(ev), Math.round(ev.t / speed)));
     const cuoi = Math.round((st.events.length ? st.events[st.events.length - 1].t : 0) / speed);
-    const ket = setTimeout(() => { gui({ t: cuoi, e: { type: 'log', msg: '__END__' } }); res.end(); }, cuoi + 300);
+    const ket = setTimeout(() => { guiHet(); res.end(); }, cuoi + 300);
     req.on('close', () => { timers.forEach(clearTimeout); clearTimeout(ket); });
     return;
   }
 
-  for (const ev of st.events) gui(ev);
+  for (const ev of st.events.slice(batTu)) gui(ev);
   if (st.meta.trangThai !== 'dang_chay') {
-    gui({ t: 0, e: { type: 'log', msg: '__END__' } });
+    guiHet();
     return res.end();
   }
   const sub = (ev: { t: number; e: unknown }) => gui(ev);
@@ -961,7 +980,11 @@ app.listen(port, '127.0.0.1', () => {
   // Xác của lần chạy trước: hàng `dang_chay` mồ côi khoá trần song song vĩnh viễn nếu không dọn
   // Sổ phải đúng ngay từ lượt khởi động: máy chỉ chấm bằng tay không có chu kỳ trực nào để bám vào.
   void chayDoiSoat();
-  const moCoi = rm.cleanupOrphanRuns();
+  // NỐI LẠI trước, DỌN XÁC sau. Lượt còn sổ sự kiện trên đĩa là lượt tiến trình con vẫn đang ghi
+  // tiếp — nó sống sót qua lần khởi động lại này, và đánh dấu nó hỏng là vứt bỏ việc đang chạy đúng.
+  const noiLai = rm.noiLaiLuotDangChay();
+  if (noiLai.length) console.log(`Nối lại ${noiLai.length} lượt chấm còn dang dở: ${noiLai.join(', ')}`);
+  const moCoi = rm.cleanupOrphanRuns(noiLai);
   if (moCoi.length) console.log(`Đã dọn ${moCoi.length} lượt chấm bỏ dở của lần chạy trước: ${moCoi.join(', ')}`);
   console.log(`CheckMate web: http://127.0.0.1:${port}`);
 });

@@ -183,12 +183,18 @@ export function runningCount(): number {
  * Gọi lúc khởi động: tiến trình web là chủ duy nhất của các lượt nó khởi chạy — nó vừa mới lên thì
  * không có lượt nào của nó đang chạy, nên mọi hàng `dang_chay` còn sót đều là xác của lần chạy trước.
  */
-export function cleanupOrphanRuns(): string[] {
+export function cleanupOrphanRuns(boQua: string[] = []): string[] {
   const db = openDb();
-  const moCoi = db.prepare("SELECT id FROM run WHERE trang_thai = 'dang_chay'").all() as Array<{ id: string }>;
+  const tatCa = db.prepare("SELECT id FROM run WHERE trang_thai = 'dang_chay'").all() as Array<{ id: string }>;
+  // Lượt ĐÃ NỐI LẠI được (sổ sự kiện còn trên đĩa, tiến trình con còn ghi tiếp) KHÔNG phải mồ côi.
+  // Đánh dấu nó hỏng chỉ vì mình vừa khởi động lại là vứt bỏ một lượt đang chạy đúng — và vứt luôn
+  // số token đã đốt cho nó.
+  const giu = new Set(boQua);
+  const moCoi = tatCa.filter((r) => !giu.has(r.id));
   if (!moCoi.length) return [];
   const luc = new Date().toISOString();
-  db.prepare("UPDATE run SET trang_thai = 'loi', ket_thuc = ? WHERE trang_thai = 'dang_chay'").run(luc);
+  const capNhat = db.prepare("UPDATE run SET trang_thai = 'loi', ket_thuc = ? WHERE id = ?");
+  for (const { id } of moCoi) capNhat.run(luc, id);
   // Ghi lý do vào dòng sự kiện: một lượt chuyển sang 'loi' mà không nói vì sao cũng là báo thiếu bản chất
   for (const { id } of moCoi) {
     const n = (db.prepare('SELECT COALESCE(MAX(thu_tu), -1) AS m FROM run_su_kien WHERE run_id = ?').get(id) as { m: number }).m;

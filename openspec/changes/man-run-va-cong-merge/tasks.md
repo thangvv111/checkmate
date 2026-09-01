@@ -25,18 +25,18 @@ Năm commit tách bạch: hợp đồng → bền dòng sự kiện → server-r
 
 ## 2. Commit 2 — BỀN DÒNG SỰ KIỆN
 
-- [ ] 2.1 `packages/harness/src/cli.ts` — ghi nối tiếp mỗi sự kiện vào `runs/<id>/events.jsonl` NGAY
+- [x] 2.1 `packages/harness/src/cli.ts` — ghi nối tiếp mỗi sự kiện vào `runs/<id>/events.jsonl` NGAY
       khi nó sinh ra, song song với việc in ra stdout. Ghi nối, không ghi đè cả tệp.
-- [ ] 2.2 `apps/web/src/runs.ts` — `RunManager` đọc dòng sự kiện từ **file** thay vì từ pipe stdout.
+- [x] 2.2 `apps/web/src/runs.ts` — `RunManager` đọc dòng sự kiện từ **file** thay vì từ pipe stdout.
       File là nguồn sự thật; bảng `run_su_kien` là bản đọc.
-- [ ] 2.3 Khởi động lại giữa chừng: đọc tiếp file của lượt còn đang chạy thay vì bỏ nó. Chỉ lượt nào
+- [x] 2.3 Khởi động lại giữa chừng: đọc tiếp file của lượt còn đang chạy thay vì bỏ nó. Chỉ lượt nào
       tiến trình con đã thật sự chết mới thành mồ côi.
-- [ ] 2.4 `cleanupOrphanRuns` — giữ nguyên hành vi đánh dấu hỏng + ghi lý do, nhưng chỉ áp cho lượt
+- [x] 2.4 `cleanupOrphanRuns` — giữ nguyên hành vi đánh dấu hỏng + ghi lý do, nhưng chỉ áp cho lượt
       không còn tiến trình sống.
-- [ ] 2.5 SSE phát `id:` theo số thứ tự sự kiện; máy chủ đọc `Last-Event-ID` và tiếp từ chỗ đứt.
-- [ ] 2.6 `DEPLOY.md` — `runs/` vào danh sách **không đè khi deploy**, cùng `web-runs/` và
+- [x] 2.5 SSE phát `id:` theo số thứ tự sự kiện; máy chủ đọc `Last-Event-ID` và tiếp từ chỗ đứt.
+- [x] 2.6 `DEPLOY.md` — `runs/` vào danh sách **không đè khi deploy**, cùng `web-runs/` và
       `probes-lib/`. Nó nay giữ dòng sự kiện của lượt đang chạy, không còn chỉ là kết xuất cuối.
-- [ ] 2.7 Dựng lại được bảng `run_su_kien` từ file — chứng minh quy ước «file là nguồn» có hiệu lực
+- [x] 2.7 Dựng lại được bảng `run_su_kien` từ file — chứng minh quy ước «file là nguồn» có hiệu lực
       chứ không phải lời hứa.
 
 ## 3. Commit 3 — SERVER-RENDER LƯỢT ĐÃ XONG

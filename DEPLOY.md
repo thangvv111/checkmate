@@ -150,10 +150,17 @@ tail -f ~/checkmate-app/checkmate.log    # log chạy
 ## Cập nhật code
 
 > ⚠ **Bản hướng dẫn cũ ở mục này XOÁ SỔ DỮ LIỆU PROD.** Lệnh `tar --exclude=node_modules` gói theo cả
-> `config.json`, `.secrets.json`, `web-runs/` và `probes-lib/` của MÁY DEV rồi giải nén đè lên server —
-> tức thay sổ cái, lịch sử chấm và thư viện probe của prod bằng dữ liệu máy dev. Chính tài liệu này có
-> câu «mất volume là mất tài sản regression»; lệnh cũ là cách nhanh nhất để làm đúng điều đó.
-> Không dùng lại. Quy trình đúng bên dưới.
+> `config.json`, `.secrets.json`, `web-runs/`, `probes-lib/` và `runs/` của MÁY DEV rồi giải nén đè lên
+> server — tức thay sổ cái, lịch sử chấm và thư viện probe của prod bằng dữ liệu máy dev. Chính tài
+> liệu này có câu «mất volume là mất tài sản regression»; lệnh cũ là cách nhanh nhất để làm đúng điều
+> đó. Không dùng lại. Quy trình đúng bên dưới.
+
+> ⚠ **`runs/` nay là DỮ LIỆU ĐANG SỐNG, không còn chỉ là kết xuất cuối.** Mỗi lượt chấm ghi sổ sự kiện
+> chỉ-ghi-thêm vào `runs/<id>/events.jsonl` **ngay khi sự kiện sinh ra**, và tiến trình web đọc file đó
+> chứ không đọc đường ống. Hệ quả cho việc deploy: `systemctl restart checkmate` **giữa lúc đang chấm**
+> nay không còn mất lượt — web sống lại là nối tiếp đúng chỗ đang dở. Đổi lại, **xoá `runs/` là giết
+> mọi lượt đang chạy**, không chỉ mất lịch sử. Nó nằm trong nhóm không-đè cùng `web-runs/` và
+> `probes-lib/`.
 
 **Bước 1 — sao lưu trên server TRƯỚC (không có bước này thì không có đường lùi):**
 ```
