@@ -96,6 +96,13 @@ Vòng sáu — 1 HIGH:
       vòng `luuMeta(docMeta(id))` làm rơi cờ, và hàng máy-ghi hoá thành hàng người-bấm trong im lặng.
       Đây là loại hỏng nguy hiểm vì nó KHÔNG ném, KHÔNG log, chỉ lặng lẽ đổi ý nghĩa một hàng kiểm toán.
 
+Vòng sáu (verdict PASS) — 1 MEDIUM, vẫn vá vì là LỚP LỖI LẶP LẦN THỨ TƯ:
+- [x] 6.24 Bộ lọc đếm nuốt finding THẬT mang severity méo (`null`, số, khoảng trắng) trước khi tới
+      bước chuẩn hoá fail-closed → sổ khai THIẾU. Vòng bốn bắt đầu kia của cùng ranh giới (đếm rác
+      thành high → khai THỪA). **Chốt ranh giới**: không phải object, hoặc object không có khoá
+      `severity` → loại; CÓ khoá `severity` → là finding thật, đếm, `chuanMuc` fail-closed nhãn lạ về
+      high. Kèm ép chuỗi vì `chuanMuc` chỉ nhận string — severity là số thì `.toLowerCase` sẽ ném.
+
 ## 7. Nợ ghi nhận, chưa xử trong change này
 
 - [ ] 7.1 **M12 — test phụ thuộc mạng thật**: `token-repo.test.ts` gọi GitHub API không token, nên

@@ -48,12 +48,18 @@ export function chiTietNgoaiCong(v: { result?: string; findings?: Finding[] } | 
   // fail-closed về high). Bản trước lọc theo đúng ba giá trị nên finding thật mang nhãn lạ bị đánh
   // rơi và số liệu trong sổ khai THIẾU — vá «đếm sai» bằng cách NUỐT dữ liệu, đúng lớp lỗi mà chuỗi
   // vá này đã bị bắt hai lần (vòng năm của cổng bắt lần thứ ba).
+  // RANH GIỚI, chốt sau bốn vòng bị bắt qua lại:
+  //  · KHÔNG phải object, hoặc object KHÔNG có khoá `severity` → không đủ hình dạng một finding → loại.
+  //  · CÓ khoá `severity` → LÀ finding thật, dù giá trị méo (null, số, khoảng trắng) → PHẢI đếm, và
+  //    `chuanMuc` fail-closed đưa mọi nhãn lạ về high.
+  // Hai vòng trước bắt hai đầu của ranh giới này: vòng bốn bắt «đếm rác thành high», vòng sáu bắt
+  // «nuốt finding thật có nhãn méo». Lọc rộng quá thì khai THỪA, lọc hẹp quá thì khai THIẾU — cả hai
+  // đều là con số sai trong một cuốn sổ không sửa được.
   const ds = Array.isArray(v?.findings)
-    ? (v.findings.filter((f) => {
-        if (!f || typeof f !== 'object') return false;
-        const sv = (f as { severity?: unknown }).severity;
-        return typeof sv === 'string' && sv.trim() !== '';
-      }) as Finding[])
+    ? (v.findings
+        .filter((f) => f !== null && typeof f === 'object' && 'severity' in (f as object))
+        // chuanMuc chỉ nhận chuỗi: severity là số thì `.toLowerCase` không tồn tại và hàm mô tả sẽ ném
+        .map((f) => ({ ...(f as object), severity: String((f as { severity?: unknown }).severity ?? '') })) as Finding[])
     : [];
   const d = demMuc(ds);
   const chuaTick = d.medium + d.low;

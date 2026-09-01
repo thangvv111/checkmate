@@ -337,6 +337,20 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     expect(s).toContain('1 medium');
   });
 
+  it('RANH GIỚI finding: có khoá severity thì ĐẾM (fail-closed), không có thì LOẠI (vòng sáu)', () => {
+    // Bốn vòng bị bắt qua lại hai đầu: lọc rộng quá thì khai THỪA («2 high» khi chỉ 1), lọc hẹp quá
+    // thì khai THIẾU (nuốt finding thật mang nhãn méo). Cả hai đều là con số sai trong sổ không sửa được.
+    const v = {
+      result: 'PASS',
+      findings: [{ severity: null }, { severity: 3 }, { severity: '   ' }, { severity: 'medium' }, null, 'chuỗi', { khong_co: 1 }],
+    };
+    const s = cong.chiTietNgoaiCong(v as never);
+    expect(s, 'ba finding nhãn méo → fail-closed về high').toContain('3 high');
+    expect(s).toContain('1 medium');
+    // rác (null, chuỗi, object không có khoá severity) KHÔNG được đếm
+    expect(s).toContain('0 low');
+  });
+
   it('severity LẠ không được NUỐT — chuanMuc lo chuẩn hoá (R6.22, vòng năm)', () => {
     // Vá «đếm sai» bằng cách lọc đúng ba giá trị thì finding thật mang nhãn 'critical'/'HIGH'/
     // 'blocker' bị đánh rơi và sổ khai THIẾU — đúng lớp lỗi «vá bằng cách nuốt dữ liệu» mà chuỗi vá

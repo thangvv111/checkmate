@@ -69,4 +69,6 @@ Vòng bốn:
 
 Vòng sáu:
 - [x] T8.1 `luuMeta(docMeta(id))` ghi lại y nguyên KHÔNG được làm rơi cờ `ngoaiCong`
+- [x] T8.2 Ranh giới finding: `{severity:null}`, `{severity:3}`, `{severity:'   '}` đếm thành 3 high;
+      `null`, chuỗi, object không có khoá `severity` bị loại
 
