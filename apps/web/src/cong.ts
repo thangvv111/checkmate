@@ -41,6 +41,17 @@ export function demMuc(findings: Finding[]): { high: number; medium: number; low
  * tick từng cái.
  */
 export function chiTietNgoaiCong(v: { result?: string; findings?: Finding[] } | null): string {
+  // Danh sách finding CÓ MẶT nhưng KHÔNG ĐỌC ĐƯỢC (chuỗi, số, object) thì phải NÓI RA — rơi mềm về
+  // mảng rỗng rồi ghi «0 high · không có cảnh báo» là khai DỮ LIỆU KHÔNG ĐỌC ĐƯỢC THÀNH BẰNG KHÔNG,
+  // đúng thứ R6.22 cấm: người đọc sổ sẽ tưởng lượt chấm sạch (vòng chín của cổng bắt).
+  if (v?.findings !== undefined && !Array.isArray(v.findings)) {
+    return [
+      '⚠ Hành động xảy ra NGOÀI CheckMate (không qua cổng)',
+      `ghi nhận tự động bởi ${TEN_TAC_NHAN_MAY} khi đối soát — máy chỉ GHI LẠI, không phải máy thực hiện (R6.18)`,
+      'KHÔNG có xác nhận finding nào — không ai tick trước khi merge',
+      `verdict lúc chấm: ${v?.result ?? 'không rõ'} · danh sách finding KHÔNG ĐỌC ĐƯỢC (kiểu ${typeof v.findings}) — KHÔNG đếm được, đừng đọc thành «không có finding»`,
+    ].join(' · ');
+  }
   // Hàm đứng CUỐI mọi đường ghi hàng ngoài-cổng: nó mà ném thì hàng không được ghi và lượt đối soát
   // gãy — lệch ngược hướng an toàn. Lọc phần tử méo thay vì tin hình dạng (vòng một của cổng bắt).
   // Loại phần tử KHÔNG PHẢI finding (null, chuỗi, thiếu hẳn severity) — nhưng KHÔNG nuốt finding có

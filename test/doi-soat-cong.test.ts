@@ -337,6 +337,28 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     expect(s).toContain('1 medium');
   });
 
+  it('findings SAI KIỂU phải NÓI RA «không đọc được», không khai thành BẰNG KHÔNG (vòng chín, HIGH)', () => {
+    // Rơi mềm về mảng rỗng rồi ghi «0 high · không có cảnh báo» là khai dữ liệu KHÔNG ĐỌC ĐƯỢC thành
+    // BẰNG KHÔNG — người đọc sổ tưởng lượt chấm sạch.
+    for (const bad of ['chuỗi', 42, { a: 1 }]) {
+      const s = cong.chiTietNgoaiCong({ result: 'PASS', findings: bad } as never);
+      expect(s).toMatch(/KHÔNG ĐỌC ĐƯỢC/);
+      expect(s).not.toMatch(/0 high/);
+      expect(s).not.toMatch(/không có cảnh báo medium\/low nào/);
+    }
+    // findings VẮNG hẳn thì vẫn là ca hợp lệ «không có finding»
+    expect(cong.chiTietNgoaiCong({ result: 'PASS' } as never)).toMatch(/0 high/);
+  });
+
+  it('nhãn lạ vẫn được đếm đủ — TÁI LẬP cho thấy finding «đếm hụt» là BÁO OAN (vòng chín)', () => {
+    // Cổng báo critical/blocker/HIGH «không rơi vào mức nào»; tái lập cho thấy chuanMuc fail-closed
+    // đưa cả ba về high và phép đếm đúng. Ghi ca này để lần sau không ai phải tái lập lần nữa.
+    const s = cong.chiTietNgoaiCong({ result: 'PASS', findings: [{ severity: 'critical' }, { severity: 'blocker' }, { severity: 'HIGH' }, { severity: 'medium' }, { severity: 'low' }] } as never);
+    expect(s).toContain('3 high');
+    expect(s).toContain('1 medium');
+    expect(s).toContain('1 low');
+  });
+
   it('RANH GIỚI finding: có khoá severity thì ĐẾM (fail-closed), không có thì LOẠI (vòng sáu)', () => {
     // Bốn vòng bị bắt qua lại hai đầu: lọc rộng quá thì khai THỪA («2 high» khi chỉ 1), lọc hẹp quá
     // thì khai THIẾU (nuốt finding thật mang nhãn méo). Cả hai đều là con số sai trong sổ không sửa được.

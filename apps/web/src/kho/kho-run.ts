@@ -1,4 +1,5 @@
 import { moDb } from './db.js';
+import { MODE } from '../config.js';
 import type { RunMeta, StoredEvent } from '../runs.js';
 import type { Verdict } from '../../../../packages/shared/src/types.js';
 
@@ -83,6 +84,12 @@ export function luuMeta(m: RunMeta): void {
  * Không dùng `luuMeta` vì nó ghi đè cả hàng: đối soát chỉ biết chuyện xảy ra ở cổng, không có bản
  * meta đầy đủ trong tay, và ghi đè bằng dữ liệu thiếu là làm hỏng hàng đang đúng.
  */
+/**
+ * R6.12 — chế độ demo KHÔNG được thao tác cổng, và luật đó phải gác ở CỬA GHI chứ không chỉ ở một
+ * đường gọi: `doiSoatCong` đã chặn demo, nhưng gọi thẳng hàm này vẫn đặt được `ketQuaCong='merge'`
+ * lên bề mặt run — trong khi sổ chỉ-ghi-thêm KHÔNG có hàng nào. Bề mặt khai một hành động cổng mà
+ * sổ không có bằng chứng tương ứng là đúng thứ cuốn sổ sinh ra để chống (vòng chín của cổng bắt).
+ */
 export function capNhatCongRun(
   id: string,
   hanhDong: 'merge' | 'reject',
@@ -91,6 +98,10 @@ export function capNhatCongRun(
   chiTiet?: string,
   ngoaiCong = false,
 ): void {
+  if (MODE === 'demo') {
+    console.error(`Chế độ demo: từ chối ghi hành động cổng «${hanhDong}» lên run ${id} (R6.12)`);
+    return;
+  }
   moDb()
     .prepare('UPDATE run SET cong_hanh_dong=?, cong_luc=?, cong_nguoi=?, cong_chi_tiet=?, cong_ngoai_cong=? WHERE id=?')
     .run(hanhDong, luc, nguoi, chiTiet ?? null, ngoaiCong ? 1 : 0, id);

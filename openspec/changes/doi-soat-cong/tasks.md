@@ -103,6 +103,19 @@ Vòng sáu (verdict PASS) — 1 MEDIUM, vẫn vá vì là LỚP LỖI LẶP LẦ
       `severity` → loại; CÓ khoá `severity` → là finding thật, đếm, `chuanMuc` fail-closed nhãn lạ về
       high. Kèm ép chuỗi vì `chuanMuc` chỉ nhận string — severity là số thì `.toLowerCase` sẽ ném.
 
+Vòng chín — 3 finding (2 HIGH + 1 BÁO OAN):
+- [x] 6.25 **HIGH — cửa song sinh lần thứ BẢY**: `doiSoatCong` chặn demo đúng, nhưng gọi THẲNG
+      `capNhatCongRun` vẫn đặt được `ketQuaCong='merge'` lên bề mặt run trong khi sổ chỉ-ghi-thêm
+      KHÔNG có hàng nào — bề mặt khai một hành động cổng mà sổ không có bằng chứng, đúng thứ cuốn sổ
+      sinh ra để chống. Nay gác R6.12 nằm ở CỬA GHI, không chỉ ở một đường gọi.
+- [x] 6.26 **HIGH — khai dữ liệu KHÔNG ĐỌC ĐƯỢC thành BẰNG KHÔNG**: `findings` có mặt nhưng sai kiểu
+      (chuỗi/số/object) thì rơi mềm về mảng rỗng và ghi «0 high · không có cảnh báo» — người đọc sổ
+      tưởng lượt chấm sạch. Nay nói thẳng «danh sách finding KHÔNG ĐỌC ĐƯỢC (kiểu X) — KHÔNG đếm
+      được, đừng đọc thành không có finding».
+- [x] 6.27 **BÁO OAN** — «nhãn lạ bị bỏ khỏi phép đếm»: tái lập cho thấy `chuanMuc` fail-closed đưa
+      `critical`/`blocker`/`HIGH` về high và phép đếm ĐÚNG (3 high · 1 medium · 1 low). Không sửa gì;
+      đã khoá bằng test để lần sau khỏi phải tái lập lại.
+
 ## 7. Nợ ghi nhận, chưa xử trong change này
 
 - [ ] 7.1 **M12 — test phụ thuộc mạng thật**: `token-repo.test.ts` gọi GitHub API không token, nên
