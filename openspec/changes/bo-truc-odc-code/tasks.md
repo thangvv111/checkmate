@@ -1,17 +1,15 @@
 # Tasks — bộ trục phân loại code (R14)
 
-## 1. Luật (viết TRƯỚC code — hai tầng spec, cả hai cùng nói một điều)
+## 1. Chỗ sống của luật (PO 01/09: KHÔNG đẻ thêm điều R* — specs/R* chờ tái cấu trúc)
 
-- [ ] 1.1 `specs/R14-truc-phan-loai.md` MỚI: R14.1 bộ trigger đóng 10 giá trị (bảng mã máy + gốc
-      ODC) · R14.2 trigger lạ thì bỏ trường không vứt probe · R14.3 ví dụ per-trigger trần 2, luật
-      đào thải giữ-ví-dụ-từng-bắt-finding, ví dụ rời tập phát được lưu người-đọc-được · R14.4 cấm
-      chỉ tiêu/phép đếm độ phủ trigger ở mọi bề mặt model thấy · R14.5 ba trường phân loại finding
-      là telemetry, không tham gia verdict/severity · R14.6 `va_toi_thieu` viết trước, type suy từ
-      đó · R14.7 enum lạ → `khong_ro` + log (không ném, không đổi verdict).
-- [ ] 1.2 `specs/R12` sửa MÔ TẢ vai: «khuôn» → «ví dụ per-trigger (R14)»; gác R12.2/R12.4/R12.5
-      giữ nguyên, chú rõ áp per-ví-dụ. KHÔNG đổi mã điều nào.
-- [ ] 1.3 `specs/R6` thêm một điều: finding code mang được `va_toi_thieu`/`odc_type`/`qualifier`;
-      chúng là telemetry (trỏ R14.5).
+- [ ] 1.1 Danh mục trigger trong engine: mỗi mã một định nghĩa + ranh giới với mã cạnh; test khoá
+      danh mục (thêm/bớt mã là đỏ — buộc đi qua change có chủ đích, KHÔNG buộc con số cụ thể).
+- [ ] 1.2 Tập kích hoạt per-repo trong `checkmate.yml` (khoá cấu hình mới): danh sách mã bật cho
+      repo đó; vắng khoá = toàn danh mục; mã lạ trong config → log + bỏ qua, không chết lượt chấm.
+- [ ] 1.3 Trần ví dụ per-trigger + ngân sách dòng prompt = THAM SỐ cấu hình (mặc định 2/trigger),
+      không tham chiếu hằng nào của specs/R* cũ.
+- [ ] 1.4 Toàn bộ hành vi khai trong openspec capability `truc-phan-loai-code` (spec delta của
+      change này) — bản máy-và-người cùng đọc; specs/R* KHÔNG thêm điều mới.
 
 ## 2. Kho ví dụ theo trigger
 

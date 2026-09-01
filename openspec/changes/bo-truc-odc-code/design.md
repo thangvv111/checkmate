@@ -19,7 +19,26 @@ Nguyên tắc mượn từ ODC (IEEE TSE 1992, bản 5.2/2013): scheme sống 34
 **R1 đứng nguyên.** Bảy nhãn máy của R1 (`hoi_quy`, `pass`, `nghi_van`…) là *kết quả phép thử trên
 hai nhánh* — trục thứ tư, độc lập, đã đóng sẵn. Trigger không thay nó và không được nhầm với nó.
 
-## Bộ trigger: 10 chọn, 7 loại — từng cái có lý do
+## Danh mục ≠ tập kích hoạt — linh hoạt là nguyên bản của ODC
+
+Hai khái niệm tách bạch, và đây là chỗ chống máy móc:
+
+- **DANH MỤC trigger** — vốn từ vựng chuẩn: mỗi mã có định nghĩa + ranh giới với mã cạnh. Sống trong
+  engine. Mở rộng ĐƯỢC — thêm mã mới đi qua một change có định nghĩa rõ (kỷ luật này mới là thứ ngăn
+  quay về kho phẳng tự phình, không phải con số).
+- **TẬP KÍCH HOẠT per-repo** — tập trigger thật sự phát vào prompt cho một repo đích: cấu hình trong
+  `checkmate.yml` (và màn Đ7 sau này). Có repo cần 2, có repo cần 30 — số lượng KHÔNG phải hằng kiến
+  trúc. Mặc định = toàn danh mục.
+
+Chính ODC nguyên bản vận hành như vậy: tài liệu 5.2 nói việc đầu tiên khi triển khai là tổ chức tự
+map danh sách trigger chuẩn vào activity CỦA MÌNH — bảng trong tài liệu chỉ là ví dụ generic. Con số
+«10» dưới đây là **nội dung khởi điểm của danh mục**, không phải ràng buộc.
+
+Trần ví dụ per-trigger và ngân sách dòng prompt đều là **tham số cấu hình** (mặc định 2/trigger) —
+KHÔNG neo vào trần R12.3 hay bất kỳ hằng nào của hệ luật cũ: hệ đó đang chờ tái cấu trúc, không được
+dùng làm khuôn ép hệ mới.
+
+## Danh mục khởi điểm: 10 mã từ ODC — từng cái có lý do
 
 Đối chiếu 21 trigger ODC với mô hình CheckMate (probe tất định chạy trong sandbox worktree 2 nhánh):
 
@@ -44,7 +63,7 @@ hai nhánh* — trục thứ tư, độc lập, đã đóng sẵn. Trigger khôn
 | Internal Document | comment lệch code không làm probe fail được — trigger này thuộc cổng DOC (KD1–KD3 chính là nó), sẽ dùng ở change tối ưu doc |
 | HW/SW Configuration | sandbox một máy đồng nhất; ma trận version nhân đôi chi phí mỗi ô |
 | Simple/Complex Path | trùng vai `luong_logic` ở mô hình này (đều là white-box theo diff) — hai tên cho một việc là mời phân loại tuỳ tiện |
-| Startup/Restart | có giá trị (migration lên/xuống) nhưng chưa đủ án lệ trong repo đích nào; để dành, vào bằng `dieu_kien` khi có bằng chứng cần |
+| Startup/Restart | có giá trị (migration lên/xuống) nhưng chưa đủ án lệ trong repo đích nào; ứng viên đầu tiên VÀO danh mục khi một repo đích cần — đường thêm mã đã mở sẵn |
 
 **Phép thử đã chạy trước khi chốt** (đòi hỏi của vòng phản biện): ánh xạ toàn bộ KL1–KL17 vào 10
 trigger — **17/17 có nhà, 0 mồ côi**, và hai trigger (`thu_tu`, một phần `tuong_tac`) lộ vùng kho
@@ -88,7 +107,12 @@ lên, kill-rate bằng 0, false-PASS trông đáng tin hơn. Ba lưới:
 
 - `types.ts`: 3 trường optional trên `Finding` — verdict cũ đọc nguyên vẹn (scenario replay).
 - `khuon-loi.ts`: `KhuonLoi` thêm trường `trigger` (bắt buộc với khuôn code); KL1–KL17 gắn trigger
-  theo bảng trên; gác R12.2/R12.4/R12.5 giữ nguyên vị trí. `TRAN_KHUON` giữ 20 (10×2 khớp).
+  theo bảng trên; các gác cơ học hiện có (án lệ có mốc · điều kiện bật · một dòng) giữ nguyên và áp
+  per-ví-dụ. Trần ví dụ per-trigger + ngân sách dòng prompt thành THAM SỐ (mặc định 2/trigger).
+- **Chỗ sống của luật (PO 01/09 — specs/R* không được ép kiến trúc mới):** danh mục + ranh giới mỗi
+  mã sống TRONG ENGINE (hằng có định nghĩa, test khoá); tập kích hoạt sống trong `checkmate.yml`;
+  hành vi khai trong openspec capability của change này. **KHÔNG đẻ điều R14, KHÔNG sửa R12/R6** —
+  đống `specs/R*.md` giữ nguyên hiện trạng chờ change tái-cấu-trúc-thành-tham-khảo (kế hoạch 6.3).
 - `skill-code.ts`: `xayKhuonLoi` phát khuôn NHÓM THEO trigger; schema kế hoạch probe thêm `trigger`
   optional; schema finding thêm 3 trường; validate enum ở chỗ máy đã đứng (cùng cửa với chuanMuc).
 - Bề mặt: `probe_stats` thêm phân bố; UI hiện type/qualifier cạnh severity khi có.

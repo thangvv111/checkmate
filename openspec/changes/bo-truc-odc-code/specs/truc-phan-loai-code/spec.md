@@ -1,15 +1,25 @@
 ## ADDED Requirements
 
-### Requirement: Bộ trigger đóng cho sinh probe
+### Requirement: Danh mục trigger và tập kích hoạt per-repo
 
-Hệ thống SHALL tổ chức tri thức sinh probe của skill code theo một bộ **trigger đóng** (danh mục cố
-định, mỗi trigger là một *cách làm lộ lỗi*). Khuôn án lệ SHALL là **ví dụ trực thuộc một trigger**,
-không còn là danh sách phẳng tự do. Model khi lập kế hoạch probe SHALL khai `trigger` cho từng probe
-từ đúng danh mục này; giá trị ngoài danh mục thì máy MUST bỏ trường đó và ghi log — KHÔNG vứt probe,
-KHÔNG ném lỗi.
+Hệ thống SHALL có một **DANH MỤC trigger** (mỗi mã một định nghĩa + ranh giới với mã cạnh, sống
+trong engine, có test khoá) và một **TẬP KÍCH HOẠT per-repo** cấu hình được trong hợp đồng repo —
+tập trigger thật sự phát vào prompt cho repo đó. Vắng cấu hình thì mặc định là toàn danh mục. Số
+lượng trigger kích hoạt KHÔNG bị ràng buộc bởi con số nào — có repo cần 2, có repo cần 30.
 
-Một bộ đóng là điều kiện để phân loại nhất quán và để kho tri thức KHÔNG phình theo thời gian —
-tấm gương là bộ trigger ODC đứng yên từ 1992.
+Khuôn án lệ SHALL là **ví dụ trực thuộc một trigger**, không còn là danh sách phẳng tự do. Model
+khi lập kế hoạch probe SHALL khai `trigger` cho từng probe từ danh mục; giá trị ngoài danh mục thì
+máy MUST bỏ trường đó và ghi log — KHÔNG vứt probe, KHÔNG ném lỗi. Thêm mã mới vào danh mục MUST đi
+qua một change có định nghĩa + ranh giới rõ — kỷ luật này (chứ không phải con số) là thứ ngăn quay
+về kho phẳng tự phình.
+
+#### Scenario: tập kích hoạt per-repo
+- **WHEN** hợp đồng repo khai danh sách trigger bật gồm 3 mã hợp lệ và 1 mã lạ
+- **THEN** prompt chỉ phát 3 trigger đó kèm ví dụ của chúng; mã lạ bị log + bỏ qua, lượt chấm không chết
+
+#### Scenario: vắng cấu hình
+- **WHEN** hợp đồng repo không khai gì về trigger
+- **THEN** toàn danh mục được phát — hành vi mặc định không đòi ai cấu hình
 
 #### Scenario: probe khai trigger hợp lệ
 - **WHEN** model trả kế hoạch probe với `trigger: "bien_the_dau_vao"` thuộc danh mục
@@ -25,16 +35,17 @@ tấm gương là bộ trigger ODC đứng yên từ 1992.
 
 ### Requirement: Ví dụ per-trigger có trần và luật đào thải
 
-Mỗi trigger SHALL giữ tối đa **2 ví dụ án lệ**. Khi một bài học mới cần vào một trigger đã đủ 2 ví
-dụ, một ví dụ cũ MUST đi ra — ưu tiên GIỮ ví dụ đã dẫn tới finding thật gần đây nhất, và ví dụ đi ra
+Mỗi trigger SHALL giữ tối đa **N ví dụ án lệ**, với N là tham số cấu hình (mặc định 2 — không neo
+vào hằng nào của hệ luật cũ). Khi một bài học mới cần vào một trigger đã đủ N ví dụ, một ví dụ cũ
+MUST đi ra — ưu tiên GIỮ ví dụ đã dẫn tới finding thật gần đây nhất, và ví dụ đi ra
 được ghi vào phần lưu trữ của file luật (người đọc được, máy không phát vào prompt). Tổng số dòng
-khuôn phát vào prompt MUST NOT vượt trần R12.3 hiện hành.
+khuôn phát vào prompt MUST NOT vượt ngân sách dòng cấu hình được của lượt chấm.
 
 Mỗi ví dụ giữ nguyên các gác cơ học của R12: án lệ phải có mốc định vị truy được nguồn, phát đúng
 một dòng, `dieu_kien` bật theo spec repo đích nếu có.
 
 #### Scenario: thêm ví dụ vào trigger đã đầy
-- **WHEN** trigger `duong_loi` đang có 2 ví dụ và một bài học mới được đúc vào đó
+- **WHEN** trigger `duong_loi` đã đủ N ví dụ và một bài học mới được đúc vào đó
 - **THEN** ví dụ ít giá trị nhất (chưa từng dẫn tới finding thật, hoặc cũ nhất trong các ví dụ ngang
   giá trị) rời khỏi tập phát-vào-prompt, và tổng số dòng phát không đổi
 

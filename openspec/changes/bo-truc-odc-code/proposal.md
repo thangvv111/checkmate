@@ -24,14 +24,16 @@ phân loại lỗi phần mềm đứng yên 34 năm nhờ tách ba thứ mà Ch
 
 ## What Changes
 
-1. **Trục TRIGGER cho sinh probe** — bộ ĐÓNG 10 trigger (thuộc tính của PROBE), lấy từ ODC có thích
-   nghi cho mô hình probe-2-nhánh (bảng chọn/loại kèm lý do trong `design.md`). Prompt sinh probe tổ
-   chức khuôn theo trigger; model khai `trigger` trên từng probe plan — enum đóng, máy validate, giá
-   trị lạ thì BỎ TRƯỜNG chứ không vứt probe.
-2. **Khuôn án lệ tụt xuống làm VÍ DỤ per-trigger** — mỗi trigger giữ tối đa **2 ví dụ** (10×2 = 20
-   dòng, đúng ngân sách prompt hiện hành của R12.3). Ví dụ mới VÀO thì ví dụ cũ RA (đào thải trong
-   trigger, ưu tiên giữ ví dụ đã dẫn tới finding thật gần nhất) — **kho không phình theo thời gian
-   nữa**, trả lời thẳng câu «một năm sau thì sao».
+1. **Trục TRIGGER cho sinh probe** — tách **DANH MỤC** (vốn từ vựng chuẩn có định nghĩa + ranh
+   giới từng mã, khởi điểm 10 mã từ ODC, mở rộng qua change) khỏi **TẬP KÍCH HOẠT per-repo** (cấu
+   hình `checkmate.yml`/màn Đ7 — có repo 2, có repo 30, số lượng linh hoạt; mặc định = toàn danh
+   mục). Model khai `trigger` trên từng probe plan — validate theo danh mục, giá trị lạ thì BỎ
+   TRƯỜNG chứ không vứt probe. Chính ODC nguyên bản vận hành kiểu này: activity-to-trigger mapping
+   là bước customize local, bảng trong tài liệu chỉ là ví dụ generic.
+2. **Khuôn án lệ tụt xuống làm VÍ DỤ per-trigger** — trần ví dụ mỗi trigger là THAM SỐ (mặc định 2),
+   không neo vào hằng nào của hệ luật cũ. Ví dụ mới VÀO thì ví dụ cũ RA (ưu tiên giữ ví dụ đã dẫn
+   tới finding thật gần nhất) — **kho không phình theo thời gian nữa**, trả lời thẳng câu «một năm
+   sau thì sao».
 3. **Trục PHÂN LOẠI cho finding** — Finding thêm 3 trường tuỳ chọn: `va_toi_thieu` (phác một dòng
    «bản vá tối thiểu sửa cái gì» — viết TRƯỚC), `odc_type` (7 giá trị ODC, suy từ phác đó),
    `qualifier` (missing · incorrect · extraneous). Chỉ là telemetry: **không tham gia** quyết
@@ -54,13 +56,13 @@ nguyên) · trần probe MAX_PROBE (chuyện của Đ7) · rubric 7 trục doc.
 
 ## Luật R chạm tới
 
-- **CÓ — file MỚI `specs/R14-truc-phan-loai.md`** (R14.1–R14.x): bộ trigger đóng · vai ví-dụ-per-
-  trigger và luật đào thải · hai trường phân loại finding · lưới chống Goodhart. Đặt file mới thay vì
-  sửa R12 vì R12 là vòng đời KHO (chỗ sống, án lệ bắt buộc, trần, format phát) còn đây là TAXONOMY
-  xuyên tầng — nhét chung làm mã R12.x mang hai nghĩa và phá tham chiếu chéo đã đúc theo mã cũ.
-- **R12 sửa MÔ TẢ vai** (không đổi cơ chế): «khuôn» → «ví dụ per-trigger»; các gác cơ học R12.2 (án
-  lệ có mốc), R12.4 (dieu_kien), R12.5 (một dòng) GIỮ NGUYÊN, áp per-ví-dụ.
-- **R6 thêm một điều** khai hai trường phân loại trên finding là telemetry, không tham gia verdict.
+- **KHÔNG — cố ý.** PO chốt 01/09: `specs/R*.md` đang trộn lẫn nhiều khái niệm, KHÔNG được dùng làm
+  khuôn ép kiến trúc mới; nó chờ một change tái cấu trúc riêng (hạ thành tài liệu tham khảo — kế
+  hoạch 6.3). Change này vì thế **không đẻ R14, không sửa R12/R6**. Luật của bộ trục sống ở ba chỗ
+  máy đọc được: danh mục + validate trong engine (test khoá) · tập kích hoạt trong `checkmate.yml` ·
+  hành vi trong openspec capability `truc-phan-loai-code` (spec delta của change này).
+- Xung đột cần PO chốt tường minh: điều trên đảo mục «Hai tầng spec» trong CLAUDE.md (phương án A,
+  PO chốt 31/08) — trình kèm câu hỏi riêng, không tự quyết ở đây.
 
 ## Kế hoạch nối tiếp (KHÔNG thuộc change này — PO đã duyệt hướng, mở change riêng sau)
 
