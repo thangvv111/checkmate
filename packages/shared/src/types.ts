@@ -152,6 +152,32 @@ export interface Verdict {
     loai: 'nghi_loi_co_san' | 'ngoai_pham_vi';
     message: string; // dòng đầu lỗi trên nhánh gốc
   }>;
+  /**
+   * File MÃ NGUỒN bị loại khỏi diff — verdict KHÔNG nói gì về chúng.
+   *
+   * Engine vốn đã biết điều này (`readTarget` trả `ngoaiTamNhin` kèm lý do từng file), nhưng trước
+   * đây nó chỉ đi ra dưới dạng một câu tiếng Việt trong log. Giao diện muốn dựng cảnh báo thì phải
+   * dò chữ trong lời văn — vỡ ngay lần ai đó sửa một từ. Nay là dữ liệu.
+   *
+   * Vắng trường này nghĩa là KHÔNG BIẾT (bản ghi đời cũ), không phải «không có vùng mù».
+   */
+  diff_blind_spots?: Array<{ file: string; reason: string }>;
+  /**
+   * Quyết định làm THAY ĐỔI TÀI SẢN regression trong lượt này.
+   * `not_admitted` — probe mới bị bỏ, tức không thêm tài sản.
+   * `evicted` — probe đã có bị gỡ, tức MẤT tài sản đã chứng minh được mình.
+   * Hai việc hậu quả khác hẳn nhau nên tách mã, không gộp thành một cờ.
+   */
+  library_changes?: Array<{ probe_id: string; action: 'not_admitted' | 'evicted'; reason: string }>;
+  /** Nhánh gốc không chạy được probe nào — probe đỏ khi đó chỉ là nghi vấn, không thành hồi quy. */
+  no_baseline?: boolean;
+  /** Tên người bấm chạy. VẮNG = lượt do máy chạy (chế độ trực) — hai thứ chịu trách nhiệm khác nhau. */
+  run_by?: string;
+  /**
+   * Head của pull request đã đổi TRONG LÚC lượt chấm chạy — verdict này ra đời đã hết hiệu lực.
+   * Cổng vốn đã chặn ở đường ghi; trường này để màn hình nói ra TRƯỚC khi người dùng bấm.
+   */
+  head_moved?: { new_sha: string; at: string };
   mode: 'live' | 'replay';
   started_at: string;
   finished_at: string;
@@ -162,4 +188,10 @@ export type RunEvent =
   | { type: 'log'; msg: string }
   | { type: 'finding'; finding: Finding }
   | { type: 'verdict'; verdict: Verdict }
+  /**
+   * Head pull request đổi giữa lúc chấm. Phát ra NGAY để người đang xem thấy mà không phải tải lại.
+   * Lượt chấm vẫn chạy tới hết — verdict trên commit cũ không dùng được ở cổng, nhưng phần lớn
+   * finding vẫn đúng với mã nguồn, nên nó còn giá trị đọc.
+   */
+  | { type: 'head_moved'; new_sha: string; at: string }
   | { type: 'error'; msg: string };

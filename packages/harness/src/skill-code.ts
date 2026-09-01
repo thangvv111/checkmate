@@ -29,6 +29,12 @@ interface KetQuaSkillCode {
   soProbe: number;
   probeStats: NonNullable<Verdict['probe_stats']>;
   quanSat: NonNullable<Verdict['quan_sat_ngoai_pr']>;
+  /** File MÃ NGUỒN bị loại khỏi diff vì vượt trần — verdict không nói gì về chúng. */
+  diffBlindSpots: NonNullable<Verdict['diff_blind_spots']>;
+  /** Quyết định làm thay đổi tài sản regression trong lượt này. */
+  libraryChanges: NonNullable<Verdict['library_changes']>;
+  /** Nhánh gốc không chạy được probe nào ở vòng cuối — mọi fail chỉ là nghi vấn. */
+  noBaseline: boolean;
 }
 
 type PhatEvent = (e: RunEvent) => void;
@@ -414,6 +420,10 @@ export async function runCodeSkill(
   phat({ type: 'stage', stage: 1, ten: 'Nhận artifact — đọc diff PR' });
   const review = readReviewCfg(repo); // đọc trước readTarget: repo khai file nào không cần đưa vào diff
   const t = readTarget(repo, branch, base, diffIgnorePatterns(review));
+  // Sổ ghi các quyết định làm thay đổi thư viện, để verdict mang được chúng dưới dạng DỮ LIỆU.
+  // Trước đây chúng chỉ đi ra bằng câu chữ trong log, nên giao diện muốn bày thì phải dò chữ.
+  const libraryChanges: NonNullable<Verdict['library_changes']> = [];
+  let noBaseline = false;
   phat({ type: 'log', msg: `PR ${branch} @ ${t.branchSha.slice(0, 7)} · đối chứng ${base} @ ${t.baseSha.slice(0, 7)} · diff ${t.diff.length} ký tự` });
   if (t.ngoaiTamNhin.length) {
     phat({
@@ -521,7 +531,21 @@ export async function runCodeSkill(
       const f = findingTreo();
       phat({ type: 'log', msg: 'C7: nhánh PR làm TREO lệnh test — kết luận thẳng finding high, không sinh lại probe' });
       phat({ type: 'finding', finding: f });
-      return { findings: [f], target: t, soProbe: 0, probeStats: { ...thongKe, that_lac: keHoach.map((p) => p.id) }, quanSat: [] };
+      // `noBaseline: false` ở đây KHÔNG phải lời khẳng định «có đối chứng» — nhánh PR treo nên
+      // chưa từng chạy tới bước so hai nhánh. Cờ này chỉ điều khiển một cảnh báo, và cảnh báo đó
+      // vô nghĩa ở lượt đã kết luận bằng một finding high về chuyện treo.
+      return {
+        findings: [f],
+        target: t,
+        soProbe: 0,
+        probeStats: { ...thongKe, that_lac: keHoach.map((p) => p.id) },
+        quanSat: [],
+        diffBlindSpots: t.ngoaiTamNhin
+          .filter((x) => x.lyDo === 'vượt trần kích thước diff')
+          .map((x) => ({ file: x.file, reason: x.lyDo })),
+        libraryChanges,
+        noBaseline: false,
+      };
     }
     if (loiThu !== undefined) {
       if (lan === 2) throw new Error(`Probe không thu thập được sau 2 lần sinh: ${loiThu}`);
@@ -552,6 +576,9 @@ export async function runCodeSkill(
     };
     phat({ type: 'log', msg: `Nhánh PR:  ${tomTatKq(branchKq)}` });
     phat({ type: 'log', msg: `Nhánh gốc: ${tomTatKq(baseKq)}` });
+    // Không có đối chứng ĐỔI CÁCH ĐỌC toàn bộ phần sau: probe đỏ khi đó chỉ là nghi vấn, không
+    // thành hồi quy. Nên nó là dữ liệu trên verdict, không phải một dòng log trôi qua.
+    noBaseline = baseKq === undefined;
     const timKq = (kq: ProbeResult[] | undefined, file: string, id: string) =>
       kq?.find((r) => r.file === file && matchProbeId(r.title, id));
 
@@ -878,7 +905,10 @@ export async function runCodeSkill(
     for (const u of duocNap) {
       const kqN = admitToLibrary(slug, u.code, u.plan, t.branchSha, extProbe);
       if (kqN.ten) soNhan++;
-      else if (kqN.bo) phat({ type: 'log', msg: `Thư viện: bỏ ${u.plan.id} — ${kqN.bo}${kqN.voi ? ` (${kqN.voi})` : ''}` });
+      else if (kqN.bo) {
+        libraryChanges.push({ probe_id: u.plan.id, action: 'not_admitted', reason: kqN.bo + (kqN.voi ? ` (${kqN.voi})` : '') });
+        phat({ type: 'log', msg: `Thư viện: bỏ ${u.plan.id} — ${kqN.bo}${kqN.voi ? ` (${kqN.voi})` : ''}` });
+      }
     }
     if (soNhan > 0) phat({ type: 'log', msg: `Thư viện: nhận ${soNhan}/${passGoc.length} probe pass-gốc — thành regression cho các lượt sau` });
     else if (passGoc.length === 0) phat({ type: 'log', msg: 'Thư viện: KHÔNG nhận — không probe mới nào pass trên nhánh gốc' });
@@ -892,6 +922,7 @@ export async function runCodeSkill(
       ungVienTatCa.filter((u) => u.nguon === 'thu_vien').map((u) => ({ ten: u.file, trangThai: u.trangThai })),
     );
     for (const g of findAndDropBehaviorDuplicates(slug)) {
+      libraryChanges.push({ probe_id: g.go, action: 'evicted', reason: `hành vi trùng đo được với ${g.giu} (${g.bangChung})` });
       phat({ type: 'log', msg: `Thư viện: gỡ ${g.go} — hành vi TRÙNG ĐO ĐƯỢC với ${g.giu} (${g.bangChung})` });
     }
   }
@@ -911,5 +942,19 @@ export async function runCodeSkill(
   }
 
   for (const f of findings) phat({ type: 'finding', finding: f });
-  return { findings, target: t, soProbe: ungVienTatCa.length, probeStats: thongKe, quanSat };
+  return {
+    findings,
+    target: t,
+    soProbe: ungVienTatCa.length,
+    probeStats: thongKe,
+    quanSat,
+    // CHỈ file mã nguồn bị loại vì vượt trần. File sinh tự động (lockfile, kết quả build) vẫn nằm
+    // trong log nhưng KHÔNG vào đây: chúng không đổi cách đọc verdict, và một cảnh báo nổi lên ở
+    // mọi PR có lockfile là một cảnh báo người ta học cách bỏ qua.
+    diffBlindSpots: t.ngoaiTamNhin
+      .filter((f) => f.lyDo === 'vượt trần kích thước diff')
+      .map((f) => ({ file: f.file, reason: f.lyDo })),
+    libraryChanges,
+    noBaseline,
+  };
 }

@@ -100,11 +100,19 @@ async function main(): Promise<void> {
     let artifactRef: ArtifactRef;
     let probeStats: Verdict['probe_stats'];
     let quanSat: Verdict['quan_sat_ngoai_pr'];
+    let diffBlindSpots: Verdict['diff_blind_spots'];
+    let libraryChanges: Verdict['library_changes'];
+    let noBaseline: Verdict['no_baseline'];
     if (skill === 'code') {
       const kq = await runCodeSkill(model, repo!, branch!, base, ghiPhat);
       findings = kq.findings;
       probeStats = kq.probeStats;
       quanSat = kq.quanSat.length > 0 ? kq.quanSat : undefined;
+      // Rỗng thì để VẮNG hẳn, đừng ghi `[]`: bản ghi đời cũ cũng vắng, nên hai bên đọc như nhau và
+      // giao diện chỉ phải nhớ MỘT luật — vắng thì không bày khối đó.
+      diffBlindSpots = kq.diffBlindSpots.length > 0 ? kq.diffBlindSpots : undefined;
+      libraryChanges = kq.libraryChanges.length > 0 ? kq.libraryChanges : undefined;
+      noBaseline = kq.noBaseline ? true : undefined;
       artifactRef = { type: 'pr', name: branch!, sha_or_hash: kq.target.branchSha };
     } else if (repo && branch) {
       // docs-as-code: đọc file ở đúng bản của nhánh/PR qua worktree
@@ -133,6 +141,12 @@ async function main(): Promise<void> {
       probe_stats: probeStats,
       chi_phi: costMetrics(),
       quan_sat_ngoai_pr: quanSat,
+      diff_blind_spots: diffBlindSpots,
+      library_changes: libraryChanges,
+      no_baseline: noBaseline,
+      // Ai bấm chạy — tầng web truyền xuống. Vắng = lượt do máy chạy (chế độ trực), và đó là một
+      // khẳng định có nghĩa chứ không phải thiếu dữ liệu.
+      run_by: layArg('run-by') || undefined,
       model: model.ten,
       mode: 'live',
       started_at: batDau,

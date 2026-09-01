@@ -4,20 +4,24 @@ Năm commit tách bạch: hợp đồng → bền dòng sự kiện → server-r
 
 ## 1. Commit 1 — HỢP ĐỒNG (chỉ thêm, không sửa)
 
-- [ ] 1.1 `packages/shared/src/types.ts` — thêm trường **tuỳ chọn** vào `Verdict`:
-      `vung_mu_diff?: { file: string; ly_do: string }[]` · `thu_vien?: { probe_id: string; viec:
-      'khong_nap' | 'go_khoi'; ly_do: string }[]` · `khong_co_doi_chung?: boolean` ·
-      `nguoi_chay?: string` (vắng = lượt do máy chạy).
+- [x] 1.1 `packages/shared/src/types.ts` — thêm trường **tuỳ chọn** vào `Verdict`:
+      `diff_blind_spots?: { file, reason }[]` · `library_changes?: { probe_id, action:
+      'not_admitted' | 'evicted', reason }[]` · `no_baseline?: boolean` · `run_by?: string`
+      (vắng = lượt do máy chạy) · `head_moved?: { new_sha, at }`. Thêm loại sự kiện `head_moved`.
+      **Tên tiếng Anh** — bản artifact đầu em viết tên tiếng Việt, trái luật «định danh mới sinh dùng
+      tiếng Anh» (PO chốt 01/09). Ở đây nó nặng hơn thường lệ: tên trường thành **khoá JSON trên
+      đĩa**, nên đặt sai bây giờ là một lần di trú lớp B về sau.
       ⛔ CHỈ THÊM. `Verdict` bị `JSON.stringify` nguyên khối xuống cột `run.verdict`, nên đổi tên hay
       đổi kiểu là 29 bản ghi đang có đọc sai mà không ai biết.
-- [ ] 1.2 Lưới đọc-được-bản-cũ: nạp fixture verdict đời cũ (không có trường mới) → parse ra được, và
+- [x] 1.2 Lưới đọc-được-bản-cũ: nạp fixture verdict đời cũ (không có trường mới) → parse ra được, và
       màn Run dựng được, các khối mới đơn giản không hiện.
-- [ ] 1.3 `packages/harness/src/skill-code.ts` — điền các trường trên khi dựng verdict. Dữ liệu đã có
+- [x] 1.3 `packages/harness/src/skill-code.ts` — điền các trường trên khi dựng verdict. Dữ liệu đã có
       sẵn trong engine (`t.ngoaiTamNhin` kèm `lyDo`, kết quả `admitToLibrary`), hiện chỉ đang bị ném
       vào câu chữ log.
-- [ ] 1.4 **Giữ nguyên các dòng log hiện có.** Chúng là bản đọc cho người; trường mới là bản đọc cho
+- [x] 1.4 **Giữ nguyên các dòng log hiện có.** Chúng là bản đọc cho người; trường mới là bản đọc cho
       máy. Bỏ log đi thì mất dấu vết trong bản ghi cũ.
-- [ ] 1.5 ⛔C5 — khai export mới vào bảng module `checkmate.yml`.
+- [x] 1.5 ⛔C5 — kiểm rồi: đợt này **không sinh export nào mới**. Chỉ thêm trường tuỳ chọn vào một
+      interface đã có và một nhánh cho `RunEvent`. Bảng module giữ nguyên.
 
 ## 2. Commit 2 — BỀN DÒNG SỰ KIỆN
 

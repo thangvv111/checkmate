@@ -99,3 +99,38 @@ describe('fixture phải là DỮ LIỆU CŨ đọc từ đĩa, không phải ob
     expect(t).toContain('"muc_dich"');
   });
 });
+
+/**
+ * Lưới canh việc NỚI hợp đồng verdict (change man-run-va-cong-merge).
+ *
+ * `Verdict` bị `JSON.stringify` nguyên khối xuống cột `run.verdict`, nên mọi trường mới chỉ được
+ * THÊM và phải TUỲ CHỌN. Đây là chỗ dễ hỏng im lặng nhất: thêm một trường bắt buộc thì 29 bản ghi
+ * đang có vẫn parse ra được (TypeScript không kiểm lúc chạy), nhưng chỗ đọc sẽ chạm `undefined` ở
+ * nơi nó tin là có giá trị — và lỗi chỉ lộ ra khi ai đó tra một lượt chấm cũ để cãi về một quyết
+ * định merge, tức đúng lúc tệ nhất.
+ */
+describe('verdict đời cũ vẫn đọc được sau khi nới hợp đồng', () => {
+  const v = doc('verdict-doi-cu.json') as Verdict;
+
+  it('fixture đúng là bản ĐỜI CŨ — không mang trường nào của đợt nới', () => {
+    // Nếu ca này đỏ thì fixture đã bị làm mới, và mọi ca dưới đây mất nghĩa: chúng sẽ xanh vì dữ
+    // liệu đã có sẵn trường mới, chứ không phải vì mã nguồn chịu được dữ liệu thiếu.
+    for (const k of ['diff_blind_spots', 'library_changes', 'no_baseline', 'run_by', 'head_moved'] as const) {
+      expect(v[k], `fixture đời cũ lại có ${k} — nó không còn là dữ liệu cũ`).toBeUndefined();
+    }
+  });
+
+  it('thiếu trường mới thì đọc ra undefined, không ném lỗi', () => {
+    expect(() => JSON.parse(JSON.stringify(v)) as Verdict).not.toThrow();
+    expect(v.probe_stats, 'trường CŨ phải còn nguyên sau khi nới').toBeDefined();
+    expect(v.findings.length, 'finding đời cũ phải còn đọc được').toBeGreaterThanOrEqual(0);
+  });
+
+  it('vắng KHÁC không — mã nguồn không được suy «vắng» thành «đã kiểm và không có»', () => {
+    // Đây là ⛔C2 ở tầng dữ liệu. `no_baseline === undefined` nghĩa là KHÔNG BIẾT (bản ghi cũ
+    // không mang thông tin này), còn `false` nghĩa là ĐÃ KIỂM và có đối chứng. Trộn hai cái là
+    // khẳng định một điều mình không có quyền khẳng định.
+    expect(v.no_baseline).not.toBe(false);
+    expect(v.no_baseline).toBeUndefined();
+  });
+});
