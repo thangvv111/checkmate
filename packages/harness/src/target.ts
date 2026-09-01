@@ -105,7 +105,11 @@ export function trichMaLuat(vanBan: string): Set<string> {
  * vi phạm ngay luật vừa khai.
  */
 export function timLuatMoi(repo: string, base: string, specsPr: Array<{ file: string; noiDung: string }>): string[] {
-  const maPr = trichMaLuat(specsPr.map((x) => x.noiDung).join('\n'));
+  // Danh sách spec méo (khuyết, không phải mảng, phần tử lạ) KHÔNG được làm hàm ném: nó nằm trên
+  // đường quyết định nhãn `vi_pham_luat_moi`, và ném ở đây là cả lượt chấm chết thay vì rơi về
+  // «không có luật mới» — hướng an toàn (quan sát ngoài phạm vi P6 của cổng).
+  const ds = Array.isArray(specsPr) ? specsPr : [];
+  const maPr = trichMaLuat(ds.map((x) => (x && typeof x.noiDung === 'string' ? x.noiDung : '')).join('\n'));
   if (maPr.size === 0) return [];
   let vanBanGoc = '';
   try {

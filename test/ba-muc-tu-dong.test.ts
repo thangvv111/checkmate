@@ -55,6 +55,24 @@ describe('cache config theo NỘI DUNG — R9.14 tuyệt đối, không ngoại 
   });
 });
 
+describe('P10 — khoá LẠ trong config.json không được thành công tắc ma (R6.19)', () => {
+  it('khoá lạ bị bỏ: `truc.tu_dong_merge` gõ tay KHÔNG hiện ra như một công tắc đang bật', () => {
+    // Không dòng code nào đọc khoá đó, nhưng nó hiện lên trong /api/cau-hinh và mọi bản dump như một
+    // công tắc ĐANG BẬT — công tắc ma làm hỏng đúng lời bảo đảm «không có công tắc nào bật được máy
+    // tự merge» (quan sát ngoài phạm vi P10 của cổng, PO chốt xử trong change này).
+    writeFileSync(
+      join(goc, 'config.json'),
+      JSON.stringify({ truc: { bat: true, tu_dong_merge: true, auto_merge: true, merge_khi_pass: true, tu_dong_comment: false } }),
+      'utf8',
+    );
+    const c = cfg.docConfig();
+    expect(Object.keys(c.truc).filter((k) => /merge/i.test(k)), 'không khoá nào mang chữ merge được sống sót').toEqual([]);
+    // khoá THẬT vẫn phải đi qua nguyên vẹn — lưới không được nuốt cấu hình đúng
+    expect(c.truc.tu_dong_comment).toBe(false);
+    expect(c.truc.bat).toBe(true);
+  });
+});
+
 afterAll(() => rmSync(goc, { recursive: true, force: true }));
 
 describe('cửa ĐỌC cấu hình cũng phải gác giới hạn model (R5.15) — Opus bắt ở vòng ba', () => {

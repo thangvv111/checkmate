@@ -58,7 +58,16 @@ export function mauBoQuaDiff(review: ReviewCfg | null): RegExp[] {
 export function docRunnerCfg(repoPath: string): RunnerCfg | null {
   const f = join(repoPath, 'checkmate.yml');
   if (!existsSync(f)) return null;
-  const raw = parseYaml(readFileSync(f, 'utf8')) as { runner?: Partial<RunnerCfg> };
+  // R2.12 — cú pháp hỏng thì FAIL-SAFE về null, không ném. Cửa song sinh `docReviewCfg` đã gác đúng
+  // từ lâu còn cửa này thì không: hợp đồng repo đích sai một dấu nháy là cả lượt chấm chết ở bước
+  // đọc, thay vì rơi về đường vitest mặc định như luật khai (quan sát ngoài phạm vi P8 của cổng).
+  let raw: { runner?: Partial<RunnerCfg> } | undefined;
+  try {
+    raw = parseYaml(readFileSync(f, 'utf8')) as { runner?: Partial<RunnerCfg> };
+  } catch (e) {
+    console.error(`checkmate.yml của repo đích sai cú pháp — bỏ qua cấu hình runner, rơi về đường mặc định (R2.12): ${(e as Error).message.slice(0, 160)}`);
+    return null;
+  }
   const r = raw?.runner;
   if (!r?.test_cmd) return null;
   return {

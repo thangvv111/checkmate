@@ -138,7 +138,11 @@ export function docConfig(): CheckmateConfig {
     repo: repos.find((r) => r.github === chon) ?? repos[0],
     github_token: luu.github_token ?? '',
     agent: nangCapAgent(luu.agent),
-    truc: { ...MAC_DINH.truc, ...luu.truc },
+    // R6.19 — chỉ giữ KHOÁ ĐÃ BIẾT. Cho khoá lạ đi qua thì một `config.json` sửa tay có thể dựng ra
+    // `truc.tu_dong_merge: true`: không dòng code nào đọc nó, nhưng nó hiện lên trong /api/cau-hinh
+    // và mọi bản dump như một công tắc ĐANG BẬT — công tắc ma làm hỏng đúng lời bảo đảm «không có
+    // công tắc nào bật được máy tự merge» (quan sát ngoài phạm vi P10 của cổng).
+    truc: locKhoaBiet(MAC_DINH.truc, luu.truc),
   };
   cache = { raw, token: tokenEnv, c };
   return c;
@@ -146,6 +150,21 @@ export function docConfig(): CheckmateConfig {
 
 // Config đời cũ chỉ có provider 'cli'|'api' + model phẳng — nâng lên mô hình nhà-cung-cấp
 // mà không bắt người dùng cấu hình lại từ đầu.
+/**
+ * Chỉ giữ những khoá CÓ TRONG bản mặc định — khoá lạ trong file sửa tay bị bỏ và nói ra.
+ * Bỏ trong im lặng cũng không được: người vừa gõ một khoá cần biết nó không có tác dụng.
+ */
+function locKhoaBiet<T extends object>(macDinh: T, luu: Partial<T> | undefined): T {
+  const ra = { ...macDinh };
+  const la: string[] = [];
+  for (const [k, v] of Object.entries(luu ?? {})) {
+    if (k in macDinh) (ra as Record<string, unknown>)[k] = v;
+    else la.push(k);
+  }
+  if (la.length) console.error(`config.json có khoá KHÔNG được hỗ trợ, đã bỏ qua: ${la.join(', ')} — không khoá nào trong số này có tác dụng`);
+  return ra;
+}
+
 function nangCapAgent(a?: Partial<AgentConfig>): AgentConfig {
   if (!a) return structuredClone(MAC_DINH.agent);
   if (a.ncc) {

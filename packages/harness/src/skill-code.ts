@@ -96,7 +96,12 @@ export function nhanProbe(title: string, idBiet: readonly string[] = []): string
   // đúng cho cả hai.
   // Nay hỏi CHÍNH cửa nối id (khopIdProbe) xem probe này mang mã nào — hai cửa dùng chung một luật
   // nên không thể lệch, và mã hiện ra là mã ĐÃ NỐI ĐƯỢC chứ không phải mã đoán ra.
-  const id = idBiet.find((x) => khopIdProbe(title ?? '', x));
+  // Lấy mã KHỚP DÀI NHẤT, không lấy khớp đầu tiên: `idBiet` xếp theo thứ tự kế hoạch nên «P1» luôn
+  // đứng trước «P10», và một describe tên «P1 hay P2» khiến mọi probe từ P10 trở lên bị dán nhãn P1
+  // (vòng năm của cổng bắt). Mã dài hơn là mã cụ thể hơn.
+  const id = [...idBiet]
+    .filter((x) => khopIdProbe(title ?? '', x))
+    .sort((a, b) => b.length - a.length)[0];
   if (id) return `${id}·${van}`;
   // Không biết mã (probe thư viện đời cũ, hoặc test lạ): lấy chữ cho người đọc nhận mặt, và VÂN TAY
   // bảo đảm hai title khác nhau không bao giờ ra cùng nhãn — kể cả khi phần chữ bị cắt trùng khít.

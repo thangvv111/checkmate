@@ -87,6 +87,14 @@ describe('A · nhãn probe trong log giữ đúng phần phân biệt', () => {
     expect(nhanProbe('nhóm > P1: kỳ vọng a > phải chặn', ['P1'])).toContain('P1');
   });
 
+  it('mã khớp DÀI NHẤT, không phải khớp đầu tiên: P10 không bị dán nhãn P1 (vòng năm, HIGH)', () => {
+    // idBiet xếp theo thứ tự kế hoạch nên «P1» luôn đứng trước «P10»; lấy khớp đầu tiên thì mọi probe
+    // từ P10 trở lên bị dán mã của P1 — nhãn mang mã SAI, đúng thứ vòng ba đã cấm.
+    expect(nhanProbe('P1 hay P2 > P10: nối đúng id', ['P1', 'P10'])).toContain('P10');
+    expect(nhanProbe('P1 hay P2 > P10: nối đúng id', ['P1', 'P10']).startsWith('P1·')).toBe(false);
+    expect(nhanProbe('nhóm > P1: một', ['P1', 'P10'])).toContain('P1');
+  });
+
   it('KHÔNG biết mã thì vẫn cho nhãn đọc được và không trùng', () => {
     const a = nhanProbe('cửa đọc cấu hình máy chủ > phải chặn');
     const b = nhanProbe('cửa đọc cấu hình repo đích > phải chặn');
