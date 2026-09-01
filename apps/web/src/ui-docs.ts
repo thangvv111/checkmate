@@ -1,4 +1,4 @@
-import { khung } from './ui.js';
+import { shell } from './ui.js';
 
 // Trang "Nguyên tắc làm việc" — tài liệu tự thân của checker: vì sao verdict tin được.
 // Bố cục: menu điều hướng trái (sticky + scroll-spy), nội dung phải. CSS gói riêng trong trang
@@ -54,7 +54,7 @@ const JS_SPY = `
   document.addEventListener('scroll',danhDau,{passive:true}); danhDau();
 `;
 
-export function trangDocs(): string {
+export function docsPage(): string {
   const nav = `
   <nav class="docs-nav" aria-label="Mục lục">
     <div class="nhom">Nền tảng</div>
@@ -129,7 +129,7 @@ export function trangDocs(): string {
       <b>model được sáng tạo, máy được quyết định</b> — mọi điểm ra phán quyết đều nằm ở máy.</p>
       <p><b>Probe</b> (phép thử đối kháng do checker tự sinh) được tạo <b>neo vào từng luật trong spec</b> của repo — mỗi probe khai báo nó kiểm luật nào.
       Toàn bộ chạy trong sandbox tách biệt (git worktree) với biến môi trường được lọc allowlist — code PR
-      không thấy secrets của checker; trên chính bộ khung test của repo: repo nào chạy test được — dù chưa có CI —
+      không thấy secrets của checker; trên chính bộ shell test của repo: repo nào chạy test được — dù chưa có CI —
       là chấm được. Stack khác khai cách chạy qua <code>checkmate.yml</code>, hợp đồng kết quả là JUnit XML
       (Python đã chạy end-to-end; Java đi cùng hợp đồng, chưa kiểm end-to-end).</p>
       <p>Finding của skill code luôn có dạng: <b>kỳ vọng theo spec</b> đối chiếu <b>kết quả chạy thật</b>.
@@ -309,7 +309,7 @@ export function trangDocs(): string {
     </section>
   </div>`;
 
-  return khung(
+  return shell(
     'Nguyên tắc làm việc — CheckMate',
     `<style>${CSS_DOCS}</style>
      <h1>Nguyên tắc làm việc</h1>

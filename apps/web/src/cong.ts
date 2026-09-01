@@ -1,15 +1,15 @@
 import { chuanMuc, type Finding, type Verdict } from '../../../packages/shared/src/types.js';
-import { ghiSoCong, hanhDongCongCuaPr, prCanDoiSoat } from './kho/kho-socai.js';
-import { cheTokenTrongVan } from './github.js';
+import { appendGateLedger, gateActionsOfPr, prsNeedingReconcile } from './kho/kho-socai.js';
+import { maskTokenInText } from './github.js';
 import { MODE } from './config.js';
-import { docMeta } from './kho/kho-run.js';
+import { readMeta } from './kho/kho-run.js';
 
 /**
  * ĐÃ GỠ: `nguoiThaoTac()` lấy `userInfo().username` — tài khoản HỆ ĐIỀU HÀNH chạy tiến trình. Trên máy
  * chủ đó là `ubuntu`, nên sổ kiểm toán ghi cùng một cái tên cho mọi hành động của mọi người, và một
  * cổng phê duyệt không truy được ai phê duyệt thì không phải cổng.
  *
- * Người thao tác nay lấy từ PHIÊN ĐĂNG NHẬP qua `layDanhTinh(req)` — cửa duy nhất, R11.1 và R11.4.
+ * Người thao tác nay lấy từ PHIÊN ĐĂNG NHẬP qua `getIdentity(req)` — cửa duy nhất, R11.1 và R11.4.
  * Không để lại hàm thay thế nào ở đây: có một hàm tiện tay trả về «một cái tên nào đó» là mời chỗ gọi
  * sau này dùng lại đúng cái bệnh vừa chữa (R11.3).
  */
@@ -20,12 +20,12 @@ import { docMeta } from './kho/kho-run.js';
  * sót thì hai cái tên vẫn nằm cạnh nhau trong sổ cho người đọc tự thấy; bắt oan thì cảnh báo dựng lên
  * ở đúng lúc người ta cần merge gấp, và lần sau không ai đọc cảnh báo nữa.
  */
-export function trungNguoi(nguoiBam: string, tacGiaPr: string): boolean {
+export function samePerson(nguoiBam: string, tacGiaPr: string): boolean {
   const gon = (x: string) => x.trim().toLowerCase().replace(/[._-]/g, '');
   return gon(nguoiBam) !== '' && gon(nguoiBam) === gon(tacGiaPr);
 }
 
-export function demMuc(findings: Finding[]): { high: number; medium: number; low: number } {
+export function countBySeverity(findings: Finding[]): { high: number; medium: number; low: number } {
   const d = { high: 0, medium: 0, low: 0 };
   for (const f of findings) d[chuanMuc(f.severity)]++;
   return d;
@@ -44,14 +44,14 @@ export function demMuc(findings: Finding[]): { high: number; medium: number; low
  * Đổi sang chuỗi mà KHÔNG ném — dùng trên đường ghi hàng sổ (R6.25).
  *
  * Cả `${x}` lẫn `String(x)` đều ném được: Symbol trong nội suy chuỗi, và mọi giá trị có `toString`
- * tự ném. Hàm đứng ngay trước `ghiSoCong` mà ném là **mất trọn hàng sổ** của một hành động cổng đã
+ * tự ném. Hàm đứng ngay trước `appendGateLedger` mà ném là **mất trọn hàng sổ** của một hành động cổng đã
  * xảy ra thật — lệch ngược hướng an toàn.
  *
  * Trả `ok:false` thay vì một chuỗi thay thế im lặng: bọc `try` rồi nuốt lỗi sẽ cho một mô tả nghèo
  * hơn mà KHÔNG AI BIẾT là đã nghèo đi — đúng khuôn «khai dữ liệu không đọc được thành bằng không»
  * mà R6.27 cấm. Người gọi phải NÓI RA chỗ không đọc được (M17).
  */
-export function chuoiAnToan(x: unknown): { ok: true; giaTri: string } | { ok: false; kieu: string } {
+export function safeString(x: unknown): { ok: true; giaTri: string } | { ok: false; kieu: string } {
   try {
     return { ok: true, giaTri: String(x) };
   } catch {
@@ -59,10 +59,10 @@ export function chuoiAnToan(x: unknown): { ok: true; giaTri: string } | { ok: fa
   }
 }
 
-export function chiTietNgoaiCong(v: { result?: string; findings?: Finding[] } | null): string {
+export function outsideGateDetail(v: { result?: string; findings?: Finding[] } | null): string {
   // `result` do bên ngoài đưa vào nên đổi chuỗi phải an toàn — tính MỘT LẦN ở đầu, dùng cho cả ba
   // nhánh trả về bên dưới, để không còn nhánh nào nội suy thẳng (M17).
-  const cr = chuoiAnToan((v as { result?: unknown } | null)?.result ?? 'không rõ');
+  const cr = safeString((v as { result?: unknown } | null)?.result ?? 'không rõ');
   const ketQua = cr.ok ? cr.giaTri : `KHÔNG ĐỌC ĐƯỢC (kiểu ${cr.kieu})`;
   // Chính THAM SỐ verdict cũng phải kiểm, không chỉ trường `findings` bên trong nó (R6.27). Verdict là
   // chuỗi 'PASS', số 42, hay một MẢNG finding đặt nhầm ở gốc đều rơi mềm vào nhánh «không có finding»
@@ -70,7 +70,7 @@ export function chiTietNgoaiCong(v: { result?: string; findings?: Finding[] } | 
   if (v !== null && v !== undefined && (typeof v !== 'object' || Array.isArray(v))) {
     return [
       '⚠ Hành động xảy ra NGOÀI CheckMate (không qua cổng)',
-      `ghi nhận tự động bởi ${TEN_TAC_NHAN_MAY} khi đối soát — máy chỉ GHI LẠI, không phải máy thực hiện (R6.18)`,
+      `ghi nhận tự động bởi ${MACHINE_ACTOR_NAME} khi đối soát — máy chỉ GHI LẠI, không phải máy thực hiện (R6.18)`,
       'KHÔNG có xác nhận finding nào — không ai tick trước khi merge',
       `verdict KHÔNG ĐỌC ĐƯỢC (kiểu ${Array.isArray(v) ? 'array' : typeof v}) — KHÔNG đếm được finding, đừng đọc thành «không có finding»`,
     ].join(' · ');
@@ -81,7 +81,7 @@ export function chiTietNgoaiCong(v: { result?: string; findings?: Finding[] } | 
   if (v?.findings !== undefined && !Array.isArray(v.findings)) {
     return [
       '⚠ Hành động xảy ra NGOÀI CheckMate (không qua cổng)',
-      `ghi nhận tự động bởi ${TEN_TAC_NHAN_MAY} khi đối soát — máy chỉ GHI LẠI, không phải máy thực hiện (R6.18)`,
+      `ghi nhận tự động bởi ${MACHINE_ACTOR_NAME} khi đối soát — máy chỉ GHI LẠI, không phải máy thực hiện (R6.18)`,
       'KHÔNG có xác nhận finding nào — không ai tick trước khi merge',
       `verdict lúc chấm: ${ketQua} · danh sách finding KHÔNG ĐỌC ĐƯỢC (kiểu ${typeof v.findings}) — KHÔNG đếm được, đừng đọc thành «không có finding»`,
     ].join(' · ');
@@ -112,19 +112,19 @@ export function chiTietNgoaiCong(v: { result?: string; findings?: Finding[] } | 
     .map((f) => {
       // `String()` cũng ném được (toString tự ném). Đổi không được thì mục đó rơi vào `boLoai` và
       // được ĐẾM + NÓI RA bên dưới, chứ không biến mất im lặng (M17 + R6.27).
-      const c = chuoiAnToan((f as { severity?: unknown }).severity ?? '');
+      const c = safeString((f as { severity?: unknown }).severity ?? '');
       return c.ok ? { ...(f as object), severity: c.giaTri } : null;
     })
     .filter((f) => f !== null) as Finding[]);
   const boLoai = tho.length - ds.length;
-  const d = demMuc(ds);
+  const d = countBySeverity(ds);
   const chuaTick = d.medium + d.low;
   const nghiVe = boLoai
     ? ` · ${boLoai} mục KHÔNG đọc được (không đủ hình dạng một finding) — con số trên chỉ tính phần đọc được, KHÔNG phải toàn bộ`
     : '';
   return [
     '⚠ Hành động xảy ra NGOÀI CheckMate (không qua cổng)',
-    `ghi nhận tự động bởi ${TEN_TAC_NHAN_MAY} khi đối soát — máy chỉ GHI LẠI, không phải máy thực hiện (R6.18)`,
+    `ghi nhận tự động bởi ${MACHINE_ACTOR_NAME} khi đối soát — máy chỉ GHI LẠI, không phải máy thực hiện (R6.18)`,
     'KHÔNG có xác nhận finding nào — không ai tick trước khi merge',
     `verdict lúc chấm: ${ketQua} · ${d.high} high · ${d.medium} medium · ${d.low} low` +
       (chuaTick
@@ -143,7 +143,7 @@ export function chiTietNgoaiCong(v: { result?: string; findings?: Finding[] } | 
  * đó đã xảy ra. Hàm nhận `docTrangThai` từ ngoài để test được mà không cần mạng.
  */
 /** R6.18 — danh tính của TÁC NHÂN MÁY. Sổ phải phân biệt «người làm» với «máy làm». */
-export const TEN_TAC_NHAN_MAY = 'ci-bot';
+export const MACHINE_ACTOR_NAME = 'ci-bot';
 
 /**
  * Mô tả một thứ vừa bị ném ra — KHÔNG được tự ném.
@@ -165,10 +165,10 @@ function moTaLoi(e: unknown): string {
   // CHE TRƯỚC KHI CẮT: lỗi mạng của lệnh fetch mang nguyên URL `https://x-access-token:ghp_…@github.com`,
   // và cắt 120 ký tự rồi mới đẩy vào log là đẩy nguyên cái token ra sổ (vòng ba của cổng bắt). Hàm che
   // đã có sẵn trong repo — không dùng nó ở đây là bỏ quên, không phải thiếu công cụ.
-  return cheTokenTrongVan(van).slice(0, 160);
+  return maskTokenInText(van).slice(0, 160);
 }
 
-export async function doiSoatCong(
+export async function reconcileGate(
   docTrangThai: (pr: number, repo: string) => Promise<{ trang_thai?: string; nguoi_merge?: string; tac_gia?: string } | null | undefined>,
   logTho: (msg: string) => void = () => {},
 ): Promise<{ daGhi: number; boQua: number; loi: number }> {
@@ -184,7 +184,7 @@ export async function doiSoatCong(
       /* logger hỏng không phải lý do để bỏ sót các pull request còn lại */
     }
   };
-  const canSoat = prCanDoiSoat();
+  const canSoat = prsNeedingReconcile();
   if (!canSoat.length) return { daGhi: 0, boQua: 0, loi: 0 };
   // Gom theo CẶP (repo, pull request) — không theo run (một PR có chục lượt chấm, hỏi lại cùng một
   // câu là tự đốt quota) và không theo số PR trơ (hai repo trùng số PR là chuyện thường).
@@ -206,7 +206,7 @@ export async function doiSoatCong(
       // R6.23 — phép kiểm RẺ chặn trước phép gọi ĐẮT: PR đã có cả merge lẫn reject ghi sổ thì không
       // còn hành động nào để phát hiện, hỏi GitHub thêm một lần là tốn quota vào câu trả lời không
       // dùng tới. Danh sách phải cạn dần về 0 sau lần đầu, đúng như change này tự khai.
-      const daCo = hanhDongCongCuaPr(repo, pr).map((x) => x.hanh_dong);
+      const daCo = gateActionsOfPr(repo, pr).map((x) => x.hanh_dong);
       // Đã có `merge` là hết chuyện: pull request đã merge không còn hành động cổng nào khác để phát
       // hiện. Đòi ĐỦ CẢ merge lẫn reject thì PR đã xử xong vẫn bị hỏi GitHub mãi, trái chính điều
       // R6.23 khai «danh sách cạn dần về 0» (vòng bốn của cổng bắt).
@@ -240,7 +240,7 @@ export async function doiSoatCong(
       // trả về dev qua cổng rồi sau đó bị merge thẳng bằng `gh` thì lần MERGE đó vẫn chưa ai ghi.
       // Idempotent xét theo HÀNH ĐỘNG, không phân biệt hàng người-bấm hay hàng máy-ghi: cả hai đều
       // nghĩa là hành động ấy ĐÃ được ghi, không cần ghi lần nữa.
-      if (hanhDongCongCuaPr(repo, pr).some((x) => x.hanh_dong === hd)) {
+      if (gateActionsOfPr(repo, pr).some((x) => x.hanh_dong === hd)) {
         boQua += dsRun.length;
         continue;
       }
@@ -257,14 +257,14 @@ export async function doiSoatCong(
           // thể có người vừa bấm cổng thật — kể cả trên một lượt chấm ANH EM cùng PR. Phép kiểm theo
           // run_id KHÔNG dùng nữa: một lượt có thể mang hàng `reject` của người rồi vẫn cần một hàng
           // `merge` ngoài cổng — hai hành động khác nhau.
-          if (hanhDongCongCuaPr(repo, pr).some((x) => x.hanh_dong === hd)) {
+          if (gateActionsOfPr(repo, pr).some((x) => x.hanh_dong === hd)) {
             boQua++;
             continue;
           }
-          const r = docMeta(runId);
+          const r = readMeta(runId);
           const luc = new Date().toISOString();
           const aiLam = tt?.nguoi_merge ? `người thực hiện trên GitHub: ${tt.nguoi_merge}` : 'không rõ ai thực hiện trên GitHub';
-          const chiTiet = `${chiTietNgoaiCong(r?.verdict ?? null)} · ${aiLam}`;
+          const chiTiet = `${outsideGateDetail(r?.verdict ?? null)} · ${aiLam}`;
           // Cột «người» trả lời câu «AI ĐÃ THỰC HIỆN», không phải «ai đã ghi lại». Hành động này do
           // người trên GitHub thực hiện; máy chỉ CHÉP LẠI. Ghi tên tác nhân máy vào đây là nói sai:
           // ci-bot không merge gì cả, và R6.19 nói máy KHÔNG BAO GIỜ merge — sổ mà ghi ci-bot merge
@@ -272,7 +272,7 @@ export async function doiSoatCong(
           // Việc «máy ghi nhận» thể hiện bằng cột `ngoai_cong` + phần mô tả, không chiếm cột này.
           // (Vòng ba của cổng đẩy sang danh tính máy, vòng bốn bác lại — chốt ở đây, ghi vào R6.24.)
           const nguoi = tt?.nguoi_merge ? `${tt.nguoi_merge} (GitHub)` : '(ngoài cổng — không rõ)';
-          ghiSoCong({ run_id: runId, luc, hanh_dong: hd, nguoi, tac_gia_pr: tt?.tac_gia, ngoai_cong: true, chi_tiet: chiTiet });
+          appendGateLedger({ run_id: runId, luc, hanh_dong: hd, nguoi, tac_gia_pr: tt?.tac_gia, ngoai_cong: true, chi_tiet: chiTiet });
           // Bề mặt tự suy ra từ hàng sổ vừa ghi — không có bước ghi bề mặt nào nữa (R6.26).
           daGhi++;
           log(`Đối soát cổng: ${repo}#${pr} đã ${tthai} ngoài cổng — ghi sổ cho run ${runId}`);
@@ -289,7 +289,7 @@ export async function doiSoatCong(
   return { daGhi, boQua, loi };
 }
 
-export function ghiSo(entry: Record<string, unknown>): void {
+export function appendGateLedgerEntry(entry: Record<string, unknown>): void {
   const hd = entry.hanhDong === 'merge' ? 'merge' : entry.hanhDong === 'reject' ? 'reject' : null;
   if (!hd || typeof entry.run_id !== 'string') {
     // Bỏ hàng trong im lặng là mất dấu vết một hành động cổng ĐÃ XẢY RA THẬT — người merge vẫn merge,
@@ -307,12 +307,12 @@ export function ghiSo(entry: Record<string, unknown>): void {
   const tacGiaPr = typeof entry.tac_gia_pr === 'string' && entry.tac_gia_pr ? entry.tac_gia_pr : undefined;
   // R11.17 — người bấm trùng tác giả PR thì GHI DẤU, không chặn. Hai cái tên nằm cạnh nhau trên cùng
   // một hàng thì người kiểm toán tự thấy, kể cả những ca hệ thống nhận diện sót.
-  const tuDuyet = tacGiaPr && typeof entry.nguoi === 'string' && trungNguoi(entry.nguoi, tacGiaPr);
+  const tuDuyet = tacGiaPr && typeof entry.nguoi === 'string' && samePerson(entry.nguoi, tacGiaPr);
   const moTaXacNhan = ds.length ? `chấp nhận ${ds.length} cảnh báo medium: ${ds.join(', ')}` : '';
   const ghiChu = typeof entry.ghi_chu === 'string' ? entry.ghi_chu.trim() : '';
   // R6.18 — sổ phải phân biệt «người trả về» với «máy trả về»: hai mức trách nhiệm khác nhau
   const boiMay = entry.tu_dong === true ? 'do TÁC NHÂN MÁY thực hiện tự động' : '';
-  ghiSoCong({
+  appendGateLedger({
     run_id: entry.run_id,
     luc: new Date().toISOString(),
     hanh_dong: hd,
@@ -339,8 +339,8 @@ function dongFinding(f: Finding): string {
   return `- **[${muc}] ${f.title_vi}**\n  - Điều gì sai: ${f.what_vi}\n  - Hậu quả: ${f.consequence_vi}\n  - Bằng chứng: ${bc}`;
 }
 
-export function banReceipt(v: Verdict, nguoi: string, xacNhanMedium: string[]): string {
-  const d = demMuc(v.findings);
+export function renderReceipt(v: Verdict, nguoi: string, xacNhanMedium: string[]): string {
+  const d = countBySeverity(v.findings);
   const dsFinding = v.findings.length ? v.findings.map(dongFinding).join('\n') : '_Không có finding._';
   const xn = xacNhanMedium.length
     ? `\n**Cảnh báo MEDIUM đã được \`${nguoi}\` đọc và chấp nhận trước khi merge:**\n${xacNhanMedium.map((t) => `- ${t}`).join('\n')}\n`
@@ -356,8 +356,8 @@ _Verdict ghim đúng commit trên — push mới là verdict hết hiệu lực.
 }
 
 // Chế độ trực: comment verdict tự động khi run xong (không phải receipt merge)
-export function banVerdictTuDong(v: Verdict): string {
-  const d = demMuc(v.findings);
+export function renderAutoVerdict(v: Verdict): string {
+  const d = countBySeverity(v.findings);
   const dsFinding = v.findings.length
     ? v.findings.map(dongFinding).join('\n')
     : '_Không có finding — hành vi khớp spec trên mọi probe đã chạy._';
@@ -370,8 +370,8 @@ ${(v.quan_sat_ngoai_pr ?? []).length ? `\n**Quan sát ngoài phạm vi PR** (kh�
 _Verdict ghim đúng commit trên — push mới sẽ được chấm lại tự động. Thao tác cổng (Merge / Trả về dev) thực hiện trong CheckMate._`;
 }
 
-export function banPhanQuyet(v: Verdict, ghiChu: string, dongPr = false): string {
-  const d = demMuc(v.findings);
+export function renderRuling(v: Verdict, ghiChu: string, closePr = false): string {
+  const d = countBySeverity(v.findings);
   return `## ♞ CheckMate — Trả về dev
 
 **Verdict: ${v.result}** · \`${v.artifact_ref.name}\` @ \`${v.artifact_ref.sha_or_hash.slice(0, 10)}\` · ${v.findings.length} finding (${d.high} high · ${d.medium} medium · ${d.low} low)
@@ -379,5 +379,5 @@ export function banPhanQuyet(v: Verdict, ghiChu: string, dongPr = false): string
 ${v.findings.map(dongFinding).join('\n')}
 ${ghiChu ? `\n**Ghi chú của người review:** ${ghiChu}\n` : ''}
 Vá theo từng finding rồi push lên chính nhánh này — CheckMate sẽ chấm lại trên commit mới (verdict cũ tự hết hiệu lực).
-${dongPr ? '\n> ⚠ **PR này đã được đóng.** Nhánh vẫn còn nguyên: vá xong hãy bấm **Reopen** chính PR này (đừng tạo PR mới) để giữ lịch sử review. PR đang đóng sẽ không xuất hiện trong hàng đợi review của CheckMate, và push commit mới KHÔNG tự mở lại PR.\n' : ''}`;
+${closePr ? '\n> ⚠ **PR này đã được đóng.** Nhánh vẫn còn nguyên: vá xong hãy bấm **Reopen** chính PR này (đừng tạo PR mới) để giữ lịch sử review. PR đang đóng sẽ không xuất hiện trong hàng đợi review của CheckMate, và push commit mới KHÔNG tự mở lại PR.\n' : ''}`;
 }

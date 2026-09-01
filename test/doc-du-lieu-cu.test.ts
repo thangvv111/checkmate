@@ -73,8 +73,8 @@ describe('sổ thư viện probe đời cũ đọc lại được nguyên vẹn 
     }
   });
 
-  it('kế hoạch probe trong sổ còn đủ 5 trường — bẫy KeHoachProbe nửa-A-nửa-B', () => {
-    // Tên KIỂU `KeHoachProbe` thuộc lớp A (đổi được). Nhưng 5 field của nó được ghi vào sổ này ở
+  it('kế hoạch probe trong sổ còn đủ 5 trường — bẫy ProbePlan nửa-A-nửa-B', () => {
+    // Tên KIỂU `ProbePlan` thuộc lớp A (đổi được). Nhưng 5 field của nó được ghi vào sổ này ở
     // trường `plan`, nên CHÚNG thuộc lớp B. Cùng một kiểu, hai lớp — chỗ chắc chắn đổi nhầm nếu chỉ
     // dựa vào mắt.
     for (const p of m.probes ?? []) {

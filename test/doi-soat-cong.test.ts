@@ -38,7 +38,7 @@ const verdictGia = (result: 'PASS' | 'FAIL', medium = 0, high = 0) => ({
 });
 
 const themRun = (id: string, pr: number, v = verdictGia('PASS')) =>
-  kho.luuMeta({
+  kho.saveMeta({
     id,
     tieuDe: `run ${id}`,
     skill: 'code',
@@ -50,17 +50,17 @@ const themRun = (id: string, pr: number, v = verdictGia('PASS')) =>
   } as never);
 
 beforeEach(() => {
-  db.dongDb();
+  db.closeDb();
   rmSync(join(goc, 'web-runs'), { recursive: true, force: true });
 });
 afterAll(() => {
-  db.dongDb();
+  db.closeDb();
   rmSync(goc, { recursive: true, force: true });
 });
 
-describe('chiTietNgoaiCong — nói đủ ba điều (R6.22)', () => {
+describe('outsideGateDetail — nói đủ ba điều (R6.22)', () => {
   it('verdict có medium: nêu ngoài cổng · không xác nhận nào · số medium chưa tick', () => {
-    const s = cong.chiTietNgoaiCong(verdictGia('PASS', 2) as never);
+    const s = cong.outsideGateDetail(verdictGia('PASS', 2) as never);
     expect(s).toMatch(/NGOÀI CheckMate/);
     expect(s).toMatch(/KHÔNG có xác nhận finding nào/);
     expect(s).toContain('2 medium');
@@ -68,22 +68,22 @@ describe('chiTietNgoaiCong — nói đủ ba điều (R6.22)', () => {
   });
 
   it('verdict 0 finding vẫn phải NÓI RA «không có xác nhận nào» — im lặng bị đọc nhầm', () => {
-    const s = cong.chiTietNgoaiCong(verdictGia('PASS', 0) as never);
+    const s = cong.outsideGateDetail(verdictGia('PASS', 0) as never);
     expect(s).toMatch(/KHÔNG có xác nhận finding nào/);
     expect(s).toMatch(/không có cảnh báo medium\/low nào/);
   });
 
   it('không có verdict thì nói «không rõ», không bịa', () => {
-    expect(cong.chiTietNgoaiCong(null)).toMatch(/không rõ/);
+    expect(cong.outsideGateDetail(null)).toMatch(/không rõ/);
   });
 });
 
-describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24)', () => {
+describe('reconcileGate — ghi đúng, không bịa, không trùng (R6.20–R6.24)', () => {
   it('PR đã merge ngoài cổng → ghi MỘT hàng, cờ ngoai_cong bật, run.cong_* cập nhật', async () => {
     themRun('r1', 101, verdictGia('PASS', 2) as never);
-    const kq = await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'ai-do', tac_gia: 'nguoi-viet' }));
+    const kq = await cong.reconcileGate(async () => ({ trang_thai: 'merged', nguoi_merge: 'ai-do', tac_gia: 'nguoi-viet' }));
     expect(kq.daGhi).toBe(1);
-    const hang = so.docSoCong('r1');
+    const hang = so.readGateLedger('r1');
     expect(hang).toHaveLength(1);
     expect(hang[0].hanh_dong).toBe('merge');
     expect(hang[0].ngoai_cong, 'phải phân biệt bằng DỮ LIỆU, không chỉ bằng chữ').toBe(true);
@@ -93,16 +93,16 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     // R6.24b — cột «người» trả lời AI ĐÃ THỰC HIỆN. Máy chỉ CHÉP LẠI; ghi ci-bot vào đây là nói sai
     // (máy không merge gì cả, R6.19). Việc máy ghi nhận thể hiện bằng cờ ngoai_cong + phần mô tả.
     expect(hang[0].nguoi).toContain('ai-do');
-    expect(hang[0].nguoi).not.toContain(cong.TEN_TAC_NHAN_MAY);
-    expect(hang[0].chi_tiet).toContain(cong.TEN_TAC_NHAN_MAY);
+    expect(hang[0].nguoi).not.toContain(cong.MACHINE_ACTOR_NAME);
+    expect(hang[0].chi_tiet).toContain(cong.MACHINE_ACTOR_NAME);
     expect(hang[0].chi_tiet).toMatch(/KHÔNG có xác nhận finding nào/);
-    expect(kho.docMeta('r1')?.ketQuaCong?.hanhDong).toBe('merge');
+    expect(kho.readMeta('r1')?.ketQuaCong?.hanhDong).toBe('merge');
   });
 
   it('PR đóng KHÔNG merge → hành động reject, cờ ngoài cổng bật', async () => {
     themRun('r2', 102);
-    await cong.doiSoatCong(async () => ({ trang_thai: 'dong' }));
-    const hang = so.docSoCong('r2');
+    await cong.reconcileGate(async () => ({ trang_thai: 'dong' }));
+    const hang = so.readGateLedger('r2');
     expect(hang[0].hanh_dong).toBe('reject');
     expect(hang[0].ngoai_cong).toBe(true);
     expect(hang[0].nguoi, 'không biết ai thực hiện thì ghi «không rõ», không mượn tên nào').toMatch(/không rõ/);
@@ -110,35 +110,35 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
 
   it('PR còn MỞ → không ghi hàng nào', async () => {
     themRun('r3', 103);
-    const kq = await cong.doiSoatCong(async () => ({ trang_thai: 'mo' }));
+    const kq = await cong.reconcileGate(async () => ({ trang_thai: 'mo' }));
     expect(kq.daGhi).toBe(0);
-    expect(so.docSoCong('r3')).toHaveLength(0);
+    expect(so.readGateLedger('r3')).toHaveLength(0);
   });
 
   it('IDEMPOTENT: chạy hai lần liên tiếp không đẻ hàng trùng (R6.23)', async () => {
     themRun('r4', 104);
-    await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
-    const lan2 = await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
+    await cong.reconcileGate(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
+    const lan2 = await cong.reconcileGate(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
     expect(lan2.daGhi).toBe(0);
-    expect(so.docSoCong('r4')).toHaveLength(1);
+    expect(so.readGateLedger('r4')).toHaveLength(1);
   });
 
   it('đọc trạng thái PR LỖI → không ghi hàng nào, không ném ra ngoài (R6.24)', async () => {
     themRun('r5', 105);
-    const kq = await cong.doiSoatCong(async () => {
+    const kq = await cong.reconcileGate(async () => {
       throw new Error('mạng hỏng');
     });
     expect(kq.loi).toBe(1);
     expect(kq.daGhi).toBe(0);
-    expect(so.docSoCong('r5')).toHaveLength(0);
+    expect(so.readGateLedger('r5')).toHaveLength(0);
   });
 
   it('run ĐÃ có hành động cổng thật (người bấm) → đối soát bỏ qua, không đè', async () => {
     themRun('r6', 106);
-    so.ghiSoCong({ run_id: 'r6', luc: new Date().toISOString(), hanh_dong: 'merge', nguoi: 'thang.vv' });
-    const kq = await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'ai-do' }));
+    so.appendGateLedger({ run_id: 'r6', luc: new Date().toISOString(), hanh_dong: 'merge', nguoi: 'thang.vv' });
+    const kq = await cong.reconcileGate(async () => ({ trang_thai: 'merged', nguoi_merge: 'ai-do' }));
     expect(kq.daGhi).toBe(0);
-    const hang = so.docSoCong('r6');
+    const hang = so.readGateLedger('r6');
     expect(hang).toHaveLength(1);
     expect(hang[0].nguoi).toBe('thang.vv');
     expect(hang[0].ngoai_cong, 'hàng người bấm KHÔNG được mang cờ ngoài cổng').toBe(false);
@@ -149,12 +149,12 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     // danh sách một lần, còn người dùng có thể bấm merge trong CheckMate ngay sau đó. Không có ca
     // này thì lớp trong là guard mồ côi — no-op nó đi mà mọi test vẫn xanh.
     themRun('r8', 108);
-    const kq = await cong.doiSoatCong(async () => {
-      so.ghiSoCong({ run_id: 'r8', luc: new Date().toISOString(), hanh_dong: 'merge', nguoi: 'thang.vv' });
+    const kq = await cong.reconcileGate(async () => {
+      so.appendGateLedger({ run_id: 'r8', luc: new Date().toISOString(), hanh_dong: 'merge', nguoi: 'thang.vv' });
       return { trang_thai: 'merged', nguoi_merge: 'ai-do' };
     });
     expect(kq.daGhi, 'đối soát không được ghi đè lên hành động người vừa bấm').toBe(0);
-    const hang = so.docSoCong('r8');
+    const hang = so.readGateLedger('r8');
     expect(hang).toHaveLength(1);
     expect(hang[0].nguoi).toBe('thang.vv');
   });
@@ -165,82 +165,82 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     // merge ĐÃ qua cổng đàng hoàng.
     themRun('rA', 201);
     themRun('rB', 201);
-    so.ghiSoCong({ run_id: 'rA', luc: new Date().toISOString(), hanh_dong: 'merge', nguoi: 'thang.vv' });
-    const kq = await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'ai-do' }));
+    so.appendGateLedger({ run_id: 'rA', luc: new Date().toISOString(), hanh_dong: 'merge', nguoi: 'thang.vv' });
+    const kq = await cong.reconcileGate(async () => ({ trang_thai: 'merged', nguoi_merge: 'ai-do' }));
     expect(kq.daGhi, 'PR này đã qua cổng — không hàng ngoài-cổng nào được ghi').toBe(0);
-    expect(so.docSoCong('rB')).toHaveLength(0);
+    expect(so.readGateLedger('rB')).toHaveLength(0);
   });
 
   it('trạng thái NGOÀI MIỀN hoặc khuyết → bỏ qua, KHÔNG rơi mềm thành reject (vòng một, HIGH)', async () => {
     themRun('rC', 202);
     for (const tt of ['khong_ro', undefined, null, '']) {
-      const kq = await cong.doiSoatCong(async () => ({ trang_thai: tt }) as never);
+      const kq = await cong.reconcileGate(async () => ({ trang_thai: tt }) as never);
       expect(kq.daGhi, `trạng thái ${JSON.stringify(tt)} không được ghi hàng`).toBe(0);
     }
-    expect(so.docSoCong('rC')).toHaveLength(0);
+    expect(so.readGateLedger('rC')).toHaveLength(0);
   });
 
   it('run KHÔNG có verdict vẫn được đối soát — điều kiện verdict là em tự thêm (vòng một, HIGH)', async () => {
-    kho.luuMeta({ id: 'rD', tieuDe: 'chết giữa chừng', skill: 'code', trangThai: 'loi', batDau: new Date().toISOString(), repo: 'chu/repo', pr: { so: 203, headSha: 'c'.repeat(40) } } as never);
-    const kq = await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
+    kho.saveMeta({ id: 'rD', tieuDe: 'chết giữa chừng', skill: 'code', trangThai: 'loi', batDau: new Date().toISOString(), repo: 'chu/repo', pr: { so: 203, headSha: 'c'.repeat(40) } } as never);
+    const kq = await cong.reconcileGate(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
     expect(kq.daGhi).toBe(1);
-    expect(so.docSoCong('rD')[0].chi_tiet).toMatch(/không rõ/);
+    expect(so.readGateLedger('rD')[0].chi_tiet).toMatch(/không rõ/);
   });
 
   it('cờ ngoài-cổng sang CẢ bề mặt run, không chỉ sổ (vòng một, HIGH — R6.21)', async () => {
     themRun('rE', 204);
-    await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
-    expect(kho.docMeta('rE')?.ketQuaCong?.ngoaiCong, 'giao diện đọc ketQuaCong — nó phải phân biệt được').toBe(true);
+    await cong.reconcileGate(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
+    expect(kho.readMeta('rE')?.ketQuaCong?.ngoaiCong, 'giao diện đọc ketQuaCong — nó phải phân biệt được').toBe(true);
   });
 
   it('một PR hỏng KHÔNG giết trọn lượt: các PR còn lại vẫn được ghi (vòng một, HIGH — R6.25)', async () => {
     themRun('rF1', 205);
-    kho.luuMeta({ id: 'rF2', tieuDe: 'verdict méo', skill: 'code', trangThai: 'xong', batDau: new Date().toISOString(), repo: 'chu/repo', pr: { so: 206, headSha: 'd'.repeat(40) }, verdict: { findings: [null] } } as never);
+    kho.saveMeta({ id: 'rF2', tieuDe: 'verdict méo', skill: 'code', trangThai: 'xong', batDau: new Date().toISOString(), repo: 'chu/repo', pr: { so: 206, headSha: 'd'.repeat(40) }, verdict: { findings: [null] } } as never);
     themRun('rF3', 207);
-    const kq = await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
+    const kq = await cong.reconcileGate(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
     expect(kq.daGhi, 'ba PR khác nhau, PR có verdict méo không được kéo hai PR kia xuống').toBe(3);
   });
 
-  it('chiTietNgoaiCong KHÔNG ném với findings méo (vòng một, MEDIUM)', () => {
+  it('outsideGateDetail KHÔNG ném với findings méo (vòng một, MEDIUM)', () => {
     for (const v of [{ findings: [null] }, { findings: 'không phải mảng' }, { findings: [undefined, { severity: 'medium' }] }, {}]) {
-      expect(() => cong.chiTietNgoaiCong(v as never)).not.toThrow();
+      expect(() => cong.outsideGateDetail(v as never)).not.toThrow();
     }
   });
 
   it('hai REPO trùng số PR → hai lời gọi riêng, không dùng chung kết luận (vòng hai, HIGH)', async () => {
-    kho.luuMeta({ id: 'rX1', tieuDe: 'a', skill: 'code', trangThai: 'xong', batDau: new Date().toISOString(), repo: 'chu/repoA', pr: { so: 300, headSha: 'e'.repeat(40) }, verdict: verdictGia('PASS') } as never);
-    kho.luuMeta({ id: 'rX2', tieuDe: 'b', skill: 'code', trangThai: 'xong', batDau: new Date().toISOString(), repo: 'chu/repoB', pr: { so: 300, headSha: 'f'.repeat(40) }, verdict: verdictGia('PASS') } as never);
+    kho.saveMeta({ id: 'rX1', tieuDe: 'a', skill: 'code', trangThai: 'xong', batDau: new Date().toISOString(), repo: 'chu/repoA', pr: { so: 300, headSha: 'e'.repeat(40) }, verdict: verdictGia('PASS') } as never);
+    kho.saveMeta({ id: 'rX2', tieuDe: 'b', skill: 'code', trangThai: 'xong', batDau: new Date().toISOString(), repo: 'chu/repoB', pr: { so: 300, headSha: 'f'.repeat(40) }, verdict: verdictGia('PASS') } as never);
     const hoi: string[] = [];
-    await cong.doiSoatCong(async (pr, repo) => {
+    await cong.reconcileGate(async (pr, repo) => {
       hoi.push(`${repo}#${pr}`);
       return repo === 'chu/repoA' ? { trang_thai: 'merged', nguoi_merge: 'x' } : { trang_thai: 'mo' };
     });
     expect(hoi.sort()).toEqual(['chu/repoA#300', 'chu/repoB#300']);
-    expect(so.docSoCong('rX1')).toHaveLength(1);
-    expect(so.docSoCong('rX2'), 'PR của repo B còn mở — không được ghi theo kết luận của repo A').toHaveLength(0);
+    expect(so.readGateLedger('rX1')).toHaveLength(1);
+    expect(so.readGateLedger('rX2'), 'PR của repo B còn mở — không được ghi theo kết luận của repo A').toHaveLength(0);
   });
 
   it('PR đã có hàng REJECT qua cổng rồi merge ngoài cổng → lần merge vẫn phải được ghi (vòng hai, HIGH)', async () => {
     themRun('rR1', 320);
-    so.ghiSoCong({ run_id: 'rR1', luc: new Date().toISOString(), hanh_dong: 'reject', nguoi: 'thang.vv' });
+    so.appendGateLedger({ run_id: 'rR1', luc: new Date().toISOString(), hanh_dong: 'reject', nguoi: 'thang.vv' });
     themRun('rR2', 320);
-    const kq = await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
+    const kq = await cong.reconcileGate(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
     expect(kq.daGhi, 'đã qua cổng với REJECT không có nghĩa lần MERGE này đã ai ghi').toBe(1);
-    expect(so.docSoCong('rR2')[0].hanh_dong).toBe('merge');
+    expect(so.readGateLedger('rR2')[0].hanh_dong).toBe('merge');
   });
 
   it('run KHÔNG có repo → bỏ ra ngoài diện, không suy từ PR cùng số của repo khác (vòng hai, HIGH)', async () => {
-    kho.luuMeta({ id: 'rNoRepo', tieuDe: 'a', skill: 'code', trangThai: 'xong', batDau: new Date().toISOString(), pr: { so: 360, headSha: 'a'.repeat(40) }, verdict: verdictGia('PASS') } as never);
-    const kq = await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
+    kho.saveMeta({ id: 'rNoRepo', tieuDe: 'a', skill: 'code', trangThai: 'xong', batDau: new Date().toISOString(), pr: { so: 360, headSha: 'a'.repeat(40) }, verdict: verdictGia('PASS') } as never);
+    const kq = await cong.reconcileGate(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
     expect(kq.daGhi).toBe(0);
-    expect(so.docSoCong('rNoRepo')).toHaveLength(0);
+    expect(so.readGateLedger('rNoRepo')).toHaveLength(0);
   });
 
   it('một PR lỗi đọc KHÔNG làm chết lượt đối soát của các PR còn lại (vòng hai, HIGH — R6.25)', async () => {
     themRun('rE1', 371);
     themRun('rE2', 372);
     themRun('rE3', 373);
-    const kq = await cong.doiSoatCong(async (pr) => {
+    const kq = await cong.reconcileGate(async (pr) => {
       if (pr === 371) throw new Error('mạng hỏng');
       if (pr === 372) return { trang_thai: 'merged', nguoi_merge: 'x' };
       return { trang_thai: 'mo' };
@@ -252,10 +252,10 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
   it('trạng thái trả về null/undefined KHÔNG được ném ra ngoài (vòng hai, MEDIUM)', async () => {
     themRun('rN1', 380);
     themRun('rN2', 381);
-    let kq: Awaited<ReturnType<typeof cong.doiSoatCong>> | undefined;
+    let kq: Awaited<ReturnType<typeof cong.reconcileGate>> | undefined;
     await expect(
       (async () => {
-        kq = await cong.doiSoatCong(async () => null as never);
+        kq = await cong.reconcileGate(async () => null as never);
       })(),
     ).resolves.not.toThrow();
     expect(kq?.daGhi).toBe(0);
@@ -265,12 +265,12 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
   it('người bấm cổng cho run ANH EM cùng PR xen giữa → run kia không bị đóng dấu ngoài cổng (vòng hai, MEDIUM)', async () => {
     themRun('rS1', 310);
     themRun('rS2', 310);
-    const kq = await cong.doiSoatCong(async () => {
-      so.ghiSoCong({ run_id: 'rS2', luc: new Date().toISOString(), hanh_dong: 'merge', nguoi: 'thang.vv' });
+    const kq = await cong.reconcileGate(async () => {
+      so.appendGateLedger({ run_id: 'rS2', luc: new Date().toISOString(), hanh_dong: 'merge', nguoi: 'thang.vv' });
       return { trang_thai: 'merged', nguoi_merge: 'ai-do' };
     });
     expect(kq.daGhi, 'merge đã qua cổng ở run anh em — không hàng ngoài-cổng nào được ghi').toBe(0);
-    expect(so.docSoCong('rS1')).toHaveLength(0);
+    expect(so.readGateLedger('rS1')).toHaveLength(0);
   });
 
   it('PR có hàng REJECT của người rồi merge ngoài cổng → hàng merge gắn vào lượt MỚI NHẤT (vòng hai)', async () => {
@@ -278,21 +278,21 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     // loại và hàng ngoài-cổng rơi xuống lượt CŨ — lượt có verdict đã hết hiệu lực.
     themRun('rM1', 330);
     themRun('rM2', 330); // mới nhất
-    so.ghiSoCong({ run_id: 'rM2', luc: new Date().toISOString(), hanh_dong: 'reject', nguoi: 'thang.vv' });
-    const kq = await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'ai-do' }));
+    so.appendGateLedger({ run_id: 'rM2', luc: new Date().toISOString(), hanh_dong: 'reject', nguoi: 'thang.vv' });
+    const kq = await cong.reconcileGate(async () => ({ trang_thai: 'merged', nguoi_merge: 'ai-do' }));
     expect(kq.daGhi).toBe(1);
-    expect(so.docSoCong('rM1'), 'không được rơi xuống lượt cũ').toHaveLength(0);
-    const hang = so.docSoCong('rM2');
+    expect(so.readGateLedger('rM1'), 'không được rơi xuống lượt cũ').toHaveLength(0);
+    const hang = so.readGateLedger('rM2');
     expect(hang.map((h) => h.hanh_dong).sort()).toEqual(['merge', 'reject']);
   });
 
   it('lỗi KHÔNG phải Error (chuỗi trần, object không .message) không làm khối bắt lỗi tự ném (vòng hai)', async () => {
     themRun('rL1', 340);
     themRun('rL2', 341);
-    let kq: Awaited<ReturnType<typeof cong.doiSoatCong>> | undefined;
+    let kq: Awaited<ReturnType<typeof cong.reconcileGate>> | undefined;
     await expect(
       (async () => {
-        kq = await cong.doiSoatCong(async (pr) => {
+        kq = await cong.reconcileGate(async (pr) => {
           if (pr === 340) throw 'chuỗi trần';
           throw { code: 404 };
         });
@@ -303,39 +303,39 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
   });
 
   it('hàng ngoài cổng nói rõ MÁY chỉ GHI LẠI, không phải máy thực hiện (vòng hai, R6.18)', () => {
-    const s = cong.chiTietNgoaiCong(verdictGia('PASS', 1) as never);
-    expect(s).toContain(cong.TEN_TAC_NHAN_MAY);
+    const s = cong.outsideGateDetail(verdictGia('PASS', 1) as never);
+    expect(s).toContain(cong.MACHINE_ACTOR_NAME);
     expect(s).toMatch(/máy chỉ GHI LẠI, không phải máy thực hiện/);
   });
 
-  it('luuMeta KHÔNG XOÁ được hành động cổng đang có trong sổ (R6.26, vòng mười một)', async () => {
-    // Cửa song sinh, chiều XOÁ: luuMeta ghi đè cả hàng nên một lần lưu meta bình thường (đổi trạng
+  it('saveMeta KHÔNG XOÁ được hành động cổng đang có trong sổ (R6.26, vòng mười một)', async () => {
+    // Cửa song sinh, chiều XOÁ: saveMeta ghi đè cả hàng nên một lần lưu meta bình thường (đổi trạng
     // thái, ghi kết thúc) đặt cụm cong_* về null trong khi sổ vẫn còn hàng merge — bề mặt lặng lẽ
     // quay lại «chưa thao tác», không ném, không log. Nay không còn cột để đè.
     themRun('rZ', 390);
-    await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
-    expect(kho.docMeta('rZ')?.ketQuaCong?.ngoaiCong).toBe(true);
-    kho.luuMeta({ ...kho.docMeta('rZ')!, ketQuaCong: undefined, trangThai: 'xong', ketThuc: new Date().toISOString() } as never);
-    expect(kho.docMeta('rZ')?.ketQuaCong?.ngoaiCong, 'sổ còn hàng thì bề mặt vẫn phải nói đúng').toBe(true);
+    await cong.reconcileGate(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
+    expect(kho.readMeta('rZ')?.ketQuaCong?.ngoaiCong).toBe(true);
+    kho.saveMeta({ ...kho.readMeta('rZ')!, ketQuaCong: undefined, trangThai: 'xong', ketThuc: new Date().toISOString() } as never);
+    expect(kho.readMeta('rZ')?.ketQuaCong?.ngoaiCong, 'sổ còn hàng thì bề mặt vẫn phải nói đúng').toBe(true);
   });
 
-  it('luuMeta KHÔNG ĐÓNG DẤU được hành động cổng khi sổ trống (R6.26, vòng mười một)', () => {
-    // Chiều ngược: luuMeta nhận nguyên cụm ketQuaCong do người gọi đưa vào rồi chép thẳng lên hàng
+  it('saveMeta KHÔNG ĐÓNG DẤU được hành động cổng khi sổ trống (R6.26, vòng mười một)', () => {
+    // Chiều ngược: saveMeta nhận nguyên cụm ketQuaCong do người gọi đưa vào rồi chép thẳng lên hàng
     // run, nên một lời gọi không phiên không vai vẫn khai được «đã merge» trong khi sổ trống.
     themRun('rDauGia', 391);
-    kho.luuMeta({
-      ...kho.docMeta('rDauGia')!,
+    kho.saveMeta({
+      ...kho.readMeta('rDauGia')!,
       ketQuaCong: { hanhDong: 'merge', luc: new Date().toISOString(), nguoi: 'ke-gia-mao', chiTiet: 'bịa', ngoaiCong: false },
     } as never);
-    expect(so.docSoCong('rDauGia'), 'sổ vẫn phải rỗng').toHaveLength(0);
-    expect(kho.docMeta('rDauGia')?.ketQuaCong, 'bề mặt KHÔNG được khai hành động nào').toBeUndefined();
+    expect(so.readGateLedger('rDauGia'), 'sổ vẫn phải rỗng').toHaveLength(0);
+    expect(kho.readMeta('rDauGia')?.ketQuaCong, 'bề mặt KHÔNG được khai hành động nào').toBeUndefined();
   });
 
   it('PR đã có hàng MERGE → lượt sau KHÔNG gọi GitHub nữa (R6.23, vòng bốn)', async () => {
     themRun('rQ1', 350);
-    await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
+    await cong.reconcileGate(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
     let goi = 0;
-    const kq = await cong.doiSoatCong(async () => {
+    const kq = await cong.reconcileGate(async () => {
       goi++;
       return { trang_thai: 'merged', nguoi_merge: 'x' };
     });
@@ -345,47 +345,47 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
 
   it('phần tử MÉO trong findings không được đếm thành high (R6.22, vòng bốn)', () => {
     const v = { result: 'PASS', findings: [{ severity: 'high' }, null, undefined, 'chuỗi', { severity: 'medium' }, { khong_co_severity: 1 }] };
-    const s = cong.chiTietNgoaiCong(v as never);
+    const s = cong.outsideGateDetail(v as never);
     expect(s).toContain('1 high');
     expect(s).toContain('1 medium');
   });
 
-  it('M14 — daTraVe() KHÔNG lấy hàng reject do MÁY đối soát ghi (R6.21)', async () => {
+  it('M14 — returnedToDev() KHÔNG lấy hàng reject do MÁY đối soát ghi (R6.21)', async () => {
     // Khối «đã trả về dev» ở trang chủ sinh ra để hàng đợi không đánh mất việc. Một PR bị đóng TRÊN
     // GITHUB thì không ai trả nó về dev cả — đưa nó vào khối đó là bảo người đọc rằng việc đã được
     // xử, trong khi thật ra chưa ai chạm vào. R6.21: mọi phép đếm/lọc phải xét cờ ngoai_cong.
     themRun('rNgoai', 700);
-    await cong.doiSoatCong(async () => ({ trang_thai: 'dong', nguoi_merge: undefined }));
-    expect(so.docSoCong('rNgoai')[0]?.ngoai_cong, 'tiền đề: hàng này do máy đối soát ghi').toBe(true);
-    expect(kho.daTraVe().map((m) => m.id)).not.toContain('rNgoai');
+    await cong.reconcileGate(async () => ({ trang_thai: 'dong', nguoi_merge: undefined }));
+    expect(so.readGateLedger('rNgoai')[0]?.ngoai_cong, 'tiền đề: hàng này do máy đối soát ghi').toBe(true);
+    expect(kho.returnedToDev().map((m) => m.id)).not.toContain('rNgoai');
   });
 
-  it('M14 — vế đối chứng: hàng reject do NGƯỜI bấm vẫn nằm trong daTraVe()', () => {
+  it('M14 — vế đối chứng: hàng reject do NGƯỜI bấm vẫn nằm trong returnedToDev()', () => {
     // Thiếu vế này thì một bản vá «trả về rỗng luôn» cũng xanh.
     themRun('rNguoi', 701);
-    so.ghiSoCong({ run_id: 'rNguoi', luc: new Date().toISOString(), hanh_dong: 'reject', nguoi: 'thang.vv' });
-    expect(kho.daTraVe().map((m) => m.id)).toContain('rNguoi');
+    so.appendGateLedger({ run_id: 'rNguoi', luc: new Date().toISOString(), hanh_dong: 'reject', nguoi: 'thang.vv' });
+    expect(kho.returnedToDev().map((m) => m.id)).toContain('rNguoi');
   });
 
-  it('M17 — chiTietNgoaiCong KHÔNG được ném: nó đứng ngay trước ghiSoCong (R6.25)', () => {
+  it('M17 — outsideGateDetail KHÔNG được ném: nó đứng ngay trước appendGateLedger (R6.25)', () => {
     // Hàm ném ở đây là mất TRỌN hàng sổ của một hành động cổng đã xảy ra thật — lệch ngược hướng
     // an toàn. Đầu vào dưới đây không phát sinh từ JSON/SQLite, nhưng đường ném thì có thật.
     const nemKhiDoiChuoi = { toString() { throw new Error('không đổi sang chuỗi được'); } };
-    expect(() => cong.chiTietNgoaiCong({ result: nemKhiDoiChuoi } as never)).not.toThrow();
-    expect(() => cong.chiTietNgoaiCong({ result: 'PASS', findings: [{ severity: nemKhiDoiChuoi }] } as never)).not.toThrow();
+    expect(() => cong.outsideGateDetail({ result: nemKhiDoiChuoi } as never)).not.toThrow();
+    expect(() => cong.outsideGateDetail({ result: 'PASS', findings: [{ severity: nemKhiDoiChuoi }] } as never)).not.toThrow();
   });
 
   it('M17 — chỗ không đọc được vẫn phải NÓI RA, không im lặng nghèo đi (R6.27)', () => {
     const nemKhiDoiChuoi = { toString() { throw new Error('x'); } };
-    const s = cong.chiTietNgoaiCong({ result: nemKhiDoiChuoi } as never);
+    const s = cong.outsideGateDetail({ result: nemKhiDoiChuoi } as never);
     expect(s, 'bọc try rồi nuốt lỗi sẽ cho chuỗi nghèo hơn mà không ai biết').toMatch(/không đọc được/i);
     // severity là Symbol: finding CÓ khoá severity nên vẫn phải được ĐẾM, không bị nuốt
-    const s2 = cong.chiTietNgoaiCong({ result: 'PASS', findings: [{ severity: Symbol('la') }] } as never);
+    const s2 = cong.outsideGateDetail({ result: 'PASS', findings: [{ severity: Symbol('la') }] } as never);
     expect(s2).not.toMatch(/0 high · 0 medium · 0 low/);
   });
 
   it('bảng run KHÔNG CÒN cụm cột cong_* — không còn cửa ghi nào để canh (R6.26)', () => {
-    const cot = (db.moDb().prepare('PRAGMA table_info(run)').all() as Array<{ name: string }>).map((c) => c.name);
+    const cot = (db.openDb().prepare('PRAGMA table_info(run)').all() as Array<{ name: string }>).map((c) => c.name);
     for (const c of ['cong_hanh_dong', 'cong_luc', 'cong_nguoi', 'cong_chi_tiet', 'cong_ngoai_cong']) {
       expect(cot, `cot ${c} con thi con mot nguon su that thu hai`).not.toContain(c);
     }
@@ -394,8 +394,8 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
   it('bề mặt PHÁI SINH từ hàng sổ, đủ cả năm trường (R6.26)', () => {
     themRun('rChep', 901);
     const luc = new Date().toISOString();
-    so.ghiSoCong({ run_id: 'rChep', luc, hanh_dong: 'merge', nguoi: 'nguoi-that (GitHub)', ngoai_cong: true, chi_tiet: 'mô tả trong sổ' });
-    const kq = kho.docMeta('rChep')?.ketQuaCong;
+    so.appendGateLedger({ run_id: 'rChep', luc, hanh_dong: 'merge', nguoi: 'nguoi-that (GitHub)', ngoai_cong: true, chi_tiet: 'mô tả trong sổ' });
+    const kq = kho.readMeta('rChep')?.ketQuaCong;
     expect(kq?.hanhDong).toBe('merge');
     expect(kq?.nguoi).toBe('nguoi-that (GitHub)');
     expect(kq?.ngoaiCong).toBe(true);
@@ -405,9 +405,9 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
 
   it('nhiều hàng sổ cùng một lượt: bề mặt lấy hàng MỚI NHẤT (R6.26)', () => {
     themRun('rHaiHang', 902);
-    so.ghiSoCong({ run_id: 'rHaiHang', luc: '2026-09-01T01:00:00.000Z', hanh_dong: 'reject', nguoi: 'nguoi-1' });
-    so.ghiSoCong({ run_id: 'rHaiHang', luc: '2026-09-01T02:00:00.000Z', hanh_dong: 'merge', nguoi: 'nguoi-2', ngoai_cong: true });
-    const kq = kho.docMeta('rHaiHang')?.ketQuaCong;
+    so.appendGateLedger({ run_id: 'rHaiHang', luc: '2026-09-01T01:00:00.000Z', hanh_dong: 'reject', nguoi: 'nguoi-1' });
+    so.appendGateLedger({ run_id: 'rHaiHang', luc: '2026-09-01T02:00:00.000Z', hanh_dong: 'merge', nguoi: 'nguoi-2', ngoai_cong: true });
+    const kq = kho.readMeta('rHaiHang')?.ketQuaCong;
     expect(kq?.hanhDong).toBe('merge');
     expect(kq?.nguoi).toBe('nguoi-2');
   });
@@ -416,25 +416,25 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     // Rơi mềm về mảng rỗng rồi ghi «0 high · không có cảnh báo» là khai dữ liệu KHÔNG ĐỌC ĐƯỢC thành
     // BẰNG KHÔNG — người đọc sổ tưởng lượt chấm sạch.
     for (const bad of ['chuỗi', 42, { a: 1 }]) {
-      const s = cong.chiTietNgoaiCong({ result: 'PASS', findings: bad } as never);
+      const s = cong.outsideGateDetail({ result: 'PASS', findings: bad } as never);
       expect(s).toMatch(/KHÔNG ĐỌC ĐƯỢC/);
       expect(s).not.toMatch(/0 high/);
       expect(s).not.toMatch(/không có cảnh báo medium\/low nào/);
     }
     // findings VẮNG hẳn thì vẫn là ca hợp lệ «không có finding»
-    expect(cong.chiTietNgoaiCong({ result: 'PASS' } as never)).toMatch(/0 high/);
+    expect(cong.outsideGateDetail({ result: 'PASS' } as never)).toMatch(/0 high/);
   });
 
   it('mảng finding mà MỌI phần tử bị loại: phải nói ra, không khai «0 cảnh báo» (vòng mười một, HIGH)', () => {
     // Cùng khuôn với vòng chín nhưng ở lối khác: findings LÀ mảng hợp lệ, chỉ có mọi phần tử không
     // đủ hình dạng. Danh sách còn rỗng rồi chuỗi mô tả trông y hệt một lượt chấm sạch.
-    const s = cong.chiTietNgoaiCong({ result: 'PASS', findings: [null, 'x', 7, {}, { title: 'thiếu severity' }] } as never);
+    const s = cong.outsideGateDetail({ result: 'PASS', findings: [null, 'x', 7, {}, { title: 'thiếu severity' }] } as never);
     expect(s).toMatch(/5 mục KHÔNG đọc được/);
     expect(s).not.toMatch(/không có cảnh báo medium\/low nào/);
   });
 
   it('mảng finding LẪN đọc được và không đọc được: đếm phần đọc được VÀ nói số bị loại', () => {
-    const s = cong.chiTietNgoaiCong({ result: 'FAIL', findings: [{ severity: 'high' }, { severity: 'medium' }, null, 'rác'] } as never);
+    const s = cong.outsideGateDetail({ result: 'FAIL', findings: [{ severity: 'high' }, { severity: 'medium' }, null, 'rác'] } as never);
     expect(s).toContain('1 high');
     expect(s).toContain('1 medium');
     expect(s).toMatch(/2 mục KHÔNG đọc được/);
@@ -444,7 +444,7 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
   it('nhãn lạ vẫn được đếm đủ — TÁI LẬP cho thấy finding «đếm hụt» là BÁO OAN (vòng chín)', () => {
     // Cổng báo critical/blocker/HIGH «không rơi vào mức nào»; tái lập cho thấy chuanMuc fail-closed
     // đưa cả ba về high và phép đếm đúng. Ghi ca này để lần sau không ai phải tái lập lần nữa.
-    const s = cong.chiTietNgoaiCong({ result: 'PASS', findings: [{ severity: 'critical' }, { severity: 'blocker' }, { severity: 'HIGH' }, { severity: 'medium' }, { severity: 'low' }] } as never);
+    const s = cong.outsideGateDetail({ result: 'PASS', findings: [{ severity: 'critical' }, { severity: 'blocker' }, { severity: 'HIGH' }, { severity: 'medium' }, { severity: 'low' }] } as never);
     expect(s).toContain('3 high');
     expect(s).toContain('1 medium');
     expect(s).toContain('1 low');
@@ -457,7 +457,7 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
       result: 'PASS',
       findings: [{ severity: null }, { severity: 3 }, { severity: '   ' }, { severity: 'medium' }, null, 'chuỗi', { khong_co: 1 }],
     };
-    const s = cong.chiTietNgoaiCong(v as never);
+    const s = cong.outsideGateDetail(v as never);
     expect(s, 'ba finding nhãn méo → fail-closed về high').toContain('3 high');
     expect(s).toContain('1 medium');
     // rác (null, chuỗi, object không có khoá severity) KHÔNG được đếm
@@ -469,7 +469,7 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     // 'blocker' bị đánh rơi và sổ khai THIẾU — đúng lớp lỗi «vá bằng cách nuốt dữ liệu» mà chuỗi vá
     // này đã bị bắt hai lần trước đó.
     const v = { result: 'PASS', findings: [{ severity: 'critical' }, { severity: 'HIGH' }, { severity: 'blocker' }, { severity: 'medium' }, null, 'chuỗi', { khong_co: 1 }] };
-    const s = cong.chiTietNgoaiCong(v as never);
+    const s = cong.outsideGateDetail(v as never);
     expect(s).toContain('3 high'); // critical + HIGH + blocker đều fail-closed về high
     expect(s).toContain('1 medium');
   });
@@ -481,13 +481,13 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     themRun('r7b', 107);
     themRun('r7c', 107);
     let goi = 0;
-    const kq = await cong.doiSoatCong(async () => {
+    const kq = await cong.reconcileGate(async () => {
       goi++;
       return { trang_thai: 'merged', nguoi_merge: 'x' };
     });
     expect(kq.daGhi, 'một hành động = một hàng').toBe(1);
     expect(goi, 'gom theo PR chứ không theo run — hỏi lại cùng một câu là tự đốt quota').toBe(1);
-    const tong = ['r7a', 'r7b', 'r7c'].reduce((n, id) => n + so.docSoCong(id).length, 0);
+    const tong = ['r7a', 'r7b', 'r7c'].reduce((n, id) => n + so.readGateLedger(id).length, 0);
     expect(tong).toBe(1);
   });
 });

@@ -143,7 +143,7 @@ export function timTrigger(id: string): TriggerDef | undefined {
  *
  * Vắng khai (undefined/rỗng) = toàn danh mục — hành vi mặc định không đòi ai cấu hình.
  * Mã lạ trong config bị BỎ QUA + nói ra, KHÔNG làm chết lượt chấm: repo đích gõ nhầm một chữ không
- * được phép giết cổng (cùng nguyên tắc với `bo_qua_diff` sai cú pháp ở `docReviewCfg`).
+ * được phép giết cổng (cùng nguyên tắc với `bo_qua_diff` sai cú pháp ở `readReviewCfg`).
  * Khai toàn mã lạ thì rơi về toàn danh mục — «không hiểu cấu hình» không được biến thành «không
  * phát khuôn nào», vì im lặng ở đây làm lượt chấm mù mà nhìn vẫn bình thường.
  */

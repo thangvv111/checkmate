@@ -1,14 +1,14 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { cauHinhHienTai, docTokenThueBao, type CheckmateConfig } from './config.js';
-import { chieuGiaTri, dinhNghia, docKhoa, DS_PHUONG_THUC, modelHopLe, ghiSoKiem, type CauHinhNcc, type KetQuaKiem, type MaNcc } from './ncc.js';
+import { currentConfig, readSubscriptionToken, type CheckmateConfig } from './config.js';
+import { projectValue, providerDefinition, readKey, METHODS, validModel, writeProviderCheck, type ProviderConfig, type CheckResult, type ProviderId } from './ncc.js';
 
 // Kiểm một nhà cung cấp: gọi thử MỘT câu cực ngắn đúng cấu hình của nó.
 // Vừa là nút "Kiểm tra" trong giao diện, vừa là CỔNG: chưa kiểm thành công thì không được chọn để chấm.
 
-export interface TrangThaiNcc {
-  ma: MaNcc;
+export interface ProviderState {
+  ma: ProviderId;
   ten: string;
   co_khoa: boolean;
   mo_ta_khoa: string;
@@ -16,10 +16,10 @@ export interface TrangThaiNcc {
   mo_ta_thue_bao?: string;
 }
 
-export function docTrangThaiNcc(ma: MaNcc): TrangThaiNcc {
-  const dn = dinhNghia(ma);
-  const khoa = docKhoa(ma);
-  const t: TrangThaiNcc = {
+export function readProviderState(ma: ProviderId): ProviderState {
+  const dn = providerDefinition(ma);
+  const khoa = readKey(ma);
+  const t: ProviderState = {
     ma,
     ten: dn.ten,
     co_khoa: !!khoa,
@@ -32,11 +32,11 @@ export function docTrangThaiNcc(ma: MaNcc): TrangThaiNcc {
       const r = spawnSync('claude', ['--version'], { shell: true, encoding: 'utf8', timeout: 20_000 });
       if (r.status === 0) {
         const ver = (r.stdout || '').trim().split('\n')[0].slice(0, 30);
-        const coToken = !!docTokenThueBao();
+        const hasToken = !!readSubscriptionToken();
         const nha = process.env.HOME ?? process.env.USERPROFILE ?? '';
-        ok = coToken || (nha ? existsSync(join(nha, '.claude', '.credentials.json')) : false);
+        ok = hasToken || (nha ? existsSync(join(nha, '.claude', '.credentials.json')) : false);
         mo = ok
-          ? `Đã cài ${ver} · ${coToken ? 'có token gói thuê bao' : 'đã đăng nhập trên máy'}`
+          ? `Đã cài ${ver} · ${hasToken ? 'có token gói thuê bao' : 'đã đăng nhập trên máy'}`
           : `Đã cài ${ver} nhưng CHƯA đăng nhập gói thuê bao`;
       }
     } catch {
@@ -108,39 +108,39 @@ async function goiChatCompletions(endpoint: string, khoa: string, model: string,
   }
 }
 
-export interface KetQuaThu extends KetQuaKiem {
-  ncc: MaNcc;
+export interface TryResult extends CheckResult {
+  ncc: ProviderId;
   giay: number;
 }
 
-export async function thuNcc(ma: MaNcc, cfgTho: CauHinhNcc): Promise<KetQuaThu> {
+export async function tryProvider(ma: ProviderId, cfgTho: ProviderConfig): Promise<TryResult> {
   // Chuẩn hoá TRƯỚC MỌI THỨ: gọi với undefined/null phải đi tới gác «thiếu trường» phía dưới chứ
   // không nổ ở dòng đầu của xong() — vòng mười một bắt đúng ca gác dùng cfg?.model nhưng xong() đọc
   // cfg.model trần (R5.19: reject là đánh sập cả lượt thay vì trả kết quả kiểm thất bại đọc được).
-  const cfg: CauHinhNcc = cfgTho ?? ({} as CauHinhNcc);
+  const cfg: ProviderConfig = cfgTho ?? ({} as ProviderConfig);
   const t0 = Date.now();
   const giay = (): number => Math.round((Date.now() - t0) / 100) / 10;
-  const khoa = docKhoa(ma);
-  const xong = (ok: boolean, thong_diep: string, modelAnToan?: string): KetQuaThu => {
+  const khoa = readKey(ma);
+  const xong = (ok: boolean, thong_diep: string, modelAnToan?: string): TryResult => {
     // R5.20 — giá trị model NGOÀI danh mục có thể là khoá dán nhầm, và nhà cung cấp thường chép lại
     // trường model vào thông điệp lỗi của họ. Gột nó khỏi MỌI thông điệp trước khi ra ngoài.
-    if (cfg.model && !dinhNghia(ma).models.includes(cfg.model) && thong_diep.includes(cfg.model)) {
-      thong_diep = thong_diep.split(cfg.model).join(chieuGiaTri(cfg.model, dinhNghia(ma).models));
+    if (cfg.model && !providerDefinition(ma).models.includes(cfg.model) && thong_diep.includes(cfg.model)) {
+      thong_diep = thong_diep.split(cfg.model).join(projectValue(cfg.model, providerDefinition(ma).models));
     }
     const luc = new Date().toISOString();
     // modelAnToan: khi giá trị model KHÔNG thuộc danh mục thì nó là thứ người dùng gõ tay — có thể là
     // một khoá dán nhầm. Sổ kiểm và kết quả trả về chỉ được mang bản đã che, không mang nguyên văn.
     // Che TỰ ĐỘNG, không lệ thuộc chỗ gọi nhớ truyền modelAnToan: nhánh nào quên (vd nhánh «chưa có
     // khoá» dừng trước khi chạm model) là key giả đi nguyên vào sổ — đã xảy ra, test bắt được.
-    const md = modelAnToan ?? chieuGiaTri(cfg.model, dinhNghia(ma).models);
+    const md = modelAnToan ?? projectValue(cfg.model, providerDefinition(ma).models);
     // phuong_thuc chiếu qua enum HỆ THỐNG (không phải danh mục ncc): «thue_bao» với ncc chỉ-API
     // vẫn là giá trị hệ thống, ghi nguyên văn được — chỉ giá trị gõ tay lạ mới bị che.
-    const pt = chieuGiaTri(cfg.phuong_thuc, DS_PHUONG_THUC) as typeof cfg.phuong_thuc;
-    ghiSoKiem(ma, { ok, luc, thong_diep, model: md, phuong_thuc: pt });
+    const pt = projectValue(cfg.phuong_thuc, METHODS) as typeof cfg.phuong_thuc;
+    writeProviderCheck(ma, { ok, luc, thong_diep, model: md, phuong_thuc: pt });
     return { ok, thong_diep, ncc: ma, giay: giay(), luc, model: md, phuong_thuc: pt };
   };
 
-  // R5.19 áp cho CẢ cửa kiểm, không riêng đường chấm (vòng mười: kiemConHieuLuc được gác mà cửa song
+  // R5.19 áp cho CẢ cửa kiểm, không riêng đường chấm (vòng mười: checkStillValid được gác mà cửa song
   // sinh này thì không): cấu hình khuyết → HỎI bằng ok:false nói rõ trường khuyết — reject là đánh
   // sập cả lượt thay vì trả một kết quả kiểm thất bại đọc được.
   if (typeof cfg?.model !== 'string' || !cfg.model.trim() || !cfg?.phuong_thuc) {
@@ -152,14 +152,14 @@ export async function thuNcc(ma: MaNcc, cfgTho: CauHinhNcc): Promise<KetQuaThu> 
   // nhà cung cấp không hỗ trợ). Model NGOÀI danh mục thì GỌI THẬT: nhà cung cấp là trọng tài về việc
   // model có tồn tại — họ trả lỗi thật, đúng bản chất. Từ-chối-sớm theo danh mục cứng là chặn luôn
   // model mới ra (hồi quy vòng sáu của cổng đã bắt trên chính PR này).
-  const dn = dinhNghia(ma);
+  const dn = providerDefinition(ma);
   const laModelLa = !dn.models.includes(cfg.model);
-  if (!modelHopLe(dn, cfg.phuong_thuc, cfg.model)) {
-    const che = chieuGiaTri(cfg.model, dn.models);
+  if (!validModel(dn, cfg.phuong_thuc, cfg.model)) {
+    const che = projectValue(cfg.model, dn.models);
     // phuong_thuc chiếu qua enum HỆ THỐNG: «thue_bao» tuy ncc này không hỗ trợ nhưng là giá trị
     // người dùng chọn từ dropdown — phải hiện nguyên văn để họ biết đổi cái gì (vòng mười một);
     // chỉ thứ dán nhầm ngoài enum mới bị che (R5.20).
-    const ptChe = chieuGiaTri(cfg.phuong_thuc, DS_PHUONG_THUC);
+    const ptChe = projectValue(cfg.phuong_thuc, METHODS);
     const lyDo = dn.chi_thue_bao?.includes(cfg.model)
       ? 'model này chỉ mở cho gói thuê bao (R5.15)'
       : `nhà cung cấp không hỗ trợ phương thức «${ptChe}»`;
@@ -172,7 +172,7 @@ export async function thuNcc(ma: MaNcc, cfgTho: CauHinhNcc): Promise<KetQuaThu> 
     // để nguyên thì phép thử báo xanh trong khi tiền vẫn ra từ ví API.
     const env: NodeJS.ProcessEnv = { ...process.env };
     delete env.ANTHROPIC_API_KEY;
-    const tokenTb = docTokenThueBao();
+    const tokenTb = readSubscriptionToken();
     if (tokenTb) env.CLAUDE_CODE_OAUTH_TOKEN = tokenTb;
     const r = spawnSync('claude', ['-p', '--model', cfg.model, '--disallowed-tools', '"Bash Read Write Edit Glob Grep WebFetch WebSearch Task NotebookEdit TodoWrite Agent Artifact"', '--no-session-persistence'], {
       input: CAU_THU,
@@ -232,7 +232,7 @@ export async function thuNcc(ma: MaNcc, cfgTho: CauHinhNcc): Promise<KetQuaThu> 
   }
 
   // ---- GitHub Models / OpenAI: cùng chuẩn chat/completions ----
-  if (!khoa) return xong(false, `Chưa có ${dinhNghia(ma).khoa?.nhan ?? 'khoá'} — dán vào ô bên dưới rồi kiểm lại.`);
+  if (!khoa) return xong(false, `Chưa có ${providerDefinition(ma).khoa?.nhan ?? 'khoá'} — dán vào ô bên dưới rồi kiểm lại.`);
   const { ok, thong_diep } =
     ma === 'github'
       ? await goiChatCompletions('https://models.github.ai/inference/chat/completions', khoa, cfg.model, 'GitHub Models', 'GitHub')
@@ -243,6 +243,6 @@ export async function thuNcc(ma: MaNcc, cfgTho: CauHinhNcc): Promise<KetQuaThu> 
 }
 
 // Thử đúng nhà cung cấp đang chọn trong cấu hình
-export async function thuNguon(c: CheckmateConfig): Promise<KetQuaThu> {
-  return thuNcc(c.agent.ncc, cauHinhHienTai(c));
+export async function trySource(c: CheckmateConfig): Promise<TryResult> {
+  return tryProvider(c.agent.ncc, currentConfig(c));
 }

@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-export interface FileNgoaiTamNhin {
+export interface FileOutOfView {
   file: string;
   kyTu: number;
   lyDo: string;
@@ -16,7 +16,7 @@ export interface TargetInfo {
   baseSha: string;
   diff: string;
   /** File có trong PR nhưng KHÔNG nằm trong diff mà model nhìn thấy — phải nói ra, không được giấu */
-  ngoaiTamNhin: FileNgoaiTamNhin[];
+  ngoaiTamNhin: FileOutOfView[];
   specs: Array<{ file: string; noiDung: string }>;
   /**
    * Mã luật CHỈ có ở nhánh PR (R1.19). Probe neo vào những mã này KHÔNG được lấy nhánh gốc làm đối
@@ -35,7 +35,7 @@ export interface TargetInfo {
  * Engine thì biết repo có file gì. Tra ra rồi đưa thẳng cho model là chênh lệch giữa sửa được và không —
  * cùng nguyên tắc đã áp cho JSON hỏng: đưa CHỖ HỎNG chứ đừng chỉ nói "hỏng".
  */
-export function goiYDuongDanModule(loi: string, repo: string): string {
+export function suggestModulePath(loi: string, repo: string): string {
   const thieu = [...new Set([...loi.matchAll(/Cannot find module '([^']+)'/g)].map((m) => m[1]))];
   if (!thieu.length) return '';
   let dsFile: string[];
@@ -88,7 +88,7 @@ function lyDoSinhTuDong(file: string, boQuaThem: RegExp[]): string | null {
  * Trích mọi mã luật khai trong một tập văn bản spec. Nhận cả dạng `R4.21` lẫn `R4` — repo đích có thể
  * đánh số theo mục con hoặc chỉ theo file.
  */
-export function trichMaLuat(vanBan: string): Set<string> {
+export function extractRuleIds(vanBan: string): Set<string> {
   const ra = new Set<string>();
   for (const m of vanBan.matchAll(/\b([A-Z]{1,3}\d{1,3}(?:\.\d{1,3})?)\b/g)) ra.add(m[1]);
   return ra;
@@ -104,7 +104,7 @@ export function trichMaLuat(vanBan: string): Set<string> {
  * thì coi như MỌI luật đều mới. Thà chặn một PR đáng ra qua được, còn hơn cho qua một PR khai luật rồi
  * vi phạm ngay luật vừa khai.
  */
-export function timLuatMoi(repo: string, base: string, specsPr: Array<{ file: string; noiDung: string }>): string[] {
+export function findNewRules(repo: string, base: string, specsPr: Array<{ file: string; noiDung: string }>): string[] {
   // Danh sách spec méo (khuyết, không phải mảng, phần tử lạ) KHÔNG được làm hàm ném: nó nằm trên
   // đường quyết định nhãn `vi_pham_luat_moi`, và ném ở đây là cả lượt chấm chết thay vì rơi về
   // «không có luật mới» — hướng an toàn (quan sát ngoài phạm vi P6 của cổng).
@@ -112,7 +112,7 @@ export function timLuatMoi(repo: string, base: string, specsPr: Array<{ file: st
   // ÉP KIỂU, không NUỐT: bản vá trước biến mọi thứ không-phải-string thành rỗng, nên nội dung spec ở
   // dạng Buffer/String-object bị mất sạch và mã luật biến mất cùng nhãn chặn merge — vá «không ném»
   // bằng cách đánh rơi dữ liệu thật (vòng bảy của cổng bắt). Nhánh gốc dùng join() nên vẫn ép được.
-  const maPr = trichMaLuat(ds.map((x) => (x?.noiDung == null ? '' : String(x.noiDung))).join('\n'));
+  const maPr = extractRuleIds(ds.map((x) => (x?.noiDung == null ? '' : String(x.noiDung))).join('\n'));
   if (maPr.size === 0) return [];
   let vanBanGoc = '';
   try {
@@ -125,18 +125,18 @@ export function timLuatMoi(repo: string, base: string, specsPr: Array<{ file: st
   } catch {
     return [...maPr]; // không so được thì fail-closed
   }
-  const maGoc = trichMaLuat(vanBanGoc);
+  const maGoc = extractRuleIds(vanBanGoc);
   return [...maPr].filter((m) => !maGoc.has(m));
 }
 
 
-export function dungDiff(
+export function buildDiff(
   dsFile: string[],
   diffTungFile: (file: string) => string,
   boQuaThem: RegExp[] = [],
   tran = TRAN_DIFF,
-): { diff: string; ngoaiTamNhin: FileNgoaiTamNhin[] } {
-  const ngoaiTamNhin: FileNgoaiTamNhin[] = [];
+): { diff: string; ngoaiTamNhin: FileOutOfView[] } {
+  const ngoaiTamNhin: FileOutOfView[] = [];
   const conLai: Array<{ file: string; noiDung: string }> = [];
 
   for (const file of dsFile) {
@@ -165,11 +165,11 @@ export function dungDiff(
   return { diff: giu.map((f) => f.noiDung).join('\n'), ngoaiTamNhin };
 }
 
-export function docTarget(repo: string, branch: string, base = 'main', boQuaThem: RegExp[] = []): TargetInfo {
+export function readTarget(repo: string, branch: string, base = 'main', boQuaThem: RegExp[] = []): TargetInfo {
   const branchSha = git(repo, ['rev-parse', branch]);
   const baseSha = git(repo, ['rev-parse', base]);
   const dsFile = git(repo, ['diff', '--name-only', `${base}...${branch}`]).split('\n').filter(Boolean);
-  const { diff, ngoaiTamNhin } = dungDiff(dsFile, (f) => git(repo, ['diff', `${base}...${branch}`, '--', f]), boQuaThem);
+  const { diff, ngoaiTamNhin } = buildDiff(dsFile, (f) => git(repo, ['diff', `${base}...${branch}`, '--', f]), boQuaThem);
   if (!diff) {
     throw new Error(
       ngoaiTamNhin.length
@@ -186,7 +186,7 @@ export function docTarget(repo: string, branch: string, base = 'main', boQuaThem
     : [];
 
   // R1.19 — luật nào CHỈ có ở nhánh PR. Xác định bằng cách so `specs/` giữa hai nhánh, không hỏi model.
-  const luatMoi = timLuatMoi(repo, base, specs);
+  const luatMoi = findNewRules(repo, base, specs);
 
   const apiDoc = existsSync(join(repo, 'README.md')) ? readFileSync(join(repo, 'README.md'), 'utf8') : '';
 

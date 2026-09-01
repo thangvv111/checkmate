@@ -7,7 +7,7 @@ import { GOC } from '../../../../packages/shared/src/paths.js';
 // node:sqlite còn ở diện thử nghiệm, nhưng bề mặt dùng ở đây rất hẹp (exec · prepare · run · get · all),
 // nên đổi sang thư viện khác về sau chỉ phải sửa file này.
 
-export const DUONG_DB = process.env.CHECKMATE_DB ?? join(GOC, 'web-runs', 'checkmate.db');
+export const DB_PATH = process.env.CHECKMATE_DB ?? join(GOC, 'web-runs', 'checkmate.db');
 
 const SCHEMA = `
 -- Sổ cái verdict: CHỈ GHI THÊM. Trigger bên dưới là thứ thi hành luật đó, không phải kỷ luật người viết code.
@@ -138,10 +138,10 @@ CREATE INDEX IF NOT EXISTS ix_phien_het_han ON phien(het_han);
 
 let db: DatabaseSync | null = null;
 
-export function moDb(): DatabaseSync {
+export function openDb(): DatabaseSync {
   if (db) return db;
-  mkdirSync(dirname(DUONG_DB), { recursive: true });
-  const d = new DatabaseSync(DUONG_DB);
+  mkdirSync(dirname(DB_PATH), { recursive: true });
+  const d = new DatabaseSync(DB_PATH);
   // WAL: nhiều lượt chấm chạy song song cùng ghi (R8) — nhật ký nối tiếp thì chúng chặn nhau.
   d.exec('PRAGMA journal_mode = WAL');
   d.exec('PRAGMA foreign_keys = ON');
@@ -188,7 +188,7 @@ function napCotThieu(d: DatabaseSync): void {
  *
  * Chín lần khuôn «cửa song sinh» bị bắt đều chung một gốc: cụm cột này là NGUỒN SỰ THẬT THỨ HAI đứng
  * cạnh sổ chỉ-ghi-thêm, nên mọi luật đặt ở một cửa ghi đều bị cửa còn lại phá — siết `capNhatCongRun`
- * thì `luuMeta` vẫn đóng dấu được, và ngược lại `luuMeta` còn xoá trắng được hàng sổ vẫn đang có.
+ * thì `saveMeta` vẫn đóng dấu được, và ngược lại `saveMeta` còn xoá trắng được hàng sổ vẫn đang có.
  * Bỏ cột đi thì KHÔNG CÒN CỬA NÀO ĐỂ CANH: «bề mặt phái sinh từ sổ» thành tính chất của cấu trúc,
  * không còn là một luật phải cưỡng chế ở từng lối vào.
  *
@@ -240,7 +240,7 @@ function diTruBoCotCong(d: DatabaseSync): void {
 function sietQuyenDb(): void {
   for (const duoi of ['', '-wal', '-shm']) {
     try {
-      chmodSync(DUONG_DB + duoi, 0o600);
+      chmodSync(DB_PATH + duoi, 0o600);
     } catch {
       /* file chưa tồn tại, hoặc hệ không chmod được (Windows) — bỏ qua */
     }
@@ -248,7 +248,7 @@ function sietQuyenDb(): void {
 }
 
 /** Đóng và quên kết nối — dùng cho test, và cho lệnh cần mở lại cơ sở dữ liệu khác. */
-export function dongDb(): void {
+export function closeDb(): void {
   if (!db) return;
   db.close();
   db = null;

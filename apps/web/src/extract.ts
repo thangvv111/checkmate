@@ -1,9 +1,9 @@
 import mammoth from 'mammoth';
 import { PDFParse } from 'pdf-parse';
 
-export const DINH_DANG_NHAN = ['.md', '.txt', '.docx', '.pdf'];
+export const SUPPORTED_FORMATS = ['.md', '.txt', '.docx', '.pdf'];
 
-export async function trichText(tenFile: string, buf: Buffer): Promise<string> {
+export async function extractText(tenFile: string, buf: Buffer): Promise<string> {
   const duoi = tenFile.slice(tenFile.lastIndexOf('.')).toLowerCase();
   if (duoi === '.md' || duoi === '.txt') {
     return buf.toString('utf8');
@@ -21,5 +21,5 @@ export async function trichText(tenFile: string, buf: Buffer): Promise<string> {
       await parser.destroy?.();
     }
   }
-  throw new Error(`Định dạng "${duoi}" chưa hỗ trợ (nhận: ${DINH_DANG_NHAN.join(', ')}; file .doc cũ hãy lưu lại thành .docx)`);
+  throw new Error(`Định dạng "${duoi}" chưa hỗ trợ (nhận: ${SUPPORTED_FORMATS.join(', ')}; file .doc cũ hãy lưu lại thành .docx)`);
 }

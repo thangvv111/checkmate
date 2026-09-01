@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import type { CheckmateConfig } from './config.js';
-import { docTokenRepo } from './kho-bi-mat.js';
+import { readRepoToken } from './kho-bi-mat.js';
 
 /**
  * Chìa dùng cho một lời gọi API, suy từ CHÍNH path đang gọi (R4.18).
@@ -9,7 +9,7 @@ import { docTokenRepo } from './kho-bi-mat.js';
  * nên không có cách nào gọi nhầm chìa của repo khác — kể cả khi nhiều repo chạy song song trong một
  * tiến trình (R8). Bắt 11 chỗ gọi tự nhớ truyền token là mời một chỗ quên.
  */
-export function repoTuPath(path: string): string {
+export function repoFromPath(path: string): string {
   const m = /^\/repos\/([^/?#]+)\/([^/?#]+)/.exec(path);
   return m ? `${m[1]}/${m[2]}` : '';
 }
@@ -24,7 +24,7 @@ export function repoTuPath(path: string): string {
 let ghSan = false;
 let ghHoiLuc = 0;
 const GH_HOI_LAI_MS = 60_000;
-export function coGhCli(): boolean {
+export function hasGhCli(): boolean {
   // Nhớ kết quả CÓ thì vĩnh viễn (gh đã đăng nhập không tự mất giữa chừng), nhưng kết quả KHÔNG thì chỉ
   // nhớ một phút: `gh auth status` gọi mạng, nên một cú chập hay một lần quá hạn sẽ bị đóng đinh thành
   // «máy này không có gh» cho tới khi khởi động lại — và mọi repo chưa có chìa riêng bị cổng R4.25 chặn
@@ -44,17 +44,17 @@ export function coGhCli(): boolean {
 }
 
 /** R4.20 đủ ba bậc: chìa riêng của repo → GITHUB_TOKEN của môi trường → `gh` của máy */
-export function coDuongVaoGithub(github: string): boolean {
-  return docTokenRepo(github) !== '' || coGhCli();
+export function hasGithubAccess(github: string): boolean {
+  return readRepoToken(github) !== '' || hasGhCli();
 }
 
 function tokenChoPath(path: string): string {
-  const repo = repoTuPath(path);
+  const repo = repoFromPath(path);
   // path không nhắm vào repo cụ thể (`/user/repos`…) — chỉ còn chìa chung của môi trường
-  return repo ? docTokenRepo(repo) : (process.env.GITHUB_TOKEN?.trim() ?? '');
+  return repo ? readRepoToken(repo) : (process.env.GITHUB_TOKEN?.trim() ?? '');
 }
 
-export interface PrTomTat {
+export interface PrSummary {
   so: number;
   tieuDe: string;
   tacGia: string;
@@ -63,7 +63,7 @@ export interface PrTomTat {
   headSha: string;
 }
 
-export interface PrDaFetch {
+export interface FetchedPr {
   so: number;
   headSha: string;
   baseRef: string; // ref local trỏ nhánh đích
@@ -99,14 +99,14 @@ async function goiApiGhi(_cfg: CheckmateConfig, method: string, path: string, bo
   return out ? JSON.parse(out) : {};
 }
 
-export interface PrHienTai {
+export interface CurrentPr {
   headSha: string;
   state: string;
   merged: boolean;
   tacGia?: string;
 }
 
-export async function layPrHienTai(cfg: CheckmateConfig, so: number): Promise<PrHienTai> {
+export async function getCurrentPr(cfg: CheckmateConfig, so: number): Promise<CurrentPr> {
   const p = (await goiApi(cfg, `/repos/${cfg.repo.github}/pulls/${so}`)) as {
     head: { sha: string };
     state: string;
@@ -119,10 +119,10 @@ export async function layPrHienTai(cfg: CheckmateConfig, so: number): Promise<Pr
 /**
  * Trạng thái THẬT của một pull request trên GitHub — dùng cho đối soát cổng (R6.20).
  *
- * Tách khỏi `layPrHienTai` vì hai câu hỏi khác nhau: cái kia hỏi «head sha bây giờ là gì» để chặn
+ * Tách khỏi `getCurrentPr` vì hai câu hỏi khác nhau: cái kia hỏi «head sha bây giờ là gì» để chặn
  * verdict hết hiệu lực; cái này hỏi «chuyện gì đã xảy ra với PR» để biết sổ có đang im lặng không.
  */
-export async function trangThaiPr(
+export async function prState(
   cfg: CheckmateConfig,
   so: number,
   repoGithub?: string,
@@ -141,7 +141,7 @@ export async function trangThaiPr(
   return { trang_thai, nguoi_merge: p.merged_by?.login ?? undefined, tac_gia: p.user?.login };
 }
 
-export async function binhLuanPr(cfg: CheckmateConfig, so: number, body: string): Promise<void> {
+export async function commentPr(cfg: CheckmateConfig, so: number, body: string): Promise<void> {
   await goiApiGhi(cfg, 'POST', `/repos/${cfg.repo.github}/issues/${so}/comments`, { body });
 }
 
@@ -153,11 +153,11 @@ export async function mergePr(cfg: CheckmateConfig, so: number, tieuDe: string, 
     // W1: pin head SHA — GitHub tự trả 409 nếu PR nhận commit mới giữa lúc kiểm và lúc bấm (chặn TOCTOU phía server)
     ...(sha ? { sha } : {}),
   });
-  xoaCachePr();
+  clearPrCache();
 }
 
 // Trả về dev: thử review Request-changes; GitHub cấm author tự request-changes PR của mình → fallback comment
-export async function traVeDev(cfg: CheckmateConfig, so: number, body: string): Promise<'review' | 'comment'> {
+export async function returnToDev(cfg: CheckmateConfig, so: number, body: string): Promise<'review' | 'comment'> {
   try {
     await goiApiGhi(cfg, 'POST', `/repos/${cfg.repo.github}/pulls/${so}/reviews`, {
       event: 'REQUEST_CHANGES',
@@ -165,13 +165,13 @@ export async function traVeDev(cfg: CheckmateConfig, so: number, body: string): 
     });
     return 'review';
   } catch {
-    await binhLuanPr(cfg, so, body);
+    await commentPr(cfg, so, body);
     return 'comment';
   }
 }
 
 // Chế độ trực (B4.3): gắn check status lên commit — PR hiện dấu xanh/đỏ của CheckMate
-export async function ganTrangThaiCommit(
+export async function setCommitStatus(
   cfg: CheckmateConfig,
   sha: string,
   state: 'success' | 'failure' | 'pending',
@@ -184,9 +184,9 @@ export async function ganTrangThaiCommit(
   });
 }
 
-export async function dongPr(cfg: CheckmateConfig, so: number): Promise<void> {
+export async function closePr(cfg: CheckmateConfig, so: number): Promise<void> {
   await goiApiGhi(cfg, 'PATCH', `/repos/${cfg.repo.github}/pulls/${so}`, { state: 'closed' });
-  xoaCachePr();
+  clearPrCache();
 }
 
 async function goiApi(_cfg: CheckmateConfig | null, path: string, tokenEp?: string): Promise<unknown> {
@@ -210,7 +210,7 @@ async function goiApi(_cfg: CheckmateConfig | null, path: string, tokenEp?: stri
   } catch (e) {
     const err = e as NodeJS.ErrnoException;
     if (err.code === 'ENOENT') {
-      const repo = repoTuPath(path);
+      const repo = repoFromPath(path);
       throw new Error(
         (repo ? `Repo ${repo} chưa có GitHub token` : 'Chưa có GitHub token') +
           ' và máy này không có lệnh `gh` (bản chạy trên server thường vậy). ' +
@@ -225,10 +225,10 @@ async function goiApi(_cfg: CheckmateConfig | null, path: string, tokenEp?: stri
 }
 
 // L5: cache danh sách PR 30s — trang chủ + poller không dội GitHub mỗi lượt (rate limit 60/h khi không token)
-let cachePr: { key: string; luc: number; data: PrTomTat[] } | null = null;
-export function xoaCachePr(): void { cachePr = null; }
+let cachePr: { key: string; luc: number; data: PrSummary[] } | null = null;
+export function clearPrCache(): void { cachePr = null; }
 
-export async function danhSachPr(cfg: CheckmateConfig): Promise<PrTomTat[]> {
+export async function listPrs(cfg: CheckmateConfig): Promise<PrSummary[]> {
   const key = cfg.repo.github;
   if (cachePr && cachePr.key === key && Date.now() - cachePr.luc < 30_000) return cachePr.data;
   const data = (await goiApi(
@@ -253,12 +253,12 @@ function git(repo: string, args: string[]): string {
   } catch (e) {
     // git nhắc lại nguyên URL trong lời kêu — URL đó có thể đang mang token. Che trước khi lỗi này đi
     // tiếp vào log, sự kiện run và màn hình người dùng.
-    throw new Error(cheTokenTrongVan((e as Error).message));
+    throw new Error(maskTokenInText((e as Error).message));
   }
 }
 
 /** Gột token khỏi bất kỳ URL dạng `https://x-access-token:ghp_…@github.com/…` nào trong văn bản */
-export function cheTokenTrongVan(van: string): string {
+export function maskTokenInText(van: string): string {
   return van.replace(/(https:\/\/)[^@\s/]+(@github\.com)/g, '$1***$2');
 }
 
@@ -269,7 +269,7 @@ export function cheTokenTrongVan(van: string): string {
  * không ghi vào `.git/config`.
  */
 function nguonFetch(github: string): string {
-  const token = docTokenRepo(github);
+  const token = readRepoToken(github);
   return token ? `https://x-access-token:${token}@github.com/${github}.git` : 'origin';
 }
 
@@ -281,7 +281,7 @@ function nguonFetch(github: string): string {
  * chỉ tốn tiền và ồn; code bị đẩy sang doc thì KHÔNG probe nào chạy và verdict xanh trên vùng chưa ai
  * thử — xanh giả, đúng thứ công cụ này sinh ra để chống. Nghi ngờ thì chọn code.
  */
-export function phanLoaiPr(dsVao: readonly string[]): { loai: 'code' | 'doc'; lyDo: string; fileDocUngVien: string[]; khongDoc: string[] } {
+export function classifyPr(dsVao: readonly string[]): { loai: 'code' | 'doc'; lyDo: string; fileDocUngVien: string[]; khongDoc: string[] } {
   // R13.8 áp cho CẢ CỤM, không chỉ từng phần tử: gọi với null/undefined/chuỗi/đối tượng đều phải rơi
   // về code, không ném — hàm đứng đầu pipeline mà ném là cả lượt chấm chết (vòng ba của cổng bắt).
   const laMang = Array.isArray(dsVao);
@@ -363,12 +363,12 @@ export function phanLoaiPr(dsVao: readonly string[]): { loai: 'code' | 'doc'; ly
   // Nêu cái ĐƯỢC xem không thay được nghĩa vụ nêu cái KHÔNG được xem (cùng nguyên tắc R7 về diff bị cắt).
   // Skill doc đọc ĐÚNG MỘT tài liệu, nên các tài liệu ứng viên CÒN LẠI cũng là vùng mù — loại cả
   // nhóm .md ra khỏi vùng mù là giấu đúng phần người đọc cần biết (vòng ba của cổng bắt).
-  // Ở tầng này chưa biết tài liệu nào sẽ được chọn (fetchVaRouter chọn theo số dòng đổi), nên lấy
-  // ứng viên đầu làm dự kiến; fetchVaRouter dựng lại vùng mù theo tài liệu THẬT sau khi chốt.
-  // Ở TẦNG NÀY chưa biết tài liệu nào sẽ được chấm — fetchVaRouter chọn theo số dòng đổi nhiều nhất.
+  // Ở tầng này chưa biết tài liệu nào sẽ được chọn (fetchAndRoute chọn theo số dòng đổi), nên lấy
+  // ứng viên đầu làm dự kiến; fetchAndRoute dựng lại vùng mù theo tài liệu THẬT sau khi chốt.
+  // Ở TẦNG NÀY chưa biết tài liệu nào sẽ được chấm — fetchAndRoute chọn theo số dòng đổi nhiều nhất.
   // Nên `khongDoc` chỉ gồm những file CHẮC CHẮN không ai đọc; các ứng viên .md được nêu riêng kèm
   // câu «chỉ MỘT được chấm». Khai đích danh một ứng viên là «sẽ được chấm» khi chưa chốt là nói sai
-  // sự thật ngay lúc nói (vòng bốn của cổng bắt) — vùng mù THẬT do fetchVaRouter dựng lại sau.
+  // sự thật ngay lúc nói (vòng bốn của cổng bắt) — vùng mù THẬT do fetchAndRoute dựng lại sau.
   const khongDoc = keTen(filesDoi.filter((f) => !md.includes(f as string)));
   const lyDo =
     `${filesDoi.length} file đổi đều là văn bản thuần. Tài liệu ứng viên (${md.length}): ${ke(md)} — CHỈ MỘT được chấm, ` +
@@ -379,7 +379,7 @@ export function phanLoaiPr(dsVao: readonly string[]): { loai: 'code' | 'doc'; ly
 }
 
 // Fetch PR + nhánh đích về ref local rồi ROUTER theo loại file đã đổi (specs/R13).
-export function fetchVaRouter(cfg: CheckmateConfig, so: number): PrDaFetch {
+export function fetchAndRoute(cfg: CheckmateConfig, so: number): FetchedPr {
   const lp = cfg.repo.local_path;
   const headRef = `refs/checkmate/pr${so}`;
   // Ref riêng theo PR: hai lượt song song cùng dùng chung một ref base thì lượt sau force-update ref
@@ -390,7 +390,7 @@ export function fetchVaRouter(cfg: CheckmateConfig, so: number): PrDaFetch {
   const filesDoi = git(lp, ['diff', '--name-only', `${baseRef}...${headRef}`]).split('\n').filter(Boolean);
   if (filesDoi.length === 0) throw new Error(`PR #${so} không có file thay đổi so với ${cfg.repo.base_branch}`);
 
-  const pl = phanLoaiPr(filesDoi);
+  const pl = classifyPr(filesDoi);
   // R13.6 — nói ra quyết định: router quyết trong im lặng thì người đọc verdict không biết vì sao PR
   // của mình đi đường nào, và một quyết định không ai thấy là quyết định không ai kiểm được.
   // Đường doc log SAU khi chốt fileDoc, để dòng log nêu đúng tài liệu được đem đi chấm.
@@ -430,7 +430,7 @@ export interface RepoGithub {
 }
 
 /** Repo mà token hiện tại truy cập được — dùng cho màn "chọn repo" thay vì bắt gõ tay owner/repo. */
-export async function danhSachRepoCuaToken(token: string): Promise<RepoGithub[]> {
+export async function listReposForToken(token: string): Promise<RepoGithub[]> {
   const ra: RepoGithub[] = [];
   for (let trang = 1; trang <= 3; trang++) {
     const lo = (await goiApi(null, `/user/repos?per_page=100&sort=updated&page=${trang}`, token || undefined)) as Array<{
@@ -460,16 +460,16 @@ export async function danhSachRepoCuaToken(token: string): Promise<RepoGithub[]>
  */
 export function cloneRepo(github: string, dich: string, tokenEp?: string): void {
   const sach = `https://github.com/${github}.git`;
-  const token = tokenEp ?? docTokenRepo(github);
-  const coToken = token ? `https://x-access-token:${token}@github.com/${github}.git` : sach;
+  const token = tokenEp ?? readRepoToken(github);
+  const hasToken = token ? `https://x-access-token:${token}@github.com/${github}.git` : sach;
   try {
-    execFileSync('git', ['clone', '--no-single-branch', coToken, dich], { encoding: 'utf8', timeout: 600_000 });
+    execFileSync('git', ['clone', '--no-single-branch', hasToken, dich], { encoding: 'utf8', timeout: 600_000 });
   } catch (e) {
     // Hàm này gọi execFileSync THẲNG, không qua helper `git()`, nên lưới gột token ở đó KHÔNG che nó.
     // Clone hỏng thì git nhắc lại nguyên URL — mà URL đang mang chìa — và chỗ gọi trả thẳng chuỗi lỗi
     // về trình duyệt. Chìa thật lên màn hình, vào log truy cập, vào ảnh chụp màn hình người dùng gửi đi.
     // Vi phạm chính R4.29. Gột ngay tại đây, trước khi lỗi rời khỏi hàm.
-    throw new Error(cheTokenTrongVan((e as Error).message));
+    throw new Error(maskTokenInText((e as Error).message));
   }
   // gỡ token khỏi remote ngay: lần fetch sau dùng credential helper / token trong môi trường
   execFileSync('git', ['remote', 'set-url', 'origin', sach], { cwd: dich, encoding: 'utf8', timeout: 30_000 });
@@ -477,7 +477,7 @@ export function cloneRepo(github: string, dich: string, tokenEp?: string): void 
 
 // ---------- Cổng kiểm kết nối repo (R4.22–R4.24) ----------
 
-export interface KetQuaKiemRepo {
+export interface RepoCheckResult {
   ok: boolean;
   /** Vì sao hỏng — ba kết cục phải nói ba lời khác nhau (R4.23), gộp lại là đẩy người dùng đi mò */
   ly_do?: 'token_sai' | 'khong_thay' | 'mang';
@@ -492,7 +492,7 @@ export interface KetQuaKiemRepo {
  * Tách `owner/repo` từ thứ người dùng dán vào: URL đầy đủ, dạng `git@`, hay chính `owner/repo`.
  * Người dùng dán nguyên URL trên thanh địa chỉ là chuyện thường — bắt họ tự cắt là mời gõ sai (R4.5).
  */
-export function tachOwnerRepo(dan: string): string {
+export function splitOwnerRepo(dan: string): string {
   const s = dan.trim().replace(/\s+/g, '');
   if (!s) return '';
   const m =
@@ -504,7 +504,7 @@ export function tachOwnerRepo(dan: string): string {
 }
 
 /** R4.23 — gọi THẬT `GET /repos/{owner}/{repo}` bằng chính chìa vừa nhập, không đoán từ hình dạng token */
-export async function kiemTraRepo(github: string, token: string): Promise<KetQuaKiemRepo> {
+export async function checkRepo(github: string, token: string): Promise<RepoCheckResult> {
   let res: Response;
   try {
     res = await fetch(`https://api.github.com/repos/${github}`, {
@@ -564,7 +564,7 @@ export async function kiemTraRepo(github: string, token: string): Promise<KetQua
 }
 
 /** Nhánh của repo — để bước 4 cho chọn thay vì gõ tay (R4.24) */
-export async function danhSachNhanh(github: string, token: string): Promise<string[]> {
+export async function listBranches(github: string, token: string): Promise<string[]> {
   const res = await fetch(`https://api.github.com/repos/${github}/branches?per_page=100`, {
     headers: {
       ...(token ? { authorization: `Bearer ${token}` } : {}),

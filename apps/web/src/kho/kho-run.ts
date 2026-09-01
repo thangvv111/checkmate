@@ -1,4 +1,4 @@
-import { moDb } from './db.js';
+import { openDb } from './db.js';
 import type { RunMeta, StoredEvent } from '../runs.js';
 import type { Verdict } from '../../../../packages/shared/src/types.js';
 
@@ -6,7 +6,7 @@ import type { Verdict } from '../../../../packages/shared/src/types.js';
 // đọc TOÀN BỘ thư mục rồi nạp cả dòng sự kiện lên bộ nhớ. Ở đây danh sách chỉ đụng bảng `run`,
 // còn dòng sự kiện chỉ được đọc khi thật sự phát lại một lượt.
 
-export interface LocRun {
+export interface RunFilter {
   repo?: string;
   skill?: 'code' | 'doc';
   trang_thai?: RunMeta['trangThai'];
@@ -68,8 +68,8 @@ function veMeta(h: Hang): RunMeta {
   return meta;
 }
 
-export function luuMeta(m: RunMeta): void {
-  moDb()
+export function saveMeta(m: RunMeta): void {
+  openDb()
     .prepare(
       `INSERT INTO run (id, tieu_de, skill, trang_thai, bat_dau, ket_thuc, repo,
                         pr_so, pr_head_sha, pr_tac_gia, verdict)
@@ -91,8 +91,8 @@ export function luuMeta(m: RunMeta): void {
 }
 
 /** Ghi trọn dòng sự kiện của một lượt. Xoá bản cũ trước để ghi lại không đẻ ra bản trùng. */
-export function luuSuKien(runId: string, events: StoredEvent[]): void {
-  const d = moDb();
+export function saveEvents(runId: string, events: StoredEvent[]): void {
+  const d = openDb();
   d.exec('BEGIN');
   try {
     d.prepare('DELETE FROM run_su_kien WHERE run_id = ?').run(runId);
@@ -105,13 +105,13 @@ export function luuSuKien(runId: string, events: StoredEvent[]): void {
   }
 }
 
-export function docMeta(id: string): RunMeta | undefined {
-  const h = moDb().prepare(`${CHON_RUN} WHERE run.id = ?`).get(id) as Hang | undefined;
+export function readMeta(id: string): RunMeta | undefined {
+  const h = openDb().prepare(`${CHON_RUN} WHERE run.id = ?`).get(id) as Hang | undefined;
   return h ? veMeta(h) : undefined;
 }
 
-export function docSuKien(runId: string): StoredEvent[] {
-  const hang = moDb().prepare('SELECT t, e FROM run_su_kien WHERE run_id = ? ORDER BY thu_tu').all(runId) as Hang[];
+export function readEvents(runId: string): StoredEvent[] {
+  const hang = openDb().prepare('SELECT t, e FROM run_su_kien WHERE run_id = ? ORDER BY thu_tu').all(runId) as Hang[];
   const ra: StoredEvent[] = [];
   for (const h of hang) {
     try {
@@ -123,7 +123,7 @@ export function docSuKien(runId: string): StoredEvent[] {
   return ra;
 }
 
-function dungWhere(loc: LocRun): { sql: string; tham: unknown[] } {
+function dungWhere(loc: RunFilter): { sql: string; tham: unknown[] } {
   const dk: string[] = [];
   const tham: unknown[] = [];
   if (loc.repo) { dk.push('repo = ?'); tham.push(loc.repo); }
@@ -132,35 +132,35 @@ function dungWhere(loc: LocRun): { sql: string; tham: unknown[] } {
   return { sql: dk.length ? ` WHERE ${dk.join(' AND ')}` : '', tham };
 }
 
-export function danhSachRun(loc: LocRun = {}): RunMeta[] {
+export function listRuns(loc: RunFilter = {}): RunMeta[] {
   const { sql, tham } = dungWhere(loc);
   let cau = `${CHON_RUN}${sql} ORDER BY bat_dau DESC`;
   const t = [...tham];
   if (loc.gioi_han != null) { cau += ' LIMIT ?'; t.push(loc.gioi_han); }
   if (loc.bo_qua != null) { cau += loc.gioi_han == null ? ' LIMIT -1 OFFSET ?' : ' OFFSET ?'; t.push(loc.bo_qua); }
-  return (moDb().prepare(cau).all(...(t as never[])) as Hang[]).map(veMeta);
+  return (openDb().prepare(cau).all(...(t as never[])) as Hang[]).map(veMeta);
 }
 
-export function demRun(loc: LocRun = {}): number {
+export function countRuns(loc: RunFilter = {}): number {
   const { sql, tham } = dungWhere(loc);
-  const h = moDb().prepare(`SELECT COUNT(*) AS n FROM run${sql}`).get(...(tham as never[])) as Hang;
+  const h = openDb().prepare(`SELECT COUNT(*) AS n FROM run${sql}`).get(...(tham as never[])) as Hang;
   return Number(h.n);
 }
 
 /** Verdict đã chấm cho đúng cặp (PR, commit) — nền của luật chấm-lại-idempotent theo SHA. */
-export function timTheoPr(so: number, sha: string): RunMeta | undefined {
-  const h = moDb()
+export function findByPr(so: number, sha: string): RunMeta | undefined {
+  const h = openDb()
     .prepare(`${CHON_RUN} WHERE pr_so = ? AND pr_head_sha = ? AND trang_thai = 'xong' ORDER BY bat_dau DESC LIMIT 1`)
     .get(so, sha) as Hang | undefined;
   return h ? veMeta(h) : undefined;
 }
 
-export function dangChayPr(so: number): boolean {
-  return moDb().prepare("SELECT 1 FROM run WHERE pr_so = ? AND trang_thai = 'dang_chay'").get(so) !== undefined;
+export function isPrRunning(so: number): boolean {
+  return openDb().prepare("SELECT 1 FROM run WHERE pr_so = ? AND trang_thai = 'dang_chay'").get(so) !== undefined;
 }
 
-export function soDangChay(): number {
-  const h = moDb().prepare("SELECT COUNT(*) AS n FROM run WHERE trang_thai = 'dang_chay'").get() as Hang;
+export function runningCount(): number {
+  const h = openDb().prepare("SELECT COUNT(*) AS n FROM run WHERE trang_thai = 'dang_chay'").get() as Hang;
   return Number(h.n);
 }
 
@@ -176,15 +176,15 @@ export function soDangChay(): number {
  * Dọn lượt chấm MỒ CÔI — hàng còn `dang_chay` từ một tiến trình đã chết (Ctrl-C, deploy, crash).
  *
  * Trước khi trạng thái xuống cơ sở dữ liệu, nó sống trong bộ nhớ tiến trình nên restart là sạch. Nay nó
- * BỀN VỮNG qua restart mà không có đường tự phục hồi: hai hàng mồ côi là `soDangChay()` trả 2 vĩnh
+ * BỀN VỮNG qua restart mà không có đường tự phục hồi: hai hàng mồ côi là `runningCount()` trả 2 vĩnh
  * viễn ⇒ mọi lượt bấm tay nhận 429 và chế độ trực dừng ngay vòng đầu. CheckMate đứng hình, không log
  * gì bất thường, chỉ sửa được bằng cách mở SQL. Cùng bệnh mà R8.7 đã đặt luật cho khoá thư viện probe.
  *
  * Gọi lúc khởi động: tiến trình web là chủ duy nhất của các lượt nó khởi chạy — nó vừa mới lên thì
  * không có lượt nào của nó đang chạy, nên mọi hàng `dang_chay` còn sót đều là xác của lần chạy trước.
  */
-export function donLuotMoCoi(): string[] {
-  const db = moDb();
+export function cleanupOrphanRuns(): string[] {
+  const db = openDb();
   const moCoi = db.prepare("SELECT id FROM run WHERE trang_thai = 'dang_chay'").all() as Array<{ id: string }>;
   if (!moCoi.length) return [];
   const luc = new Date().toISOString();
@@ -202,8 +202,8 @@ export function donLuotMoCoi(): string[] {
   return moCoi.map((r) => r.id);
 }
 
-export function daTraVe(gioiHan = 30): RunMeta[] {
-  return (moDb()
+export function returnedToDev(gioiHan = 30): RunMeta[] {
+  return (openDb()
     .prepare(`${CHON_RUN} WHERE sc.hanh_dong = 'reject' AND sc.ngoai_cong = 0 ORDER BY bat_dau DESC LIMIT ?`)
     .all(gioiHan) as Hang[]).map(veMeta);
 }

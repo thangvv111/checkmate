@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { TRIGGER_CATALOG, laTriggerHopLe, tapKichHoat, timTrigger } from '../packages/harness/src/trigger-catalog.js';
-import { KHO_KHUON, VI_DU_MOI_TRIGGER, triThucTheoTrigger } from '../packages/harness/src/khuon-loi.js';
-import { chuanOdcQualifier, chuanOdcType, chuanMuc } from '../packages/shared/src/types.js';
+import { TRIGGER_EXAMPLES, EXAMPLES_PER_TRIGGER, knowledgeByTrigger } from '../packages/harness/src/khuon-loi.js';
+import { normalizeOdcQualifier, normalizeOdcType, chuanMuc } from '../packages/shared/src/types.js';
 
 /**
  * Bộ trục phân loại code (nền ODC — IBM, IEEE TSE 1992).
@@ -65,33 +65,33 @@ describe('tập kích hoạt per-repo — số lượng linh hoạt, không ph�
 
 describe('ví dụ án lệ trực thuộc trigger — có trần và đào thải', () => {
   it('mọi ví dụ code trong kho đều thuộc một trigger có thật', () => {
-    for (const k of KHO_KHUON.filter((x) => x.loai === 'code')) {
+    for (const k of TRIGGER_EXAMPLES.filter((x) => x.loai === 'code')) {
       expect(laTriggerHopLe(k.trigger), `${k.id} mồ côi: trigger=${String(k.trigger)}`).toBe(true);
     }
   });
 
   it('mỗi trigger phát tối đa N ví dụ; vượt thì rời TẬP PHÁT nhưng vẫn ở trong kho', () => {
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
-    const nhom = triThucTheoTrigger('spec có luật về quyền và http và validate đầu vào');
+    const nhom = knowledgeByTrigger('spec có luật về quyền và http và validate đầu vào');
     for (const n of nhom) {
-      expect(n.vi_du.length, `${n.trigger.id} vượt trần ví dụ`).toBeLessThanOrEqual(VI_DU_MOI_TRIGGER);
+      expect(n.vi_du.length, `${n.trigger.id} vượt trần ví dụ`).toBeLessThanOrEqual(EXAMPLES_PER_TRIGGER);
     }
     // kho KHÔNG bị cắt — đào thải chỉ áp lên tập phát vào prompt
-    expect(KHO_KHUON.filter((k) => k.loai === 'code').length).toBeGreaterThan(VI_DU_MOI_TRIGGER);
+    expect(TRIGGER_EXAMPLES.filter((k) => k.loai === 'code').length).toBeGreaterThan(EXAMPLES_PER_TRIGGER);
     log.mockRestore();
   });
 
   it('trigger CHƯA có ví dụ nào vẫn được phát — đó là cách vùng mù cũ bắt đầu được soi', () => {
     // `sequencing` trống hoàn toàn trong 17 khuôn đời trước. Nếu chỉ phát trigger-có-ví-dụ thì vùng
     // mù tự duy trì vĩnh viễn: không ví dụ ⇒ không phát ⇒ không probe ⇒ không án lệ ⇒ không ví dụ.
-    const nhom = triThucTheoTrigger('spec bất kỳ');
+    const nhom = knowledgeByTrigger('spec bất kỳ');
     const seq = nhom.find((n) => n.trigger.id === 'sequencing');
     expect(seq, 'sequencing phải có mặt trong tập phát').toBeDefined();
     expect(seq?.trigger.huong_dan.length).toBeGreaterThan(30);
   });
 
   it('tập kích hoạt hẹp thì chỉ phát bấy nhiêu nhóm', () => {
-    const nhom = triThucTheoTrigger('spec bất kỳ', ['recovery_exception']);
+    const nhom = knowledgeByTrigger('spec bất kỳ', ['recovery_exception']);
     expect(nhom).toHaveLength(1);
     expect(nhom[0].trigger.id).toBe('recovery_exception');
   });
@@ -100,19 +100,19 @@ describe('ví dụ án lệ trực thuộc trigger — có trần và đào th�
 describe('trục phân loại finding — telemetry, KHÔNG có quyền chặn', () => {
   it('bảy defect type + ba qualifier nhận đúng, giá trị lạ về unknown', () => {
     for (const t of ['assignment_init', 'checking', 'algorithm_method', 'function_class', 'timing_serialization', 'interface_messages', 'relationship']) {
-      expect(chuanOdcType(t)).toBe(t);
+      expect(normalizeOdcType(t)).toBe(t);
     }
-    expect(chuanOdcType('CHECKING')).toBe('checking'); // hoa/thường không phải lý do vứt dữ liệu
-    for (const rac of ['sieu_loi', '', undefined, null, 42, {}, []]) expect(chuanOdcType(rac)).toBe('unknown');
-    for (const q of ['missing', 'incorrect', 'extraneous']) expect(chuanOdcQualifier(q)).toBe(q);
-    for (const rac of ['thieu', undefined, 7]) expect(chuanOdcQualifier(rac)).toBe('unknown');
+    expect(normalizeOdcType('CHECKING')).toBe('checking'); // hoa/thường không phải lý do vứt dữ liệu
+    for (const rac of ['sieu_loi', '', undefined, null, 42, {}, []]) expect(normalizeOdcType(rac)).toBe('unknown');
+    for (const q of ['missing', 'incorrect', 'extraneous']) expect(normalizeOdcQualifier(q)).toBe(q);
+    for (const rac of ['thieu', undefined, 7]) expect(normalizeOdcQualifier(rac)).toBe('unknown');
   });
 
   it('BẤT ĐỐI XỨNG CÓ CHỦ ĐÍCH: severity lạ fail-closed về high, telemetry lạ về unknown', () => {
     // Trục gác cổng phải nghiêng về NẶNG khi không hiểu; trục telemetry thì không — cho nó quyền
     // đổi verdict là mở đường lách «bịa phân loại khéo thì merge được».
     expect(chuanMuc('gia_tri_la')).toBe('high');
-    expect(chuanOdcType('gia_tri_la')).toBe('unknown');
-    expect(chuanOdcQualifier('gia_tri_la')).toBe('unknown');
+    expect(normalizeOdcType('gia_tri_la')).toBe('unknown');
+    expect(normalizeOdcQualifier('gia_tri_la')).toBe('unknown');
   });
 });

@@ -8,22 +8,22 @@ export interface ModelProvider {
 
 // L3: đo chi phí mỗi lượt chấm — CLI không trả usage nên ước theo ký tự (~3.5 ký tự/token với text Việt+code);
 // API dùng usage thật khi có. Đủ để trả lời "mỗi PR tốn bao nhiêu?" bằng số.
-export const doChiPhi = { calls: 0, kyTuVao: 0, kyTuRa: 0, tokenVao: 0, tokenRa: 0 };
-export function soLieuChiPhi(): { calls: number; token_vao: number; token_ra: number; uoc_tinh: boolean } {
-  const that = doChiPhi.tokenVao > 0 || doChiPhi.tokenRa > 0;
+export const measureCost = { calls: 0, kyTuVao: 0, kyTuRa: 0, tokenVao: 0, tokenRa: 0 };
+export function costMetrics(): { calls: number; token_vao: number; token_ra: number; uoc_tinh: boolean } {
+  const that = measureCost.tokenVao > 0 || measureCost.tokenRa > 0;
   return {
-    calls: doChiPhi.calls,
-    token_vao: that ? doChiPhi.tokenVao : Math.round(doChiPhi.kyTuVao / 3.5),
-    token_ra: that ? doChiPhi.tokenRa : Math.round(doChiPhi.kyTuRa / 3.5),
+    calls: measureCost.calls,
+    token_vao: that ? measureCost.tokenVao : Math.round(measureCost.kyTuVao / 3.5),
+    token_ra: that ? measureCost.tokenRa : Math.round(measureCost.kyTuRa / 3.5),
     uoc_tinh: !that,
   };
 }
 
-export function tomTatChiPhi(): string {
-  const inTok = doChiPhi.tokenVao || Math.round(doChiPhi.kyTuVao / 3.5);
-  const outTok = doChiPhi.tokenRa || Math.round(doChiPhi.kyTuRa / 3.5);
-  const uoc = doChiPhi.tokenVao ? '' : ' (ước từ ký tự)';
-  return `${doChiPhi.calls} call model · ~${Math.round(inTok / 1000)}k token vào + ~${Math.round(outTok / 1000)}k token ra${uoc}`;
+export function costSummary(): string {
+  const inTok = measureCost.tokenVao || Math.round(measureCost.kyTuVao / 3.5);
+  const outTok = measureCost.tokenRa || Math.round(measureCost.kyTuRa / 3.5);
+  const uoc = measureCost.tokenVao ? '' : ' (ước từ ký tự)';
+  return `${measureCost.calls} call model · ~${Math.round(inTok / 1000)}k token vào + ~${Math.round(outTok / 1000)}k token ra${uoc}`;
 }
 
 const MODEL_MAC_DINH = process.env.CHECKER_MODEL ?? 'claude-sonnet-5';
@@ -73,7 +73,7 @@ const ENV_CHO_CLI = [
  * tiêu gói thuê bao trong khi đang đốt credit. Danh sách cho phép giữ nguyên tính chất đó mà không phải
  * nhớ tên nó nữa.
  */
-export function envChoCli(nguon: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+export function envForCli(nguon: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
   const ra: NodeJS.ProcessEnv = { CLAUDECODE: '' };
   for (const ten of ENV_CHO_CLI) {
     const v = nguon[ten];
@@ -90,7 +90,7 @@ const TRAN_GOI_MS = Math.max(60_000, Number(process.env.CHECKER_TRAN_GOI_S ?? 18
 // CLI báo mất xác thực bằng cách IN RA STDOUT rồi thoát 0, nên nếu không nhận ra thì harness tưởng
 // đó là câu trả lời của model và ném tiếp "không tìm thấy JSON" — người đọc log đi sửa nhầm chỗ.
 // Danh sách này phải phủ cả phiên hết hạn, không chỉ ca chưa đăng nhập bao giờ.
-export const MAU_MAT_XAC_THUC =
+export const AUTH_LOST_PATTERNS =
   /not logged in|please run \/login|failed to authenticate|authentication failed|oauth[^.]*(expired|invalid|refresh)|session expired|invalid api key|unauthorized/i;
 
 /**
@@ -98,7 +98,7 @@ export const MAU_MAT_XAC_THUC =
  * và trơ. Phân biệt bằng HÌNH DẠNG chứ không bằng cách thu hẹp mẫu — repo nào có spec về xác thực thì
  * probe sinh ra gần như luôn chứa 'unauthorized' hay 'session expired', và mẫu hẹp cỡ nào cũng dính.
  */
-export function coVeLaTraLoiModel(out: string): boolean {
+export function looksLikeModelReply(out: string): boolean {
   const t = out.trim();
   if (t.length > 400 || t.includes('```')) return true;
   return (t.startsWith('{') && t.endsWith('}')) || (t.startsWith('[') && t.endsWith(']'));
@@ -108,26 +108,26 @@ export function coVeLaTraLoiModel(out: string): boolean {
  * CLI có mất xác thực không. stderr khớp mẫu là chắc chắn — model không bao giờ trả lời qua stderr.
  * stdout thì phải loại trừ khả năng chính nó là câu trả lời của model (R3.13).
  */
-export function matXacThuc(out: string, err: string): boolean {
-  if (MAU_MAT_XAC_THUC.test(err)) return true;
-  return MAU_MAT_XAC_THUC.test(out) && !coVeLaTraLoiModel(out);
+export function authLost(out: string, err: string): boolean {
+  if (AUTH_LOST_PATTERNS.test(err)) return true;
+  return AUTH_LOST_PATTERNS.test(out) && !looksLikeModelReply(out);
 }
 
 /** Lỗi do CẤU HÌNH của chính checker, không phải trục trặc thoáng qua — thử lại vô nghĩa. */
-export class LoiCauHinhCli extends Error {}
+export class CliConfigError extends Error {}
 
 // Dev local: đi qua Claude Code CLI (đăng nhập sẵn), prompt truyền qua stdin để né giới hạn arg Windows.
 export class ClaudeCliProvider implements ModelProvider {
   ten = `claude-cli/${MODEL_MAC_DINH}`;
 
   async complete(prompt: string): Promise<string> {
-    doChiPhi.calls += 1;
-    doChiPhi.kyTuVao += prompt.length;
+    measureCost.calls += 1;
+    measureCost.kyTuVao += prompt.length;
     try {
       return await this.goiMotLan(prompt);
     } catch (e) {
       // Lỗi CẤU HÌNH thì thử lại chỉ tốn thêm một lượt y hệt — ném thẳng để người vận hành đi sửa
-      if (e instanceof LoiCauHinhCli) throw e;
+      if (e instanceof CliConfigError) throw e;
       // transient (mạng/CLI) — thử lại đúng một lần, thông báo thân thiện cho người xem run
       console.error(`   Lượt gọi model gặp trục trặc (${(e as Error).message.slice(0, 60)}) — hệ thống tự thử lại, lần 2/2…`);
       return this.goiMotLan(prompt);
@@ -141,7 +141,7 @@ export class ClaudeCliProvider implements ModelProvider {
       // Provider 'cli' nghĩa là DÙNG GÓI THUÊ BAO. Nếu để ANTHROPIC_API_KEY trong môi trường,
       // Claude Code sẽ lặng lẽ dùng key đó và tính tiền API — người vận hành tưởng đang tiêu gói
       // thuê bao mà thực ra đang đốt credit. Cắt key khỏi env để hai nguồn không lẫn vào nhau.
-      const envCli = envChoCli();
+      const envCli = envForCli();
       const child = spawn('claude', ['-p', '--model', MODEL_MAC_DINH, '--disallowed-tools', `"${TOOL_CAM}"`, '--no-session-persistence'], {
         shell: true,
         cwd: tmpdir(),
@@ -173,7 +173,7 @@ export class ClaudeCliProvider implements ModelProvider {
         if (process.platform === 'win32' && child.pid) spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { shell: true });
         else child.kill('SIGKILL');
         reject(
-          new LoiCauHinhCli(
+          new CliConfigError(
             `Claude Code CLI không biết tool "${ten}" nên từ chối chạy. Danh sách tool bị cấm trong CHECKER ` +
               `(model.ts · TOOL_CAM) có tên không tồn tại ở bản CLI đang cài — bỏ tên đó ra, hoặc nâng cấp CLI.`,
           ),
@@ -190,10 +190,10 @@ export class ClaudeCliProvider implements ModelProvider {
       child.on('error', reject);
       child.on('close', (code) => {
         clearTimeout(timer);
-        if (matXacThuc(out, err)) {
+        if (authLost(out, err)) {
           // Lỗi CẤU HÌNH: thử lại chỉ tốn thêm một lượt y hệt, phiên hết hạn không tự sống lại
           return reject(
-            new LoiCauHinhCli(
+            new CliConfigError(
               'Claude Code CLI mất xác thực trên máy này (chưa đăng nhập, hoặc phiên đã hết hạn) nên không dùng được gói thuê bao. ' +
                 'Chủ máy chạy `claude login` (hoặc `claude setup-token` rồi đặt CLAUDE_CODE_OAUTH_TOKEN) bằng ĐÚNG user chạy dịch vụ; ' +
                 'hoặc chuyển Provider sang "Anthropic API" trong ⚙ Cài đặt nếu chấp nhận tính tiền theo API.',
@@ -202,7 +202,7 @@ export class ClaudeCliProvider implements ModelProvider {
         }
         if (code !== 0 && !out.trim()) return reject(new Error(`claude CLI exit ${code}: ${err.slice(0, 500)}`));
         const ra = out.trim();
-        doChiPhi.kyTuRa += ra.length; // CLI không trả usage — đếm ký tự để ước token ra
+        measureCost.kyTuRa += ra.length; // CLI không trả usage — đếm ký tự để ước token ra
         resolve(ra);
       });
       child.stdin.write(prompt);
@@ -216,8 +216,8 @@ export class AnthropicApiProvider implements ModelProvider {
   ten = `anthropic-api/${MODEL_MAC_DINH}`;
 
   async complete(prompt: string): Promise<string> {
-    doChiPhi.calls += 1;
-    doChiPhi.kyTuVao += prompt.length;
+    measureCost.calls += 1;
+    measureCost.kyTuVao += prompt.length;
     // L2: 429/529/5xx là lỗi thoáng qua — retry 2 lần với backoff, đừng chết run giữa sân khấu
     let res!: Response;
     for (let lan = 0; lan < 3; lan++) {
@@ -244,7 +244,7 @@ export class AnthropicApiProvider implements ModelProvider {
     if (!res.ok) {
       const chiTiet = (await res.text()).slice(0, 300);
       if (res.status === 401 || res.status === 403) {
-        throw new LoiCauHinhProvider(
+        throw new ProviderConfigError(
           `Anthropic API từ chối xác thực (HTTP ${res.status}) — ANTHROPIC_API_KEY sai hoặc hết hạn. ` +
             'Vào ⚙ Cài đặt → mục Agent review kiểm tra provider, hoặc đặt lại ANTHROPIC_API_KEY. ' +
             `Chi tiết: ${chiTiet}`,
@@ -253,29 +253,29 @@ export class AnthropicApiProvider implements ModelProvider {
       throw new Error(`Anthropic API ${res.status}: ${chiTiet}`);
     }
     const data = (await res.json()) as { content: Array<{ type: string; text?: string }>; usage?: { input_tokens: number; output_tokens: number } };
-    if (data.usage) { doChiPhi.tokenVao += data.usage.input_tokens; doChiPhi.tokenRa += data.usage.output_tokens; }
+    if (data.usage) { measureCost.tokenVao += data.usage.input_tokens; measureCost.tokenRa += data.usage.output_tokens; }
     const ra = data.content
       .filter((b) => b.type === 'text')
       .map((b) => b.text ?? '')
       .join('')
       .trim();
-    doChiPhi.kyTuRa += ra.length;
+    measureCost.kyTuRa += ra.length;
     return ra;
   }
 }
 
 // Lỗi cấu hình provider — phân biệt hẳn với lỗi nghiệp vụ để UI hướng người dùng vào ⚙ Cài đặt
-export class LoiCauHinhProvider extends Error {
+export class ProviderConfigError extends Error {
   readonly loai = 'cau_hinh_provider' as const;
 }
 
 // Kiểm cấu hình TRƯỚC khi tốn thời gian dựng sandbox — sai thì báo ngay, kèm cách sửa
-export function kiemTraProvider(): void {
+export function checkProvider(): void {
   const ncc = process.env.CHECKER_NCC;
   if (ncc && ncc !== 'anthropic') {
     const bien = ncc === 'github' ? 'GITHUB_MODELS_TOKEN' : ncc === 'google' ? 'GOOGLE_API_KEY' : 'OPENAI_API_KEY';
     if (!process.env.CHECKER_KHOA?.trim() && !process.env[bien]?.trim()) {
-      throw new LoiCauHinhProvider(`Cấu hình nhà cung cấp không hợp lệ: đang chọn ${ncc} nhưng chưa có khoá (${bien}). Vào ⚙ Cài đặt điền khoá cho nhà cung cấp này rồi kiểm lại.`);
+      throw new ProviderConfigError(`Cấu hình nhà cung cấp không hợp lệ: đang chọn ${ncc} nhưng chưa có khoá (${bien}). Vào ⚙ Cài đặt điền khoá cho nhà cung cấp này rồi kiểm lại.`);
     }
     return;
   }
@@ -283,7 +283,7 @@ export function kiemTraProvider(): void {
   const model = MODEL_MAC_DINH;
   if (ep === 'api' || (!ep && process.env.ANTHROPIC_API_KEY)) {
     if (!process.env.ANTHROPIC_API_KEY?.trim()) {
-      throw new LoiCauHinhProvider(
+      throw new ProviderConfigError(
         'Cấu hình provider không hợp lệ: đang chọn "Anthropic API" nhưng KHÔNG có ANTHROPIC_API_KEY trong môi trường. ' +
           'Vào ⚙ Cài đặt → mục Agent review: đổi provider sang "Claude Code CLI", hoặc đặt biến môi trường ANTHROPIC_API_KEY rồi khởi động lại CheckMate.',
       );
@@ -293,14 +293,14 @@ export function kiemTraProvider(): void {
   // provider = cli: phải có lệnh claude trên máy
   const thu = spawnSync('claude', ['--version'], { shell: true, encoding: 'utf8', timeout: 30_000 });
   if (thu.status !== 0) {
-    throw new LoiCauHinhProvider(
+    throw new ProviderConfigError(
       'Cấu hình provider không hợp lệ: đang chọn "Claude Code CLI" nhưng không chạy được lệnh `claude` trên máy này' +
         (thu.error ? ` (${thu.error.message})` : '') +
         '. Vào ⚙ Cài đặt → mục Agent review: đổi provider sang "Anthropic API" (cần ANTHROPIC_API_KEY), hoặc cài/đăng nhập Claude Code trên máy chạy CheckMate.',
     );
   }
   if (!model.trim()) {
-    throw new LoiCauHinhProvider('Cấu hình provider không hợp lệ: chưa chọn model. Vào ⚙ Cài đặt → mục Agent review để chọn model.');
+    throw new ProviderConfigError('Cấu hình provider không hợp lệ: chưa chọn model. Vào ⚙ Cài đặt → mục Agent review để chọn model.');
   }
 }
 
@@ -318,9 +318,9 @@ class ChatCompletionsProvider implements ModelProvider {
   }
 
   async complete(prompt: string): Promise<string> {
-    doChiPhi.calls += 1;
-    doChiPhi.kyTuVao += prompt.length;
-    if (!this.khoa) throw new LoiCauHinhProvider(`Chưa có khoá cho nhà cung cấp ${this.nhan} — điền trong ⚙ Cài đặt.`);
+    measureCost.calls += 1;
+    measureCost.kyTuVao += prompt.length;
+    if (!this.khoa) throw new ProviderConfigError(`Chưa có khoá cho nhà cung cấp ${this.nhan} — điền trong ⚙ Cài đặt.`);
     let res!: Response;
     for (let lan = 0; lan < 3; lan++) {
       res = await fetch(this.endpoint, {
@@ -336,7 +336,7 @@ class ChatCompletionsProvider implements ModelProvider {
     if (!res.ok) {
       const chiTiet = (await res.text()).slice(0, 300);
       if (res.status === 401 || res.status === 403) {
-        throw new LoiCauHinhProvider(`${this.nhan} từ chối xác thực (HTTP ${res.status}) — khoá sai, hết hạn hoặc thiếu quyền. Chi tiết: ${chiTiet}`);
+        throw new ProviderConfigError(`${this.nhan} từ chối xác thực (HTTP ${res.status}) — khoá sai, hết hạn hoặc thiếu quyền. Chi tiết: ${chiTiet}`);
       }
       throw new Error(`${this.nhan} ${res.status}: ${chiTiet}`);
     }
@@ -345,16 +345,16 @@ class ChatCompletionsProvider implements ModelProvider {
       usage?: { prompt_tokens: number; completion_tokens: number };
     };
     if (data.usage) {
-      doChiPhi.tokenVao += data.usage.prompt_tokens;
-      doChiPhi.tokenRa += data.usage.completion_tokens;
+      measureCost.tokenVao += data.usage.prompt_tokens;
+      measureCost.tokenRa += data.usage.completion_tokens;
     }
     const ra = (data.choices?.[0]?.message?.content ?? '').trim();
-    doChiPhi.kyTuRa += ra.length;
+    measureCost.kyTuRa += ra.length;
     return ra;
   }
 }
 
-export function chonProvider(): ModelProvider {
+export function pickProvider(): ModelProvider {
   // Nhà cung cấp mới (github/openai) đi đường chat/completions; anthropic giữ hai đường cũ.
   const ncc = process.env.CHECKER_NCC;
   // CHECKER_KHOA là khoá do web bơm xuống theo nhà cung cấp đang chọn; biến riêng chỉ là đường lùi

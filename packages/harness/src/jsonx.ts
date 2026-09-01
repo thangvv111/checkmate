@@ -1,21 +1,21 @@
 import type { ModelProvider } from './model.js';
-import { taoRao } from './rao.js';
+import { makeFence } from './rao.js';
 
 /**
  * Gọi model lấy JSON — parse fail thì nhắc lại đúng một lần, VÀ đưa cho model chính chỗ nó viết hỏng.
  * Nhắc chung chung ("trả JSON đúng schema") không sửa được một dấu phẩy thiếu ở ký tự thứ 2914 —
  * model không thấy được lỗi của mình thì lượt hai hỏng y hệt lượt một (đo được ở repo này).
  */
-export async function goiJson<T>(model: ModelProvider, prompt: string): Promise<T> {
+export async function callJson<T>(model: ModelProvider, prompt: string): Promise<T> {
   const lan1 = await model.complete(prompt);
   try {
-    return bocJson<T>(lan1);
+    return unwrapJson<T>(lan1);
   } catch (e) {
     // Thông điệp lỗi mang TRÍCH ĐOẠN trả lời của model, mà trả lời đó dẫn xuất từ diff PR — tức từ
     // nội dung do maker viết và KHÔNG đáng tin. Nhét thẳng vào prompt là mở lại đúng đường tiêm chỉ
     // thị mà rào nonce sinh ra để chặn: kẻ viết diff chỉ cần làm vỡ JSON theo ý mình là câu chữ của
     // họ được chép nguyên vào lượt gọi sau, ở vị trí trông như lời của hệ thống.
-    const rao = taoRao();
+    const rao = makeFence();
     const lan2 = await model.complete(
       `${prompt}
 
@@ -26,12 +26,12 @@ ${rao('LOI_PARSE', (e as Error).message.slice(0, 900))}
 
 Chú ý những chỗ hay làm vỡ JSON: dấu nháy hoặc dấu chéo ngược chưa escape trong giá trị chuỗi, dấu phẩy thừa trước dấu ngoặc đóng, xuống dòng thật nằm giữa một chuỗi. Giá trị chuỗi nên viết gọn, tránh ký tự đặc biệt.`,
     );
-    return bocJson<T>(lan2);
+    return unwrapJson<T>(lan2);
   }
 }
 
 // Bóc JSON khỏi trả lời model (chấp nhận có hoặc không có code fence).
-export function bocJson<T>(raw: string): T {
+export function unwrapJson<T>(raw: string): T {
   const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
   const ung = fence ? fence[1] : raw;
   const dau = ung.indexOf('{');
@@ -54,31 +54,31 @@ export function bocJson<T>(raw: string): T {
 
 // Bóc code khỏi trả lời model — nhận MỌI language tag (```ts, ```python, ```java...),
 // tag phải bị BỎ, tuyệt đối không được lọt vào dòng đầu file code.
-export function bocCode(raw: string): string {
+export function unwrapCode(raw: string): string {
   const fence = raw.match(/```[a-zA-Z0-9_+-]*[ \t]*\r?\n([\s\S]*?)```/);
   if (fence) return fence[1].trim();
   // không fence: coi toàn bộ là code nếu có dấu hiệu mã nguồn
   if (/^\s*(import|from|def |package |public )/m.test(raw)) return raw.trim();
   // Model phát ra LỜI GỌI TOOL thay vì code — báo đúng bản chất để chỗ gọi biết đường nhắc lại
   if (/<invoke|<function_calls|<invoke/i.test(raw)) {
-    throw new LoiModelDungTool(`Model trả về lời gọi tool thay vì code: ${raw.slice(0, 160)}`);
+    throw new ModelUsedToolError(`Model trả về lời gọi tool thay vì code: ${raw.slice(0, 160)}`);
   }
   throw new Error(`Không tìm thấy code trong trả lời model: ${raw.slice(0, 200)}`);
 }
 
-export class LoiModelDungTool extends Error {}
+export class ModelUsedToolError extends Error {}
 
 // Lấy code từ model, nhắc lại MỘT lần nếu model đi dùng tool hoặc quên fence.
-export async function goiCode(model: ModelProvider, prompt: string): Promise<string> {
+export async function callCode(model: ModelProvider, prompt: string): Promise<string> {
   const lan1 = await model.complete(prompt);
   try {
-    return bocCode(lan1);
+    return unwrapCode(lan1);
   } catch (e) {
     const nhac =
-      e instanceof LoiModelDungTool
+      e instanceof ModelUsedToolError
         ? 'LẦN TRƯỚC BẠN PHÁT RA LỜI GỌI TOOL. Bạn KHÔNG có tool nào, KHÔNG đọc được file, KHÔNG chạy được lệnh.'
         : 'LẦN TRƯỚC BẠN KHÔNG TRẢ VỀ KHỐI CODE NÀO.';
-    return bocCode(
+    return unwrapCode(
       await model.complete(
         `${prompt}\n\n${nhac} Làm việc CHỈ với dữ liệu trong prompt này. Trả lời DUY NHẤT một khối code trong một fence, không giải thích, không lời gọi tool.`,
       ),

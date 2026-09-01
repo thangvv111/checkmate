@@ -23,17 +23,17 @@ Bốn commit tách bạch (xem `design.md`): di chuyển thuần → đổi tên
 
 ## 3. Commit 2 — ĐỔI TÊN lớp A (không file nào đổi chỗ)
 
-- [ ] 3.1 Chốt bảng ánh xạ tên trước khi sửa: 87 export + định danh nội bộ. Mỗi tên một dòng
+- [x] 3.1 *(bảng ở  — suy từ 10 từ lõi PO chốt)* Chốt bảng ánh xạ tên trước khi sửa: 87 export + định danh nội bộ. Mỗi tên một dòng
       `cũ → mới`, để review đọc được bảng thay vì đọc diff.
-- [ ] 3.2 Đổi tên theo bảng. Sau mỗi module chạy `npx tsc --noEmit` — trình biên dịch là lưới của
+- [x] 3.2 Đổi tên theo bảng. Sau mỗi module chạy `npx tsc --noEmit` — trình biên dịch là lưới của
       lớp A, dùng nó liên tục thay vì dồn cuối.
-- [ ] 3.3 **KHÔNG chạm lớp B**: tên cột SQLite · field trong object bị serialize nguyên khối
+- [x] 3.3 **KHÔNG chạm lớp B**: tên cột SQLite · field trong object bị serialize nguyên khối
       (`RunEvent`, `Verdict`, `Finding`, `probe_stats`, `chi_phi`, `plan` của probe thư viện,
       `config.json`, sổ kiểm nhà cung cấp, kho bí mật).
-- [ ] 3.4 **KHÔNG chạm lớp C**: khoá `checkmate.yml` mà repo đích khai (`khuon_loi`, `bo_qua_diff`,
+- [x] 3.4 **KHÔNG chạm lớp C**: khoá `checkmate.yml` mà repo đích khai (`khuon_loi`, `bo_qua_diff`,
       `huong_dan_probe`, `severity_map`, `test_cmd`, `probe_dir`, `probe_ext`, `timeout_s`,
       `framework`, `triggers`).
-- [ ] 3.5 **Khai lại bảng module trong `checkmate.yml`** theo tên mới (⛔C5). Quên khai thì probe
+- [x] 3.5 **Khai lại bảng module trong `checkmate.yml`** theo tên mới (⛔C5). Quên khai thì probe
       chết với «... is not a function» và thành finding sai hẳn bản chất — đã xảy ra 5 lần.
 
 ## 4. Commit 3 — Lưới (và chứng minh nó load-bearing)

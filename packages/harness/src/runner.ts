@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { XMLParser } from 'fast-xml-parser';
-import type { KetQuaProbe } from './sandbox.js';
+import type { ProbeResult } from './sandbox.js';
 
 // Runner cấu hình được (spec §12 · B4.5): repo đích khai cách chạy test của CHÍNH NÓ qua checkmate.yml.
 // Không có file → đường vitest mặc định (đường demo) giữ nguyên. Hợp đồng kết quả: JUnit XML.
@@ -30,7 +30,7 @@ export interface ReviewCfg {
 /**
  * Lời báo lỗi cú pháp AN TOÀN: chỉ lấy DÒNG ĐẦU của thông điệp parser.
  *
- * Bộ parse YAML kèm khung mã trích NGUYÊN DÒNG NGUỒN vào thông điệp, nên in nguyên message là in
+ * Bộ parse YAML kèm shell mã trích NGUYÊN DÒNG NGUỒN vào thông điệp, nên in nguyên message là in
  * nội dung `checkmate.yml` ra log — và file đó có thể chứa chìa (vòng bảy của cổng bắt token chảy
  * theo đường này). Dòng đầu mang loại lỗi + vị trí, đủ để sửa, không mang nội dung.
  */
@@ -55,7 +55,7 @@ function loiCuPhapAnToan(e: unknown): string {
   return van.split('\n')[0].slice(0, 120);
 }
 
-export function docReviewCfg(repoPath: string): ReviewCfg | null {
+export function readReviewCfg(repoPath: string): ReviewCfg | null {
   const f = join(repoPath, 'checkmate.yml');
   if (!existsSync(f)) return null;
   try {
@@ -73,7 +73,7 @@ export function docReviewCfg(repoPath: string): ReviewCfg | null {
       bo_qua_diff: Array.isArray(r.bo_qua_diff) ? locMauHopLe(r.bo_qua_diff.map(String)) : undefined,
     };
   } catch (e) {
-    // Cùng một lời với cửa song sinh `docRunnerCfg`: nuốt lỗi thành im lặng thì người vận hành không
+    // Cùng một lời với cửa song sinh `readRunnerCfg`: nuốt lỗi thành im lặng thì người vận hành không
     // biết hợp đồng repo đích đang hỏng, và lượt chấm cứ chạy bằng đường mặc định như thể mọi thứ ổn
     // (vòng sáu của cổng bắt: một nửa được vá, nửa còn lại bỏ quên).
     console.error(`checkmate.yml của repo đích sai cú pháp — bỏ qua cấu hình review, rơi về mặc định (R2.12): ${loiCuPhapAnToan(e)}`);
@@ -82,7 +82,7 @@ export function docReviewCfg(repoPath: string): ReviewCfg | null {
 }
 
 // Mẫu repo khai có thể sai cú pháp regex — mẫu hỏng bị bỏ qua chứ không được làm sập lượt chấm.
-export function mauBoQuaDiff(review: ReviewCfg | null): RegExp[] {
+export function diffIgnorePatterns(review: ReviewCfg | null): RegExp[] {
   const ra: RegExp[] = [];
   for (const m of review?.bo_qua_diff ?? []) {
     try {
@@ -94,10 +94,10 @@ export function mauBoQuaDiff(review: ReviewCfg | null): RegExp[] {
   return ra;
 }
 
-export function docRunnerCfg(repoPath: string): RunnerCfg | null {
+export function readRunnerCfg(repoPath: string): RunnerCfg | null {
   const f = join(repoPath, 'checkmate.yml');
   if (!existsSync(f)) return null;
-  // R2.12 — cú pháp hỏng thì FAIL-SAFE về null, không ném. Cửa song sinh `docReviewCfg` đã gác đúng
+  // R2.12 — cú pháp hỏng thì FAIL-SAFE về null, không ném. Cửa song sinh `readReviewCfg` đã gác đúng
   // từ lâu còn cửa này thì không: hợp đồng repo đích sai một dấu nháy là cả lượt chấm chết ở bước
   // đọc, thay vì rơi về đường vitest mặc định như luật khai (quan sát ngoài phạm vi P8 của cổng).
   let raw: { runner?: Partial<RunnerCfg> } | undefined;
@@ -121,7 +121,7 @@ export function docRunnerCfg(repoPath: string): RunnerCfg | null {
 }
 
 // Parse JUnit XML → danh sách kết quả test (chuẩn chung vitest/pytest/surefire đều xuất được)
-export function parseJUnit(xml: string, file: string): KetQuaProbe[] {
+export function parseJUnit(xml: string, file: string): ProbeResult[] {
   const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' });
   const doc = parser.parse(xml) as Record<string, unknown>;
   const goc = (doc.testsuites ?? doc.testsuite) as unknown;

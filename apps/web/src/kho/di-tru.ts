@@ -1,17 +1,17 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { moDb } from './db.js';
-import { ghiSoCaiNeuChua, ghiSoCong } from './kho-socai.js';
-import { docMeta, luuMeta, luuSuKien } from './kho-run.js';
+import { openDb } from './db.js';
+import { appendVerdictLedgerIfNew, appendGateLedger } from './kho-socai.js';
+import { readMeta, saveMeta, saveEvents } from './kho-run.js';
 import type { RunMeta, StoredEvent } from '../runs.js';
 import { GOC } from '../../../../packages/shared/src/paths.js';
-import type { MucSoCai } from '../ledger.js';
+import type { VerdictLedgerEntry } from '../ledger.js';
 
 // Di trú dữ liệu đời file sang cơ sở dữ liệu (specs/R9.7–R9.9).
 // Ba luật xương sống: chạy đúng MỘT lần cho mỗi bước, KHÔNG xoá file gốc, và dòng hỏng thì bỏ qua
 // rồi ĐẾM ra chứ không im lặng nuốt.
 
-export interface KetQuaDiTru {
+export interface MigrationResult {
   buoc: string;
   daChay: boolean; // false = đã di trú từ trước, lượt này không làm gì
   soDong: number;
@@ -19,11 +19,11 @@ export interface KetQuaDiTru {
 }
 
 function daLam(buoc: string): boolean {
-  return moDb().prepare('SELECT 1 FROM da_di_tru WHERE buoc = ?').get(buoc) !== undefined;
+  return openDb().prepare('SELECT 1 FROM da_di_tru WHERE buoc = ?').get(buoc) !== undefined;
 }
 
 function ghiNhan(buoc: string, soDong: number, boQua: number): void {
-  moDb()
+  openDb()
     .prepare('INSERT INTO da_di_tru (buoc, luc, so_dong, bo_qua) VALUES (?,?,?,?)')
     .run(buoc, new Date().toISOString(), soDong, boQua);
 }
@@ -45,10 +45,10 @@ function docJsonl<T>(duong: string): { muc: T[]; boQua: number } {
   return { muc, boQua };
 }
 
-function diTruSoCai(): KetQuaDiTru {
+function diTruSoCai(): MigrationResult {
   const buoc = 'so-cai-jsonl';
   if (daLam(buoc)) return { buoc, daChay: false, soDong: 0, boQua: 0 };
-  const { muc, boQua } = docJsonl<MucSoCai>(join(GOC, 'web-runs', 'verdict-ledger.jsonl'));
+  const { muc, boQua } = docJsonl<VerdictLedgerEntry>(join(GOC, 'web-runs', 'verdict-ledger.jsonl'));
   let dem = 0;
   let hong = 0;
   for (const m of muc) {
@@ -56,12 +56,12 @@ function diTruSoCai(): KetQuaDiTru {
       continue; // bản ghi thiếu khoá thì không dựng được hàng — đếm vào phần bỏ qua bên dưới
     }
     try {
-      if (ghiSoCaiNeuChua(m)) dem++;
+      if (appendVerdictLedgerIfNew(m)) dem++;
     } catch (e) {
       // MỘT dòng hỏng không được giết cả lượt di trú. Sổ JSONL cũ nằm ở file người ta sửa tay được
       // (chính R9.4 nêu điều đó là lý do phải bỏ nó), nên một dòng thiếu cột NOT NULL hoặc mang
       // verdict viết thường là chuyện thường. Trước đây lỗi ràng buộc thoát khỏi đây, làm sập
-      // `diTruTatCa()` NGAY LÚC KHỞI ĐỘNG — server không lên, và lặp lại y hệt mỗi lần restart.
+      // `migrateAll()` NGAY LÚC KHỞI ĐỘNG — server không lên, và lặp lại y hệt mỗi lần restart.
       //
       // Không nuốt im lặng: nói rõ dòng nào, vì sao, để người vận hành sửa được đúng dòng đó.
       hong++;
@@ -83,7 +83,7 @@ interface DongReviewLog {
   ghi_chu?: string;
 }
 
-function diTruSoCong(): KetQuaDiTru {
+function diTruSoCong(): MigrationResult {
   const buoc = 'so-cong-jsonl';
   if (daLam(buoc)) return { buoc, daChay: false, soDong: 0, boQua: 0 };
   const { muc, boQua } = docJsonl<DongReviewLog>(join(GOC, 'web-runs', 'review-log.jsonl'));
@@ -96,7 +96,7 @@ function diTruSoCong(): KetQuaDiTru {
       continue;
     }
     const chiTiet = m.ghi_chu ?? (m.xac_nhan_medium?.length ? `${m.xac_nhan_medium.length} cảnh báo medium được chấp nhận` : undefined);
-    ghiSoCong({ run_id: m.run_id, luc: m.luc, hanh_dong: hd, nguoi: m.nguoi ?? 'không rõ', chi_tiet: chiTiet });
+    appendGateLedger({ run_id: m.run_id, luc: m.luc, hanh_dong: hd, nguoi: m.nguoi ?? 'không rõ', chi_tiet: chiTiet });
     dem++;
   }
   ghiNhan(buoc, dem, hong);
@@ -104,7 +104,7 @@ function diTruSoCong(): KetQuaDiTru {
 }
 
 
-function diTruRun(): KetQuaDiTru {
+function diTruRun(): MigrationResult {
   const buoc = 'run-json';
   if (daLam(buoc)) return { buoc, daChay: false, soDong: 0, boQua: 0 };
   const thuMuc = join(GOC, 'web-runs');
@@ -127,9 +127,9 @@ function diTruRun(): KetQuaDiTru {
       hong++;
       continue;
     }
-    if (docMeta(meta.id)) continue; // đã nạp từ trước
-    luuMeta(meta);
-    if (data.events?.length) luuSuKien(meta.id, data.events);
+    if (readMeta(meta.id)) continue; // đã nạp từ trước
+    saveMeta(meta);
+    if (data.events?.length) saveEvents(meta.id, data.events);
     dem++;
   }
   ghiNhan(buoc, dem, hong);
@@ -140,11 +140,11 @@ function diTruRun(): KetQuaDiTru {
  * Chạy mọi bước di trú còn thiếu. Gọi ở lúc khởi động; các lần sau là không-làm-gì.
  * File gốc KHÔNG bị xoá — chúng ở lại làm bản đối chứng.
  */
-export function diTruTatCa(): KetQuaDiTru[] {
+export function migrateAll(): MigrationResult[] {
   return [diTruSoCai(), diTruSoCong(), diTruRun()];
 }
 
-export function tomTatDiTru(kq: KetQuaDiTru[]): string {
+export function migrationSummary(kq: MigrationResult[]): string {
   const daChay = kq.filter((k) => k.daChay);
   if (!daChay.length) return '';
   return daChay

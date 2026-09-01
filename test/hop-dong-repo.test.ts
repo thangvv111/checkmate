@@ -74,8 +74,8 @@ describe('bảng đường dẫn module trong checkmate.yml khớp export thật
   });
 
   it('module ĐÃ khai thì phải khai đủ HÀM của nó — chiều thứ ba, cũng đã lọt một lần', () => {
-    // Ca thật: target.js đã có trong bảng với đúng `dungDiff`, rồi lát sau thêm trichMaLuat/timLuatMoi
-    // mà không ai phải khai. Probe gọi vào, chết với «trichMaLuat is not a function», và lượt chấm biến
+    // Ca thật: target.js đã có trong bảng với đúng `buildDiff`, rồi lát sau thêm extractRuleIds/findNewRules
+    // mà không ai phải khai. Probe gọi vào, chết với «extractRuleIds is not a function», và lượt chấm biến
     // hai probe hỏng thành hai finding HIGH chặn merge với lời văn sai hẳn bản chất.
     //
     // Chỉ soi `export function` và `export class` — đó là thứ probe gọi. Hằng số và kiểu thì không bắt,
@@ -99,7 +99,7 @@ describe('bảng đường dẫn module trong checkmate.yml khớp export thật
 
   it('module sản phẩm mới thêm PHẢI được khai vào bảng — chiều mà lưới bản đầu không soi', () => {
     // Ca thật: lát L3 thêm danh-tinh.ts nhưng quên khai. Model đoán đường import, probe chết với
-    // «epBamCong is not a function» dù hàm đó có export thật — mất một probe của cả lượt chấm.
+    // «requireGateRole is not a function» dù hàm đó có export thật — mất một probe của cả lượt chấm.
     const daKhai = new Set(dong.map(([, d]) => d.replace(/^\.\.\//, '')));
     const dsFile = execSync('git ls-files "apps/web/src/*.ts" "apps/web/src/kho/*.ts" "packages/harness/src/*.ts"', {
       cwd: GOC,

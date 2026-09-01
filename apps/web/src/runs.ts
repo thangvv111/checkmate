@@ -2,9 +2,9 @@ import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import type { RunEvent, Verdict } from '../../../packages/shared/src/types.js';
 import { GOC } from '../../../packages/shared/src/paths.js';
-import { mucTuMeta } from './ledger.js';
+import { entryFromMeta } from './ledger.js';
 import * as kho from './kho/kho-run.js';
-import { ghiSoCaiNeuChua } from './kho/kho-socai.js';
+import { appendVerdictLedgerIfNew } from './kho/kho-socai.js';
 
 export interface StoredEvent {
   t: number; // ms từ lúc bắt đầu run
@@ -41,13 +41,13 @@ export class RunManager {
   // hook chế độ trực: gọi khi một run kết thúc CÓ verdict (sau khi đã ghi sổ cái)
   onXong?: (meta: RunMeta) => void;
 
-  /** Dọn xác lượt chấm của lần chạy trước — gọi MỘT lần lúc khởi động, xem kho-run.donLuotMoCoi */
-  donLuotMoCoi(): string[] {
-    return kho.donLuotMoCoi();
+  /** Dọn xác lượt chấm của lần chạy trước — gọi MỘT lần lúc khởi động, xem kho-run.cleanupOrphanRuns */
+  cleanupOrphanRuns(): string[] {
+    return kho.cleanupOrphanRuns();
   }
 
-  soDangChay(): number {
-    return kho.soDangChay();
+  runningCount(): number {
+    return kho.runningCount();
   }
 
   batDau(
@@ -64,7 +64,7 @@ export class RunManager {
     this.runs.set(id, state);
     // Ghi vào kho NGAY khi bắt đầu: trần số lượt song song và cờ "PR này đang chấm" nay đọc từ cơ sở
     // dữ liệu, nên một lượt chưa vào kho là một lượt vô hình với các cổng đó.
-    kho.luuMeta(meta);
+    kho.saveMeta(meta);
 
     const t0 = Date.now();
     const ghi = (e: RunEvent): void => {
@@ -106,10 +106,10 @@ export class RunManager {
       const daCoLoi = state.events.some((x) => x.e.type === 'error');
       if (meta.verdict) {
         meta.trangThai = 'xong';
-        const muc = mucTuMeta(meta);
+        const muc = entryFromMeta(meta);
         // Sổ cái chỉ ghi thêm (R9.4): chạy lại cùng một run không được ghi đè, và cũng không được
         // làm sập lượt — dùng đường bỏ-qua-nếu-đã-có.
-        if (muc) ghiSoCaiNeuChua(muc);
+        if (muc) appendVerdictLedgerIfNew(muc);
         try {
           this.onXong?.(meta);
         } catch (e) {
@@ -136,9 +136,9 @@ export class RunManager {
   lay(id: string): RunState | undefined {
     if (this.runs.has(id)) return this.runs.get(id);
     // Lượt đã kết thúc (hoặc do tiến trình khác chạy): dựng lại từ kho để phát lại
-    const meta = kho.docMeta(id);
+    const meta = kho.readMeta(id);
     if (!meta) return undefined;
-    const state: RunState = { meta, events: kho.docSuKien(id), subs: new Set() };
+    const state: RunState = { meta, events: kho.readEvents(id), subs: new Set() };
     this.runs.set(id, state);
     return state;
   }
@@ -148,26 +148,26 @@ export class RunManager {
    * mỗi lần được gọi, rồi cắt còn 30 — nghĩa là trang lịch sử bị chặn ở 30 lượt mà không ai khai.
    * Nay lọc và phân trang chạy dưới cơ sở dữ liệu, dòng sự kiện chỉ đọc khi thật sự phát lại.
    */
-  danhSach(loc: kho.LocRun = {}): RunMeta[] {
-    return kho.danhSachRun({ gioi_han: 30, ...loc });
+  danhSach(loc: kho.RunFilter = {}): RunMeta[] {
+    return kho.listRuns({ gioi_han: 30, ...loc });
   }
 
-  dem(loc: kho.LocRun = {}): number {
-    return kho.demRun(loc);
+  dem(loc: kho.RunFilter = {}): number {
+    return kho.countRuns(loc);
   }
 
   // Verdict đã chấm cho đúng cặp (PR, commit) — nền tảng cho idempotent theo SHA
-  timTheoPr(so: number, sha: string): RunMeta | undefined {
-    return kho.timTheoPr(so, sha);
+  findByPr(so: number, sha: string): RunMeta | undefined {
+    return kho.findByPr(so, sha);
   }
 
   // Các PR đã bị trả về dev — để hàng đợi không đánh mất việc
-  daTraVe(): RunMeta[] {
-    return kho.daTraVe();
+  returnedToDev(): RunMeta[] {
+    return kho.returnedToDev();
   }
 
-  dangChayPr(so: number): boolean {
-    return kho.dangChayPr(so);
+  isPrRunning(so: number): boolean {
+    return kho.isPrRunning(so);
   }
 
   /**
@@ -176,16 +176,16 @@ export class RunManager {
    */
   dongBoCongTuSo(id: string): void {
     const st = this.lay(id);
-    if (st) st.meta.ketQuaCong = kho.docMeta(id)?.ketQuaCong;
+    if (st) st.meta.ketQuaCong = kho.readMeta(id)?.ketQuaCong;
   }
 
   /** Hành động cổng ĐANG có trong sổ cho lượt này — đọc tươi, không tin bản trong bộ nhớ. */
   congHienTai(id: string): RunMeta['ketQuaCong'] {
-    return kho.docMeta(id)?.ketQuaCong;
+    return kho.readMeta(id)?.ketQuaCong;
   }
 
   private luu(state: RunState): void {
-    kho.luuMeta(state.meta);
-    kho.luuSuKien(state.meta.id, state.events);
+    kho.saveMeta(state.meta);
+    kho.saveEvents(state.meta.id, state.events);
   }
 }

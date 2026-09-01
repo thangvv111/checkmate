@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
-import type { KeHoachProbe } from './skill-code.js';
+import type { ProbePlan } from './skill-code.js';
 
 // Thư viện probe tích luỹ per repo đích (specs/R10): probe đã chứng minh khớp contract (pass trên
 // nhánh gốc) được giữ lại làm regression cho các lượt chấm sau.
@@ -24,19 +24,19 @@ function docTranProbe(): number {
 const TRAN_PROBE = docTranProbe();
 const TRAN_LICH_SU = 20;
 
-export interface LuotLichSu {
+export interface HistoryEntry {
   sha: string; // commit của NHÁNH PR ở lượt chấm đó — khoá để so hai probe trên cùng một lượt
   luc: string;
-  trang_thai: string; // TrangThaiProbe của máy phân loại
+  trang_thai: string; // ProbeState của máy phân loại
 }
 
-export interface MucProbeLib {
+export interface ProbeLibEntry {
   ten: string; // tên file — duy nhất, hậu tố từ hash nội dung
   sha_sinh: string; // commit PR mà lượt sinh ra nó đã chấm
   luc: string;
   hash: string; // sha256 code của RIÊNG probe này
-  plan: KeHoachProbe; // MỘT probe
-  lich_su: LuotLichSu[]; // tầng 4 (R10.9): hành vi đo được qua các lượt
+  plan: ProbePlan; // MỘT probe
+  lich_su: HistoryEntry[]; // tầng 4 (R10.9): hành vi đo được qua các lượt
   // Hai trường của đào thải theo điểm (R10.22–R10.24). VĨNH VIỄN có chủ đích — lich_su trôi theo
   // trần 20 lượt, mà thành tích bắt hồi quy và tật không-tất-định thì không được phép trôi theo.
   da_bat_hoi_quy?: boolean; // R10.23 — từng mang nhãn hoi_quy ít nhất một lượt
@@ -49,7 +49,7 @@ const NHAN_HANH_VI_RIENG = new Set<string>(['pass', 'hoi_quy', 'cai_thien']);
 const NHAN_CHET = new Set(['nghi_loi_co_san', 'khong_chay']);
 const CHET_KEO_DAI_NGUONG = 5;
 
-function chetKeoDai(m: MucProbeLib): boolean {
+function chetKeoDai(m: ProbeLibEntry): boolean {
   const ls = m.lich_su ?? [];
   if (ls.length < CHET_KEO_DAI_NGUONG) return false;
   return ls.slice(-CHET_KEO_DAI_NGUONG).every((h) => NHAN_CHET.has(h.trang_thai));
@@ -61,7 +61,7 @@ function chetKeoDai(m: MucProbeLib): boolean {
  * FIFO cũ loại theo tuổi là loại đúng probe im lặng lâu năm — lưới an toàn đang canh biên chưa ai
  * phá lại; điểm chỉ nhìn tín hiệu XẤU đo được (chết, flaky) và miễn trừ thành tích thật (R10.23).
  */
-export function chonNanNhan(probes: readonly MucProbeLib[], tenVuaNap?: string): { i: number; ly_do: string } {
+export function pickEvictionVictim(probes: readonly ProbeLibEntry[], tenVuaNap?: string): { i: number; ly_do: string } {
   const iChet = probes.findIndex(chetKeoDai);
   if (iChet >= 0) return { i: iChet, ly_do: `chết kéo dài — ${CHET_KEO_DAI_NGUONG} lượt gần nhất đều ${[...NHAN_CHET].join('/')} (R10.22.1)` };
   let iFlaky = -1;
@@ -71,7 +71,7 @@ export function chonNanNhan(probes: readonly MucProbeLib[], tenVuaNap?: string):
   }
   if (iFlaky >= 0) return { i: iFlaky, ly_do: `flaky — ${probes[iFlaky].flaky_diem} lần cùng sha khác kết quả (R10.22.2)` };
   // Nấc 3 loại trừ probe VỪA NẠP — nhận diện bằng DẤU HIỆU DỮ LIỆU (tên truyền từ chỗ nạp), không
-  // đoán theo vị trí cuối mảng: chonNanNhan là hàm export, bản đoán-vị-trí bỏ sót nạn nhân hợp lệ
+  // đoán theo vị trí cuối mảng: pickEvictionVictim là hàm export, bản đoán-vị-trí bỏ sót nạn nhân hợp lệ
   // đứng cuối và rơi sai xuống nấc 4 — xoá vĩnh viễn một probe từng bắt hồi quy trong khi còn nạn
   // nhân thường (vòng hai của cổng bắt trên chính PR này). Kho toàn hàng miễn trừ mà đá luôn probe
   // mới thì van nấc 4 không bao giờ mở, kho hoá thạch — nên probe vừa nạp vẫn phải được miễn ở nấc 3.
@@ -80,12 +80,12 @@ export function chonNanNhan(probes: readonly MucProbeLib[], tenVuaNap?: string):
   return { i: 0, ly_do: 'mọi probe cũ đều từng bắt hồi quy — loại cũ nhất tuyệt đối, van chống kẹt trần (R10.22.4)' };
 }
 
-export interface ProbeThuVien extends MucProbeLib {
+export interface LibraryProbe extends ProbeLibEntry {
   code: string;
 }
 
 interface MetaLib {
-  probes: MucProbeLib[];
+  probes: ProbeLibEntry[];
   di_tru?: string; // ghi chú lượt di trú bộ→probe, để người vận hành tra lại được
 }
 
@@ -95,10 +95,10 @@ interface MucBoCu {
   sha_sinh: string;
   luc: string;
   hash: string;
-  plan: KeHoachProbe[];
+  plan: ProbePlan[];
 }
 
-export function slugRepo(repoPath: string): string {
+export function repoSlug(repoPath: string): string {
   return basename(repoPath).toLowerCase().replace(/[^a-z0-9-]/g, '-');
 }
 
@@ -123,7 +123,7 @@ function nguNgan(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
-export function voiKhoaThuVien<T>(slug: string, viec: () => T): T {
+export function withLibraryLock<T>(slug: string, viec: () => T): T {
   const duong = join(GOC_LIB, slug, '.khoa');
   mkdirSync(join(GOC_LIB, slug), { recursive: true });
   const hetHan = Date.now() + CHO_KHOA_MS;
@@ -229,7 +229,7 @@ function buocQuaVungPhang(code: string, i: number): number {
 }
 
 /** Đếm cân bằng () {} [] ngoài chuỗi/chú thích/regex. Bản cắt làm lệch cân bằng = bản cắt hỏng. */
-export function kiemCanBang(code: string): boolean {
+export function checkBalanced(code: string): boolean {
   const dem: Record<string, number> = { '(': 0, '{': 0, '[': 0 };
   for (let i = 0; i < code.length; i++) {
     const sau = buocQuaVungPhang(code, i);
@@ -314,11 +314,11 @@ function timKhoiIt(code: string, id: string): { dau: number; cuoi: number } | nu
  * Cắt MỌI khối phép thử mang id khỏi code (một probe có thể có nhiều it cùng id, hoặc một describe
  * mang nhãn id chứa nhiều it — đo cả hai trên thư viện thật). Không tìm thấy thì trả nguyên văn.
  */
-export function catKhoiTest(code: string, id: string, ext: string): string {
+export function cutTestBlock(code: string, id: string, ext: string): string {
   const e = escapeRegex(id);
   if (laPython(ext)) {
     // def test_P1_... (kèm decorator của chính nó). (?=[_(]) là ranh giới id: thiếu nó thì cắt P1
-    // nuốt luôn P10 — cùng họ lỗi với khopIdProbe (R2.14). Khối kết thúc ở dòng KHÔNG-TRẮNG đầu tiên
+    // nuốt luôn P10 — cùng họ lỗi với matchProbeId (R2.14). Khối kết thúc ở dòng KHÔNG-TRẮNG đầu tiên
     // tại cột 0 (\n\S): nhờ vậy helper cấp module nằm giữa hai def KHÔNG bị nuốt theo (dàn review bắt
     // được ca này). Decorator NHIỀU DÒNG của sibling vẫn là giới hạn đã biết — mảnh mồ côi làm file
     // tách hỏng và bị lưới verify-trên-gốc chặn, không lọt vào thư viện trong im lặng.
@@ -331,7 +331,7 @@ export function catKhoiTest(code: string, id: string, ext: string): string {
   return ra;
 }
 
-export function coKhoiTest(code: string, id: string, ext: string): boolean {
+export function hasTestBlock(code: string, id: string, ext: string): boolean {
   const e = escapeRegex(id);
   if (laPython(ext)) return new RegExp(`\\bdef test_${e}(?=[_(])`).test(code);
   // Soi trên BẢN CHE (lamMoVungPhang): 'it(\'P2:' nhắc tới trong một chuỗi văn bản không phải là khối test
@@ -342,26 +342,26 @@ export function coKhoiTest(code: string, id: string, ext: string): boolean {
  * Tách một probe thành file độc lập: giữ phần đầu (import, helper), cắt mọi phép thử khác.
  * Trả về null khi không tách được — chỗ gọi PHẢI bỏ qua và nói ra, không nạp mù (R10.2).
  */
-export function tachMotProbe(code: string, giuId: string, cacIdKhac: string[], ext: string): string | null {
-  if (!coKhoiTest(code, giuId, ext)) return null;
+export function splitOneProbe(code: string, giuId: string, cacIdKhac: string[], ext: string): string | null {
+  if (!hasTestBlock(code, giuId, ext)) return null;
   let ra = code;
-  for (const id of cacIdKhac) ra = catKhoiTest(ra, id, ext);
+  for (const id of cacIdKhac) ra = cutTestBlock(ra, id, ext);
   // cắt xong mà khối giữ lại biến mất (regex nuốt lố) thì cũng là tách hỏng
-  if (!coKhoiTest(ra, giuId, ext)) return null;
+  if (!hasTestBlock(ra, giuId, ext)) return null;
   // Cắt TRƯỢT cũng là tách hỏng: code ngoài khuôn (it lồng trong describe, indent lạ) làm regex không
   // khớp, anh em còn nguyên trong file — nạp vào là file "per-probe" mang lậu cả bộ, phá R10.1 trong
   // im lặng và mọi tầng dedup phía sau soi nhầm hạt. Sót một anh em nào là bỏ, không nạp mù.
-  if (cacIdKhac.some((id) => coKhoiTest(ra, id, ext))) return null;
+  if (cacIdKhac.some((id) => hasTestBlock(ra, id, ext))) return null;
   // Bản cắt làm lệch cân bằng ngoặc là bản cắt hỏng (mảnh vỡ dính lại sau một pha cắt cụt) — chặn
   // tại đây thay vì để file vỡ cú pháp lọt vào thư viện thành probe chết im lặng.
-  if (!laPython(ext) && !kiemCanBang(ra)) return null;
+  if (!laPython(ext) && !checkBalanced(ra)) return null;
   return ra.trimEnd() + '\n';
 }
 
 // ---- Đọc meta + di trú đời bộ (R10.5) ----
 
 /** Chuẩn hoá chuỗi luật: 'R1,R2' · 'R3+R4' · 'R3, R4' đều thành cùng một tập (R10.7). */
-export function tachRule(s: string | undefined): string[] {
+export function splitRule(s: string | undefined): string[] {
   return (s ?? '')
     .split(/[,+\s]+/)
     .map((x) => x.trim().toUpperCase())
@@ -371,7 +371,7 @@ export function tachRule(s: string | undefined): string[] {
 // So luật ở MỌI nơi trong thư viện đều qua bản chuẩn hoá. Đời đầu so trim() thô: 'R1,R2' với
 // 'R1, R2' bị coi là hai luật khác nhau, và tầng 1 lẫn tầng 4 mù đúng ở cặp cần bắt nhất.
 function chuanRule(s: string | undefined): string {
-  return tachRule(s).join(',');
+  return splitRule(s).join(',');
 }
 
 function docMetaTho(slug: string): { moi?: MetaLib; cu?: { files: MucBoCu[] } } {
@@ -396,7 +396,7 @@ function docMetaTho(slug: string): { moi?: MetaLib; cu?: { files: MucBoCu[] } } 
   }
 }
 
-function tenFileProbe(daCo: MucProbeLib[], shaSinh: string, hash: string, ext: string): string {
+function tenFileProbe(daCo: ProbeLibEntry[], shaSinh: string, hash: string, ext: string): string {
   // underscore + hậu tố từ hash: tên là module hợp lệ với mọi stack và không đụng nhau giữa hai
   // lượt song song cùng chấm một commit (R8.5). 6 hex vẫn có thể đụng giữa hai probe KHÁC nội dung
   // cùng commit — đụng là ghi đè file của nhau trong im lặng, nên nới dài hậu tố tới khi hết đụng.
@@ -408,7 +408,7 @@ function tenFileProbe(daCo: MucProbeLib[], shaSinh: string, hash: string, ext: s
 }
 
 function diTruBoSangProbe(slug: string, cu: { files: MucBoCu[] }): MetaLib {
-  const probes: MucProbeLib[] = [];
+  const probes: ProbeLibEntry[] = [];
   const daBo: string[] = []; // từng probe bị loại: cái nào, trùng với ai, vì sao (R10 bắt log chi tiết)
   const khongTach: string[] = [];
   const fileMat: string[] = [];
@@ -424,7 +424,7 @@ function diTruBoSangProbe(slug: string, cu: { files: MucBoCu[] }): MetaLib {
     const cacId = f.plan.map((p) => p.id);
     let honTron = true;
     for (const p of f.plan) {
-      const rieng = tachMotProbe(code, p.id, cacId.filter((x) => x !== p.id), ext);
+      const rieng = splitOneProbe(code, p.id, cacId.filter((x) => x !== p.id), ext);
       if (!rieng) {
         khongTach.push(`${f.ten}·${p.id}`);
         honTron = false;
@@ -473,7 +473,7 @@ function diTruBoSangProbe(slug: string, cu: { files: MucBoCu[] }): MetaLib {
 function napMeta(slug: string): MetaLib {
   const tho = docMetaTho(slug);
   if (tho.moi) return tho.moi;
-  return voiKhoaThuVien(slug, () => {
+  return withLibraryLock(slug, () => {
     const lai = docMetaTho(slug); // đọc lại TRONG khoá — tiến trình khác có thể vừa di trú xong
     if (lai.moi) return lai.moi;
     return diTruBoSangProbe(slug, lai.cu!);
@@ -482,9 +482,9 @@ function napMeta(slug: string): MetaLib {
 
 // ---- API ----
 
-export function docThuVien(slug: string): ProbeThuVien[] {
+export function readProbeLibrary(slug: string): LibraryProbe[] {
   const meta = napMeta(slug);
-  const kq: ProbeThuVien[] = [];
+  const kq: LibraryProbe[] = [];
   for (const m of meta.probes) {
     // Đọc NGOÀI khoá (R10.11) nên file có thể bị lượt song song evict/prune xoá giữa existsSync và
     // readFileSync — mất một probe thư viện ở lượt này thì bỏ qua nó, không được đổ cả lượt chấm.
@@ -497,16 +497,16 @@ export function docThuVien(slug: string): ProbeThuVien[] {
   return kq;
 }
 
-export interface KetQuaNhan {
+export interface AdmitResult {
   ten?: string;
   bo?: string; // lý do bỏ — để log nói được vì sao (R10 nguyên tắc: mọi lần loại đều ghi log)
   voi?: string; // trùng với probe nào
 }
 
 /** Nhận MỘT probe vào thư viện. Toàn bộ đọc→sửa→ghi trong khoá, kiểm trùng lại BÊN TRONG khoá (R8.4). */
-export function nhanVaoThuVien(slug: string, code: string, plan: KeHoachProbe, shaSinh: string, ext = '.probe.test.ts'): KetQuaNhan {
+export function admitToLibrary(slug: string, code: string, plan: ProbePlan, shaSinh: string, ext = '.probe.test.ts'): AdmitResult {
   const hash = createHash('sha256').update(code).digest('hex');
-  return voiKhoaThuVien(slug, () => {
+  return withLibraryLock(slug, () => {
     const meta = napMetaTrongKhoa(slug);
     const trungNoiDung = meta.probes.find((m) => m.hash === hash);
     if (trungNoiDung) return { bo: 'trùng nội dung probe đã có', voi: trungNoiDung.ten };
@@ -522,7 +522,7 @@ export function nhanVaoThuVien(slug: string, code: string, plan: KeHoachProbe, s
 
     // trần theo PROBE (R10.4), đào thải theo điểm GIỮ/LOẠI (R10.22) — xoá cả file, không để mồ côi
     while (meta.probes.length > TRAN_PROBE) {
-      const { i, ly_do } = chonNanNhan(meta.probes, ten);
+      const { i, ly_do } = pickEvictionVictim(meta.probes, ten);
       const cu = meta.probes.splice(i, 1)[0];
       console.log(`[thu-vien] đào thải «${cu.ten}»: ${ly_do}`);
       try {
@@ -547,9 +547,9 @@ function napMetaTrongKhoa(slug: string): MetaLib {
  * Tầng 4a (R10.9–R10.10): ghi kết quả lượt chấm này vào lịch sử từng probe thư viện.
  * Cùng một lượt (cùng sha) chạy lại thì THAY bản ghi cũ, không nhân đôi.
  */
-export function capNhatLichSu(slug: string, shaLuot: string, ghi: Array<{ ten: string; trangThai: string }>): void {
+export function updateHistory(slug: string, shaLuot: string, ghi: Array<{ ten: string; trangThai: string }>): void {
   if (ghi.length === 0) return;
-  voiKhoaThuVien(slug, () => {
+  withLibraryLock(slug, () => {
     const meta = napMetaTrongKhoa(slug);
     const luc = new Date().toISOString();
     for (const g of ghi) {
@@ -573,7 +573,7 @@ export function capNhatLichSu(slug: string, shaLuot: string, ghi: Array<{ ten: s
   });
 }
 
-export interface GoTrungHanhVi {
+export interface BehaviorDuplicateDrop {
   go: string; // probe bị gỡ (mới hơn)
   giu: string; // probe được giữ (cũ hơn — đã được chứng minh lâu hơn)
   bangChung: string;
@@ -589,12 +589,12 @@ export interface GoTrungHanhVi {
  * Mọi nhãn khác nói về hoàn cảnh chung của lượt chấm, không phân biệt được probe này với probe kia.
  */
 
-export function timVaGoTrungHanhVi(slug: string): GoTrungHanhVi[] {
-  return voiKhoaThuVien(slug, () => {
+export function findAndDropBehaviorDuplicates(slug: string): BehaviorDuplicateDrop[] {
+  return withLibraryLock(slug, () => {
     const meta = napMetaTrongKhoa(slug);
     const sx = [...meta.probes].sort((a, b) => a.luc.localeCompare(b.luc));
     const daGo = new Set<string>();
-    const ra: GoTrungHanhVi[] = [];
+    const ra: BehaviorDuplicateDrop[] = [];
     for (let i = 0; i < sx.length; i++) {
       if (daGo.has(sx[i].ten)) continue;
       for (let j = i + 1; j < sx.length; j++) {

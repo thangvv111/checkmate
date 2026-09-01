@@ -1,11 +1,11 @@
 import { chuanMuc, type Verdict } from '../../../packages/shared/src/types.js';
 import type { RunMeta } from './runs.js';
-import { docSoCai as khoDocSoCai, ghiSoCai as khoGhiSoCai, ghiSoCaiNeuChua, coTrongSoCai } from './kho/kho-socai.js';
+import { readVerdictLedger as khoDocSoCai, appendVerdictLedger as khoGhiSoCai, appendVerdictLedgerIfNew, inVerdictLedger } from './kho/kho-socai.js';
 
 // Sổ cái verdict (spec §12 · B4.1): append-only MỌI verdict — bề mặt truy vết cho kiểm soát/kiểm toán.
 // Khác review-log.jsonl (sổ HÀNH ĐỘNG cổng merge/reject) — sổ này ghi KẾT LUẬN chấm.
 
-export interface MucSoCai {
+export interface VerdictLedgerEntry {
   luc: string;
   run_id: string;
   skill: 'code' | 'doc';
@@ -31,7 +31,7 @@ function demTheoMuc(v: Verdict): { high: number; medium: number; low: number } {
   return d;
 }
 
-export function mucTuMeta(meta: RunMeta, backfill = false): MucSoCai | null {
+export function entryFromMeta(meta: RunMeta, backfill = false): VerdictLedgerEntry | null {
   if (!meta.verdict) return null;
   const v = meta.verdict;
   return {
@@ -53,16 +53,16 @@ export function mucTuMeta(meta: RunMeta, backfill = false): MucSoCai | null {
 
 // Sổ cái nay sống trong cơ sở dữ liệu (specs/R9) — hai tên dưới chỉ còn là cửa vào lớp kho,
 // giữ lại để chỗ gọi cũ không phải đổi.
-export const ghiSoCai = khoGhiSoCai;
-export const docSoCai = khoDocSoCai;
+export const appendVerdictLedger = khoGhiSoCai;
+export const readVerdictLedger = khoDocSoCai;
 
 // Chạy một lần lúc server khởi động: lượt chấm cũ có verdict mà chưa vào sổ → ghi thêm (đánh dấu backfill)
-export function backfillSoCai(metas: RunMeta[]): number {
+export function backfillVerdictLedger(metas: RunMeta[]): number {
   let them = 0;
   for (const meta of metas) {
-    if (!meta.verdict || coTrongSoCai(meta.id)) continue;
-    const muc = mucTuMeta(meta, true);
-    if (muc && ghiSoCaiNeuChua(muc)) them++;
+    if (!meta.verdict || inVerdictLedger(meta.id)) continue;
+    const muc = entryFromMeta(meta, true);
+    if (muc && appendVerdictLedgerIfNew(muc)) them++;
   }
   return them;
 }

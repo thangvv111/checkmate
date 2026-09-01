@@ -3,17 +3,17 @@ import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync, readFileSync, rmSyn
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-export interface KetQuaProbe {
+export interface ProbeResult {
   title: string;
   status: 'passed' | 'failed' | 'skipped';
   message: string;
   file: string; // basename file probe — nhiều bộ probe (mới + thư viện) chạy chung một lượt
 }
 
-export interface KetQuaVitest {
+export interface VitestResult {
   ok: boolean;
   tongTest: number;
-  probes: KetQuaProbe[];
+  probes: ProbeResult[];
   loiThu: string; // lỗi thu thập/biên dịch nếu có
   treo?: boolean; // C7: lệnh test vượt timeout (PR có thể chứa vòng lặp vô hạn)
 }
@@ -51,7 +51,7 @@ function git(repo: string, args: string[]): string {
  * đã chạy là tự báo xanh trên một lượt chưa chạy gì — nhận ra và trả về nguyên nhân thay vì đếm.
  * Trả về thông điệp lỗi nếu đúng là ca này, null nếu file chạy bình thường.
  */
-export function loiNapFile(probes: KetQuaProbe[], duongDanRel: string): string | null {
+export function fileLoadError(probes: ProbeResult[], duongDanRel: string): string | null {
   if (probes.length !== 1) return null;
   const p = probes[0];
   if (p.status !== 'failed') return null;
@@ -86,7 +86,7 @@ export class Sandbox {
     return rel;
   }
 
-  chayVitest(testFilesRel: string | string[]): KetQuaVitest {
+  chayVitest(testFilesRel: string | string[]): VitestResult {
     const files = (Array.isArray(testFilesRel) ? testFilesRel : [testFilesRel]).map((f) => f.replace(/\\/g, '/'));
     const outFile = join(this.dir, 'vitest-out.json');
     const kq = spawnSync('npx', ['vitest', 'run', ...files, '--reporter=json', `--outputFile="${outFile}"`], {
@@ -111,11 +111,11 @@ export class Sandbox {
         assertionResults: Array<{ title: string; status: string; failureMessages: string[] }>;
       }>;
     };
-    const probes: KetQuaProbe[] = data.testResults.flatMap((tr) => {
+    const probes: ProbeResult[] = data.testResults.flatMap((tr) => {
       const file = (tr.name ?? '').replace(/\\/g, '/').split('/').pop() ?? '';
       return tr.assertionResults.map((a) => ({
         title: a.title,
-        status: (a.status as KetQuaProbe['status']) ?? 'failed',
+        status: (a.status as ProbeResult['status']) ?? 'failed',
         message: (a.failureMessages ?? []).join('\n').slice(0, 1500),
         file,
       }));
@@ -129,9 +129,9 @@ export class Sandbox {
   chayTheoRunner(
     testFilesRel: string[],
     cfg: { test_cmd: string; timeout_s: number },
-    parseJUnit: (xml: string, file: string) => KetQuaProbe[],
-  ): KetQuaVitest {
-    const probes: KetQuaProbe[] = [];
+    parseJUnit: (xml: string, file: string) => ProbeResult[],
+  ): VitestResult {
+    const probes: ProbeResult[] = [];
     let tong = 0;
     for (const rel of testFilesRel) {
       const relSach = rel.replace(/\\/g, '/');
@@ -160,7 +160,7 @@ export class Sandbox {
       }
       const cua = parseJUnit(readFileSync(out, 'utf8'), relSach.split('/').pop() ?? relSach);
       try { unlinkSync(out); } catch { /* không sao */ }
-      const loiNap = loiNapFile(cua, relSach);
+      const loiNap = fileLoadError(cua, relSach);
       if (loiNap) {
         return {
           ok: false,

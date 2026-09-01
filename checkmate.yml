@@ -8,43 +8,43 @@ runner:
   timeout_s: 300
   huong_dan_probe: |
     Import thẳng từ mã nguồn, dùng đuôi .js trong đường dẫn (mã viết theo NodeNext):
-      import { phanLoaiMay } from '../packages/harness/src/skill-code.js';
-      import { locRuns } from '../apps/web/src/ui-lich-su.js';
+      import { classifyByMachine } from '../packages/harness/src/skill-code.js';
+      import { filterRuns } from '../apps/web/src/ui-lich-su.js';
     Test chạy trong môi trường node, KHÔNG có server nào đang chạy và KHÔNG được gọi mạng.
     Đừng viết probe cần khoá model, cần GitHub token, hay cần clone repo — chúng sẽ đỏ cả hai nhánh
     và chỉ ra nhãn ngoai_pham_vi, không chứng minh được gì.
     ĐỪNG ĐOÁN module chứa hàm — import sai module là cách hỏng probe thường gặp nhất ở repo này.
     Bảng đường dẫn chính xác (đuôi .js, tính từ thư mục test/):
-      ../packages/harness/src/skill-code.js  → phanLoaiMay · vanTayLoi · vanTayChat · nhanProbe · khopIdProbe · laLuatMoi · coVeLaProbeHong · chaySkillCode
-      ../packages/harness/src/target.js      → dungDiff · docTarget · trichMaLuat · timLuatMoi · goiYDuongDanModule
-      ../packages/harness/src/runner.js      → parseJUnit · docRunnerCfg · docReviewCfg · mauBoQuaDiff
-      ../packages/harness/src/sandbox.js     → loiNapFile · Sandbox
-      ../packages/harness/src/thu-vien.js    → nhanVaoThuVien · chonNanNhan · docThuVien · voiKhoaThuVien · slugRepo · tachMotProbe · catKhoiTest · coKhoiTest · kiemCanBang · tachRule · capNhatLichSu · timVaGoTrungHanhVi
-      ../packages/harness/src/khuon-loi.js   → layKhuonCode · layKhuonDoc · triThucTheoTrigger · KHO_KHUON · TRAN_KHUON · VI_DU_MOI_TRIGGER
-      ../packages/harness/src/dedup-probe.js → tachRule · timTrungChayLai · timNghiTrung · apDungPhanXu · promptPhanXuTrung
-      ../packages/harness/src/jsonx.js       → bocJson · bocCode · LoiModelDungTool · goiJson · goiCode
-      ../packages/harness/src/rao.js         → taoRao · LOI_RAO
-      ../apps/web/src/ui.js                  → escHtml · tachNguon
-      ../apps/web/src/ui-lich-su.js          → locRuns
-      ../apps/web/src/ncc.js                 → cheKhoa · chieuGiaTri · dinhNghia · DANH_MUC_NCC · kiemConHieuLuc · docKhoa · ghiKhoa · docSoKiem · ghiSoKiem · modelHopLe
-      ../apps/web/src/config.js              → cheToken · cheToken2 · slugRepoGithub · timRepo · diTruTokenRepo · cauHinhHienTai · docConfig · ghiConfig · docTokenThueBao · ghiTokenThueBao · envAgent · cauHinhDeCham · LoiCauHinhNcc
-      ../apps/web/src/kho-bi-mat.js          → docTokenRepo · docTokenRieng · ghiTokenRepo · xoaTokenRepo · coToken · khoaRepo · docKho · ghiKho
-      ../apps/web/src/danh-tinh.js           → layDanhTinh · danhTinhNeuCo · kiemMatKhau · taoPhien · xoaPhien · donPhienHetHan · taoTaiKhoan · doiMatKhau · doiVai · xoaTaiKhoan · dsTaiKhoan · coTaiKhoanNao · hopLeTen · docCookie · duocBamCong · epBamCong · duocVanHanh · LoiDanhTinh · TEN_COOKIE_PHIEN · duocChayCham · duocSuaCauHinh
-      ../apps/web/src/ui-login.js            → trangLogin
-      ../apps/web/src/ledger.js              → mucTuMeta · ghiSoCai · docSoCai · backfillSoCai
-      ../apps/web/src/tincay.js              → tinhHoSo
-      ../apps/web/src/nguon-model.js         → docTrangThaiNcc · thuNcc · thuNguon
-      ../apps/web/src/extract.js             → DINH_DANG_NHAN · trichText
+      ../packages/harness/src/skill-code.js  → classifyByMachine · errorFingerprint · tightFingerprint · probeLabel · matchProbeId · isNewRule · looksLikeBrokenProbe · runCodeSkill
+      ../packages/harness/src/target.js      → buildDiff · readTarget · extractRuleIds · findNewRules · suggestModulePath
+      ../packages/harness/src/runner.js      → parseJUnit · readRunnerCfg · readReviewCfg · diffIgnorePatterns
+      ../packages/harness/src/sandbox.js     → fileLoadError · Sandbox
+      ../packages/harness/src/thu-vien.js    → admitToLibrary · pickEvictionVictim · readProbeLibrary · withLibraryLock · repoSlug · splitOneProbe · cutTestBlock · hasTestBlock · checkBalanced · splitRule · updateHistory · findAndDropBehaviorDuplicates
+      ../packages/harness/src/khuon-loi.js   → getCodeExamples · getDocExamples · knowledgeByTrigger · TRIGGER_EXAMPLES · EXAMPLE_CAP · EXAMPLES_PER_TRIGGER
+      ../packages/harness/src/dedup-probe.js → splitRule · findRerunDuplicate · findSuspectedDuplicate · applyRuling · promptDuplicateRuling
+      ../packages/harness/src/jsonx.js       → unwrapJson · unwrapCode · ModelUsedToolError · callJson · callCode
+      ../packages/harness/src/rao.js         → makeFence · FENCE_NOTICE
+      ../apps/web/src/ui.js                  → escHtml · splitSource
+      ../apps/web/src/ui-lich-su.js          → filterRuns
+      ../apps/web/src/ncc.js                 → maskKey · projectValue · providerDefinition · PROVIDER_CATALOG · checkStillValid · readKey · writeKey · readProviderCheck · writeProviderCheck · validModel
+      ../apps/web/src/config.js              → maskToken · maskToken2 · slugGithubRepo · findRepo · migrateRepoToken · currentConfig · readConfig · writeConfig · readSubscriptionToken · writeSubscriptionToken · agentEnv · configForReview · ProviderConfigErrorCfg
+      ../apps/web/src/kho-bi-mat.js          → readRepoToken · readOwnToken · writeRepoToken · deleteRepoToken · hasToken · repoKey · readVault · writeVault
+      ../apps/web/src/danh-tinh.js           → getIdentity · identityIfAny · verifyPassword · createSession · deleteSession · cleanupExpiredSessions · createAccount · changePassword · changeRole · deleteAccount · listAccounts · hasAnyAccount · validName · readCookie · canOperateGate · requireGateRole · canOperate · IdentityError · SESSION_COOKIE_NAME · canRunReview · canEditConfig
+      ../apps/web/src/ui-login.js            → loginPage
+      ../apps/web/src/ledger.js              → entryFromMeta · appendVerdictLedger · readVerdictLedger · backfillVerdictLedger
+      ../apps/web/src/tincay.js              → computeProfile
+      ../apps/web/src/nguon-model.js         → readProviderState · tryProvider · trySource
+      ../apps/web/src/extract.js             → SUPPORTED_FORMATS · extractText
       ../apps/web/src/runs.js                → RunManager
-      ../packages/harness/src/model.js       → envChoCli · soLieuChiPhi · tomTatChiPhi · coVeLaTraLoiModel · matXacThuc · MAU_MAT_XAC_THUC · LoiCauHinhCli · kiemTraProvider · chonProvider · ClaudeCliProvider · AnthropicApiProvider · LoiCauHinhProvider
-      ../packages/harness/src/skill-doc.js   → chaySkillDoc
+      ../packages/harness/src/model.js       → envForCli · costMetrics · costSummary · looksLikeModelReply · authLost · AUTH_LOST_PATTERNS · CliConfigError · checkProvider · pickProvider · ClaudeCliProvider · AnthropicApiProvider · ProviderConfigError
+      ../packages/harness/src/skill-doc.js   → runDocSkill
       ../packages/harness/src/trigger-catalog.js → TRIGGER_CATALOG · laTriggerHopLe · timTrigger · tapKichHoat
-      ../apps/web/src/github.js              → repoTuPath · tachOwnerRepo · kiemTraRepo · cheTokenTrongVan · coGhCli · coDuongVaoGithub · layPrHienTai · binhLuanPr · mergePr · traVeDev · ganTrangThaiCommit · dongPr · xoaCachePr · danhSachPr · fetchVaRouter · phanLoaiPr · trangThaiPr · danhSachRepoCuaToken · cloneRepo · danhSachNhanh
-      ../apps/web/src/cong.js                → ghiSo · demMuc · trungNguoi · chiTietNgoaiCong · chuoiAnToan · doiSoatCong · TEN_TAC_NHAN_MAY · banReceipt · banVerdictTuDong · banPhanQuyet
-      ../apps/web/src/kho/db.js              → moDb · dongDb
-      ../apps/web/src/kho/kho-run.js         → luuMeta · luuSuKien · docMeta · docSuKien · danhSachRun · demRun · timTheoPr · dangChayPr · soDangChay · donLuotMoCoi · daTraVe
-      ../apps/web/src/kho/kho-socai.js       → ghiSoCai · ghiSoCaiNeuChua · docSoCai · demSoCai · coTrongSoCai · ghiSoCong · docSoCong · prCanDoiSoat · hanhDongCongCuaPr · LoiTrungRun
-      ../apps/web/src/kho/di-tru.js          → diTruTatCa · tomTatDiTru
+      ../apps/web/src/github.js              → repoFromPath · splitOwnerRepo · checkRepo · maskTokenInText · hasGhCli · hasGithubAccess · getCurrentPr · commentPr · mergePr · returnToDev · setCommitStatus · closePr · clearPrCache · listPrs · fetchAndRoute · classifyPr · prState · listReposForToken · cloneRepo · listBranches
+      ../apps/web/src/cong.js                → appendGateLedgerEntry · countBySeverity · samePerson · outsideGateDetail · safeString · reconcileGate · MACHINE_ACTOR_NAME · renderReceipt · renderAutoVerdict · renderRuling
+      ../apps/web/src/kho/db.js              → openDb · closeDb
+      ../apps/web/src/kho/kho-run.js         → saveMeta · saveEvents · readMeta · readEvents · listRuns · countRuns · findByPr · isPrRunning · runningCount · cleanupOrphanRuns · returnedToDev
+      ../apps/web/src/kho/kho-socai.js       → appendVerdictLedger · appendVerdictLedgerIfNew · readVerdictLedger · countVerdictLedger · inVerdictLedger · appendGateLedger · readGateLedger · prsNeedingReconcile · gateActionsOfPr · DuplicateRunError
+      ../apps/web/src/kho/di-tru.js          → migrateAll · migrationSummary
       ⚠ Lớp kho nằm trong THƯ MỤC CON `kho/`, không nằm thẳng dưới `src/` — đây là chỗ đã làm hỏng
         một lượt chấm thật: probe import '../apps/web/src/di-tru.js' và chết vì thiếu đúng một thư mục.
     ⚠ CHỮ KÝ HÀM LỚP KHO — ĐỪNG ĐOÁN THAM SỐ. Đo được: ba lượt chấm liên tiếp có probe chết bằng
@@ -52,28 +52,28 @@ runner:
       chạm tới hành vi cần kiểm — probe không chứng minh được gì và lượt chấm mất trắng.
       Các hàm này nhận MỘT OBJECT đủ trường, không nhận danh sách tham số rời:
 
-      ghiSoCai(m) · ghiSoCaiNeuChua(m) — m là MucSoCai, BẮT BUỘC đủ mọi trường không dấu ?:
+      appendVerdictLedger(m) · appendVerdictLedgerIfNew(m) — m là VerdictLedgerEntry, BẮT BUỘC đủ mọi trường không dấu ?:
         { luc: '2026-08-30T10:00:00.000Z', run_id: 'r1', skill: 'code', artifact: 'PR #8 - code',
           sha: 'e711ced0a1', verdict: 'PASS' | 'FAIL', high: 0, medium: 0, low: 0, model: 'm' }
         Tuỳ chọn: pr (number) · tac_gia · repo · token_vao · token_ra · token_uoc (boolean) · backfill (boolean).
         Thiếu một trường bắt buộc, hoặc truyền undefined vào đó, là lỗi bind chứ không phải lỗi nghiệp vụ.
         verdict CHỈ nhận đúng 'PASS' hoặc 'FAIL' — chữ thường bị ràng buộc CHECK của bảng từ chối.
 
-      luuMeta(m) — m là RunMeta:
+      saveMeta(m) — m là RunMeta:
         { id: 'r1', tieuDe: 'PR #8 - code', skill: 'code', trangThai: 'dang_chay' | 'xong' | 'loi',
           batDau: '2026-08-30T10:00:00.000Z' }
         Tuỳ chọn: ketThuc · repo · verdict · pr ({ so, headSha, tacGia }) · ketQuaCong.
 
-      docSoCai(loc?) · danhSachRun(loc?) · demRun(loc?) — nhận object LỌC, mọi trường tuỳ chọn:
-        docSoCai({ repo, verdict, gioi_han, bo_qua }) · danhSachRun({ repo, skill, trang_thai, gioi_han, bo_qua })
+      readVerdictLedger(loc?) · listRuns(loc?) · countRuns(loc?) — nhận object LỌC, mọi trường tuỳ chọn:
+        readVerdictLedger({ repo, verdict, gioi_han, bo_qua }) · listRuns({ repo, skill, trang_thai, gioi_han, bo_qua })
 
-      luuSuKien(runId, events) — hai tham số RỜI: chuỗi id, rồi mảng sự kiện.
-      ghiSo(entry) — sổ hành động cổng, entry: { hanhDong: 'merge' | 'reject', pr, sha, run_id, verdict, nguoi }.
+      saveEvents(runId, events) — hai tham số RỜI: chuỗi id, rồi mảng sự kiện.
+      appendGateLedgerEntry(entry) — sổ hành động cổng, entry: { hanhDong: 'merge' | 'reject', pr, sha, run_id, verdict, nguoi }.
 
       Cần dữ liệu mẫu thì chép nguyên hình dạng ở trên rồi đổi giá trị — đừng dựng object rút gọn.
     ⚠ ALIAS CỤC BỘ TRONG DIFF KHÔNG PHẢI TÊN EXPORT. Đo được: hai probe cùng chết vì gọi `docSoCaiKho`
-      — tên đó chỉ là bí danh đặt lúc import trong server.ts (`import { docSoCai as docSoCaiKho }`),
-      hàm thật tên `docSoCai`. Thấy `X as Y` trong diff thì tên phải import là X, không phải Y.
+      — tên đó chỉ là bí danh đặt lúc import trong server.ts (`import { readVerdictLedger as docSoCaiKho }`),
+      hàm thật tên `readVerdictLedger`. Thấy `X as Y` trong diff thì tên phải import là X, không phải Y.
     Import TRỰC TIẾP ở đầu file. Đừng bọc import trong try/catch rồi assert typeof — làm thế thì lỗi
     import biến thành assertion thường, probe trông như đã chạy trong khi nó chưa chạy được gì.
     Hàm nào mà diff của PR mới thêm thì lấy đường dẫn từ chính diff, đừng suy từ bảng trên.

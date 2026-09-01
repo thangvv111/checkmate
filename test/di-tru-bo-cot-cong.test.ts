@@ -64,7 +64,7 @@ const kho = await import('../apps/web/src/kho/kho-run.js');
 const so = await import('../apps/web/src/kho/kho-socai.js');
 
 afterAll(() => {
-  db.dongDb();
+  db.closeDb();
   rmSync(goc, { recursive: true, force: true });
 });
 
@@ -78,14 +78,14 @@ describe('di trú R6.26 trên cơ sở dữ liệu đời cũ', () => {
   });
 
   it('bỏ sạch cụm cột cong_* khỏi bảng run', () => {
-    const cot = (db.moDb().prepare('PRAGMA table_info(run)').all() as Array<{ name: string }>).map((c) => c.name);
+    const cot = (db.openDb().prepare('PRAGMA table_info(run)').all() as Array<{ name: string }>).map((c) => c.name);
     for (const c of ['cong_hanh_dong', 'cong_luc', 'cong_nguoi', 'cong_chi_tiet', 'cong_ngoai_cong']) {
       expect(cot).not.toContain(c);
     }
   });
 
   it('hàng bề mặt KHÔNG có trong sổ được CỨU vào sổ, không mất theo cột', () => {
-    const hang = so.docSoCong('r-mo-coi');
+    const hang = so.readGateLedger('r-mo-coi');
     expect(hang, 'mất hàng này là mất dấu vết một hành động cổng đã xảy ra thật').toHaveLength(1);
     expect(hang[0].hanh_dong).toBe('merge');
     expect(hang[0].nguoi).toBe('vinac');
@@ -95,24 +95,24 @@ describe('di trú R6.26 trên cơ sở dữ liệu đời cũ', () => {
   });
 
   it('hàng đã có trong sổ KHÔNG bị nhân đôi', () => {
-    expect(so.docSoCong('r-co-so'), 'sổ chỉ-ghi-thêm: một hàng thừa là sai vĩnh viễn').toHaveLength(1);
+    expect(so.readGateLedger('r-co-so'), 'sổ chỉ-ghi-thêm: một hàng thừa là sai vĩnh viễn').toHaveLength(1);
   });
 
   it('lượt chưa có hành động nào thì sổ vẫn trống', () => {
-    expect(so.docSoCong('r-trong')).toHaveLength(0);
-    expect(kho.docMeta('r-trong')?.ketQuaCong).toBeUndefined();
+    expect(so.readGateLedger('r-trong')).toHaveLength(0);
+    expect(kho.readMeta('r-trong')?.ketQuaCong).toBeUndefined();
   });
 
   it('bề mặt đọc lại đúng sau di trú — suy từ sổ', () => {
-    expect(kho.docMeta('r-mo-coi')?.ketQuaCong?.hanhDong).toBe('merge');
-    expect(kho.docMeta('r-mo-coi')?.ketQuaCong?.nguoi).toBe('vinac');
-    expect(kho.docMeta('r-co-so')?.ketQuaCong?.hanhDong).toBe('reject');
+    expect(kho.readMeta('r-mo-coi')?.ketQuaCong?.hanhDong).toBe('merge');
+    expect(kho.readMeta('r-mo-coi')?.ketQuaCong?.nguoi).toBe('vinac');
+    expect(kho.readMeta('r-co-so')?.ketQuaCong?.hanhDong).toBe('reject');
   });
 
   it('chạy lại lần hai không đẻ thêm hàng nào (idempotent)', () => {
-    db.dongDb();
-    db.moDb();
-    expect(so.docSoCong('r-mo-coi')).toHaveLength(1);
-    expect(so.docSoCong('r-co-so')).toHaveLength(1);
+    db.closeDb();
+    db.openDb();
+    expect(so.readGateLedger('r-mo-coi')).toHaveLength(1);
+    expect(so.readGateLedger('r-co-so')).toHaveLength(1);
   });
 });

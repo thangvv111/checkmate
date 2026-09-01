@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { envChoCli } from '../packages/harness/src/model.js';
+import { envForCli } from '../packages/harness/src/model.js';
 
 // Môi trường truyền cho tiến trình `claude` CLI phải là DANH SÁCH CHO PHÉP (specs/R8.11).
 // Ca thật đo trên máy chủ: /etc/checkmate.env mang GITHUB_TOKEN, mà bản cũ truyền cả process.env rồi
@@ -19,7 +19,7 @@ describe('môi trường cho lời gọi model qua CLI', () => {
   };
 
   it('KHÔNG để lọt bí mật nào ngoài token gói thuê bao', () => {
-    const ra = envChoCli(nguon);
+    const ra = envForCli(nguon);
     for (const cam of ['GITHUB_TOKEN', 'ANTHROPIC_API_KEY', 'CHECKER_KHOA', 'OPENAI_API_KEY']) {
       expect(ra[cam], `${cam} không được lọt sang tiến trình CLI`).toBeUndefined();
     }
@@ -28,11 +28,11 @@ describe('môi trường cho lời gọi model qua CLI', () => {
   it('bí mật CHƯA AI NGHĨ RA cũng không lọt — đó là lý do phải dùng danh sách cho phép', () => {
     // Danh sách cấm đòi người viết biết trước mọi khoá sẽ tồn tại trong tương lai. Thêm một khoá mới
     // vào file env là rò thêm một bí mật, và không ai phải sửa code nên không ai nhận ra.
-    expect(envChoCli(nguon).MOT_BI_MAT_CHUA_AI_NGHI_RA).toBeUndefined();
+    expect(envForCli(nguon).MOT_BI_MAT_CHUA_AI_NGHI_RA).toBeUndefined();
   });
 
   it('vẫn truyền đủ thứ CLI cần để chạy được', () => {
-    const ra = envChoCli(nguon);
+    const ra = envForCli(nguon);
     expect(ra.PATH).toBe('/usr/bin');
     expect(ra.HOME).toBe('/home/ubuntu');
     // token gói thuê bao là bí mật DUY NHẤT mà CLI thật sự cần — thiếu nó thì không đăng nhập được
@@ -40,11 +40,11 @@ describe('môi trường cho lời gọi model qua CLI', () => {
   });
 
   it('giữ nguyên CLAUDECODE rỗng để CLI không tưởng đang chạy lồng trong chính nó', () => {
-    expect(envChoCli(nguon).CLAUDECODE).toBe('');
+    expect(envForCli(nguon).CLAUDECODE).toBe('');
   });
 
   it('không có token thuê bao thì không dựng ra khoá rỗng', () => {
     const { CLAUDE_CODE_OAUTH_TOKEN: _bo, ...khongTb } = nguon;
-    expect('CLAUDE_CODE_OAUTH_TOKEN' in envChoCli(khongTb)).toBe(false);
+    expect('CLAUDE_CODE_OAUTH_TOKEN' in envForCli(khongTb)).toBe(false);
   });
 });
