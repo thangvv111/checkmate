@@ -16,7 +16,9 @@
 ## S3. Cổng & quyền của máy (R6, R11.18)
 
 - ✅ S3.1 Đối soát KHÔNG merge, KHÔNG đóng PR, KHÔNG tick finding — nó chỉ GHI LẠI việc đã xảy ra ở
-  nơi khác. Máy vẫn không bao giờ merge
+  nơi khác. Máy vẫn không bao giờ merge. Vòng hai của cổng bắt thêm một sắc thái: hàng ghi ra phải
+  nói rõ **máy chỉ GHI LẠI chứ không THỰC HIỆN** (R6.18) — đã bổ sung vào `chi_tiet` kèm danh tính
+  tác nhân máy
 - ✅ S3.2 Rủi ro NGƯỢC cần canh: hàng ngoài-cổng không được đọc nhầm thành «đã qua cổng» — phân biệt
   bằng cột dữ liệu, và mọi chỗ đếm/lọc phải xét cột đó (T3.3)
 

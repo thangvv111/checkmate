@@ -263,6 +263,41 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     expect(so.docSoCong('rS1')).toHaveLength(0);
   });
 
+  it('PR có hàng REJECT của người rồi merge ngoài cổng → hàng merge gắn vào lượt MỚI NHẤT (vòng hai)', async () => {
+    // Bản trước lọc bỏ mọi run «đã có hàng sổ», nên lượt mới nhất (mang hàng reject của người) bị
+    // loại và hàng ngoài-cổng rơi xuống lượt CŨ — lượt có verdict đã hết hiệu lực.
+    themRun('rM1', 330);
+    themRun('rM2', 330); // mới nhất
+    so.ghiSoCong({ run_id: 'rM2', luc: new Date().toISOString(), hanh_dong: 'reject', nguoi: 'thang.vv' });
+    const kq = await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'ai-do' }));
+    expect(kq.daGhi).toBe(1);
+    expect(so.docSoCong('rM1'), 'không được rơi xuống lượt cũ').toHaveLength(0);
+    const hang = so.docSoCong('rM2');
+    expect(hang.map((h) => h.hanh_dong).sort()).toEqual(['merge', 'reject']);
+  });
+
+  it('lỗi KHÔNG phải Error (chuỗi trần, object không .message) không làm khối bắt lỗi tự ném (vòng hai)', async () => {
+    themRun('rL1', 340);
+    themRun('rL2', 341);
+    let kq: Awaited<ReturnType<typeof cong.doiSoatCong>> | undefined;
+    await expect(
+      (async () => {
+        kq = await cong.doiSoatCong(async (pr) => {
+          if (pr === 340) throw 'chuỗi trần';
+          throw { code: 404 };
+        });
+      })(),
+    ).resolves.not.toThrow();
+    expect(kq?.loi, 'mỗi PR đếm ĐÚNG một lỗi, không gấp đôi').toBe(2);
+    expect(kq?.daGhi).toBe(0);
+  });
+
+  it('hàng ngoài cổng nói rõ MÁY chỉ GHI LẠI, không phải máy thực hiện (vòng hai, R6.18)', () => {
+    const s = cong.chiTietNgoaiCong(verdictGia('PASS', 1) as never);
+    expect(s).toContain(cong.TEN_TAC_NHAN_MAY);
+    expect(s).toMatch(/máy chỉ GHI LẠI, không phải máy thực hiện/);
+  });
+
   it('nhiều run cùng một PR → MỘT hàng cho MỘT lần merge, và MỘT lời gọi GitHub', async () => {
     // Một PR vá nhiều vòng có nhiều lượt chấm nhưng chỉ có ĐÚNG MỘT lần merge. Ghi ba hàng là khai
     // «có ba hành động merge» — sai sự thật trong một cuốn sổ không sửa được.

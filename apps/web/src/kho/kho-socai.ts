@@ -136,21 +136,26 @@ export function ghiSoCong(m: MucSoCong): void {
  * Đây là danh sách cần ĐỐI SOÁT: hoặc PR còn mở (chưa có hành động nào, đúng), hoặc PR đã merge/đóng
  * bằng đường khác và sổ đang im lặng ở đúng chỗ cần nói.
  */
-export function runChuaCoHanhDongCong(): Array<{ run_id: string; pr_so: number; repo: string }> {
+/**
+ * Mỗi pull request ĐÃ CHẤM một dòng: repo, số PR, và lượt chấm MỚI NHẤT của nó (R6.20).
+ *
+ * KHÔNG lọc bỏ theo «đã có hàng sổ nào chưa». Bản trước lọc như thế nên một lượt đã mang hàng
+ * `reject` do người bấm bị loại khỏi diện, và khi PR đó sau này bị merge thẳng bằng đường khác thì
+ * lần merge KHÔNG được ghi; tệ hơn, lượt mới nhất bị loại làm hàng ngoài-cổng rơi xuống lượt CŨ —
+ * lượt có verdict đã hết hiệu lực (vòng hai của cổng bắt cả hai).
+ * Quyết định ghi hay không thuộc về phép so HÀNH ĐỘNG (`hanhDongCongCuaPr`), không thuộc phép lọc này.
+ */
+export function prCanDoiSoat(): Array<{ run_id: string; pr_so: number; repo: string }> {
   const hang = moDb()
     .prepare(
-      // Đơn vị đối soát là CẶP (repo, pull request), không phải số PR trơ: hai repo khác nhau trùng
-      // số hiệu PR là chuyện thường, và hỏi trạng thái một lần rồi áp cho cả hai là kết luận về repo
-      // này bằng dữ liệu của repo kia (vòng hai của cổng bắt).
-      // Run KHÔNG có repo thì KHÔNG đối soát được — không biết hỏi GitHub ở đâu; bỏ ra ngoài diện
-      // thay vì suy từ PR cùng số của một repo bất kỳ.
-      // KHÔNG đòi `verdict IS NOT NULL`: R6.20 không nêu điều kiện đó, và run chết giữa chừng vẫn
-      // cần biết PR của nó ra sao.
+      // Lượt MỚI NHẤT của mỗi cặp (repo, PR) — `id` của hàng có rowid lớn nhất.
+      // Run không gắn repo thì không đối soát được: không biết hỏi GitHub ở đâu.
       `SELECT r.id AS run_id, r.pr_so, r.repo
          FROM run r
         WHERE r.pr_so IS NOT NULL
           AND r.repo IS NOT NULL AND r.repo <> ''
-          AND NOT EXISTS (SELECT 1 FROM so_cong s WHERE s.run_id = r.id)
+          AND r.rowid = (SELECT MAX(r2.rowid) FROM run r2
+                          WHERE r2.pr_so = r.pr_so AND r2.repo = r.repo)
         ORDER BY r.rowid DESC`,
     )
     .all() as Array<{ run_id: unknown; pr_so: unknown; repo: unknown }>;

@@ -35,3 +35,23 @@
 ## Kiểm tay
 
 - [ ] T5.1 (chưa làm — chờ deploy) Sau deploy: mở màn hình lịch sử, xác nhận các run của PR #12–#20 không còn treo «chưa thao tác», và hàng sổ nói rõ là ngoài cổng
+
+## Ca cho vòng chấm
+
+Vòng một:
+- [x] T4.1 PR đã qua cổng ở MỘT run → run anh em không bị vu ngoài cổng
+- [x] T4.2 Trạng thái ngoài miền / khuyết → bỏ qua, không rơi mềm thành reject
+- [x] T4.3 Run KHÔNG có verdict vẫn được đối soát
+- [x] T4.4 Cờ ngoài-cổng sang cả bề mặt `run.ketQuaCong`
+- [x] T4.5 Một PR hỏng không giết lượt của các PR còn lại
+- [x] T4.6 `chiTietNgoaiCong` không ném với `findings` méo
+
+Vòng hai:
+- [x] T5.1 Hai REPO trùng số PR → hai lời gọi riêng, không dùng chung kết luận
+- [x] T5.2 PR có hàng REJECT qua cổng rồi merge ngoài cổng → lần merge vẫn được ghi
+- [x] T5.3 Hàng merge gắn vào lượt MỚI NHẤT, không rơi xuống lượt cũ
+- [x] T5.4 Run không gắn repo → bỏ ra ngoài diện
+- [x] T5.5 Lỗi không phải Error → đếm đúng một lần, không tự ném
+- [x] T5.6 `chi_tiet` nói rõ máy chỉ GHI LẠI, kèm danh tính tác nhân máy
+- [ ] T5.7 (chưa làm — chờ deploy) Xác nhận trên prod: đối soát chạy được cả khi `truc.bat=false`
+

@@ -30,7 +30,7 @@ import { khoiRepo } from './ui-repo.js';
 import { cloneRepo, danhSachNhanh, danhSachPr, trangThaiPr, danhSachRepoCuaToken, dongPr, fetchVaRouter, ganTrangThaiCommit, kiemTraRepo, layPrHienTai, mergePr, binhLuanPr, tachOwnerRepo, traVeDev } from './github.js';
 import { coToken, docTokenRepo, docTokenRieng, ghiTokenRepo, xoaTokenRepo } from './kho-bi-mat.js';
 import { coDuongVaoGithub, coGhCli } from './github.js';
-import { banPhanQuyet, banReceipt, banVerdictTuDong, demMuc, doiSoatCong, ghiSo } from './cong.js';
+import { banPhanQuyet, banReceipt, banVerdictTuDong, demMuc, doiSoatCong, ghiSo, TEN_TAC_NHAN_MAY } from './cong.js';
 import { backfillSoCai, docSoCai } from './ledger.js';
 import { docSoCai as docSoCaiKho, demSoCai as demSoCaiKho } from './kho/kho-socai.js';
 import { diTruTatCa, tomTatDiTru } from './kho/di-tru.js';
@@ -191,7 +191,6 @@ rm.onXong = (meta) => {
 };
 
 /** R6.18 — tên ghi vào sổ cho hành động do máy thực hiện. Không mượn tên người dùng nào. */
-const TEN_TAC_NHAN_MAY = 'ci-bot';
 
 // Chấm một PR — dùng chung cho nút bấm lẫn poller
 async function chamPr(cfg: ReturnType<typeof docConfig>, soPr: number): Promise<{ id: string } | { daChamRunId: string }> {
@@ -212,6 +211,27 @@ async function chamPr(cfg: ReturnType<typeof docConfig>, soPr: number): Promise<
 
 let dangQuet = false;
 let lanQuetCuoi = 0;
+/**
+ * Đối soát sổ cổng với trạng thái thật của pull request (R6.20–R6.25).
+ *
+ * Tách hẳn khỏi thân chế độ trực: hàn nó vào trong đó thì máy chỉ chấm bằng tay (`truc.bat = false`,
+ * mặc định) sẽ KHÔNG BAO GIỜ đối soát — cuốn sổ im lặng vĩnh viễn ở đúng chỗ nó cần nói (vòng hai
+ * của cổng bắt). Nay chạy lúc khởi động và theo nhịp riêng, không phụ thuộc công tắc trực.
+ */
+async function chayDoiSoat(): Promise<void> {
+  // R6.25 — khối try riêng: lỗi đối soát không được làm dừng việc quét và chấm PR.
+  try {
+    const cfg = docConfig();
+    const ds = await doiSoatCong((so, repo) => trangThaiPr(cfg, so, repo), (m) => console.log(m));
+    if (ds.daGhi || ds.loi) console.log(`Đối soát cổng: ghi ${ds.daGhi} hàng ngoài cổng · bỏ qua ${ds.boQua} · lỗi đọc ${ds.loi}`);
+  } catch (e) {
+    console.error('Đối soát cổng (không ảnh hưởng lượt chấm):', (e as Error).message);
+  }
+}
+
+// Nhịp đối soát RIÊNG, không phụ thuộc `truc.bat`: sổ phải đúng kể cả trên máy chỉ chấm bằng tay.
+setInterval(() => void chayDoiSoat(), 15 * 60 * 1000);
+
 setInterval(() => {
   void (async () => {
     const cfg = docConfig();
@@ -219,14 +239,7 @@ setInterval(() => {
     if (Date.now() - lanQuetCuoi < cfg.truc.chu_ky_giay * 1000) return;
     dangQuet = true;
     lanQuetCuoi = Date.now();
-    // R6.25 — đối soát chạy TÁCH khỏi đường chấm, khối try riêng: lỗi của nó không được làm dừng
-    // việc quét và chấm PR (cùng nguyên tắc ba khối try riêng của R6.15).
-    try {
-      const ds = await doiSoatCong((so) => trangThaiPr(cfg, so), (m) => console.log(m));
-      if (ds.daGhi || ds.loi) console.log(`Đối soát cổng: ghi ${ds.daGhi} hàng ngoài cổng · bỏ qua ${ds.boQua} · lỗi đọc ${ds.loi}`);
-    } catch (e) {
-      console.error('Đối soát cổng (không ảnh hưởng lượt chấm):', (e as Error).message);
-    }
+    await chayDoiSoat();
     try {
       const prs = await danhSachPr(cfg);
       for (const p of prs) {
@@ -929,6 +942,8 @@ app.listen(port, '127.0.0.1', () => {
   const { chuyen } = diTruTokenRepo();
   if (chuyen.length) console.log(`Đã chuyển token dùng chung thành token riêng cho ${chuyen.length} repo: ${chuyen.join(', ')}`);
   // Xác của lần chạy trước: hàng `dang_chay` mồ côi khoá trần song song vĩnh viễn nếu không dọn
+  // Sổ phải đúng ngay từ lượt khởi động: máy chỉ chấm bằng tay không có chu kỳ trực nào để bám vào.
+  void chayDoiSoat();
   const moCoi = rm.donLuotMoCoi();
   if (moCoi.length) console.log(`Đã dọn ${moCoi.length} lượt chấm bỏ dở của lần chạy trước: ${moCoi.join(', ')}`);
   console.log(`CheckMate web: http://127.0.0.1:${port}`);

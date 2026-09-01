@@ -1,5 +1,5 @@
 import { chuanMuc, type Finding, type Verdict } from '../../../packages/shared/src/types.js';
-import { docSoCong, ghiSoCong, hanhDongCongCuaPr, runChuaCoHanhDongCong } from './kho/kho-socai.js';
+import { ghiSoCong, hanhDongCongCuaPr, prCanDoiSoat } from './kho/kho-socai.js';
 import { capNhatCongRun, docMeta } from './kho/kho-run.js';
 
 /**
@@ -46,6 +46,7 @@ export function chiTietNgoaiCong(v: { result?: string; findings?: Finding[] } | 
   const chuaTick = d.medium + d.low;
   return [
     '⚠ Hành động xảy ra NGOÀI CheckMate (không qua cổng)',
+    `ghi nhận tự động bởi ${TEN_TAC_NHAN_MAY} khi đối soát — máy chỉ GHI LẠI, không phải máy thực hiện (R6.18)`,
     'KHÔNG có xác nhận finding nào — không ai tick trước khi merge',
     `verdict lúc chấm: ${v?.result ?? 'không rõ'} · ${d.high} high · ${d.medium} medium · ${d.low} low` +
       (chuaTick ? ` · ${chuaTick} cảnh báo medium/low CHƯA được xác nhận` : ' · không có cảnh báo medium/low nào'),
@@ -58,11 +59,30 @@ export function chiTietNgoaiCong(v: { result?: string; findings?: Finding[] } | 
  * Một cổng không ngăn được người ta merge bằng đường khác; điều nó bắt buộc phải làm là BIẾT chuyện
  * đó đã xảy ra. Hàm nhận `docTrangThai` từ ngoài để test được mà không cần mạng.
  */
+/** R6.18 — danh tính của TÁC NHÂN MÁY. Sổ phải phân biệt «người làm» với «máy làm». */
+export const TEN_TAC_NHAN_MAY = 'ci-bot';
+
+/**
+ * Mô tả một thứ vừa bị ném ra — KHÔNG được tự ném.
+ *
+ * Nhiều client HTTP ném chuỗi trần hoặc object `{ code: 404 }` không có `.message`; gọi thẳng
+ * `(e as Error).message.slice(...)` trong khối bắt lỗi làm chính khối đó ném, lỗi bị đếm hai lần và
+ * nguyên nhân thật mất hẳn (vòng hai của cổng bắt).
+ */
+function moTaLoi(e: unknown): string {
+  if (e instanceof Error && typeof e.message === 'string') return e.message.slice(0, 120);
+  try {
+    return String(typeof e === 'object' && e !== null ? JSON.stringify(e) : e).slice(0, 120);
+  } catch {
+    return Object.prototype.toString.call(e);
+  }
+}
+
 export async function doiSoatCong(
   docTrangThai: (pr: number, repo: string) => Promise<{ trang_thai?: string; nguoi_merge?: string; tac_gia?: string } | null | undefined>,
   log: (msg: string) => void = () => {},
 ): Promise<{ daGhi: number; boQua: number; loi: number }> {
-  const canSoat = runChuaCoHanhDongCong();
+  const canSoat = prCanDoiSoat();
   if (!canSoat.length) return { daGhi: 0, boQua: 0, loi: 0 };
   // Gom theo CẶP (repo, pull request) — không theo run (một PR có chục lượt chấm, hỏi lại cùng một
   // câu là tự đốt quota) và không theo số PR trơ (hai repo trùng số PR là chuyện thường).
@@ -86,7 +106,7 @@ export async function doiSoatCong(
         tt = await docTrangThai(pr, repo);
       } catch (e) {
         loi++;
-        log(`Đối soát cổng: không đọc được trạng thái ${repo}#${pr} — bỏ qua, không ghi hàng nào: ${(e as Error).message.slice(0, 120)}`);
+        log(`Đối soát cổng: không đọc được trạng thái ${repo}#${pr} — bỏ qua, không ghi hàng nào: ${moTaLoi(e)}`);
         continue;
       }
       // R6.24 — CHỈ hai giá trị nói được điều gì. Trả về khuyết, null, hay giá trị ngoài miền đều là
@@ -118,7 +138,11 @@ export async function doiSoatCong(
         try {
           // Kiểm LẠI ở mức pull request ngay trước khi ghi: giữa lúc liệt kê và lúc ghi có thể có
           // người vừa bấm cổng thật — kể cả trên một run ANH EM cùng PR (R6.23).
-          if (docSoCong(runId).length || hanhDongCongCuaPr(repo, pr).includes(hd)) {
+          // Kiểm LẠI ở mức pull request ngay trước khi ghi (R6.23): giữa lúc liệt kê và lúc ghi có
+          // thể có người vừa bấm cổng thật — kể cả trên một lượt chấm ANH EM cùng PR. Phép kiểm theo
+          // run_id KHÔNG dùng nữa: một lượt có thể mang hàng `reject` của người rồi vẫn cần một hàng
+          // `merge` ngoài cổng — hai hành động khác nhau.
+          if (hanhDongCongCuaPr(repo, pr).includes(hd)) {
             boQua++;
             continue;
           }
@@ -132,12 +156,12 @@ export async function doiSoatCong(
           log(`Đối soát cổng: ${repo}#${pr} đã ${tthai} ngoài cổng — ghi sổ cho run ${runId}`);
         } catch (e) {
           loi++;
-          log(`Đối soát cổng: run ${runId} lỗi khi ghi — bỏ qua run này, các run khác vẫn chạy: ${(e as Error).message.slice(0, 120)}`);
+          log(`Đối soát cổng: run ${runId} lỗi khi ghi — bỏ qua run này, các run khác vẫn chạy: ${moTaLoi(e)}`);
         }
       }
     } catch (e) {
       loi++;
-      log(`Đối soát cổng: ${repo}#${pr} lỗi ngoài dự tính — bỏ qua PR này, các PR khác vẫn chạy: ${(e as Error).message.slice(0, 120)}`);
+      log(`Đối soát cổng: ${repo}#${pr} lỗi ngoài dự tính — bỏ qua PR này, các PR khác vẫn chạy: ${moTaLoi(e)}`);
     }
   }
   return { daGhi, boQua, loi };
