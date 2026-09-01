@@ -54,14 +54,15 @@ export function luuMeta(m: RunMeta): void {
     .prepare(
       `INSERT INTO run (id, tieu_de, skill, trang_thai, bat_dau, ket_thuc, repo,
                         pr_so, pr_head_sha, pr_tac_gia, verdict,
-                        cong_hanh_dong, cong_luc, cong_nguoi, cong_chi_tiet)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        cong_hanh_dong, cong_luc, cong_nguoi, cong_chi_tiet, cong_ngoai_cong)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
        ON CONFLICT(id) DO UPDATE SET
          tieu_de=excluded.tieu_de, skill=excluded.skill, trang_thai=excluded.trang_thai,
          bat_dau=excluded.bat_dau, ket_thuc=excluded.ket_thuc, repo=excluded.repo,
          pr_so=excluded.pr_so, pr_head_sha=excluded.pr_head_sha, pr_tac_gia=excluded.pr_tac_gia,
          verdict=excluded.verdict, cong_hanh_dong=excluded.cong_hanh_dong, cong_luc=excluded.cong_luc,
-         cong_nguoi=excluded.cong_nguoi, cong_chi_tiet=excluded.cong_chi_tiet`,
+         cong_nguoi=excluded.cong_nguoi, cong_chi_tiet=excluded.cong_chi_tiet,
+         cong_ngoai_cong=excluded.cong_ngoai_cong`,
     )
     .run(
       m.id, m.tieuDe, m.skill, m.trangThai, m.batDau, m.ketThuc ?? null, m.repo ?? null,
@@ -69,6 +70,10 @@ export function luuMeta(m: RunMeta): void {
       m.verdict ? JSON.stringify(m.verdict) : null,
       m.ketQuaCong?.hanhDong ?? null, m.ketQuaCong?.luc ?? null,
       m.ketQuaCong?.nguoi ?? null, m.ketQuaCong?.chiTiet ?? null,
+      // R6.21 — cửa GHI CẢ HÀNG phải mang cờ ngoài-cổng như cửa ghi-riêng-cụm (`capNhatCongRun`).
+      // Thiếu nó thì một vòng `luuMeta(docMeta(id))` làm rơi cờ, và hàng máy-ghi hoá thành hàng
+      // người-bấm trong im lặng (vòng sáu của cổng bắt — khuôn «cửa song sinh» lần thứ sáu).
+      m.ketQuaCong?.ngoaiCong ? 1 : 0,
     );
 }
 

@@ -308,6 +308,16 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     expect(s).toMatch(/máy chỉ GHI LẠI, không phải máy thực hiện/);
   });
 
+  it('luuMeta GIỮ cờ ngoài-cổng qua vòng đọc-ghi-đọc (R6.21, vòng sáu)', async () => {
+    // Cửa song sinh: đường đọc và `capNhatCongRun` đã biết cột mới, còn `luuMeta` — cửa ghi CẢ HÀNG —
+    // thì không. Một vòng `luuMeta(docMeta(id))` làm rơi cờ và hàng máy-ghi hoá thành hàng người-bấm.
+    themRun('rZ', 390);
+    await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
+    expect(kho.docMeta('rZ')?.ketQuaCong?.ngoaiCong).toBe(true);
+    kho.luuMeta(kho.docMeta('rZ')! as never); // ghi lại y nguyên
+    expect(kho.docMeta('rZ')?.ketQuaCong?.ngoaiCong, 'ghi lại y nguyên không được làm rơi cờ').toBe(true);
+  });
+
   it('PR đã có hàng MERGE → lượt sau KHÔNG gọi GitHub nữa (R6.23, vòng bốn)', async () => {
     themRun('rQ1', 350);
     await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));

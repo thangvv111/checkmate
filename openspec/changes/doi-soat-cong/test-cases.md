@@ -67,3 +67,6 @@ Vòng bốn:
 - [x] T7.3 PR đã có hàng `merge` → lượt sau KHÔNG gọi GitHub (đếm được 0 lời gọi)
 - [x] T7.4 `findings` lẫn phần tử méo → mô tả đếm đúng «1 high · 1 medium», không quy méo thành high
 
+Vòng sáu:
+- [x] T8.1 `luuMeta(docMeta(id))` ghi lại y nguyên KHÔNG được làm rơi cờ `ngoaiCong`
+

@@ -90,6 +90,12 @@ Vòng năm — 1 MEDIUM (verdict PASS, vẫn vá cho sạch):
       Đúng lớp lỗi «vá bằng cách nuốt dữ liệu» mà chuỗi vá này đã bị bắt hai lần. Nay chỉ loại phần
       tử KHÔNG PHẢI finding; `chuanMuc` lo chuẩn hoá (mọi nhãn lạ fail-closed về high).
 
+Vòng sáu — 1 HIGH:
+- [x] 6.23 **Cửa song sinh lần thứ SÁU trong cùng chuỗi**: cột `cong_ngoai_cong` được dạy cho đường
+      ĐỌC (`veMeta`) và cho `capNhatCongRun`, nhưng `luuMeta` — cửa ghi CẢ HÀNG run — thì không. Một
+      vòng `luuMeta(docMeta(id))` làm rơi cờ, và hàng máy-ghi hoá thành hàng người-bấm trong im lặng.
+      Đây là loại hỏng nguy hiểm vì nó KHÔNG ném, KHÔNG log, chỉ lặng lẽ đổi ý nghĩa một hàng kiểm toán.
+
 ## 7. Nợ ghi nhận, chưa xử trong change này
 
 - [ ] 7.1 **M12 — test phụ thuộc mạng thật**: `token-repo.test.ts` gọi GitHub API không token, nên
