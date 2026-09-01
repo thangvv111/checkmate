@@ -308,14 +308,27 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     expect(s).toMatch(/máy chỉ GHI LẠI, không phải máy thực hiện/);
   });
 
-  it('luuMeta GIỮ cờ ngoài-cổng qua vòng đọc-ghi-đọc (R6.21, vòng sáu)', async () => {
-    // Cửa song sinh: đường đọc và `capNhatCongRun` đã biết cột mới, còn `luuMeta` — cửa ghi CẢ HÀNG —
-    // thì không. Một vòng `luuMeta(docMeta(id))` làm rơi cờ và hàng máy-ghi hoá thành hàng người-bấm.
+  it('luuMeta KHÔNG XOÁ được hành động cổng đang có trong sổ (R6.26, vòng mười một)', async () => {
+    // Cửa song sinh, chiều XOÁ: luuMeta ghi đè cả hàng nên một lần lưu meta bình thường (đổi trạng
+    // thái, ghi kết thúc) đặt cụm cong_* về null trong khi sổ vẫn còn hàng merge — bề mặt lặng lẽ
+    // quay lại «chưa thao tác», không ném, không log. Nay không còn cột để đè.
     themRun('rZ', 390);
     await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
     expect(kho.docMeta('rZ')?.ketQuaCong?.ngoaiCong).toBe(true);
-    kho.luuMeta(kho.docMeta('rZ')! as never); // ghi lại y nguyên
-    expect(kho.docMeta('rZ')?.ketQuaCong?.ngoaiCong, 'ghi lại y nguyên không được làm rơi cờ').toBe(true);
+    kho.luuMeta({ ...kho.docMeta('rZ')!, ketQuaCong: undefined, trangThai: 'xong', ketThuc: new Date().toISOString() } as never);
+    expect(kho.docMeta('rZ')?.ketQuaCong?.ngoaiCong, 'sổ còn hàng thì bề mặt vẫn phải nói đúng').toBe(true);
+  });
+
+  it('luuMeta KHÔNG ĐÓNG DẤU được hành động cổng khi sổ trống (R6.26, vòng mười một)', () => {
+    // Chiều ngược: luuMeta nhận nguyên cụm ketQuaCong do người gọi đưa vào rồi chép thẳng lên hàng
+    // run, nên một lời gọi không phiên không vai vẫn khai được «đã merge» trong khi sổ trống.
+    themRun('rDauGia', 391);
+    kho.luuMeta({
+      ...kho.docMeta('rDauGia')!,
+      ketQuaCong: { hanhDong: 'merge', luc: new Date().toISOString(), nguoi: 'ke-gia-mao', chiTiet: 'bịa', ngoaiCong: false },
+    } as never);
+    expect(so.docSoCong('rDauGia'), 'sổ vẫn phải rỗng').toHaveLength(0);
+    expect(kho.docMeta('rDauGia')?.ketQuaCong, 'bề mặt KHÔNG được khai hành động nào').toBeUndefined();
   });
 
   it('PR đã có hàng MERGE → lượt sau KHÔNG gọi GitHub nữa (R6.23, vòng bốn)', async () => {
@@ -337,26 +350,32 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     expect(s).toContain('1 medium');
   });
 
-  it('chế độ org: gọi thẳng cửa ghi mà SỔ RỖNG thì KHÔNG ghi được gì (vòng mười, HIGH)', () => {
-    // Vòng chín gác demo, vòng mười đi bằng org: một lời gọi thẳng không phiên, không vai vẫn đặt
-    // được ketQuaCong='merge' lên bề mặt trong khi docSoCong rỗng. Gác theo từng lối vào là đuổi
-    // theo lối vào — nay cửa ghi ĐÒI hàng sổ làm bằng chứng (R6.26).
-    themRun('rGiaMao', 900);
-    kho.capNhatCongRun('rGiaMao', 'merge');
-    expect(so.docSoCong('rGiaMao'), 'sổ vẫn phải rỗng').toHaveLength(0);
-    expect(kho.docMeta('rGiaMao')?.ketQuaCong, 'bề mặt KHÔNG được khai hành động nào').toBeUndefined();
+  it('bảng run KHÔNG CÒN cụm cột cong_* — không còn cửa ghi nào để canh (R6.26)', () => {
+    const cot = (db.moDb().prepare('PRAGMA table_info(run)').all() as Array<{ name: string }>).map((c) => c.name);
+    for (const c of ['cong_hanh_dong', 'cong_luc', 'cong_nguoi', 'cong_chi_tiet', 'cong_ngoai_cong']) {
+      expect(cot, `cot ${c} con thi con mot nguon su that thu hai`).not.toContain(c);
+    }
   });
 
-  it('bề mặt chép TỪ hàng sổ, không lấy giá trị người gọi truyền vào (R6.26)', () => {
+  it('bề mặt PHÁI SINH từ hàng sổ, đủ cả năm trường (R6.26)', () => {
     themRun('rChep', 901);
     const luc = new Date().toISOString();
     so.ghiSoCong({ run_id: 'rChep', luc, hanh_dong: 'merge', nguoi: 'nguoi-that (GitHub)', ngoai_cong: true, chi_tiet: 'mô tả trong sổ' });
-    kho.capNhatCongRun('rChep', 'merge');
     const kq = kho.docMeta('rChep')?.ketQuaCong;
+    expect(kq?.hanhDong).toBe('merge');
     expect(kq?.nguoi).toBe('nguoi-that (GitHub)');
     expect(kq?.ngoaiCong).toBe(true);
     expect(kq?.chiTiet).toBe('mô tả trong sổ');
     expect(kq?.luc).toBe(luc);
+  });
+
+  it('nhiều hàng sổ cùng một lượt: bề mặt lấy hàng MỚI NHẤT (R6.26)', () => {
+    themRun('rHaiHang', 902);
+    so.ghiSoCong({ run_id: 'rHaiHang', luc: '2026-09-01T01:00:00.000Z', hanh_dong: 'reject', nguoi: 'nguoi-1' });
+    so.ghiSoCong({ run_id: 'rHaiHang', luc: '2026-09-01T02:00:00.000Z', hanh_dong: 'merge', nguoi: 'nguoi-2', ngoai_cong: true });
+    const kq = kho.docMeta('rHaiHang')?.ketQuaCong;
+    expect(kq?.hanhDong).toBe('merge');
+    expect(kq?.nguoi).toBe('nguoi-2');
   });
 
   it('findings SAI KIỂU phải NÓI RA «không đọc được», không khai thành BẰNG KHÔNG (vòng chín, HIGH)', () => {

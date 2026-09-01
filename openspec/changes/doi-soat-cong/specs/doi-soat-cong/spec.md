@@ -65,3 +65,43 @@ chấm đang chạy.
 #### Scenario: đối soát ném lỗi giữa chừng
 - **WHEN** pha đối soát ném lỗi
 - **THEN** chu kỳ chế độ trực vẫn tiếp tục quét và chấm PR như thường
+
+### Requirement: Hành động cổng chỉ sống trong sổ — bề mặt là bản phái sinh
+
+Bề mặt lượt chấm MUST NOT có cột riêng cho hành động cổng. Cụm hành động cổng hiển thị trên lượt chấm
+MUST được suy ra từ sổ chỉ-ghi-thêm lúc **đọc**, và hệ thống MUST NOT có bất kỳ cửa nào ghi nó xuống
+nơi khác.
+
+Bản đầu của change này để cụm ấy làm cột trên bảng `run` rồi gác từng cửa ghi. Không đủ, và không đủ
+theo cách đo được: cùng một khuôn lỗi bị bắt **chín lần**, mỗi lần một lối vào khác. Chừng nào còn
+một chỗ ghi được thì còn một chỗ để bề mặt nói khác sổ.
+
+Khi bỏ cột, dữ liệu bề mặt đang khai một hành động mà sổ KHÔNG có MUST được chuyển vào sổ kèm ghi chú
+nói rõ nguồn — đó là bản ghi thật của đời cũ, không phải suy đoán. Phép chuyển MUST idempotent.
+
+#### Scenario: cửa ghi cả hàng đóng dấu khi sổ trống
+- **WHEN** một lời gọi lưu meta mang theo cụm hành động cổng `merge` cho run chưa có hàng sổ nào
+- **THEN** bề mặt vẫn nói «chưa thao tác», và sổ vẫn trống
+
+#### Scenario: cửa ghi cả hàng xoá trắng khi sổ còn hàng
+- **WHEN** một lần lưu meta bình thường (đổi trạng thái, ghi kết thúc) chạy sau khi đối soát đã ghi sổ
+- **THEN** bề mặt vẫn nói đúng hành động đang có trong sổ
+
+#### Scenario: di trú cơ sở dữ liệu đời cũ
+- **WHEN** cơ sở dữ liệu còn cụm cột cũ, trong đó một hàng khai `merge` mà sổ không có hàng tương ứng
+- **THEN** hàng đó được ghi vào sổ kèm ghi chú nguồn, hàng đã có trong sổ KHÔNG bị nhân đôi, rồi cột
+  được bỏ; chạy lại lần hai không đẻ thêm hàng nào
+
+### Requirement: Mọi mục không đọc được phải được đếm và nói ra
+
+Phần mô tả hàng ngoài-cổng MUST đếm và nói ra mọi mục bị bộ lọc loại khỏi phép đếm finding, và MUST NOT
+viết câu khẳng định «không có cảnh báo nào» khi còn mục bị loại. Phép đếm MUST nằm ở chỗ lọc, không
+phải ở từng ca đầu vào.
+
+#### Scenario: mảng finding mà mọi phần tử đều bị loại
+- **WHEN** `findings` là mảng hợp lệ gồm 5 phần tử không đủ hình dạng một finding
+- **THEN** mô tả nói rõ có 5 mục không đọc được, và KHÔNG viết «không có cảnh báo medium/low nào»
+
+#### Scenario: chính tham số verdict không đọc được
+- **WHEN** verdict truyền vào là một chuỗi, một số, hoặc một mảng
+- **THEN** mô tả nói rõ verdict không đọc được kèm kiểu thật, KHÔNG khai «0 high»

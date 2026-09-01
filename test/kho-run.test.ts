@@ -14,6 +14,7 @@ process.env.CHECKMATE_DB = join(goc, 'web-runs', 'run.db');
 
 const { moDb, dongDb } = await import('../apps/web/src/kho/db.js');
 const k = await import('../apps/web/src/kho/kho-run.js');
+const soCong = await import('../apps/web/src/kho/kho-socai.js');
 
 const meta = (p: Partial<RunMeta> & { id: string }): RunMeta => ({
   tieuDe: 'PR #8 · code',
@@ -56,8 +57,8 @@ describe('lưu và đọc lượt chấm', () => {
     expect(m!.verdict).toBeUndefined();
   });
 
-  it('kết quả cổng đọc lại được nguyên vẹn', () => {
-    k.luuMeta({ ...k.docMeta('b')!, ketQuaCong: { hanhDong: 'reject', luc: '2026-08-27T12:00:00.000Z', nguoi: 'thang', chiTiet: 'thiếu test' } });
+  it('kết quả cổng đọc lại được nguyên vẹn — từ SỔ, không từ cột trên bảng run (R6.26)', () => {
+    soCong.ghiSoCong({ run_id: 'b', luc: '2026-08-27T12:00:00.000Z', hanh_dong: 'reject', nguoi: 'thang', chi_tiet: 'thiếu test' });
     // R6.21 — hàng do NGƯỜI bấm trong CheckMate KHÔNG mang cờ ngoài-cổng; cờ là thứ phân biệt hai
     // loại hành động ở mức DỮ LIỆU, nên nó phải có mặt và bằng false, không phải vắng mặt.
     expect(k.docMeta('b')!.ketQuaCong).toEqual({ hanhDong: 'reject', luc: '2026-08-27T12:00:00.000Z', nguoi: 'thang', chiTiet: 'thiếu test', ngoaiCong: false });

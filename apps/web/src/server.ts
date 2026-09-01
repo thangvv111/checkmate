@@ -178,11 +178,11 @@ rm.onXong = (meta) => {
       } catch {
         kenh = 'loi_comment';
       }
-      const kq = { hanhDong: 'reject' as const, luc: new Date().toISOString(), nguoi,
-        chiTiet: `tự động trả về PR #${pr.so} @ ${pr.headSha.slice(0, 7)} — FAIL, ${d.high} finding mức chặn` };
-      rm.ghiKetQuaCong(meta.id, kq);
+      // Ghi SỔ trước, rồi bề mặt đọc lại từ sổ (R6.26) — không còn bước đặt giá trị vào bề mặt.
       ghiSo({ hanhDong: 'reject', pr: pr.so, sha: pr.headSha, run_id: meta.id, verdict: v.result, nguoi,
-        tac_gia_pr: pr.tacGia, kenh, dong_pr: true, tu_dong: true });
+        tac_gia_pr: pr.tacGia, kenh, dong_pr: true, tu_dong: true,
+        ghi_chu: `tự động trả về — FAIL, ${d.high} finding mức chặn` });
+      rm.dongBoCongTuSo(meta.id);
       console.log(`Tự động: đã trả về dev PR #${pr.so} (FAIL, ${d.high} finding mức chặn)`);
     } catch (e) {
       console.error('Tự động (trả về dev):', (e as Error).message);
@@ -834,7 +834,8 @@ app.post('/api/runs/:id/merge', async (req, res) => {
   const st = rm.lay(req.params.id);
   const cfg = docConfig();
   if (!st || !st.meta.verdict || !st.meta.pr) return loiCong(res, 404, 'Run không tồn tại hoặc không gắn PR. <a href="/">← về trang chính</a>');
-  if (st.meta.ketQuaCong) return loiCong(res, 409, `Run này đã ${st.meta.ketQuaCong.hanhDong} lúc ${st.meta.ketQuaCong.luc}.`);
+  const daCong = rm.congHienTai(st.meta.id); // đọc TƯƠI từ sổ — bản trong bộ nhớ có thể cũ (R6.26)
+  if (daCong) return loiCong(res, 409, `Run này đã ${daCong.hanhDong} lúc ${daCong.luc}.`);
   const v = st.meta.verdict;
   const d = demMuc(v.findings);
   if (d.high > 0 || v.result === 'FAIL') return loiCong(res, 403, 'Verdict FAIL (có finding HIGH) — nút merge khoá theo luật cổng.');
@@ -864,9 +865,8 @@ app.post('/api/runs/:id/merge', async (req, res) => {
     await mergePr(cfg, st.meta.pr.so, `${st.meta.tieuDe} (#${st.meta.pr.so})`,
       `CheckMate: PASS @ ${v.artifact_ref.sha_or_hash.slice(0, 10)} · run ${v.run_id}${xacNhan.length ? ` · ${xacNhan.length} cảnh báo medium được ${nguoi} chấp nhận` : ''}`,
       st.meta.pr.headSha); // W1: GitHub tự 409 nếu head đã đổi — đóng nốt cửa sổ race sau lần layPrHienTai ở trên
-    const kq = { hanhDong: 'merge' as const, luc: new Date().toISOString(), nguoi, chiTiet: `merge PR #${st.meta.pr.so} @ ${st.meta.pr.headSha.slice(0, 7)}` };
-    rm.ghiKetQuaCong(st.meta.id, kq);
     ghiSo({ hanhDong: 'merge', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.id, verdict: v.result, nguoi, tac_gia_pr: st.meta.pr.tacGia, xac_nhan_medium: xacNhan });
+    rm.dongBoCongTuSo(st.meta.id); // bề mặt đọc lại TỪ sổ (R6.26)
     res.redirect(303, `/runs/${st.meta.id}`);
   } catch (e) {
     loiCong(res, 500, `GitHub từ chối: ${(e as Error).message.slice(0, 300)}`);
@@ -878,7 +878,8 @@ app.post('/api/runs/:id/reject', async (req, res) => {
   const st = rm.lay(req.params.id);
   const cfg = docConfig();
   if (!st || !st.meta.verdict || !st.meta.pr) return loiCong(res, 404, 'Run không tồn tại hoặc không gắn PR.');
-  if (st.meta.ketQuaCong) return loiCong(res, 409, `Run này đã ${st.meta.ketQuaCong.hanhDong} lúc ${st.meta.ketQuaCong.luc}.`);
+  const daCong = rm.congHienTai(st.meta.id); // đọc TƯƠI từ sổ — bản trong bộ nhớ có thể cũ (R6.26)
+  if (daCong) return loiCong(res, 409, `Run này đã ${daCong.hanhDong} lúc ${daCong.luc}.`);
   let dtReject;
   try {
     dtReject = layDanhTinh(req);
@@ -898,9 +899,9 @@ app.post('/api/runs/:id/reject', async (req, res) => {
       kenh = 'loi_comment';
       console.error('Reject: PR đã đóng nhưng post phán quyết lỗi:', (e as Error).message.slice(0, 200));
     }
-    const kq = { hanhDong: 'reject' as const, luc: new Date().toISOString(), nguoi, chiTiet: `đã đóng PR + phán quyết qua ${kenh === 'loi_comment' ? 'LỖI post (đóng vẫn hiệu lực)' : kenh} (chờ dev vá & reopen)` };
-    rm.ghiKetQuaCong(st.meta.id, kq);
-    ghiSo({ hanhDong: 'reject', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.id, verdict: st.meta.verdict.result, nguoi, tac_gia_pr: st.meta.pr.tacGia, kenh, dong_pr: true });
+    ghiSo({ hanhDong: 'reject', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.id, verdict: st.meta.verdict.result, nguoi, tac_gia_pr: st.meta.pr.tacGia, kenh, dong_pr: true,
+      ghi_chu: [(b.ghi_chu ?? '').trim(), `đã đóng PR + phán quyết qua ${kenh === 'loi_comment' ? 'LỖI post (đóng vẫn hiệu lực)' : kenh} (chờ dev vá & reopen)`].filter(Boolean).join(' · ') });
+    rm.dongBoCongTuSo(st.meta.id); // bề mặt đọc lại TỪ sổ (R6.26)
     res.redirect(303, `/runs/${st.meta.id}`);
   } catch (e) {
     loiCong(res, 500, `GitHub từ chối: ${(e as Error).message.slice(0, 300)}`);

@@ -2,7 +2,7 @@ import { chuanMuc, type Finding, type Verdict } from '../../../packages/shared/s
 import { ghiSoCong, hanhDongCongCuaPr, prCanDoiSoat } from './kho/kho-socai.js';
 import { cheTokenTrongVan } from './github.js';
 import { MODE } from './config.js';
-import { capNhatCongRun, docMeta } from './kho/kho-run.js';
+import { docMeta } from './kho/kho-run.js';
 
 /**
  * ĐÃ GỠ: `nguoiThaoTac()` lấy `userInfo().username` — tài khoản HỆ ĐIỀU HÀNH chạy tiến trình. Trên máy
@@ -41,6 +41,17 @@ export function demMuc(findings: Finding[]): { high: number; medium: number; low
  * tick từng cái.
  */
 export function chiTietNgoaiCong(v: { result?: string; findings?: Finding[] } | null): string {
+  // Chính THAM SỐ verdict cũng phải kiểm, không chỉ trường `findings` bên trong nó (R6.27). Verdict là
+  // chuỗi 'PASS', số 42, hay một MẢNG finding đặt nhầm ở gốc đều rơi mềm vào nhánh «không có finding»
+  // và cho ra đúng câu của một lượt chấm sạch — lần thứ ba cùng khuôn, ở cửa thứ ba.
+  if (v !== null && v !== undefined && (typeof v !== 'object' || Array.isArray(v))) {
+    return [
+      '⚠ Hành động xảy ra NGOÀI CheckMate (không qua cổng)',
+      `ghi nhận tự động bởi ${TEN_TAC_NHAN_MAY} khi đối soát — máy chỉ GHI LẠI, không phải máy thực hiện (R6.18)`,
+      'KHÔNG có xác nhận finding nào — không ai tick trước khi merge',
+      `verdict KHÔNG ĐỌC ĐƯỢC (kiểu ${Array.isArray(v) ? 'array' : typeof v}) — KHÔNG đếm được finding, đừng đọc thành «không có finding»`,
+    ].join(' · ');
+  }
   // Danh sách finding CÓ MẶT nhưng KHÔNG ĐỌC ĐƯỢC (chuỗi, số, object) thì phải NÓI RA — rơi mềm về
   // mảng rỗng rồi ghi «0 high · không có cảnh báo» là khai DỮ LIỆU KHÔNG ĐỌC ĐƯỢC THÀNH BẰNG KHÔNG,
   // đúng thứ R6.22 cấm: người đọc sổ sẽ tưởng lượt chấm sạch (vòng chín của cổng bắt).
@@ -233,7 +244,7 @@ export async function doiSoatCong(
           // (Vòng ba của cổng đẩy sang danh tính máy, vòng bốn bác lại — chốt ở đây, ghi vào R6.24.)
           const nguoi = tt?.nguoi_merge ? `${tt.nguoi_merge} (GitHub)` : '(ngoài cổng — không rõ)';
           ghiSoCong({ run_id: runId, luc, hanh_dong: hd, nguoi, tac_gia_pr: tt?.tac_gia, ngoai_cong: true, chi_tiet: chiTiet });
-          capNhatCongRun(runId, hd); // bề mặt chép TỪ hàng sổ vừa ghi — không truyền giá trị song song (R6.26)
+          // Bề mặt tự suy ra từ hàng sổ vừa ghi — không có bước ghi bề mặt nào nữa (R6.26).
           daGhi++;
           log(`Đối soát cổng: ${repo}#${pr} đã ${tthai} ngoài cổng — ghi sổ cho run ${runId}`);
         } catch (e) {

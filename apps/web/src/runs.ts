@@ -22,7 +22,11 @@ export interface RunMeta {
   repo?: string;
   verdict?: Verdict;
   pr?: { so: number; headSha: string; tacGia?: string };
-  /** `ngoaiCong` — R6.21: hàng do ĐỐI SOÁT ghi (hành động xảy ra ngoài CheckMate) phải phân biệt được ở mức DỮ LIỆU, kể cả trên bề mặt này */
+  /**
+   * CHỈ ĐỌC — suy ra từ `so_cong` lúc đọc (R6.26). Đặt giá trị vào đây KHÔNG ghi được xuống đâu cả;
+   * muốn khai một hành động cổng thì ghi sổ.
+   * `ngoaiCong` — R6.21: hàng do ĐỐI SOÁT ghi phải phân biệt được ở mức DỮ LIỆU, kể cả trên bề mặt này.
+   */
   ketQuaCong?: { hanhDong: 'merge' | 'reject'; luc: string; nguoi: string; chiTiet: string; ngoaiCong?: boolean };
 }
 
@@ -166,11 +170,18 @@ export class RunManager {
     return kho.dangChayPr(so);
   }
 
-  ghiKetQuaCong(id: string, kq: RunMeta['ketQuaCong']): void {
+  /**
+   * R6.26 — bề mặt trong bộ nhớ ĐỌC LẠI từ sổ sau khi sổ vừa được ghi. Không còn hàm nào NHẬN cụm
+   * hành động cổng để đặt vào bề mặt: nơi duy nhất khai một hành động cổng là sổ chỉ-ghi-thêm.
+   */
+  dongBoCongTuSo(id: string): void {
     const st = this.lay(id);
-    if (!st) return;
-    st.meta.ketQuaCong = kq;
-    kho.luuMeta(st.meta);
+    if (st) st.meta.ketQuaCong = kho.docMeta(id)?.ketQuaCong;
+  }
+
+  /** Hành động cổng ĐANG có trong sổ cho lượt này — đọc tươi, không tin bản trong bộ nhớ. */
+  congHienTai(id: string): RunMeta['ketQuaCong'] {
+    return kho.docMeta(id)?.ketQuaCong;
   }
 
   private luu(state: RunState): void {

@@ -1,6 +1,4 @@
 import { moDb } from './db.js';
-import { MODE } from '../config.js';
-import { docSoCong } from './kho-socai.js';
 import type { RunMeta, StoredEvent } from '../runs.js';
 import type { Verdict } from '../../../../packages/shared/src/types.js';
 
@@ -17,6 +15,23 @@ export interface LocRun {
 }
 
 type Hang = Record<string, unknown>;
+
+/**
+ * R6.26 — cụm hành động cổng trên bề mặt lượt chấm là bản PHÁI SINH của sổ, đọc bằng phép nối này.
+ *
+ * Trước đây nó là bốn cột trên chính bảng `run`, tức một nguồn sự thật thứ hai đứng cạnh sổ
+ * chỉ-ghi-thêm — và mọi cửa ghi vào cụm cột ấy đều là một chỗ để bề mặt nói khác sổ. Nay không còn
+ * cột, nên không còn cửa ghi: chỉ có một phép ĐỌC, lấy hàng sổ mới nhất của mỗi lượt.
+ */
+const NOI_SO_CONG = `LEFT JOIN (
+       SELECT run_id, hanh_dong, luc, nguoi, chi_tiet, ngoai_cong,
+              ROW_NUMBER() OVER (PARTITION BY run_id ORDER BY luc DESC, id DESC) AS rn
+       FROM so_cong
+     ) sc ON sc.run_id = run.id AND sc.rn = 1`;
+
+const CHON_RUN = `SELECT run.*, sc.hanh_dong AS sc_hanh_dong, sc.luc AS sc_luc, sc.nguoi AS sc_nguoi,
+            sc.chi_tiet AS sc_chi_tiet, sc.ngoai_cong AS sc_ngoai_cong
+     FROM run ${NOI_SO_CONG}`;
 
 function veMeta(h: Hang): RunMeta {
   const chu = (k: string): string | undefined => (h[k] == null ? undefined : String(h[k]));
@@ -39,13 +54,15 @@ function veMeta(h: Hang): RunMeta {
   if (h.pr_so != null) {
     meta.pr = { so: Number(h.pr_so), headSha: String(h.pr_head_sha ?? ''), tacGia: chu('pr_tac_gia') };
   }
-  if (h.cong_hanh_dong != null) {
+  // Suy TỪ SỔ (R6.26) — không có hàng sổ thì bề mặt không khai hành động nào, đúng theo cấu trúc
+  // chứ không nhờ một phép kiểm nào phải nhớ gọi.
+  if (h.sc_hanh_dong != null) {
     meta.ketQuaCong = {
-      hanhDong: String(h.cong_hanh_dong) as 'merge' | 'reject',
-      luc: String(h.cong_luc ?? ''),
-      nguoi: String(h.cong_nguoi ?? ''),
-      chiTiet: String(h.cong_chi_tiet ?? ''),
-      ngoaiCong: Number(h.cong_ngoai_cong ?? 0) === 1,
+      hanhDong: String(h.sc_hanh_dong) as 'merge' | 'reject',
+      luc: String(h.sc_luc ?? ''),
+      nguoi: String(h.sc_nguoi ?? ''),
+      chiTiet: String(h.sc_chi_tiet ?? ''),
+      ngoaiCong: Number(h.sc_ngoai_cong ?? 0) === 1,
     };
   }
   return meta;
@@ -55,60 +72,22 @@ export function luuMeta(m: RunMeta): void {
   moDb()
     .prepare(
       `INSERT INTO run (id, tieu_de, skill, trang_thai, bat_dau, ket_thuc, repo,
-                        pr_so, pr_head_sha, pr_tac_gia, verdict,
-                        cong_hanh_dong, cong_luc, cong_nguoi, cong_chi_tiet, cong_ngoai_cong)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        pr_so, pr_head_sha, pr_tac_gia, verdict)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?)
        ON CONFLICT(id) DO UPDATE SET
          tieu_de=excluded.tieu_de, skill=excluded.skill, trang_thai=excluded.trang_thai,
          bat_dau=excluded.bat_dau, ket_thuc=excluded.ket_thuc, repo=excluded.repo,
          pr_so=excluded.pr_so, pr_head_sha=excluded.pr_head_sha, pr_tac_gia=excluded.pr_tac_gia,
-         verdict=excluded.verdict, cong_hanh_dong=excluded.cong_hanh_dong, cong_luc=excluded.cong_luc,
-         cong_nguoi=excluded.cong_nguoi, cong_chi_tiet=excluded.cong_chi_tiet,
-         cong_ngoai_cong=excluded.cong_ngoai_cong`,
+         verdict=excluded.verdict`,
     )
     .run(
       m.id, m.tieuDe, m.skill, m.trangThai, m.batDau, m.ketThuc ?? null, m.repo ?? null,
       m.pr?.so ?? null, m.pr?.headSha ?? null, m.pr?.tacGia ?? null,
       m.verdict ? JSON.stringify(m.verdict) : null,
-      m.ketQuaCong?.hanhDong ?? null, m.ketQuaCong?.luc ?? null,
-      m.ketQuaCong?.nguoi ?? null, m.ketQuaCong?.chiTiet ?? null,
-      // R6.21 — cửa GHI CẢ HÀNG phải mang cờ ngoài-cổng như cửa ghi-riêng-cụm (`capNhatCongRun`).
-      // Thiếu nó thì một vòng `luuMeta(docMeta(id))` làm rơi cờ, và hàng máy-ghi hoá thành hàng
-      // người-bấm trong im lặng (vòng sáu của cổng bắt — khuôn «cửa song sinh» lần thứ sáu).
-      m.ketQuaCong?.ngoaiCong ? 1 : 0,
     );
-}
-
-/**
- * Cập nhật RIÊNG cụm cột hành động cổng của một lượt — dùng cho đối soát (R6.20).
- *
- * Không dùng `luuMeta` vì nó ghi đè cả hàng: đối soát chỉ biết chuyện xảy ra ở cổng, không có bản
- * meta đầy đủ trong tay, và ghi đè bằng dữ liệu thiếu là làm hỏng hàng đang đúng.
- */
-/**
- * R6.12 / R6.26 — bề mặt run là bản **phái sinh** của sổ cổng, không phải một bản ghi song song.
- *
- * Hai vòng chấm liên tiếp bắt cùng một khuôn «cửa song sinh» ở đây, mỗi vòng một lối vào: vòng chín
- * đi bằng chế độ demo, vòng mười đi bằng chế độ `org` với một lời gọi thẳng không phiên, không vai.
- * Gác thêm điều kiện cho từng lối vào là đuổi theo lối vào; nên hàm này nay **không nhận giá trị nào
- * từ người gọi nữa** — nó tìm hàng sổ làm bằng chứng rồi chép đúng hàng đó lên bề mặt. Không có hàng
- * thì không có gì để chép, và bề mặt giữ nguyên «chưa thao tác».
- */
-export function capNhatCongRun(id: string, hanhDong: 'merge' | 'reject'): void {
-  if (MODE === 'demo') {
-    console.error(`Chế độ demo: từ chối ghi hành động cổng «${hanhDong}» lên run ${id} (R6.12)`);
-    return;
-  }
-  const bang = docSoCong(id).find((h) => h.hanh_dong === hanhDong);
-  if (!bang) {
-    console.error(
-      `Từ chối ghi hành động cổng «${hanhDong}» lên run ${id}: sổ chỉ-ghi-thêm KHÔNG có hàng nào làm bằng chứng (R6.26)`,
-    );
-    return;
-  }
-  moDb()
-    .prepare('UPDATE run SET cong_hanh_dong=?, cong_luc=?, cong_nguoi=?, cong_chi_tiet=?, cong_ngoai_cong=? WHERE id=?')
-    .run(bang.hanh_dong, bang.luc, bang.nguoi, bang.chi_tiet ?? null, bang.ngoai_cong ? 1 : 0, id);
+  // `m.ketQuaCong` KHÔNG được ghi ở đây và không có chỗ nào để ghi nữa (R6.26): nó là bản đọc ra từ
+  // sổ. Hai vòng chấm liên tiếp bắt đúng cửa này — một lần nó đóng dấu hành động lên bề mặt trong khi
+  // sổ trống, một lần nó xoá trắng hành động trong khi sổ vẫn còn hàng. Cả hai chết cùng cụm cột.
 }
 
 /** Ghi trọn dòng sự kiện của một lượt. Xoá bản cũ trước để ghi lại không đẻ ra bản trùng. */
@@ -127,7 +106,7 @@ export function luuSuKien(runId: string, events: StoredEvent[]): void {
 }
 
 export function docMeta(id: string): RunMeta | undefined {
-  const h = moDb().prepare('SELECT * FROM run WHERE id = ?').get(id) as Hang | undefined;
+  const h = moDb().prepare(`${CHON_RUN} WHERE run.id = ?`).get(id) as Hang | undefined;
   return h ? veMeta(h) : undefined;
 }
 
@@ -155,7 +134,7 @@ function dungWhere(loc: LocRun): { sql: string; tham: unknown[] } {
 
 export function danhSachRun(loc: LocRun = {}): RunMeta[] {
   const { sql, tham } = dungWhere(loc);
-  let cau = `SELECT * FROM run${sql} ORDER BY bat_dau DESC`;
+  let cau = `${CHON_RUN}${sql} ORDER BY bat_dau DESC`;
   const t = [...tham];
   if (loc.gioi_han != null) { cau += ' LIMIT ?'; t.push(loc.gioi_han); }
   if (loc.bo_qua != null) { cau += loc.gioi_han == null ? ' LIMIT -1 OFFSET ?' : ' OFFSET ?'; t.push(loc.bo_qua); }
@@ -171,7 +150,7 @@ export function demRun(loc: LocRun = {}): number {
 /** Verdict đã chấm cho đúng cặp (PR, commit) — nền của luật chấm-lại-idempotent theo SHA. */
 export function timTheoPr(so: number, sha: string): RunMeta | undefined {
   const h = moDb()
-    .prepare("SELECT * FROM run WHERE pr_so = ? AND pr_head_sha = ? AND trang_thai = 'xong' ORDER BY bat_dau DESC LIMIT 1")
+    .prepare(`${CHON_RUN} WHERE pr_so = ? AND pr_head_sha = ? AND trang_thai = 'xong' ORDER BY bat_dau DESC LIMIT 1`)
     .get(so, sha) as Hang | undefined;
   return h ? veMeta(h) : undefined;
 }
@@ -218,6 +197,6 @@ export function donLuotMoCoi(): string[] {
 
 export function daTraVe(gioiHan = 30): RunMeta[] {
   return (moDb()
-    .prepare("SELECT * FROM run WHERE cong_hanh_dong = 'reject' ORDER BY bat_dau DESC LIMIT ?")
+    .prepare(`${CHON_RUN} WHERE sc.hanh_dong = 'reject' ORDER BY bat_dau DESC LIMIT ?`)
     .all(gioiHan) as Hang[]).map(veMeta);
 }

@@ -134,6 +134,22 @@ Vòng mười một — 1 finding HIGH, khuôn «khai dữ liệu không-đọc-
       loại luôn được đếm và nói ra, và còn mục bị loại thì cấm viết câu «không có cảnh báo nào».
       Thành luật R6.27.
 
+Vòng mười hai — 4 finding (3 HIGH + 1 MEDIUM), **PO chốt sửa GỐC thay vì vá tiếp**:
+- [x] 6.30 Cả bốn finding cùng một gốc: cụm cột `cong_*` trên bảng `run` là **nguồn sự thật thứ hai**
+      đứng cạnh sổ chỉ-ghi-thêm. `luuMeta` đóng dấu được khi sổ trống · `luuMeta` xoá trắng được khi
+      sổ còn hàng · gác demo chỉ nằm ở một cửa · và `chiTietNgoaiCong` không kiểm chính tham số
+      verdict. Vá theo cửa đã thất bại **chín lần liên tiếp**.
+- [x] 6.31 **Bỏ hẳn cụm cột `cong_*` khỏi bảng `run`.** Bề mặt suy từ sổ lúc ĐỌC bằng một phép nối
+      lấy hàng sổ mới nhất. `capNhatCongRun` xoá; `luuMeta` không còn cột nào để ghi; `ghiKetQuaCong`
+      thành `dongBoCongTuSo` (chỉ đọc lại). Bất biến thành tính chất của CẤU TRÚC.
+- [x] 6.32 **Di trú dữ liệu prod trước khi bỏ cột**: hàng bề mặt khai hành động mà sổ không có được
+      cứu vào sổ kèm ghi chú nguồn (không phải suy đoán — là bản ghi thật đời cũ); hàng đã có không
+      bị nhân đôi; chạy lại idempotent. Khoá bằng file test riêng dựng DB đời cũ bằng tay.
+- [x] 6.33 Kiểm chính tham số `verdict` trong `chiTietNgoaiCong` (cửa thứ ba của khuôn «khai dữ liệu
+      không đọc được thành bằng không»).
+- [x] 6.34 **Gộp R6.28 vừa viết vào R6.26** thay vì để hai điều chồng nhau — luật bị thay thì sửa tại
+      chỗ. Đây cũng là bước đầu chống thói quen mỗi vòng chấm lại đắp một lớp vào `specs/`.
+
 ## 7. Nợ ghi nhận, chưa xử trong change này
 
 - [ ] 7.1 **M12 — test phụ thuộc mạng thật**: `token-repo.test.ts` gọi GitHub API không token, nên

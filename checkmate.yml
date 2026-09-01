@@ -41,7 +41,7 @@ runner:
       ../apps/web/src/github.js              → repoTuPath · tachOwnerRepo · kiemTraRepo · cheTokenTrongVan · coGhCli · coDuongVaoGithub · layPrHienTai · binhLuanPr · mergePr · traVeDev · ganTrangThaiCommit · dongPr · xoaCachePr · danhSachPr · fetchVaRouter · phanLoaiPr · trangThaiPr · danhSachRepoCuaToken · cloneRepo · danhSachNhanh
       ../apps/web/src/cong.js                → ghiSo · demMuc · trungNguoi · chiTietNgoaiCong · doiSoatCong · TEN_TAC_NHAN_MAY · banReceipt · banVerdictTuDong · banPhanQuyet
       ../apps/web/src/kho/db.js              → moDb · dongDb
-      ../apps/web/src/kho/kho-run.js         → luuMeta · capNhatCongRun · luuSuKien · docMeta · docSuKien · danhSachRun · demRun · timTheoPr · dangChayPr · soDangChay · donLuotMoCoi · daTraVe
+      ../apps/web/src/kho/kho-run.js         → luuMeta · luuSuKien · docMeta · docSuKien · danhSachRun · demRun · timTheoPr · dangChayPr · soDangChay · donLuotMoCoi · daTraVe
       ../apps/web/src/kho/kho-socai.js       → ghiSoCai · ghiSoCaiNeuChua · docSoCai · demSoCai · coTrongSoCai · ghiSoCong · docSoCong · prCanDoiSoat · hanhDongCongCuaPr · LoiTrungRun
       ../apps/web/src/kho/di-tru.js          → diTruTatCa · tomTatDiTru
       ⚠ Lớp kho nằm trong THƯ MỤC CON `kho/`, không nằm thẳng dưới `src/` — đây là chỗ đã làm hỏng

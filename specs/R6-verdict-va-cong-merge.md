@@ -121,15 +121,16 @@ nó không còn trả lời được câu hỏi nó sinh ra để trả lời.
   một lần `findings` là mảng hợp lệ mà mọi phần tử đều bị loại. Còn mục bị loại thì KHÔNG được viết
   câu khẳng định «không có cảnh báo nào».
 
-- **R6.26** — Cụm cột hành động cổng trên bề mặt lượt chấm là bản **phái sinh** của sổ cổng, KHÔNG
-  phải một bản ghi song song. Cửa ghi bề mặt PHẢI tìm hàng sổ làm bằng chứng rồi chép đúng hàng đó;
-  không có hàng thì KHÔNG ghi gì và bề mặt giữ nguyên «chưa thao tác». Cửa ghi KHÔNG được nhận
-  `luc` / `nguoi` / `chi_tiet` / `ngoai_cong` từ người gọi — nhận là mở đường cho bề mặt nói khác sổ.
+- **R6.26** — Hành động cổng CHỈ tồn tại trong sổ chỉ-ghi-thêm. Bề mặt lượt chấm KHÔNG được có cột
+  riêng cho nó: cụm hành động cổng trên bề mặt PHẢI được suy ra từ sổ lúc **đọc**, và hệ thống KHÔNG
+  được có bất kỳ cửa nào ghi nó xuống nơi khác.
 
-  Lý do phải là luật riêng chứ không phải thêm một điều kiện vào [R6.12](#): khuôn «cửa song sinh» đã
-  bị bắt **tám lần**, mỗi lần một lối vào khác (một vòng đi bằng chế độ demo, vòng sau đi bằng chế độ
-  `org` với lời gọi thẳng không phiên không vai). Gác theo lối vào là đuổi theo lối vào; bỏ hẳn khả
-  năng truyền giá trị thì mọi lối vào đều hết đường, vì không còn giá trị nào để truyền.
+  Bản đầu của điều này gác ở cửa ghi — mỗi cửa phải đòi hàng sổ làm bằng chứng. Nó không đủ, và
+  không đủ theo cách đo được: khuôn «cửa song sinh» bị bắt **chín lần**, mỗi lần một lối vào khác
+  (chế độ demo · chế độ `org` gọi thẳng không phiên · cửa ghi-cả-hàng đóng dấu khi sổ trống · cùng
+  cửa ấy xoá trắng khi sổ vẫn còn hàng). Chừng nào còn một chỗ ghi được thì còn một chỗ để bề mặt
+  nói khác sổ, và mỗi cửa thêm vào sau này lại là lần thứ mười. Bỏ cột đi thì không còn cửa nào để
+  canh: bất biến trở thành tính chất của **cấu trúc**, không phải một luật phải nhớ cưỡng chế.
 
 - **R6.25** — Đối soát PHẢI chạy tách khỏi đường chấm: lỗi của nó không được làm dừng chế độ trực hay
   hỏng một lượt chấm đang chạy (cùng nguyên tắc khối `try` riêng của R6.15). Lưới bọc phải theo TỪNG

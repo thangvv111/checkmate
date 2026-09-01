@@ -43,10 +43,13 @@ describe('đối soát ở chế độ demo', () => {
     expect(kho.docMeta('rDemo')?.ketQuaCong, 'bề mặt run cũng không được đổi').toBeUndefined();
   });
 
-  it('gọi THẲNG capNhatCongRun ở demo cũng bị từ chối — gác ở CỬA GHI, không chỉ ở một đường (vòng chín)', () => {
-    // doiSoatCong đã chặn demo, nhưng cửa ghi gọi trực tiếp thì hở: bề mặt run khai một hành động
-    // cổng trong khi sổ chỉ-ghi-thêm KHÔNG có hàng nào — đúng thứ cuốn sổ sinh ra để chống.
-    kho.capNhatCongRun('rDemo', 'merge');
+  it('chế độ demo: luuMeta cũng KHÔNG dán được dấu merge lên bề mặt (R6.26)', () => {
+    // Vòng mười hai bắt đúng chỗ này: gác demo nằm trong capNhatCongRun, còn luuMeta không có gác
+    // nào nên vẫn ghi thẳng ketQuaCong 'merge' lên bề mặt. Nay không còn cột để ghi, ở mọi chế độ.
+    kho.luuMeta({
+      ...kho.docMeta('rDemo')!,
+      ketQuaCong: { hanhDong: 'merge', luc: new Date().toISOString(), nguoi: 'ke-gia-mao', chiTiet: 'bịa', ngoaiCong: true },
+    } as never);
     expect(kho.docMeta('rDemo')?.ketQuaCong).toBeUndefined();
     expect(so.docSoCong('rDemo')).toHaveLength(0);
   });
