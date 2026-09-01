@@ -350,6 +350,40 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     expect(s).toContain('1 medium');
   });
 
+  it('M14 — daTraVe() KHÔNG lấy hàng reject do MÁY đối soát ghi (R6.21)', async () => {
+    // Khối «đã trả về dev» ở trang chủ sinh ra để hàng đợi không đánh mất việc. Một PR bị đóng TRÊN
+    // GITHUB thì không ai trả nó về dev cả — đưa nó vào khối đó là bảo người đọc rằng việc đã được
+    // xử, trong khi thật ra chưa ai chạm vào. R6.21: mọi phép đếm/lọc phải xét cờ ngoai_cong.
+    themRun('rNgoai', 700);
+    await cong.doiSoatCong(async () => ({ trang_thai: 'dong', nguoi_merge: undefined }));
+    expect(so.docSoCong('rNgoai')[0]?.ngoai_cong, 'tiền đề: hàng này do máy đối soát ghi').toBe(true);
+    expect(kho.daTraVe().map((m) => m.id)).not.toContain('rNgoai');
+  });
+
+  it('M14 — vế đối chứng: hàng reject do NGƯỜI bấm vẫn nằm trong daTraVe()', () => {
+    // Thiếu vế này thì một bản vá «trả về rỗng luôn» cũng xanh.
+    themRun('rNguoi', 701);
+    so.ghiSoCong({ run_id: 'rNguoi', luc: new Date().toISOString(), hanh_dong: 'reject', nguoi: 'thang.vv' });
+    expect(kho.daTraVe().map((m) => m.id)).toContain('rNguoi');
+  });
+
+  it('M17 — chiTietNgoaiCong KHÔNG được ném: nó đứng ngay trước ghiSoCong (R6.25)', () => {
+    // Hàm ném ở đây là mất TRỌN hàng sổ của một hành động cổng đã xảy ra thật — lệch ngược hướng
+    // an toàn. Đầu vào dưới đây không phát sinh từ JSON/SQLite, nhưng đường ném thì có thật.
+    const nemKhiDoiChuoi = { toString() { throw new Error('không đổi sang chuỗi được'); } };
+    expect(() => cong.chiTietNgoaiCong({ result: nemKhiDoiChuoi } as never)).not.toThrow();
+    expect(() => cong.chiTietNgoaiCong({ result: 'PASS', findings: [{ severity: nemKhiDoiChuoi }] } as never)).not.toThrow();
+  });
+
+  it('M17 — chỗ không đọc được vẫn phải NÓI RA, không im lặng nghèo đi (R6.27)', () => {
+    const nemKhiDoiChuoi = { toString() { throw new Error('x'); } };
+    const s = cong.chiTietNgoaiCong({ result: nemKhiDoiChuoi } as never);
+    expect(s, 'bọc try rồi nuốt lỗi sẽ cho chuỗi nghèo hơn mà không ai biết').toMatch(/không đọc được/i);
+    // severity là Symbol: finding CÓ khoá severity nên vẫn phải được ĐẾM, không bị nuốt
+    const s2 = cong.chiTietNgoaiCong({ result: 'PASS', findings: [{ severity: Symbol('la') }] } as never);
+    expect(s2).not.toMatch(/0 high · 0 medium · 0 low/);
+  });
+
   it('bảng run KHÔNG CÒN cụm cột cong_* — không còn cửa ghi nào để canh (R6.26)', () => {
     const cot = (db.moDb().prepare('PRAGMA table_info(run)').all() as Array<{ name: string }>).map((c) => c.name);
     for (const c of ['cong_hanh_dong', 'cong_luc', 'cong_nguoi', 'cong_chi_tiet', 'cong_ngoai_cong']) {

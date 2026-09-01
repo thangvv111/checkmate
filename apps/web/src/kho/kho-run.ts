@@ -164,7 +164,14 @@ export function soDangChay(): number {
   return Number(h.n);
 }
 
-/** Các PR đã bị trả về dev — để hàng đợi không đánh mất việc. */
+/**
+ * Các PR đã bị trả về dev — để hàng đợi không đánh mất việc.
+ *
+ * R6.21 — lọc PHẢI xét cờ `ngoai_cong`. Một pull request bị đóng TRÊN GITHUB thì không ai trả nó về
+ * dev cả: hàng sổ tương ứng do máy đối soát **ghi lại**, không phải do người bấm cổng. Đưa nó vào
+ * khối «đã trả về dev» là nói với người đọc rằng việc đã được xử, trong khi chưa ai chạm vào — mà
+ * khối này tồn tại đúng để hàng đợi không đánh mất việc (M14, nợ tách ra từ chuỗi Đ6).
+ */
 /**
  * Dọn lượt chấm MỒ CÔI — hàng còn `dang_chay` từ một tiến trình đã chết (Ctrl-C, deploy, crash).
  *
@@ -197,6 +204,6 @@ export function donLuotMoCoi(): string[] {
 
 export function daTraVe(gioiHan = 30): RunMeta[] {
   return (moDb()
-    .prepare(`${CHON_RUN} WHERE sc.hanh_dong = 'reject' ORDER BY bat_dau DESC LIMIT ?`)
+    .prepare(`${CHON_RUN} WHERE sc.hanh_dong = 'reject' AND sc.ngoai_cong = 0 ORDER BY bat_dau DESC LIMIT ?`)
     .all(gioiHan) as Hang[]).map(veMeta);
 }

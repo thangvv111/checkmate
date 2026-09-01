@@ -40,7 +40,30 @@ export function demMuc(findings: Finding[]): { high: number; medium: number; low
  * thành «không có finding nào để xác nhận» — hai điều đó khác hẳn nhau, và đường qua cổng vốn BẮT
  * tick từng cái.
  */
+/**
+ * Đổi sang chuỗi mà KHÔNG ném — dùng trên đường ghi hàng sổ (R6.25).
+ *
+ * Cả `${x}` lẫn `String(x)` đều ném được: Symbol trong nội suy chuỗi, và mọi giá trị có `toString`
+ * tự ném. Hàm đứng ngay trước `ghiSoCong` mà ném là **mất trọn hàng sổ** của một hành động cổng đã
+ * xảy ra thật — lệch ngược hướng an toàn.
+ *
+ * Trả `ok:false` thay vì một chuỗi thay thế im lặng: bọc `try` rồi nuốt lỗi sẽ cho một mô tả nghèo
+ * hơn mà KHÔNG AI BIẾT là đã nghèo đi — đúng khuôn «khai dữ liệu không đọc được thành bằng không»
+ * mà R6.27 cấm. Người gọi phải NÓI RA chỗ không đọc được (M17).
+ */
+export function chuoiAnToan(x: unknown): { ok: true; giaTri: string } | { ok: false; kieu: string } {
+  try {
+    return { ok: true, giaTri: String(x) };
+  } catch {
+    return { ok: false, kieu: x === null ? 'null' : typeof x };
+  }
+}
+
 export function chiTietNgoaiCong(v: { result?: string; findings?: Finding[] } | null): string {
+  // `result` do bên ngoài đưa vào nên đổi chuỗi phải an toàn — tính MỘT LẦN ở đầu, dùng cho cả ba
+  // nhánh trả về bên dưới, để không còn nhánh nào nội suy thẳng (M17).
+  const cr = chuoiAnToan((v as { result?: unknown } | null)?.result ?? 'không rõ');
+  const ketQua = cr.ok ? cr.giaTri : `KHÔNG ĐỌC ĐƯỢC (kiểu ${cr.kieu})`;
   // Chính THAM SỐ verdict cũng phải kiểm, không chỉ trường `findings` bên trong nó (R6.27). Verdict là
   // chuỗi 'PASS', số 42, hay một MẢNG finding đặt nhầm ở gốc đều rơi mềm vào nhánh «không có finding»
   // và cho ra đúng câu của một lượt chấm sạch — lần thứ ba cùng khuôn, ở cửa thứ ba.
@@ -60,7 +83,7 @@ export function chiTietNgoaiCong(v: { result?: string; findings?: Finding[] } | 
       '⚠ Hành động xảy ra NGOÀI CheckMate (không qua cổng)',
       `ghi nhận tự động bởi ${TEN_TAC_NHAN_MAY} khi đối soát — máy chỉ GHI LẠI, không phải máy thực hiện (R6.18)`,
       'KHÔNG có xác nhận finding nào — không ai tick trước khi merge',
-      `verdict lúc chấm: ${v?.result ?? 'không rõ'} · danh sách finding KHÔNG ĐỌC ĐƯỢC (kiểu ${typeof v.findings}) — KHÔNG đếm được, đừng đọc thành «không có finding»`,
+      `verdict lúc chấm: ${ketQua} · danh sách finding KHÔNG ĐỌC ĐƯỢC (kiểu ${typeof v.findings}) — KHÔNG đếm được, đừng đọc thành «không có finding»`,
     ].join(' · ');
   }
   // Hàm đứng CUỐI mọi đường ghi hàng ngoài-cổng: nó mà ném thì hàng không được ghi và lượt đối soát
@@ -86,7 +109,13 @@ export function chiTietNgoaiCong(v: { result?: string; findings?: Finding[] } | 
   const ds = (tho
     .filter((f) => f !== null && typeof f === 'object' && 'severity' in (f as object))
     // chuanMuc chỉ nhận chuỗi: severity là số thì `.toLowerCase` không tồn tại và hàm mô tả sẽ ném
-    .map((f) => ({ ...(f as object), severity: String((f as { severity?: unknown }).severity ?? '') })) as Finding[]);
+    .map((f) => {
+      // `String()` cũng ném được (toString tự ném). Đổi không được thì mục đó rơi vào `boLoai` và
+      // được ĐẾM + NÓI RA bên dưới, chứ không biến mất im lặng (M17 + R6.27).
+      const c = chuoiAnToan((f as { severity?: unknown }).severity ?? '');
+      return c.ok ? { ...(f as object), severity: c.giaTri } : null;
+    })
+    .filter((f) => f !== null) as Finding[]);
   const boLoai = tho.length - ds.length;
   const d = demMuc(ds);
   const chuaTick = d.medium + d.low;
@@ -97,7 +126,7 @@ export function chiTietNgoaiCong(v: { result?: string; findings?: Finding[] } | 
     '⚠ Hành động xảy ra NGOÀI CheckMate (không qua cổng)',
     `ghi nhận tự động bởi ${TEN_TAC_NHAN_MAY} khi đối soát — máy chỉ GHI LẠI, không phải máy thực hiện (R6.18)`,
     'KHÔNG có xác nhận finding nào — không ai tick trước khi merge',
-    `verdict lúc chấm: ${v?.result ?? 'không rõ'} · ${d.high} high · ${d.medium} medium · ${d.low} low` +
+    `verdict lúc chấm: ${ketQua} · ${d.high} high · ${d.medium} medium · ${d.low} low` +
       (chuaTick
         ? ` · ${chuaTick} cảnh báo medium/low CHƯA được xác nhận`
         : boLoai
