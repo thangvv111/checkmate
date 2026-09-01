@@ -115,6 +115,12 @@ nó không còn trả lời được câu hỏi nó sinh ra để trả lời.
     SAI: máy không merge gì cả, và [R6.19](#) nói máy KHÔNG BAO GIỜ merge — một cuốn sổ ghi
     «ci-bot merge» thì tự mâu thuẫn với chính điều khoản ấy.
   - Việc «máy ghi nhận» thể hiện bằng cờ `ngoai_cong` và phần mô tả, KHÔNG chiếm cột «người».
+- **R6.27** — Mọi mục bị bộ lọc loại khỏi phép đếm PHẢI được **đếm và nói ra** trong phần mô tả.
+  Phép đếm nằm ở CHỖ LỌC, không phải ở từng ca đầu vào: hai vòng chấm liên tiếp bắt cùng khuôn «khai
+  dữ liệu KHÔNG ĐỌC ĐƯỢC thành BẰNG KHÔNG» ở hai lối khác nhau — một lần `findings` sai kiểu ở ngoài,
+  một lần `findings` là mảng hợp lệ mà mọi phần tử đều bị loại. Còn mục bị loại thì KHÔNG được viết
+  câu khẳng định «không có cảnh báo nào».
+
 - **R6.26** — Cụm cột hành động cổng trên bề mặt lượt chấm là bản **phái sinh** của sổ cổng, KHÔNG
   phải một bản ghi song song. Cửa ghi bề mặt PHẢI tìm hàng sổ làm bằng chứng rồi chép đúng hàng đó;
   không có hàng thì KHÔNG ghi gì và bề mặt giữ nguyên «chưa thao tác». Cửa ghi KHÔNG được nhận

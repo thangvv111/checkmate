@@ -372,6 +372,22 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     expect(cong.chiTietNgoaiCong({ result: 'PASS' } as never)).toMatch(/0 high/);
   });
 
+  it('mảng finding mà MỌI phần tử bị loại: phải nói ra, không khai «0 cảnh báo» (vòng mười một, HIGH)', () => {
+    // Cùng khuôn với vòng chín nhưng ở lối khác: findings LÀ mảng hợp lệ, chỉ có mọi phần tử không
+    // đủ hình dạng. Danh sách còn rỗng rồi chuỗi mô tả trông y hệt một lượt chấm sạch.
+    const s = cong.chiTietNgoaiCong({ result: 'PASS', findings: [null, 'x', 7, {}, { title: 'thiếu severity' }] } as never);
+    expect(s).toMatch(/5 mục KHÔNG đọc được/);
+    expect(s).not.toMatch(/không có cảnh báo medium\/low nào/);
+  });
+
+  it('mảng finding LẪN đọc được và không đọc được: đếm phần đọc được VÀ nói số bị loại', () => {
+    const s = cong.chiTietNgoaiCong({ result: 'FAIL', findings: [{ severity: 'high' }, { severity: 'medium' }, null, 'rác'] } as never);
+    expect(s).toContain('1 high');
+    expect(s).toContain('1 medium');
+    expect(s).toMatch(/2 mục KHÔNG đọc được/);
+    expect(s).toMatch(/1 cảnh báo medium\/low CHƯA được xác nhận/);
+  });
+
   it('nhãn lạ vẫn được đếm đủ — TÁI LẬP cho thấy finding «đếm hụt» là BÁO OAN (vòng chín)', () => {
     // Cổng báo critical/blocker/HIGH «không rơi vào mức nào»; tái lập cho thấy chuanMuc fail-closed
     // đưa cả ba về high và phép đếm đúng. Ghi ca này để lần sau không ai phải tái lập lần nữa.

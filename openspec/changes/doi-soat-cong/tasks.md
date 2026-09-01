@@ -125,6 +125,15 @@ Vòng mười — 1 finding HIGH, **khuôn «cửa song sinh» lần thứ TÁM*
       `capNhatCongRun(id, hanhDong)` tự tìm hàng sổ làm bằng chứng rồi **chép đúng hàng đó**; không
       có hàng thì không ghi gì. Thành luật R6.26.
 
+Vòng mười một — 1 finding HIGH, khuôn «khai dữ liệu không-đọc-được thành BẰNG KHÔNG» lần thứ HAI:
+- [x] 6.29 **HIGH — vá vòng chín chỉ bịt ca ở NGOÀI.** Vòng chín chặn `findings` sai kiểu (chuỗi/số/
+      object). Vòng mười một đi vào bằng lối trong: `findings` LÀ mảng hợp lệ nhưng mọi phần tử đều bị
+      bộ lọc loại (null, chuỗi, số, object thiếu `severity`) — danh sách còn rỗng và mô tả ghi «0 high
+      · 0 medium · 0 low · không có cảnh báo medium/low nào», trông y hệt một lượt chấm sạch.
+      Cùng bài học với 6.28: phép đếm chuyển về **CHỖ LỌC** thay vì gác từng ca đầu vào — số mục bị
+      loại luôn được đếm và nói ra, và còn mục bị loại thì cấm viết câu «không có cảnh báo nào».
+      Thành luật R6.27.
+
 ## 7. Nợ ghi nhận, chưa xử trong change này
 
 - [ ] 7.1 **M12 — test phụ thuộc mạng thật**: `token-repo.test.ts` gọi GitHub API không token, nên

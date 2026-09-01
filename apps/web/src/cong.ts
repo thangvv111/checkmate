@@ -66,20 +66,33 @@ export function chiTietNgoaiCong(v: { result?: string; findings?: Finding[] } | 
   // Hai vòng trước bắt hai đầu của ranh giới này: vòng bốn bắt «đếm rác thành high», vòng sáu bắt
   // «nuốt finding thật có nhãn méo». Lọc rộng quá thì khai THỪA, lọc hẹp quá thì khai THIẾU — cả hai
   // đều là con số sai trong một cuốn sổ không sửa được.
-  const ds = Array.isArray(v?.findings)
-    ? (v.findings
-        .filter((f) => f !== null && typeof f === 'object' && 'severity' in (f as object))
-        // chuanMuc chỉ nhận chuỗi: severity là số thì `.toLowerCase` không tồn tại và hàm mô tả sẽ ném
-        .map((f) => ({ ...(f as object), severity: String((f as { severity?: unknown }).severity ?? '') })) as Finding[])
-    : [];
+  // MỌI mục bị bộ lọc loại đều PHẢI được đếm và nói ra. Vòng chín chỉ chặn ca `findings` sai kiểu ở
+  // NGOÀI (chuỗi/số/object); vòng mười một bắt đúng khuôn ấy ở TRONG: findings LÀ mảng nhưng mọi
+  // phần tử đều bị loại, danh sách còn rỗng, và chuỗi mô tả ghi «0 high · không có cảnh báo» y hệt
+  // một lượt chấm sạch. Đây là lần thứ hai cùng một khuôn «khai dữ liệu KHÔNG ĐỌC ĐƯỢC thành BẰNG
+  // KHÔNG» — nên phép đếm nằm ở CHỖ LỌC, không phải ở từng ca đầu vào (R6.22).
+  const tho = Array.isArray(v?.findings) ? v.findings : [];
+  const ds = (tho
+    .filter((f) => f !== null && typeof f === 'object' && 'severity' in (f as object))
+    // chuanMuc chỉ nhận chuỗi: severity là số thì `.toLowerCase` không tồn tại và hàm mô tả sẽ ném
+    .map((f) => ({ ...(f as object), severity: String((f as { severity?: unknown }).severity ?? '') })) as Finding[]);
+  const boLoai = tho.length - ds.length;
   const d = demMuc(ds);
   const chuaTick = d.medium + d.low;
+  const nghiVe = boLoai
+    ? ` · ${boLoai} mục KHÔNG đọc được (không đủ hình dạng một finding) — con số trên chỉ tính phần đọc được, KHÔNG phải toàn bộ`
+    : '';
   return [
     '⚠ Hành động xảy ra NGOÀI CheckMate (không qua cổng)',
     `ghi nhận tự động bởi ${TEN_TAC_NHAN_MAY} khi đối soát — máy chỉ GHI LẠI, không phải máy thực hiện (R6.18)`,
     'KHÔNG có xác nhận finding nào — không ai tick trước khi merge',
     `verdict lúc chấm: ${v?.result ?? 'không rõ'} · ${d.high} high · ${d.medium} medium · ${d.low} low` +
-      (chuaTick ? ` · ${chuaTick} cảnh báo medium/low CHƯA được xác nhận` : ' · không có cảnh báo medium/low nào'),
+      (chuaTick
+        ? ` · ${chuaTick} cảnh báo medium/low CHƯA được xác nhận`
+        : boLoai
+          ? ''
+          : ' · không có cảnh báo medium/low nào') +
+      nghiVe,
   ].join(' · ');
 }
 
