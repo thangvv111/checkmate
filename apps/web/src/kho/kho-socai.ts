@@ -139,24 +139,40 @@ export function ghiSoCong(m: MucSoCong): void {
 export function runChuaCoHanhDongCong(): Array<{ run_id: string; pr_so: number; repo: string }> {
   const hang = moDb()
     .prepare(
-      // Lọc theo PULL REQUEST, không theo từng run: một PR vá nhiều vòng có nhiều lượt chấm, và chỉ
-      // lượt được bấm merge mới có hàng sổ. Lọc theo run thì các lượt anh em vẫn lọt vào diện đối
-      // soát và bị ghi «NGOÀI CỔNG, không ai tick» — vu oan cho một merge ĐÃ qua cổng đàng hoàng
-      // (vòng một của cổng bắt).
-      // KHÔNG đòi `verdict IS NOT NULL`: R6.20 không nêu điều kiện đó, số đo «66 run có pr_so mà
-      // cong_hanh_dong rỗng» cũng không, và run chết giữa chừng vẫn cần biết PR của nó ra sao.
+      // Đơn vị đối soát là CẶP (repo, pull request), không phải số PR trơ: hai repo khác nhau trùng
+      // số hiệu PR là chuyện thường, và hỏi trạng thái một lần rồi áp cho cả hai là kết luận về repo
+      // này bằng dữ liệu của repo kia (vòng hai của cổng bắt).
+      // Run KHÔNG có repo thì KHÔNG đối soát được — không biết hỏi GitHub ở đâu; bỏ ra ngoài diện
+      // thay vì suy từ PR cùng số của một repo bất kỳ.
+      // KHÔNG đòi `verdict IS NOT NULL`: R6.20 không nêu điều kiện đó, và run chết giữa chừng vẫn
+      // cần biết PR của nó ra sao.
       `SELECT r.id AS run_id, r.pr_so, r.repo
          FROM run r
         WHERE r.pr_so IS NOT NULL
+          AND r.repo IS NOT NULL AND r.repo <> ''
           AND NOT EXISTS (SELECT 1 FROM so_cong s WHERE s.run_id = r.id)
-          AND NOT EXISTS (
-                SELECT 1 FROM so_cong s2
-                  JOIN run r2 ON r2.id = s2.run_id
-                 WHERE r2.pr_so = r.pr_so AND r2.repo IS r.repo)
         ORDER BY r.rowid DESC`,
     )
     .all() as Array<{ run_id: unknown; pr_so: unknown; repo: unknown }>;
   return hang.map((h) => ({ run_id: String(h.run_id), pr_so: Number(h.pr_so), repo: String(h.repo ?? '') }));
+}
+
+/**
+ * Những HÀNH ĐỘNG cổng đã ghi cho một pull request (mọi lượt chấm của nó), trong cùng một repo.
+ *
+ * Dùng để trả lời «PR này đã qua cổng với hành động X chưa» — khác hẳn «PR này đã có hàng sổ nào
+ * chưa»: một PR từng bị trả về dev qua cổng rồi sau đó bị merge thẳng bằng `gh` thì lần MERGE đó vẫn
+ * là hành động ngoài cổng chưa ai ghi (vòng hai của cổng bắt).
+ */
+export function hanhDongCongCuaPr(repo: string, prSo: number): Array<'merge' | 'reject'> {
+  const hang = moDb()
+    .prepare(
+      `SELECT DISTINCT s.hanh_dong AS hd
+         FROM so_cong s JOIN run r ON r.id = s.run_id
+        WHERE r.pr_so = ? AND r.repo = ?`,
+    )
+    .all(prSo, repo) as Array<{ hd: unknown }>;
+  return hang.map((h) => String(h.hd) as 'merge' | 'reject');
 }
 
 export function docSoCong(runId?: string): MucSoCong[] {

@@ -1,5 +1,5 @@
 import { chuanMuc, type Finding, type Verdict } from '../../../packages/shared/src/types.js';
-import { docSoCong, ghiSoCong, runChuaCoHanhDongCong } from './kho/kho-socai.js';
+import { docSoCong, ghiSoCong, hanhDongCongCuaPr, runChuaCoHanhDongCong } from './kho/kho-socai.js';
 import { capNhatCongRun, docMeta } from './kho/kho-run.js';
 
 /**
@@ -59,75 +59,85 @@ export function chiTietNgoaiCong(v: { result?: string; findings?: Finding[] } | 
  * đó đã xảy ra. Hàm nhận `docTrangThai` từ ngoài để test được mà không cần mạng.
  */
 export async function doiSoatCong(
-  docTrangThai: (pr: number) => Promise<{ trang_thai: 'mo' | 'merged' | 'dong'; nguoi_merge?: string; tac_gia?: string }>,
+  docTrangThai: (pr: number, repo: string) => Promise<{ trang_thai?: string; nguoi_merge?: string; tac_gia?: string } | null | undefined>,
   log: (msg: string) => void = () => {},
 ): Promise<{ daGhi: number; boQua: number; loi: number }> {
   const canSoat = runChuaCoHanhDongCong();
   if (!canSoat.length) return { daGhi: 0, boQua: 0, loi: 0 };
-  // Gom THEO PR chứ không theo run: một PR có thể có chục lượt chấm (chuỗi vá nhiều vòng), và hỏi
-  // GitHub một lần cho mỗi lượt là tự đốt quota vào cùng một câu trả lời.
-  const theoPr = new Map<number, string[]>();
-  for (const r of canSoat) theoPr.set(r.pr_so, [...(theoPr.get(r.pr_so) ?? []), r.run_id]);
+  // Gom theo CẶP (repo, pull request) — không theo run (một PR có chục lượt chấm, hỏi lại cùng một
+  // câu là tự đốt quota) và không theo số PR trơ (hai repo trùng số PR là chuyện thường).
+  const theoPr = new Map<string, { repo: string; pr: number; dsRun: string[] }>();
+  for (const r of canSoat) {
+    const khoa = `${r.repo}#${r.pr_so}`;
+    const o = theoPr.get(khoa) ?? { repo: r.repo, pr: r.pr_so, dsRun: [] };
+    o.dsRun.push(r.run_id);
+    theoPr.set(khoa, o);
+  }
 
   let daGhi = 0;
   let boQua = 0;
   let loi = 0;
-  for (const [pr, dsRun] of theoPr) {
-    let tt: Awaited<ReturnType<typeof docTrangThai>>;
+  for (const { repo, pr, dsRun } of theoPr.values()) {
+    // R6.25 — lưới bọc TỪNG pull request: một PR hỏng không được làm chết lượt đối soát của các PR
+    // còn lại (vòng hai của cổng bắt: lỗi ở PR đầu làm hai PR sau không bao giờ được ghi).
     try {
-      tt = await docTrangThai(pr);
-    } catch (e) {
-      // R6.24 — không đọc được thì BỎ QUA và nói ra. Sổ chỉ ghi thêm và không sửa được, nên thà thiếu
-      // một hàng còn hơn mang một hàng suy đoán vĩnh viễn.
-      loi++;
-      log(`Đối soát cổng: không đọc được trạng thái PR #${pr} — bỏ qua, không ghi hàng nào: ${(e as Error).message.slice(0, 120)}`);
-      continue;
-    }
-    if (tt.trang_thai === 'mo') {
-      boQua += dsRun.length;
-      continue;
-    }
-    // R6.24 — chỉ HAI giá trị nói được điều gì. Mọi thứ khác (giá trị lạ, trường khuyết) là «không
-    // đọc được trạng thái» ⇒ BỎ QUA. Rơi mềm thành `reject` là ghi một hàng SUY ĐOÁN vào cuốn sổ
-    // không sửa được — đúng thứ R6.24 cấm (vòng một của cổng bắt).
-    const hd = tt.trang_thai === 'merged' ? 'merge' : tt.trang_thai === 'dong' ? 'reject' : null;
-    if (!hd) {
-      loi++;
-      log(`Đối soát cổng: PR #${pr} trả trạng thái ngoài miền («${String(tt.trang_thai)}») — bỏ qua, không ghi hàng suy đoán`);
-      continue;
-    }
-    for (const runId of dsRun) {
-      // R6.25 — một run hỏng KHÔNG được giết trọn lượt đối soát các run còn lại. Lưới bọc TỪNG run,
-      // không chỉ bọc lời gọi GitHub (vòng một của cổng bắt: verdict hỏng ở run giữa làm hàm ném ra
-      // ngoài và hai run kia không bao giờ được ghi).
+      let tt: { trang_thai?: string; nguoi_merge?: string; tac_gia?: string } | null | undefined;
       try {
-      // Kiểm LẠI ngay trước khi ghi: giữa lúc lấy danh sách và lúc ghi có thể có người vừa bấm cổng
-      // thật (R6.23 — chạy lại không được đẻ hàng trùng).
-      if (docSoCong(runId).length) {
-        boQua++;
-        continue;
-      }
-      const r = docMeta(runId);
-      const luc = new Date().toISOString();
-      const chiTiet = chiTietNgoaiCong(r?.verdict ?? null);
-      ghiSoCong({
-        run_id: runId,
-        luc,
-        hanh_dong: hd,
-        // R6.24 — người của hàng này lấy từ chính GitHub, hoặc để «không rõ». KHÔNG mượn tên tài
-        // khoản nào trong hệ này: hàng đó ghi lại việc người khác làm ở nơi khác (R11.1).
-        nguoi: tt.nguoi_merge ? `${tt.nguoi_merge} (GitHub)` : '(ngoài cổng — không rõ)',
-        tac_gia_pr: tt.tac_gia,
-        ngoai_cong: true,
-        chi_tiet: chiTiet,
-      });
-      capNhatCongRun(runId, hd, luc, tt.nguoi_merge ? `${tt.nguoi_merge} (GitHub)` : '(ngoài cổng — không rõ)', chiTiet, true);
-      daGhi++;
-      log(`Đối soát cổng: PR #${pr} đã ${tt.trang_thai} ngoài cổng — ghi sổ cho run ${runId}`);
+        tt = await docTrangThai(pr, repo);
       } catch (e) {
         loi++;
-        log(`Đối soát cổng: run ${runId} lỗi khi ghi — bỏ qua run này, các run khác vẫn chạy: ${(e as Error).message.slice(0, 120)}`);
+        log(`Đối soát cổng: không đọc được trạng thái ${repo}#${pr} — bỏ qua, không ghi hàng nào: ${(e as Error).message.slice(0, 120)}`);
+        continue;
       }
+      // R6.24 — CHỈ hai giá trị nói được điều gì. Trả về khuyết, null, hay giá trị ngoài miền đều là
+      // «không đọc được trạng thái» ⇒ bỏ qua. Rơi mềm thành `reject` là ghi một hàng SUY ĐOÁN vào
+      // cuốn sổ không sửa được.
+      const tthai = tt?.trang_thai;
+      if (tthai === 'mo') {
+        boQua += dsRun.length;
+        continue;
+      }
+      const hd = tthai === 'merged' ? 'merge' : tthai === 'dong' ? 'reject' : null;
+      if (!hd) {
+        loi++;
+        log(`Đối soát cổng: ${repo}#${pr} trả trạng thái ngoài miền («${String(tthai)}») — bỏ qua, không ghi hàng suy đoán`);
+        continue;
+      }
+      // «Đã qua cổng» phải xét theo HÀNH ĐỘNG, không phải theo «có hàng sổ nào chưa»: một PR từng bị
+      // trả về dev qua cổng rồi sau đó bị merge thẳng bằng `gh` thì lần MERGE đó vẫn chưa ai ghi.
+      if (hanhDongCongCuaPr(repo, pr).includes(hd)) {
+        boQua += dsRun.length;
+        continue;
+      }
+      // MỘT hành động = MỘT hàng. Một PR vá nhiều vòng có nhiều lượt chấm, nhưng chỉ có ĐÚNG MỘT lần
+      // merge/đóng xảy ra — ghi ba hàng cho ba lượt là khai «có ba hành động», sai sự thật trong một
+      // cuốn sổ không sửa được. Gắn vào lượt MỚI NHẤT (danh sách đã ORDER BY rowid DESC): đó là lượt
+      // có verdict còn hiệu lực lúc PR bị đóng; các lượt cũ hơn đã bị push mới làm hết hiệu lực và
+      // thật sự KHÔNG có hành động cổng nào trên chúng.
+      for (const runId of dsRun.slice(0, 1)) {
+        try {
+          // Kiểm LẠI ở mức pull request ngay trước khi ghi: giữa lúc liệt kê và lúc ghi có thể có
+          // người vừa bấm cổng thật — kể cả trên một run ANH EM cùng PR (R6.23).
+          if (docSoCong(runId).length || hanhDongCongCuaPr(repo, pr).includes(hd)) {
+            boQua++;
+            continue;
+          }
+          const r = docMeta(runId);
+          const luc = new Date().toISOString();
+          const chiTiet = chiTietNgoaiCong(r?.verdict ?? null);
+          const nguoi = tt?.nguoi_merge ? `${tt.nguoi_merge} (GitHub)` : '(ngoài cổng — không rõ)';
+          ghiSoCong({ run_id: runId, luc, hanh_dong: hd, nguoi, tac_gia_pr: tt?.tac_gia, ngoai_cong: true, chi_tiet: chiTiet });
+          capNhatCongRun(runId, hd, luc, nguoi, chiTiet, true);
+          daGhi++;
+          log(`Đối soát cổng: ${repo}#${pr} đã ${tthai} ngoài cổng — ghi sổ cho run ${runId}`);
+        } catch (e) {
+          loi++;
+          log(`Đối soát cổng: run ${runId} lỗi khi ghi — bỏ qua run này, các run khác vẫn chạy: ${(e as Error).message.slice(0, 120)}`);
+        }
+      }
+    } catch (e) {
+      loi++;
+      log(`Đối soát cổng: ${repo}#${pr} lỗi ngoài dự tính — bỏ qua PR này, các PR khác vẫn chạy: ${(e as Error).message.slice(0, 120)}`);
     }
   }
   return { daGhi, boQua, loi };

@@ -42,7 +42,7 @@ runner:
       ../apps/web/src/cong.js                → ghiSo · demMuc · trungNguoi · chiTietNgoaiCong · doiSoatCong · banReceipt · banVerdictTuDong · banPhanQuyet
       ../apps/web/src/kho/db.js              → moDb · dongDb
       ../apps/web/src/kho/kho-run.js         → luuMeta · capNhatCongRun · luuSuKien · docMeta · docSuKien · danhSachRun · demRun · timTheoPr · dangChayPr · soDangChay · donLuotMoCoi · daTraVe
-      ../apps/web/src/kho/kho-socai.js       → ghiSoCai · ghiSoCaiNeuChua · docSoCai · demSoCai · coTrongSoCai · ghiSoCong · docSoCong · runChuaCoHanhDongCong · LoiTrungRun
+      ../apps/web/src/kho/kho-socai.js       → ghiSoCai · ghiSoCaiNeuChua · docSoCai · demSoCai · coTrongSoCai · ghiSoCong · docSoCong · runChuaCoHanhDongCong · hanhDongCongCuaPr · LoiTrungRun
       ../apps/web/src/kho/di-tru.js          → diTruTatCa · tomTatDiTru
       ⚠ Lớp kho nằm trong THƯ MỤC CON `kho/`, không nằm thẳng dưới `src/` — đây là chỗ đã làm hỏng
         một lượt chấm thật: probe import '../apps/web/src/di-tru.js' và chết vì thiếu đúng một thư mục.

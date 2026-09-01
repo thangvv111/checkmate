@@ -86,12 +86,24 @@ nó không còn trả lời được câu hỏi nó sinh ra để trả lời.
   medium/low của verdict lúc đó. Để trống chỗ xác nhận là mời người đọc suy diễn thành «không có
   finding nào để xác nhận» — hai điều đó khác hẳn nhau, và đường qua cổng vốn BẮT tick từng cái
   ([R6.9](#)).
-- **R6.23** — Đối soát PHẢI idempotent: run đã có hành động cổng thì bỏ qua, chạy lại nhiều lần không
-  đẻ hàng trùng. Sổ chỉ ghi thêm và không sửa được ([R9.4](R9-tang-du-lieu.md)), nên một hàng thừa là
-  một hàng sai VĨNH VIỄN.
+- **R6.23** — Đối soát PHẢI idempotent: chạy lại nhiều lần không đẻ hàng trùng. Sổ chỉ ghi thêm và
+  không sửa được ([R9.4](R9-tang-du-lieu.md)), nên một hàng thừa là một hàng sai VĨNH VIỄN. Ba hệ quả
+  về ĐƠN VỊ, cả ba do vòng chấm của chính luật này bắt ra:
+  - Đơn vị đối soát là **cặp (repo, pull request)**, không phải số PR trơ: hai repo khác nhau trùng số
+    hiệu PR là chuyện thường, và hỏi trạng thái một lần rồi áp cho cả hai là kết luận về repo này bằng
+    dữ liệu của repo kia. Run không gắn repo thì KHÔNG đối soát được — bỏ ra ngoài diện, không suy từ
+    PR cùng số của một repo bất kỳ.
+  - «Đã qua cổng» xét theo **HÀNH ĐỘNG**, không phải theo «đã có hàng sổ nào chưa»: một PR từng bị
+    trả về dev qua cổng rồi sau đó bị merge thẳng bằng đường khác thì lần MERGE đó vẫn chưa ai ghi.
+  - **MỘT hành động = MỘT hàng.** Một PR vá nhiều vòng có nhiều lượt chấm nhưng chỉ có đúng một lần
+    merge/đóng; ghi mỗi lượt một hàng là khai «có nhiều hành động», sai sự thật. Hàng gắn vào lượt
+    chấm MỚI NHẤT — lượt có verdict còn hiệu lực lúc pull request bị đóng; các lượt cũ hơn đã bị push
+    mới làm hết hiệu lực và thật sự KHÔNG có hành động cổng nào trên chúng.
 - **R6.24** — Không đọc được trạng thái pull request (thiếu quyền, mạng hỏng, PR bị xoá) thì PHẢI bỏ
   qua và nói ra, TUYỆT ĐỐI không ghi hàng suy đoán. Thà sổ thiếu một hàng còn hơn sổ mang một hàng sai
   không gỡ được. Hệ quả: người của hàng ngoài-cổng lấy từ chính GitHub, hoặc để «không rõ» — KHÔNG
   mượn tên tài khoản nào trong hệ này, vì hàng đó ghi lại việc người khác làm ở nơi khác ([R11.1](R11-danh-tinh-va-phien.md)).
 - **R6.25** — Đối soát PHẢI chạy tách khỏi đường chấm: lỗi của nó không được làm dừng chế độ trực hay
-  hỏng một lượt chấm đang chạy (cùng nguyên tắc khối `try` riêng của R6.15).
+  hỏng một lượt chấm đang chạy (cùng nguyên tắc khối `try` riêng của R6.15). Lưới bọc phải theo TỪNG
+  pull request và TỪNG lượt ghi, không chỉ bọc lời gọi ra ngoài: một pull request hỏng làm chết lượt
+  đối soát của các pull request còn lại thì cuốn sổ vẫn im lặng ở đúng chỗ nó cần nói.
