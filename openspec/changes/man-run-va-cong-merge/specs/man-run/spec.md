@@ -140,6 +140,33 @@ dùng phát hiện sự thật bằng cách bấm thử.
 - **WHEN** head của pull request vẫn đúng commit mà verdict ghim
 - **THEN** không có cảnh báo nào, cổng hoạt động bình thường
 
+### Requirement: Commit mới đến GIỮA lượt chấm phải được đánh dấu ngay, không đợi ai mở trang
+
+Trong lúc một lượt chấm đang chạy trên pull request, hệ thống SHALL theo dõi head của pull request
+đó theo nhịp, và khi head đổi khác commit lượt chấm đang ghim thì SHALL đánh dấu **ngay** — cả trên
+dòng sự kiện lẫn trên bản ghi lượt chấm.
+
+Lượt chấm SHALL chạy tiếp tới hết. Đây là quyết định có chủ đích: dừng giữa chừng thì vứt bỏ phần
+việc gần xong, mà verdict trên commit cũ **vẫn còn giá trị đọc** — nó không dùng được ở cổng nhưng
+phần lớn finding vẫn đúng với mã nguồn, và dev vẫn biết được chỗ nào sai.
+
+Điều KHÔNG được phép là **im lặng cho tới lúc ai đó bấm**: hôm nay người dùng chỉ biết verdict đã
+chết sau khi đã bấm một nút một chiều và nhận từ chối.
+
+#### Scenario: dev đẩy commit mới trong lúc đang chấm
+- **WHEN** pull request nhận commit mới trong lúc lượt chấm đang chạy
+- **THEN** lượt chấm được đánh dấu hết-hiệu-lực ngay tại thời điểm phát hiện, người đang xem thấy
+  cảnh báo mà không cần tải lại, và lượt chấm vẫn chạy tới hết
+
+#### Scenario: verdict ra đời đã hết hiệu lực
+- **WHEN** một lượt chấm kết thúc mà head đã đổi từ giữa chừng
+- **THEN** verdict khai rõ nó ghim commit nào và commit đó không còn là head; cổng merge khoá ngay từ
+  lần mở đầu tiên
+
+#### Scenario: không có commit mới nào
+- **WHEN** head không đổi suốt lượt chấm
+- **THEN** không đánh dấu gì, và không thêm lời gọi nào tới GitHub sau khi lượt chấm kết thúc
+
 ### Requirement: Lượt chấm phải ghi ai bấm chạy
 
 Bản ghi của một lượt chấm SHALL mang danh tính người khởi động nó, và trang SHALL hiện danh tính đó

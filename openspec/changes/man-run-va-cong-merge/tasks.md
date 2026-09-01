@@ -67,6 +67,14 @@ Năm commit tách bạch: hợp đồng → bền dòng sự kiện → server-r
       toàn bộ phần sau.
 - [ ] 4.9 Banner **verdict stale** + nút «Chấm lại commit mới», cổng khoá. Vá chỗ NÓI; đường ghi đã
       chặn sẵn ba lớp và không đụng tới.
+- [ ] 4.9b **Theo dõi head TRONG lúc chấm** (PO chốt): trong khi lượt chạy trên một pull request, hỏi
+      lại head theo nhịp (~30s); head đổi thì đánh dấu hết-hiệu-lực NGAY — phát sự kiện để người đang
+      xem thấy mà không phải tải lại, và ghi vào bản ghi lượt chấm.
+      Lượt chấm **vẫn chạy tới hết**: dừng giữa chừng là vứt phần việc gần xong, mà verdict trên commit
+      cũ vẫn còn giá trị ĐỌC — không dùng được ở cổng nhưng phần lớn finding vẫn đúng với mã nguồn.
+      Huỷ lượt chấm KHÔNG thuộc change này (PO hoãn tới khi thực tế cần).
+      ~30s là đủ: một lượt trung vị 3,6 phút thì chậm nhất nửa phút. Webhook rút xuống ~1s, tức lợi
+      thêm ≤29 giây — không đáng đổi lấy một cửa vào không-xác-thực. Xem nợ 8.4.
 - [ ] 4.10 Khối **Thư viện** — phân biệt `⊘ không nạp vào` (amber) với `✕ gỡ khỏi thư viện` (crimson).
       Hai việc hậu quả khác hẳn: một cái không thêm tài sản, cái kia MẤT tài sản đã có.
 - [ ] 4.11 Card **KHÔNG RA VERDICT** nền `--color-neutral-800` chữ sáng, khác hẳn PASS/FAIL, kèm lý
@@ -99,6 +107,8 @@ Năm commit tách bạch: hợp đồng → bền dòng sự kiện → server-r
 - [ ] 6.6 Vùng mù: file mã nguồn vượt trần → CÓ banner; chỉ lockfile → KHÔNG banner.
 - [ ] 6.7 Ghi chú trống → không trả về dev được.
 - [ ] 6.8 Verdict stale → cổng khoá và trang nói ra trước khi người dùng bấm.
+- [ ] 6.9b Head đổi giữa lượt chấm → đánh dấu ngay, lượt vẫn chạy tới hết, và cổng khoá ngay ở lần
+      mở đầu tiên. Head KHÔNG đổi → không thêm lời gọi GitHub nào sau khi lượt kết thúc.
 - [ ] 6.9 Dựng lại `run_su_kien` từ `events.jsonl` cho ra đúng dòng sự kiện.
 - [ ] 6.10 Chứng minh các lưới trên **load-bearing**: tạm bỏ banner stale và tạm cho ghi chú rỗng đi
       qua, thấy chúng ĐỎ đúng chỗ, rồi khôi phục.
@@ -120,4 +130,25 @@ Năm commit tách bạch: hợp đồng → bền dòng sự kiện → server-r
       cho verdict ghim một hỗn hợp — phá đúng bất biến mà cổng merge dựa vào.
 - [ ] 8.2 «Không ra verdict» thành trạng thái kết thúc thứ ba đầy đủ: pill riêng và bộ lọc trong Lịch
       sử. Chạm mô hình trạng thái và ràng buộc `CHECK (verdict IN ('PASS','FAIL'))` của bảng sổ cái.
+- [ ] 8.4 **Webhook GitHub** — change riêng (PO chốt). Đáng làm, nhưng payoff thật KHÔNG nằm ở việc
+      biết push giữa lượt chấm (poll 30s đã lấy gần hết): nó nằm ở chỗ **thay hẳn poller 300 giây** —
+      hôm nay một PR mới chờ tới 5 phút mới được ngó tới.
+      Vì sao tách: đây sẽ là **cửa vào không-xác-thực-người-dùng đầu tiên** của sản phẩm, hồ sơ rủi ro
+      khác hẳn phần còn lại của change này. Nó kéo theo: HMAC-SHA256 `X-Hub-Signature-256` so
+      timing-safe · giữ raw body (`express.json()` ăn mất là hết ký được) · chống phát lại theo
+      `X-GitHub-Delivery` · trần payload · secret theo TỪNG repo + UI nhập · **và nginx phải miễn
+      Basic Auth cho đúng đường đó** — prod đang nằm sau Basic Auth, chỉ `/.well-known/acme-challenge/`
+      được miễn. Tức đục lỗ thứ hai xuyên lớp bảo vệ ngoài cùng, làm ở tầng nginx chứ không phải code.
+- [ ] 8.5 **Bỏ HTTP Basic Auth ở nginx** (PO chốt hướng) — đi thành gói BA việc, không tách rời:
+      (a) **rào đăng nhập trước đã**: đếm theo IP + lùi dần theo tài khoản, tự viết, không thêm gói phụ
+      thuộc; (b) bỏ Basic Auth ở nginx; (c) **viết lại** câu biện minh trong `DEPLOY.md` — dòng «đã an
+      toàn nhờ lớp Basic Auth nginx bên dưới» phải thành lập luận mới chứ không xoá đi, vì đó là chỗ
+      người sau đọc để hiểu vì sao `MODE=org` được phép mở.
+      Đo trước khi chốt: lớp trong ĐỦ chắc để đứng một mình — middleware là allowlist mặc-định-chặn,
+      `DUONG_MO` đúng ba đường, `/health` chỉ trả `{ok:true}`, cookie HttpOnly+SameSite+Secure, và
+      comment R11.2 ghi rõ app vốn được viết để KHÔNG tựa vào lớp ngoài. Thiếu đúng một thứ: **không
+      có rào chống dò mật khẩu nào**. Chỗ đó sắc hơn vẻ ngoài vì scrypt N=16384 cố ý chậm — mỗi lần
+      thử tốn CPU của máy chủ, nên vòng lặp gõ /login vừa là dò mật khẩu vừa là đòn DoS rẻ, trên một
+      Lightsail dùng chung máy với tingpos.vn.
+      Độc lập với 8.4: đi sớm được nếu cần link chia sẻ cho ban giám khảo trước 23/09.
 - [ ] 8.3 Dựng lại nội dung 5 màn còn lại theo gói (lịch sử · sổ cái · tin cậy · cấu hình · nguyên tắc).

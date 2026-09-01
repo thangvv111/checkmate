@@ -58,6 +58,10 @@
 
 - [ ] T6.1 [reproduce] **Verdict stale** (head PR khác SHA verdict ghim) → trang nói ra và cổng khoá
       TRƯỚC khi người dùng bấm. *(Trước fix: thấy PASS to, nút Merge sáng, chỉ nhận 409 sau khi bấm.)*
+- [ ] T6.1b [reproduce] **Head đổi GIỮA lượt chấm** → đánh dấu ngay trên dòng sự kiện, người đang xem
+      thấy cảnh báo không cần tải lại, lượt vẫn chạy tới hết, cổng khoá ngay ở lần mở đầu tiên.
+- [ ] T6.1c Vế đối chứng: head KHÔNG đổi suốt lượt → không đánh dấu gì, và không lời gọi GitHub nào
+      phát sinh sau khi lượt kết thúc. Thiếu ca này thì một bản theo-dõi hỏng vẫn xanh ở ca trên.
 - [ ] T6.2 FAIL → Merge vô hiệu, **Trả về dev vẫn hoạt động**.
 - [ ] T6.3 PASS + medium → Merge chỉ sáng khi tick đủ; hint mono đếm đúng số còn thiếu.
 - [ ] T6.4 [reproduce] Ghi chú trả về dev **trống** → không thực hiện được, nói rõ là bắt buộc.

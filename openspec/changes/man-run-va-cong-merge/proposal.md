@@ -23,15 +23,20 @@ token đã đốt.
 6. **Nới hợp đồng để UI không phải dò chuỗi log.** Bốn khối trên hôm nay chỉ tồn tại dưới dạng câu
    chữ trong `{type:'log', msg}`. Thêm trường **tuỳ chọn** vào `Verdict` và loại sự kiện có cấu trúc,
    để giao diện đọc dữ liệu chứ không bắt ký tự `⚠` trong lời văn.
-7. **«Người chạy»** — ghi ai bấm chạy vào bản ghi lượt chấm; bảng meta của gói có ô này và hiện không
+7. **Theo dõi head trong lúc chấm.** Head pull request đổi giữa chừng thì đánh dấu hết-hiệu-lực
+   **ngay**, thay vì để người dùng phát hiện bằng cách bấm Merge rồi nhận từ chối. Lượt chấm vẫn chạy
+   tới hết — huỷ lượt chấm KHÔNG thuộc change này.
+8. **«Người chạy»** — ghi ai bấm chạy vào bản ghi lượt chấm; bảng meta của gói có ô này và hiện không
    có dữ liệu nào để điền.
-8. **SSE nối lại không nhân đôi.** Phát `id:` theo sự kiện, đọc `Last-Event-ID` để tiếp từ chỗ đứt.
-9. **Dòng sự kiện thành bền: tiến trình con tự ghi ra đĩa, server đọc file thay vì đọc pipe.** Hôm
+9. **SSE nối lại không nhân đôi.** Phát `id:` theo sự kiện, đọc `Last-Event-ID` để tiếp từ chỗ đứt.
+10. **Dòng sự kiện thành bền: tiến trình con tự ghi ra đĩa, server đọc file thay vì đọc pipe.** Hôm
    nay sự kiện nằm trong RAM và chỉ xuống đĩa lúc tiến trình con đóng — server chết là mất sạch,
    `cleanupOrphanRuns()` chỉ dọn xác. Đổi thành `runs/<id>/events.jsonl` chỉ-ghi-thêm làm nguồn sự
    thật; server đọc theo. Server sống lại thì đọc tiếp, không mất gì.
 
-KHÔNG thuộc change này, đã tách: **chạy tiếp một lượt dở** (checkpoint bước 3–4 để khỏi đốt lại
+KHÔNG thuộc change này, đã tách: **huỷ lượt chấm đang chạy** (PO hoãn tới khi thực tế cần) và
+**webhook GitHub** (cửa vào không-xác-thực đầu tiên của sản phẩm — hồ sơ rủi ro khác hẳn, và prod
+đang nằm sau Basic Auth nên còn phải sửa cả nginx). Cũng tách: **chạy tiếp một lượt dở** (checkpoint bước 3–4 để khỏi đốt lại
 token). Nó cần luật riêng về ghim SHA — xem `design.md` mục «Mức 3».
 
 ## Capabilities

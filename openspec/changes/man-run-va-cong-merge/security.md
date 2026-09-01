@@ -81,6 +81,19 @@ File `.jsonl` và bảng `run_su_kien` giữ cùng một dữ liệu. Hai nguồ
 kỷ luật: **file là nguồn, bảng là bản đọc**, và việc dựng lại bảng từ file phải chạy được (T4.3). Khi
 hai bên lệch, tin file.
 
+## Hai thứ KHÔNG làm ở đây, và vì sao chúng nguy hiểm nếu làm lẻ
+
+**Webhook GitHub** (nợ 8.4) sẽ là **cửa vào không-xác-thực-người-dùng đầu tiên** của sản phẩm. Nó
+kéo theo cả một bộ: HMAC-SHA256 so timing-safe · giữ raw body · chống phát lại theo delivery id ·
+trần payload · secret theo từng repo. Change hiện tại nằm trọn trong vòng xác thực; ghép webhook vào
+là trộn hai hồ sơ rủi ro khác hẳn nhau vào một lần duyệt.
+
+**Bỏ Basic Auth ở nginx** (nợ 8.5) chỉ an toàn khi **rào đăng nhập đi cùng chuyến**. Lớp trong đã
+được viết để không tựa vào lớp ngoài — middleware là allowlist mặc-định-chặn và comment R11.2 nói
+thẳng điều đó — nhưng nó **không có rào chống dò mật khẩu nào**. Bỏ lớp ngoài trước khi có rào là mở
+`/login` cho vòng lặp dò, mà scrypt cố ý chậm biến mỗi lần thử thành chi phí CPU của chính máy chủ.
+Làm lẻ hai việc đó theo thứ tự sai thì có một quãng thời gian hệ yếu hơn cả trước lẫn sau.
+
 ## Kết luận
 
 Change này **thu hẹp** bề mặt rủi ro ở chỗ quan trọng nhất — bịt đường merge trong chế độ phát lại,
