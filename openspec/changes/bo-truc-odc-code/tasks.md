@@ -55,3 +55,8 @@
       Conformance), rubric 7 trục giữ vai type-của-doc.
 - [ ] 6.3 Change dọn `specs/`: tách phần kể-chuyện khỏi ~7 điều nặng ở R6/R11; án lệ mới ghi kèm mã
       trigger/type thay vì văn tự do.
+- [ ] 6.4 Change chính sách **rerun-N cho probe nghi-flaky**: probe fail không ổn định giữa các lần
+      chạy cùng nhánh nhận nhãn riêng (`khong_on_dinh`), KHÔNG rơi vào `hoi_quy` — điều kiện tiên
+      quyết để mở lại trigger race xác suất (`dong_thoi`) mà không phá bảng chân trị R1. PO chất vấn
+      01/09: concurrency là khái niệm quan trọng, phần tất định đã phủ (C7 treo · `thu_tu`
+      interleaving · `khop_spec` cơ chế khoá), phần xác suất chờ đúng cửa này.

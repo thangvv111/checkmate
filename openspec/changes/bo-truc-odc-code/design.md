@@ -32,13 +32,13 @@ hai nhánh* — trục thứ tư, độc lập, đã đóng sẵn. Trigger khôn
 | 5 | `bay_ngon_ngu` | Language Dependency | coercion, `undefined.length` (KL16 là TypeError JS) — mang `dieu_kien` theo ngôn ngữ repo đích |
 | 6 | `goi_thang` | Coverage | gọi hàm/endpoint mới với input thường — probe rẻ nhất, nền của PASS-phải-chứng-minh |
 | 7 | `bien_the_dau_vao` | Variation **gộp** Rare Situation | khuyết/sai kiểu/ngoài miền/tổ hợp lạ — KL7·KL8·KL11; gộp vì ranh giới Variation↔Rare mờ, hai ô mờ là hai ô bịa |
-| 8 | `thu_tu` | Sequencing | chuỗi thao tác tạo→sửa→xoá→đọc lại — vùng 17 khuôn hiện **TRỐNG HOÀN TOÀN** |
+| 8 | `thu_tu` | Sequencing | chuỗi thao tác tạo→sửa→xoá→đọc lại, VÀ **interleaving dựng tay tất định**: nửa đầu thao tác A → trọn B → nửa sau A (deadlock dựng lại được, transaction lồng, lock ordering, `SQLITE_BUSY`, lock rò sau crash) — vùng 17 khuôn hiện **TRỐNG HOÀN TOÀN** |
 | 9 | `tuong_tac` | Interaction | hai chức năng hợp lệ riêng lẻ, hỏng khi ghép — KL12·KL13 |
 | 10 | `duong_loi` | Recovery/Exception | error path: 4xx-không-vỡ-500, hàm cuối đường ném — KL6·KL16 |
 
 | Loại | Vì sao loại |
 |---|---|
-| Concurrency / Timing | probe race **không tất định** — fail-một-nhánh có thể là nhiễu, phá thẳng bảng chân trị R1. Loại cho tới khi có chính sách rerun-N (ghi nợ, không nhận mơ hồ vào bộ đóng) |
+| Concurrency / Timing | CHỈ loại phần **race xác suất** (hai tiến trình ghi đồng thời thật, kết quả tuỳ lịch OS): probe fail 1/10 lần rơi vào bảng chân trị R1 là sinh `hoi_quy` OAN — cổng kêu oan vài lần là người ta tắt cổng, và repo này vừa trả giá cho một test flaky (M11). Phần concurrency **tất định** KHÔNG bị bỏ, nó có ba đường bắt: deadlock-làm-treo → lưới C7 máy tự viết finding high (`findingTreo`) không cần trigger nào · interleaving dựng tay + lock ordering → `thu_tu` · cơ chế khoá không được tôn trọng (tạo lock bằng tay rồi kiểm hàm có bị chặn) → `khop_spec`/`duong_loi`. Race xác suất vào lại bộ khi có chính sách rerun-N (kế hoạch 6.4) |
 | Workload/Stress | sandbox không kiểm soát tài nguyên đồng đều — probe perf là nguồn flaky vô hạn |
 | Lateral Compatibility | cross-repo/cross-service probe không chạy được trong sandbox; phần trong-repo thì `tuong_tac` đã phủ |
 | Internal Document | comment lệch code không làm probe fail được — trigger này thuộc cổng DOC (KD1–KD3 chính là nó), sẽ dùng ở change tối ưu doc |

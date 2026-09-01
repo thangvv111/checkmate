@@ -15,6 +15,10 @@ tấm gương là bộ trigger ODC đứng yên từ 1992.
 - **WHEN** model trả kế hoạch probe với `trigger: "bien_the_dau_vao"` thuộc danh mục
 - **THEN** trường được giữ nguyên và đi vào thống kê của lượt chấm
 
+#### Scenario: deadlock tất định không cần trigger riêng
+- **WHEN** một PR gây deadlock làm probe treo quá hạn
+- **THEN** lưới treo hiện hành tự sinh finding mức chặn bằng máy, không phụ thuộc model chọn trigger nào
+
 #### Scenario: probe khai trigger lạ
 - **WHEN** model trả `trigger: "sang_tao_moi"` không thuộc danh mục
 - **THEN** probe vẫn được chạy bình thường, trường trigger bị bỏ, log ghi một dòng nói giá trị lạ là gì
