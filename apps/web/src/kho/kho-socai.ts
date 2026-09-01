@@ -169,15 +169,18 @@ export function prCanDoiSoat(): Array<{ run_id: string; pr_so: number; repo: str
  * chưa»: một PR từng bị trả về dev qua cổng rồi sau đó bị merge thẳng bằng `gh` thì lần MERGE đó vẫn
  * là hành động ngoài cổng chưa ai ghi (vòng hai của cổng bắt).
  */
-export function hanhDongCongCuaPr(repo: string, prSo: number): Array<'merge' | 'reject'> {
+export function hanhDongCongCuaPr(repo: string, prSo: number): Array<{ hanh_dong: 'merge' | 'reject'; ngoai_cong: boolean }> {
+  // R6.21 — MỌI phép đếm/lọc hành động cổng phải xét cờ `ngoai_cong`: một PR có hàng merge do NGƯỜI
+  // bấm trong CheckMate và một PR chỉ có hàng merge do MÁY đối soát ghi lại là hai chuyện khác hẳn
+  // nhau, mà bản trước trả về cùng một thứ (vòng ba của cổng bắt).
   const hang = moDb()
     .prepare(
-      `SELECT DISTINCT s.hanh_dong AS hd
+      `SELECT DISTINCT s.hanh_dong AS hd, s.ngoai_cong AS nc
          FROM so_cong s JOIN run r ON r.id = s.run_id
         WHERE r.pr_so = ? AND r.repo = ?`,
     )
-    .all(prSo, repo) as Array<{ hd: unknown }>;
-  return hang.map((h) => String(h.hd) as 'merge' | 'reject');
+    .all(prSo, repo) as Array<{ hd: unknown; nc: unknown }>;
+  return hang.map((h) => ({ hanh_dong: String(h.hd) as 'merge' | 'reject', ngoai_cong: Number(h.nc ?? 0) === 1 }));
 }
 
 export function docSoCong(runId?: string): MucSoCong[] {

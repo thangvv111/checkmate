@@ -13,6 +13,9 @@ import { join } from 'node:path';
 
 const goc = mkdtempSync(join(tmpdir(), 'checkmate-doisoat-'));
 process.env.CHECKMATE_GOC = goc;
+// Đối soát là thao tác cổng: chế độ demo bị cấm (R6.12). Ca demo nằm ở file riêng vì MODE chốt lúc
+// nạp module, một tiến trình không mang được hai chế độ.
+process.env.CHECKMATE_MODE = 'org';
 
 const kho = await import('../apps/web/src/kho/kho-run.js');
 const so = await import('../apps/web/src/kho/kho-socai.js');
@@ -84,7 +87,11 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     expect(hang).toHaveLength(1);
     expect(hang[0].hanh_dong).toBe('merge');
     expect(hang[0].ngoai_cong, 'phải phân biệt bằng DỮ LIỆU, không chỉ bằng chữ').toBe(true);
-    expect(hang[0].nguoi).toContain('ai-do');
+    // R11.1/R11.15 + R6.18 (vòng ba): cột «người» là danh tính TRONG HỆ NÀY, và hàng này do MÁY ghi
+    // nên nó mang danh tính tác nhân máy. Tên tài khoản GitHub là dữ liệu của dịch vụ ngoài — nó
+    // thuộc phần MÔ TẢ, không được chiếm chỗ của người thao tác.
+    expect(hang[0].nguoi).toBe(cong.TEN_TAC_NHAN_MAY);
+    expect(hang[0].chi_tiet).toContain('ai-do');
     expect(hang[0].chi_tiet).toMatch(/KHÔNG có xác nhận finding nào/);
     expect(kho.docMeta('r1')?.ketQuaCong?.hanhDong).toBe('merge');
   });
@@ -95,7 +102,8 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     const hang = so.docSoCong('r2');
     expect(hang[0].hanh_dong).toBe('reject');
     expect(hang[0].ngoai_cong).toBe(true);
-    expect(hang[0].nguoi, 'không mượn tên tài khoản nào trong hệ này (R6.24)').toMatch(/không rõ/);
+    expect(hang[0].nguoi, 'hàng do máy ghi mang danh tính tác nhân máy (R6.18)').toBe(cong.TEN_TAC_NHAN_MAY);
+    expect(hang[0].chi_tiet, 'không biết ai làm trên GitHub thì nói ra').toMatch(/không rõ ai thực hiện/);
   });
 
   it('PR còn MỞ → không ghi hàng nào', async () => {

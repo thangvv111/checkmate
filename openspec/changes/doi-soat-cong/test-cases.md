@@ -55,3 +55,9 @@ Vòng hai:
 - [x] T5.6 `chi_tiet` nói rõ máy chỉ GHI LẠI, kèm danh tính tác nhân máy
 - [ ] T5.7 (chưa làm — chờ deploy) Xác nhận trên prod: đối soát chạy được cả khi `truc.bat=false`
 
+Vòng ba:
+- [x] T6.1 Chế độ demo → `daGhi = 0`, sổ không có hàng nào, bề mặt run không đổi (file test riêng vì
+      `MODE` chốt lúc nạp module)
+- [x] T6.2 Hàng do máy ghi mang danh tính tác nhân máy ở cột «người»; tên GitHub nằm ở phần mô tả
+- [x] T6.3 Không biết ai thực hiện trên GitHub → nói ra trong mô tả, không để trống
+

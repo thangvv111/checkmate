@@ -55,3 +55,20 @@ Vòng hai — 6 finding (4 HIGH):
 - [x] 6.12 Hàng đối soát đóng dấu tên người vào ô người-thực-hiện → `chi_tiet` nay nói rõ máy chỉ
       GHI LẠI chứ không thực hiện, kèm danh tính tác nhân máy (R6.18).
 
+Vòng ba — 6 finding (3 HIGH):
+- [x] 6.13 **HIGH RÒ BÍ MẬT**: `moTaLoi()` cắt 120 ký tự thông điệp lỗi rồi đẩy thẳng vào log — lỗi
+      mạng của lệnh fetch mang nguyên URL `https://x-access-token:ghp_…@github.com`, nên token đi
+      thẳng ra sổ. Hàm che `cheTokenTrongVan()` ĐÃ CÓ SẴN trong repo; không dùng nó là bỏ quên chứ
+      không phải thiếu công cụ. Nay CHE TRƯỚC KHI CẮT.
+- [x] 6.14 **HIGH**: `hanhDongCongCuaPr()` không kèm cờ `ngoai_cong` — hàng người-bấm và hàng máy-ghi
+      trả về giống hệt nhau, trái R6.21 («mọi phép đếm/lọc phải xét trường này»).
+- [x] 6.15 **HIGH**: chế độ demo vẫn ghi sổ thật — trái R6.12. Đối soát tuy chỉ GHI LẠI nhưng hàng nó
+      ghi nằm trong đúng cuốn sổ ấy, và sổ chỉ ghi thêm nên một hàng demo là sai VĨNH VIỄN.
+- [x] 6.16 MEDIUM: ô «người» mang tên tài khoản GitHub — dữ liệu của dịch vụ NGOÀI chiếm chỗ của
+      danh tính trong hệ (R11.1/R11.15). Hàng do máy ghi nay mang danh tính tác nhân máy (R6.18),
+      tên GitHub chuyển sang phần mô tả.
+- [x] 6.17 MEDIUM: logger do chỗ gọi đưa vào ném thì kéo cả lượt xuống — nay bọc ngay tại hàm thay vì
+      mong mọi chỗ gọi tự cẩn thận.
+- [x] 6.18 MEDIUM: gọi GitHub TRƯỚC rồi mới kiểm hành động đã ghi — phép kiểm RẺ phải chặn trước phép
+      gọi ĐẮT (R6.23), và danh sách phải cạn dần về 0 đúng như change tự khai.
+

@@ -1,5 +1,7 @@
 import { chuanMuc, type Finding, type Verdict } from '../../../packages/shared/src/types.js';
 import { ghiSoCong, hanhDongCongCuaPr, prCanDoiSoat } from './kho/kho-socai.js';
+import { cheTokenTrongVan } from './github.js';
+import { MODE } from './config.js';
 import { capNhatCongRun, docMeta } from './kho/kho-run.js';
 
 /**
@@ -70,18 +72,37 @@ export const TEN_TAC_NHAN_MAY = 'ci-bot';
  * nguyên nhân thật mất hẳn (vòng hai của cổng bắt).
  */
 function moTaLoi(e: unknown): string {
-  if (e instanceof Error && typeof e.message === 'string') return e.message.slice(0, 120);
-  try {
-    return String(typeof e === 'object' && e !== null ? JSON.stringify(e) : e).slice(0, 120);
-  } catch {
-    return Object.prototype.toString.call(e);
+  let van: string;
+  if (e instanceof Error && typeof e.message === 'string') van = e.message;
+  else {
+    try {
+      van = String(typeof e === 'object' && e !== null ? JSON.stringify(e) : e);
+    } catch {
+      van = Object.prototype.toString.call(e);
+    }
   }
+  // CHE TRƯỚC KHI CẮT: lỗi mạng của lệnh fetch mang nguyên URL `https://x-access-token:ghp_…@github.com`,
+  // và cắt 120 ký tự rồi mới đẩy vào log là đẩy nguyên cái token ra sổ (vòng ba của cổng bắt). Hàm che
+  // đã có sẵn trong repo — không dùng nó ở đây là bỏ quên, không phải thiếu công cụ.
+  return cheTokenTrongVan(van).slice(0, 160);
 }
 
 export async function doiSoatCong(
   docTrangThai: (pr: number, repo: string) => Promise<{ trang_thai?: string; nguoi_merge?: string; tac_gia?: string } | null | undefined>,
-  log: (msg: string) => void = () => {},
+  logTho: (msg: string) => void = () => {},
 ): Promise<{ daGhi: number; boQua: number; loi: number }> {
+  // R6.12 — chế độ demo KHÔNG được thao tác cổng. Đối soát tuy chỉ GHI LẠI nhưng hàng nó ghi nằm
+  // trong đúng cuốn sổ kiểm toán ấy, và sổ chỉ ghi thêm nên một hàng demo là một hàng sai vĩnh viễn.
+  if (MODE === 'demo') return { daGhi: 0, boQua: 0, loi: 0 };
+  // Logger do CHỖ GỌI đưa vào: nó ném thì không được kéo cả lượt đối soát xuống (R6.25). Bọc ngay tại
+  // đây thay vì mong mọi chỗ gọi tự cẩn thận.
+  const log = (msg: string): void => {
+    try {
+      logTho(msg);
+    } catch {
+      /* logger hỏng không phải lý do để bỏ sót các pull request còn lại */
+    }
+  };
   const canSoat = prCanDoiSoat();
   if (!canSoat.length) return { daGhi: 0, boQua: 0, loi: 0 };
   // Gom theo CẶP (repo, pull request) — không theo run (một PR có chục lượt chấm, hỏi lại cùng một
@@ -101,6 +122,14 @@ export async function doiSoatCong(
     // R6.25 — lưới bọc TỪNG pull request: một PR hỏng không được làm chết lượt đối soát của các PR
     // còn lại (vòng hai của cổng bắt: lỗi ở PR đầu làm hai PR sau không bao giờ được ghi).
     try {
+      // R6.23 — phép kiểm RẺ chặn trước phép gọi ĐẮT: PR đã có cả merge lẫn reject ghi sổ thì không
+      // còn hành động nào để phát hiện, hỏi GitHub thêm một lần là tốn quota vào câu trả lời không
+      // dùng tới. Danh sách phải cạn dần về 0 sau lần đầu, đúng như change này tự khai.
+      const daCo = hanhDongCongCuaPr(repo, pr).map((x) => x.hanh_dong);
+      if (daCo.includes('merge') && daCo.includes('reject')) {
+        boQua += dsRun.length;
+        continue;
+      }
       let tt: { trang_thai?: string; nguoi_merge?: string; tac_gia?: string } | null | undefined;
       try {
         tt = await docTrangThai(pr, repo);
@@ -125,7 +154,9 @@ export async function doiSoatCong(
       }
       // «Đã qua cổng» phải xét theo HÀNH ĐỘNG, không phải theo «có hàng sổ nào chưa»: một PR từng bị
       // trả về dev qua cổng rồi sau đó bị merge thẳng bằng `gh` thì lần MERGE đó vẫn chưa ai ghi.
-      if (hanhDongCongCuaPr(repo, pr).includes(hd)) {
+      // Idempotent xét theo HÀNH ĐỘNG, không phân biệt hàng người-bấm hay hàng máy-ghi: cả hai đều
+      // nghĩa là hành động ấy ĐÃ được ghi, không cần ghi lần nữa.
+      if (hanhDongCongCuaPr(repo, pr).some((x) => x.hanh_dong === hd)) {
         boQua += dsRun.length;
         continue;
       }
@@ -142,14 +173,18 @@ export async function doiSoatCong(
           // thể có người vừa bấm cổng thật — kể cả trên một lượt chấm ANH EM cùng PR. Phép kiểm theo
           // run_id KHÔNG dùng nữa: một lượt có thể mang hàng `reject` của người rồi vẫn cần một hàng
           // `merge` ngoài cổng — hai hành động khác nhau.
-          if (hanhDongCongCuaPr(repo, pr).includes(hd)) {
+          if (hanhDongCongCuaPr(repo, pr).some((x) => x.hanh_dong === hd)) {
             boQua++;
             continue;
           }
           const r = docMeta(runId);
           const luc = new Date().toISOString();
-          const chiTiet = chiTietNgoaiCong(r?.verdict ?? null);
-          const nguoi = tt?.nguoi_merge ? `${tt.nguoi_merge} (GitHub)` : '(ngoài cổng — không rõ)';
+          const aiLam = tt?.nguoi_merge ? `người thực hiện trên GitHub: ${tt.nguoi_merge}` : 'không rõ ai thực hiện trên GitHub';
+          const chiTiet = `${chiTietNgoaiCong(r?.verdict ?? null)} · ${aiLam}`;
+          // R11.1/R11.15 — cột «người» là danh tính TRONG HỆ NÀY, và hàng này do MÁY ghi nên nó
+          // mang danh tính tác nhân máy (R6.18). Tên tài khoản GitHub là dữ liệu của dịch vụ ngoài:
+          // nó thuộc về phần MÔ TẢ, không được chiếm chỗ của người thao tác (vòng ba của cổng bắt).
+          const nguoi = TEN_TAC_NHAN_MAY;
           ghiSoCong({ run_id: runId, luc, hanh_dong: hd, nguoi, tac_gia_pr: tt?.tac_gia, ngoai_cong: true, chi_tiet: chiTiet });
           capNhatCongRun(runId, hd, luc, nguoi, chiTiet, true);
           daGhi++;

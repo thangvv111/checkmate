@@ -2,7 +2,10 @@
 
 ## S1. Bí mật & rò rỉ
 
-- N/A S1.1 Không chạm token/khoá/mật khẩu. Tên người merge lấy từ GitHub là dữ liệu công khai của PR
+- ⚠️→✅ S1.1 Bản đầu khai «không chạm token» — SAI. Vòng ba của cổng bắt: `moTaLoi()` đẩy thông điệp
+  lỗi thẳng vào log, mà lỗi mạng của lệnh fetch mang nguyên URL `x-access-token:ghp_…@github.com`.
+  Đường đối soát KHÔNG cầm token nhưng nó GHI LẠI lỗi của đường có cầm. Nay che trước khi cắt bằng
+  `cheTokenTrongVan()` vốn đã có sẵn trong repo
 - N/A S1.2 Không đăng gì ra bề mặt công khai — đối soát chỉ ghi vào sổ nội bộ
 - N/A S1.3 Không có giá trị cần che
 
