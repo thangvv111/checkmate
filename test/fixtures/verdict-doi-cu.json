@@ -1,0 +1,82 @@
+{
+ "run_id": "run-2026-08-30T14-39-49-011Z-conformance-luat-moi",
+ "skill": "code",
+ "artifact_ref": {
+  "type": "pr",
+  "name": "conformance-luat-moi",
+  "sha_or_hash": "2da6b5bbf752c67fd4abd18d28af2aa2106c53cc"
+ },
+ "result": "FAIL",
+ "findings": [
+  {
+   "id": "F1",
+   "skill": "code",
+   "severity": "high",
+   "title_vi": "R1.19 khai tách mã luật ghép nhưng trichMaLuat chưa hề tồn tại",
+   "what_vi": "PR đưa spec_rule R1.19 (so sánh luật mới) dựa trên việc trichMaLuat tách đúng cả hai vế của mã ghép kiểu 'R4.21+R4.27' — ngay ví dụ này PR tự đặt ra trong test — nhưng hàm trichMaLuat không được export/triển khai, gọi vào báo thẳng 'trichMaLuat is not a function' ở nhánh PR. Đây không phải PR làm hỏng cái đang chạy, mà là PR công bố quy tắc rồi chưa viết code hiện thực nó.",
+   "consequence_vi": "R1.19 vô hiệu hoàn toàn: khi mã luật bị gộp bằng dấu '+', không có cách nào so sánh đủ cả hai vế, nên một luật mới trong cặp gộp có thể bị bỏ sót mà báo cáo không hề cảnh báo.",
+   "evidence": {
+    "type": "test_run",
+    "probe_name": "trichMaLuat — tách mã luật ghép và lọc chuỗi nhiễu (R1.19, R1.21, R1.22) > P5: tách đúng cả hai vế của mã ghép kiểu R4.21+R4.27",
+    "probe_code": "it('P5: tách đúng cả hai vế của mã ghép kiểu R4.21+R4.27', () => {\n    const ma = trichMaLuat('R4.21+R4.27');\n    expect(ma.size).toBe(2);\n    expect(ma.has('R4.21')).toBe(true);\n    expect(ma.has('R4.27')).toBe(true);\n  });",
+    "command": "lệnh test của repo (checkmate.yml) (nhánh conformance-luat-moi @ 2da6b5b)",
+    "expected": "trichMaLuat('R4.21+R4.27') là một Set kích thước đúng 2, chứa cả 'R4.21' lẫn 'R4.27'.",
+    "actual": "trichMaLuat is not a function\nTypeError: trichMaLuat is not a function\n ❯ test/checker_probe.probe.test.ts:37:16",
+    "exit_code": 1
+   }
+  },
+  {
+   "id": "F2",
+   "skill": "code",
+   "severity": "high",
+   "title_vi": "R1.21–R1.22 khai lọc mã luật giả nhưng trichMaLuat chưa tồn tại",
+   "what_vi": "PR đưa spec_rule R1.21–R1.22 yêu cầu trichMaLuat chỉ nhận đúng khuôn mã luật [A-Z]{1,3}\\d{1,3}, không bắt nhầm chữ thường ('r1.5') hay số/mục lục ('mục 12.3', 'phụ lục a1') — nhưng hàm này chưa được triển khai/export, nhánh PR báo thẳng 'trichMaLuat is not a function'. Luật vừa khai chưa có bất kỳ cài đặt nào để kiểm chứng đúng/sai.",
+   "consequence_vi": "luat_tong và luat_da_phu — hai con số cấu thành độ phủ mà verdict báo cáo cho người dùng — không thể tính được, hoặc nếu có code khác âm thầm bắt lỗi thì độ phủ sẽ bị lệch mà không ai phát hiện.",
+   "evidence": {
+    "type": "test_run",
+    "probe_name": "trichMaLuat — tách mã luật ghép và lọc chuỗi nhiễu (R1.19, R1.21, R1.22) > P6: không bắt nhầm chữ thường / số trần thành mã luật",
+    "probe_code": "it('P6: không bắt nhầm chữ thường / số trần thành mã luật', () => {\n    const ma = trichMaLuat('xem mục r1.5 và phụ lục a1, bảng 12.3');\n    expect(ma.size).toBe(0);\n  });",
+    "command": "lệnh test của repo (checkmate.yml) (nhánh conformance-luat-moi @ 2da6b5b)",
+    "expected": "trichMaLuat('xem mục r1.5 và phụ lục a1, bảng 12.3') trả về Set rỗng (size === 0) — không mã luật giả nào lọt vào vì chữ thường và số/chữ không đúng khuôn [A-Z]{1,3}\\d{1,3}.",
+    "actual": "trichMaLuat is not a function\nTypeError: trichMaLuat is not a function\n ❯ test/checker_probe.probe.test.ts:44:16",
+    "exit_code": 1
+   }
+  }
+ ],
+ "probe_stats": {
+  "ke_hoach": 6,
+  "ghi_nhan": 9,
+  "pass": 5,
+  "hoi_quy": 0,
+  "vi_pham_luat_moi": 2,
+  "ngoai_pham_vi": 0,
+  "nghi_loi_co_san": 0,
+  "nghi_van": 0,
+  "cai_thien": 2,
+  "bo_qua": 0,
+  "that_lac": [],
+  "luat_da_phu": [
+   "R1.17",
+   "R1.18",
+   "R1.19",
+   "R1.2",
+   "R1.21",
+   "R1.22",
+   "R3.15",
+   "R4.18",
+   "R4.27",
+   "R9.6"
+  ],
+  "luat_tong": 206
+ },
+ "chi_phi": {
+  "calls": 3,
+  "token_vao": 29244,
+  "token_ra": 2128,
+  "uoc_tinh": true
+ },
+ "model": "claude-cli/claude-sonnet-5",
+ "mode": "live",
+ "started_at": "2026-08-30T14:39:49.012Z",
+ "finished_at": "2026-08-30T14:48:05.746Z"
+}

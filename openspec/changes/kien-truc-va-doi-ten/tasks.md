@@ -38,14 +38,14 @@ Bốn commit tách bạch (xem `design.md`): di chuyển thuần → đổi tên
 
 ## 4. Commit 3 — Lưới (và chứng minh nó load-bearing)
 
-- [ ] 4.1 Test import-graph: duyệt `packages/**/src/**/*.ts` + `apps/**/src/**/*.ts`, phân giải
+- [x] 4.1 Test import-graph: duyệt `packages/**/src/**/*.ts` + `apps/**/src/**/*.ts`, phân giải
       import tương đối, xếp tầng theo đường dẫn, đối chiếu ma trận trong `design.md`. Phân biệt
       `import type` với import thường.
-- [ ] 4.2 Thông điệp khi đỏ phải nêu **file nguồn → file đích, cặp tầng, loại import**. Lưới nói
+- [x] 4.2 Thông điệp khi đỏ phải nêu **file nguồn → file đích, cặp tầng, loại import**. Lưới nói
       «vi phạm kiến trúc» mà không nói ở đâu là báo sai bản chất.
-- [ ] 4.3 **Chứng minh lưới load-bearing**: tạm hoàn tác task 2.1, chạy test, thấy nó ĐỎ đúng chỗ,
+- [x] 4.3 *(đã chạy: hoàn tác việc dời paths.ts → 2 ca ĐỎ đúng chỗ, thông điệp nêu «db.ts [adapter] --IMPORT--> paths.ts [app]»; đã khôi phục)* **Chứng minh lưới load-bearing**: tạm hoàn tác task 2.1, chạy test, thấy nó ĐỎ đúng chỗ,
       rồi làm lại. Lưới chưa từng đỏ là lưới không ai biết nó canh gì.
-- [ ] 4.4 Test đọc-dữ-liệu-cũ: fixture là **dữ liệu đời thật** — một verdict đã lưu và một sổ thư
+- [x] 4.4 Test đọc-dữ-liệu-cũ: fixture là **dữ liệu đời thật** — một verdict đã lưu và một sổ thư
       viện probe đã lưu, chép vào `test/fixtures/`. Assert nạp ra đủ trường. KHÔNG dựng object trong
       test làm fixture: object dựng trong test mang tên MỚI nên nó xanh cả khi đã đổi hỏng.
 
