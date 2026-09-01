@@ -41,6 +41,20 @@ describe('lưới vỏ — mọi trang đi qua một hàm vỏ', () => {
     expect(pham, `Trang tự dựng vỏ riêng — sẽ rơi lại khi vỏ đổi:\n${pham.join('\n')}`).toEqual([]);
   });
 
+  it('vỏ chung không có đường nào chạm tới bí mật (⛔C3)', () => {
+    // Vỏ mới bày thêm dữ liệu: tên repo, chế độ trực, tên người đăng nhập. Không thứ nào là bí mật —
+    // và lưới này giữ cho nó ở nguyên như vậy. Nếu mai ai đó muốn hiện «token đã đặt chưa» ngay trên
+    // header, họ sẽ phải sửa lưới, tức phải nghĩ trước một nhịp thay vì tiện tay gọi hàm đọc kho.
+    const src = readFileSync(join(THU_MUC_UI, 'ui.ts'), 'utf8');
+    const than = /export function shell\([\s\S]*?\n\}/.exec(src)?.[0] ?? '';
+    expect(than.length, 'không tách được thân hàm shell').toBeGreaterThan(500);
+    for (const cam of ['readRepoToken', 'readOwnToken', 'readVault', 'readSubscriptionToken', 'hasToken']) {
+      expect(than, `vỏ chung gọi ${cam} — đó là đường tới bí mật`).not.toContain(cam);
+    }
+    // Và vỏ dựng ra không được mang hình dạng của một token GitHub
+    expect(shell('t', '<p>x</p>', '', { nguoi: 'ai-do' })).not.toMatch(/gh[pousr]_[A-Za-z0-9]{20,}|github_pat_/);
+  });
+
   it('ngoại lệ đăng nhập vẫn dùng chung hằng CSS, không tự khai bảng màu', () => {
     const src = readFileSync(join(THU_MUC_UI, 'ui-login.ts'), 'utf8');
     expect(src, 'màn đăng nhập phải nhập hằng CSS chung').toMatch(/import \{[^}]*\bCSS\b[^}]*\} from '\.\/ui\.js'/);
@@ -174,4 +188,50 @@ describe('mọi trang thật render được qua vỏ mới', () => {
       expect(html.startsWith('<!doctype html>'), `trang ${ten} không phải tài liệu đầy đủ`).toBe(true);
     });
   }
+});
+
+/**
+ * Lưới «class dùng thì phải có định nghĩa».
+ *
+ * Án lệ đắt: trong chính change này, hai lần CSS bị hụt mà không gì kêu.
+ *   1. chép gói design nhưng SÓT khối `.nav` — header khai `class="nav app-hd"` nên nó mất luôn
+ *      `display:flex` và rule 2px, cả header xếp chồng thành ba dòng;
+ *   2. một lần splice theo số dòng cắt nhầm `.sub` `.goiy` `.grid` `.wrap` — 29 chỗ trong bảy trang
+ *      dùng chúng, không chỗ nào báo lỗi.
+ *
+ * `tsc` không thấy: chuỗi nào cũng là chuỗi. Lưới token cũng không thấy: nó soi màu và bo góc, không
+ * soi việc một tên class có tồn tại hay không. Lưới này lấp đúng khe đó — nó so tên class trong
+ * markup với tên class có rule trong hằng CSS.
+ */
+describe('lưới CSS — class dùng trong markup phải có định nghĩa', () => {
+  it('không class nào bị dùng mà không có rule ở đâu cả', () => {
+    // Bể rule = hằng CSS dùng chung CỘNG mọi khối style cục bộ của các trang (màn đăng nhập, docs,
+    // nhà cung cấp, repo đều có style riêng và đó là hợp lệ). Lưới không phán được chuyện «định
+    // nghĩa nhầm ở trang khác»; nó nhắm đúng lỗi đắt hơn nhiều: class không được định nghĩa ở BẤT
+    // KỲ ĐÂU, tức nó nằm trong markup mà không có tác dụng gì và chẳng ai biết.
+    const files = readdirSync(THU_MUC_UI).filter((t) => /^ui.*\.ts$/.test(t));
+    const nguon = files.map((t) => readFileSync(join(THU_MUC_UI, t), 'utf8'));
+
+    const coRule = new Set<string>();
+    for (const src of nguon) {
+      for (const m of src.matchAll(/\.([a-zA-Z][\w-]*)(?=[\s,.:[>+~{])/g)) coRule.add(m[1]!);
+      // Class chỉ làm móc cho JS (querySelectorAll('.nut-kiem')) vẫn là class CÓ tác dụng —
+      // nó không cần rule CSS nào. Lưới chỉ săn class không làm gì ở đâu cả.
+      for (const m of src.matchAll(/(?:querySelector(?:All)?|closest)\(\s*'\.([a-zA-Z][\w-]*)/g)) {
+        coRule.add(m[1]!);
+      }
+    }
+
+    const dung = new Map<string, string>();
+    files.forEach((ten, i) => {
+      for (const m of nguon[i]!.matchAll(/class="([^"]*)"/g)) {
+        const gia = m[1]!;
+        if (gia.includes('${')) continue; // tên ghép động — lưới này không phán được
+        for (const c of gia.split(/\s+/).filter(Boolean)) if (!dung.has(c)) dung.set(c, ten);
+      }
+    });
+
+    const thieu = [...dung].filter(([c]) => !coRule.has(c)).map(([c, f]) => `${c}  (dùng ở ${f})`);
+    expect(thieu, `Class dùng mà không có rule ở đâu cả:\n${thieu.join('\n')}`).toEqual([]);
+  });
 });

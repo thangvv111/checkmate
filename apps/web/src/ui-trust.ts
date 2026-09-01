@@ -67,7 +67,7 @@ export function authorProfilePage(tacGia: string, hoSo: AuthorProfile | undefine
     `${tacGia} — tin cậy CheckMate`,
     `<h1>Hồ sơ: ${escHtml(tacGia)}</h1>
 <p class="sub">${locRepo ? `Chỉ tính verdict trong <b>${escHtml(locRepo)}</b>. ` : 'Gộp mọi repo. '}<a href="/tin-cay${locRepo ? `?repo=${encodeURIComponent(locRepo)}` : ''}">← thang tin cậy</a></p>
-<div class="stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius-md);overflow:hidden;margin-bottom:18px">
+<div class="stats">
   <div style="background:var(--surface);padding:12px 14px"><b style="font-size:20px;color:var(--teal)">${hoSo.soPr}</b><br><span style="font-size:11.5px;color:var(--muted)">PR đã chấm</span></div>
   <div style="background:var(--surface);padding:12px 14px"><b style="font-size:20px;color:var(--teal)">${hoSo.soPr ? Math.round((hoSo.prPassVongDau / hoSo.soPr) * 100) : 0}%</b><br><span style="font-size:11.5px;color:var(--muted)">PASS ngay vòng đầu</span></div>
   <div style="background:var(--surface);padding:12px 14px"><b style="font-size:20px;color:var(--fail)">${hoSo.high}</b><br><span style="font-size:11.5px;color:var(--muted)">finding HIGH tích luỹ</span></div>

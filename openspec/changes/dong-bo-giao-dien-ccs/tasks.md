@@ -78,9 +78,9 @@ Bốn commit tách bạch: token → shell → dashboard → màn probes.
 ## 6. Kiểm cơ học
 
 - [x] 6.1 `npx tsc --noEmit` sạch · `npm test` xanh TOÀN BỘ.
-- [ ] 6.2 Kiểm chuyển cảnh **trên trình duyệt thật**: có hỗ trợ thì mượt; giả lập không hỗ trợ thì
+- [x] 6.2 Kiểm chuyển cảnh **trên trình duyệt thật**: có hỗ trợ thì mượt; giả lập không hỗ trợ thì
       điều hướng vẫn đúng và nội dung đầy đủ.
-- [ ] 6.3 **Mở thật 8 màn trong trình duyệt** — `tsc` không bắt được layout vỡ; chụp lại Dashboard để
+- [x] 6.3 **Mở thật 8 màn trong trình duyệt** — `tsc` không bắt được layout vỡ; chụp lại Dashboard để
       đối chiếu với template của gói.
 
 ## 7. Sau-merge — nợ có tên, KHÔNG thuộc change này

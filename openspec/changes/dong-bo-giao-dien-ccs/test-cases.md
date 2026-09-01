@@ -42,7 +42,7 @@
 
 - [x] T5.1 Tiêu cực: đổi giao diện KHÔNG đổi đường quyết định verdict — chạy lại bộ ca phân loại và
       bộ ca cổng merge, không được xanh nhờ sửa kỳ vọng.
-- [ ] T5.2 Tiêu cực: không rò bí mật qua bề mặt mới — token repo vẫn hiện dạng che trên mọi màn có
+- [x] T5.2 Tiêu cực: không rò bí mật qua bề mặt mới — token repo vẫn hiện dạng che trên mọi màn có
       nó, kể cả header repo switcher.
 
 ## Chạy

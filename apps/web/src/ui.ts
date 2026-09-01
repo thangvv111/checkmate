@@ -1,19 +1,31 @@
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { GOC } from '../../../packages/shared/src/paths.js';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { chuanMuc } from '../../../packages/shared/src/types.js';
 import { MODE, readConfig } from './config.js';
 import type { RunMeta } from './runs.js';
 import { JS_PROVIDER } from './ui-provider.js';
 import { JS_REPO } from './ui-repo.js';
 
-/** Phiên bản hiện ở chân sidebar — đọc từ package.json để không trôi khỏi bản thật. */
+/**
+ * Phiên bản hiện ở chân sidebar — đọc từ package.json để không trôi khỏi bản thật.
+ *
+ * Tìm theo vị trí của CHÍNH MODULE NÀY, không theo GOC: GOC là gốc DỮ LIỆU và được phép trỏ chỗ
+ * khác (test dựng gốc riêng để không đụng dữ liệu thật). Lấy package.json theo GOC thì hễ ai đặt
+ * CHECKMATE_GOC là chân sidebar im lặng tụt về «v?» — đã thấy đúng như vậy khi mở thử.
+ */
 const PHIEN_BAN: string = (() => {
-  try {
-    return (JSON.parse(readFileSync(join(GOC, 'package.json'), 'utf8')) as { version?: string }).version ?? '?';
-  } catch {
-    return '?';
+  let d = dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 6; i++) {
+    try {
+      const v = (JSON.parse(readFileSync(join(d, 'package.json'), 'utf8')) as { version?: string }).version;
+      if (v) return v;
+    } catch {
+      /* leo tiếp lên thư mục cha */
+    }
+    d = dirname(d);
   }
+  return '?';
 })();
 
 export const CSS = `
@@ -142,6 +154,22 @@ textarea.input { min-height:90px; resize:vertical; }
 .tag-neutral { background:var(--color-neutral-100); color:var(--color-neutral-800); }
 .tag-outline { border:1px solid var(--color-accent); color:var(--color-accent); }
 
+.tag-accent-2 { background:var(--color-accent-2-100); color:var(--color-accent-2-800); }
+.grayscale { filter:grayscale(1) contrast(1.08); }
+.radio { display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-size:14px; }
+.radio input { position:absolute; opacity:0; width:0; height:0; pointer-events:none; }
+.radio .dot { width:16px; height:16px; flex:none; border-radius:50%; border:1.5px solid var(--color-divider); }
+.radio:hover .dot { border-color:var(--color-accent); }
+.radio input:checked + .dot { border-color:var(--color-accent); background:var(--color-accent);
+  box-shadow:inset 0 0 0 4px var(--color-bg); }
+
+.nav { display:flex; align-items:center; gap:var(--space-4);
+  padding:var(--space-3) var(--space-4); border-bottom:2px solid var(--color-divider); }
+.nav-brand { font-family:var(--font-heading); font-weight:var(--font-heading-weight);
+  font-size:18px; margin-right:auto; }
+.nav a { color:inherit; text-decoration:none; font-size:14px; }
+.nav a:hover, .nav a[aria-current='page'] { color:var(--color-accent); }
+
 .table { width:100%; border-collapse:collapse; font-size:14px; }
 .table th { text-align:left; font-size:11px; letter-spacing:0.08em; text-transform:uppercase;
   color:color-mix(in srgb, var(--color-text) 60%, transparent);
@@ -192,6 +220,16 @@ textarea.input { min-height:90px; resize:vertical; }
 }
 
 .mono { font-family:var(--font-mono); }
+.repo-row { display:flex; align-items:center; gap:10px; padding:9px 12px; margin:6px 0;
+  border:1px solid var(--color-divider); background:var(--color-surface); }
+.stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:1px;
+  margin-bottom:18px; background:var(--color-divider); border:1px solid var(--color-divider);
+  overflow:hidden; }
+.wrap { max-width:1240px; margin:0 auto; padding:0 var(--space-8); }
+main.wrap { padding-top:26px; padding-bottom:64px; }
+.sub { color:var(--color-neutral-600); font-size:13.5px; margin:0 0 18px; }
+.goiy { font-size:12.5px; color:var(--color-neutral-600); margin:6px 0 10px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:var(--space-3); }
 /* — vỏ ứng dụng: header 2px rule dưới · sidebar 210px 2px rule phải · main 1240 — */
 body.app { display:flex; flex-direction:column; min-height:100vh; }
 .app-hd { background:var(--color-bg); position:sticky; top:0; z-index:40; gap:14px;
@@ -213,6 +251,7 @@ body.app { display:flex; flex-direction:column; min-height:100vh; }
 .hd-drop button, .hd-drop a { display:block; width:100%; text-align:left; padding:10px 14px;
   background:none; border:0; border-radius:0; cursor:pointer; font:inherit; font-size:14px;
   color:var(--color-text); text-decoration:none; }
+.hd-drop[hidden] { display:none; }
 .hd-drop form { margin:0; }
 .hd-drop button:hover, .hd-drop a:hover { background:color-mix(in srgb, var(--color-text) 6%, transparent); }
 .hd-drop-them { border-top:1px solid var(--color-divider); color:var(--color-accent); }
@@ -830,7 +869,7 @@ export function runPage(meta: RunMeta, replay: boolean, speed = 1, nguoi = ''): 
     `<h1>${escHtml(meta.tieuDe)}</h1>
 <p class="sub">Run <code>${meta.id}</code> · skill ${meta.skill} · ${replay ? 'PHÁT LẠI từ cache (nhịp thời gian thật)' : 'chạy trực tiếp'}
 &nbsp;·&nbsp;<a href="/">← về trang chọn</a>${meta.trangThai === 'xong' && !replay ? ` &nbsp;·&nbsp; <a class="btn phu" href="/runs/${meta.id}?replay=1">▶ Phát lại</a> <a class="btn phu" href="/runs/${meta.id}?replay=1&speed=8" title="tua nhanh cho tổng duyệt">⏩ ×8</a>` : ''}</p>
-<ul class="stages" id="stages">${stages.map((s, i) => `<li data-s="${i + 1}">${s}<div class="logs" id="logs-${i + 1}"></div></li>`).join('')}</ul>
+<ul class="stages" id="stages">${stages.map((s, i) => `<li data-s="${i + 1}">${s}<div id="logs-${i + 1}"></div></li>`).join('')}</ul>
 <div id="findings"></div>
 <div class="verdict" id="verdict"><div class="kq"></div><div class="chitiet"></div></div>
 ${khoiCong(meta)}

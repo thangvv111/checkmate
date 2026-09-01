@@ -36,7 +36,7 @@ export function repoSection(v: RepoSectionView): string {
     .map((r) => {
       const chon = r.github === v.dangChon;
       const vien = !r.co_token && !r.co_gh ? 'var(--fail-soft)' : chon ? 'var(--teal)' : 'var(--line)';
-      return `<div class="repo-row" style="display:flex;align-items:center;gap:10px;border:1px solid ${vien};border-radius:var(--radius-md);padding:9px 12px;margin:6px 0;background:var(--surface)">
+      return `<div class="repo-row" style="border-color:${vien}">
   <div style="flex:1;min-width:0">
     <div style="font-size:13.5px;font-weight:600">${escHtml(r.github)}
       ${chon ? `<span style="${CHIP};background:var(--teal-soft);color:var(--teal)">đang chọn</span>` : ''}
