@@ -76,7 +76,7 @@
 
 ## 6. Nợ ghi nhận, chưa xử trong change này
 
-- [ ] 6.1 **Test flaky**: `ba-muc-tu-dong.test.ts > hàng sổ mang tổ hợp BỊ CẤM…` đỏ 2 lần trong ~12
+- [x] 6.1 *(chuyển giao khi archive: đây là mục NỢ, không phải task của change — đã truy ra gốc là M11 `ncc.ts` không đọc `CHECKMATE_GOC`, nằm đầu hàng đợi ở Lộ trình CheckMate)* **Test flaky**: `ba-muc-tu-dong.test.ts > hàng sổ mang tổ hợp BỊ CẤM…` đỏ 2 lần trong ~12
       lượt chạy TOÀN BỘ, nhưng chạy RIÊNG file thì 5/5 xanh (cả trên bản chưa có thay đổi của change
       này) → nhiễu CHÉO GIỮA CÁC FILE test, không phải lỗi của change. Repo coi flaky là lỗi nên ghi
       thành nợ M11 thay vì im lặng bỏ qua.
