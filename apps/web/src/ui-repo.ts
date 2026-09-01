@@ -36,7 +36,7 @@ export function repoSection(v: RepoSectionView): string {
     .map((r) => {
       const chon = r.github === v.dangChon;
       const vien = !r.co_token && !r.co_gh ? 'var(--fail-soft)' : chon ? 'var(--teal)' : 'var(--line)';
-      return `<div class="repo-row" style="display:flex;align-items:center;gap:10px;border:1px solid ${vien};border-radius:8px;padding:9px 12px;margin:6px 0;background:var(--surface)">
+      return `<div class="repo-row" style="border-color:${vien}">
   <div style="flex:1;min-width:0">
     <div style="font-size:13.5px;font-weight:600">${escHtml(r.github)}
       ${chon ? `<span style="${CHIP};background:var(--teal-soft);color:var(--teal)">đang chọn</span>` : ''}
@@ -53,7 +53,7 @@ export function repoSection(v: RepoSectionView): string {
     })
     .join('');
 
-  const o = 'width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px;font-size:13px';
+  const o = 'width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:var(--radius-md);font-size:13px';
   return `<div class="card" style="max-width:760px;margin-bottom:14px">
   <h3>Repo đã kết nối</h3>
   <p style="font-size:12.5px;color:var(--muted)">Mỗi repo giữ chìa, nhánh đích và clone riêng. Repo đang chọn quyết định hàng đợi PR ở trang chính; lịch sử chấm lưu theo từng repo.</p>
@@ -148,7 +148,7 @@ export const JS_REPO = String.raw`
       body:JSON.stringify({token:iToken?iToken.value:''})}).then(function(r){return r.json();}).then(function(d){
       if(d.loi){ bao(oKiem,false,d.loi); return; }
       oKiem.style.color='var(--muted)'; oKiem.textContent='Chìa này mở được '+d.length+' repo — bấm để điền vào bước 1:';
-      oDs.innerHTML='<div style="max-height:280px;overflow:auto;border:1px solid var(--line);border-radius:8px">'+
+      oDs.innerHTML='<div style="max-height:280px;overflow:auto;border:1px solid var(--line);border-radius:var(--radius-md)">'+
         d.map(function(r){
           return '<div style="display:flex;align-items:center;gap:8px;padding:7px 11px;border-bottom:1px solid var(--line);font-size:13px">'+
             '<span style="flex:1;min-width:0">'+esc(r.full_name)+

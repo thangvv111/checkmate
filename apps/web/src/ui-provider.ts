@@ -47,7 +47,7 @@ export function providerSection(v: ProviderSectionView): string {
       .map((d) => `<div style="margin:2px 0">${d}</div>`)
       .join('');
 
-    return `<details class="ncc" ${dangDung ? 'open' : ''} data-ncc="${dn.ma}" style="border:1px solid ${dangDung ? 'var(--teal)' : 'var(--line)'};border-radius:9px;margin:8px 0;background:var(--surface)">
+    return `<details class="ncc" ${dangDung ? 'open' : ''} data-ncc="${dn.ma}" style="border:1px solid ${dangDung ? 'var(--teal)' : 'var(--line)'};border-radius:var(--radius-md);margin:8px 0;background:var(--surface)">
   <summary style="padding:9px 12px;cursor:pointer;font-size:13.5px;display:flex;align-items:center;gap:8px">
     <b>${escHtml(dn.ten)}</b>
     ${dangDung ? '<span style="font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;background:var(--teal-soft);color:var(--teal);padding:2px 7px;border-radius:99px">đang dùng</span>' : ''}
@@ -56,10 +56,10 @@ export function providerSection(v: ProviderSectionView): string {
   <div style="padding:2px 12px 12px">
     ${dn.ngung ? `<div class="ev" style="border-left:3px solid var(--fail);margin:0 0 10px"><b>Dịch vụ đã ngừng.</b> ${escHtml(dn.ngung)}</div>` : ''}
     <p style="font-size:12px;color:var(--muted);margin:0 0 8px">${escHtml(dn.ghi_chu)}</p>
-    ${dongTrangThai ? `<div style="font-size:12px;border:1px solid var(--line);border-radius:7px;padding:7px 10px;margin-bottom:8px">${dongTrangThai}</div>` : ''}
+    ${dongTrangThai ? `<div style="font-size:12px;border:1px solid var(--line);border-radius:var(--radius-md);padding:7px 10px;margin-bottom:8px">${dongTrangThai}</div>` : ''}
     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
       <label style="font-size:12.5px;font-weight:600">Phương thức<br>
-        <select name="pt_${dn.ma}" ${ro2} ${dn.phuong_thuc.length < 2 ? 'disabled' : ''} style="margin-top:4px;padding:6px 9px;border:1px solid var(--line);border-radius:7px">
+        <select name="pt_${dn.ma}" ${ro2} ${dn.phuong_thuc.length < 2 ? 'disabled' : ''} style="margin-top:4px;padding:6px 9px;border:1px solid var(--line);border-radius:var(--radius-md)">
           ${dn.phuong_thuc.map((p) => `<option value="${p}" ${cfg.phuong_thuc === p ? 'selected' : ''}>${NHAN_PT[p]}</option>`).join('')}
           ${
             // Giá trị trong config NGOÀI danh mục: không có option khớp thì trình duyệt lặng lẽ hiện
@@ -70,7 +70,7 @@ export function providerSection(v: ProviderSectionView): string {
         </select>
       </label>
       <label style="font-size:12.5px;font-weight:600">Model<br>
-        <select name="model_${dn.ma}" ${ro2} style="margin-top:4px;padding:6px 9px;border:1px solid var(--line);border-radius:7px">
+        <select name="model_${dn.ma}" ${ro2} style="margin-top:4px;padding:6px 9px;border:1px solid var(--line);border-radius:var(--radius-md)">
           ${dn.models
             .map((m) => {
               const chiTb = dn.chi_thue_bao?.includes(m) ?? false;
@@ -92,13 +92,13 @@ export function providerSection(v: ProviderSectionView): string {
     ${
       dn.khoa
         ? `<label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">${escHtml(dn.khoa.nhan)}</label>
-    <input name="khoa_${dn.ma}" type="password" placeholder="${escHtml(dn.khoa.goi_y)} — bỏ trống để giữ nguyên" ${ro2} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px">`
+    <input name="khoa_${dn.ma}" type="password" placeholder="${escHtml(dn.khoa.goi_y)} — bỏ trống để giữ nguyên" ${ro2} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:var(--radius-md)">`
         : ''
     }
     ${
       dn.ma === 'anthropic'
         ? `<label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Token gói thuê bao Claude Code — hiện tại: <span class="mono">${escHtml(v.tokenThueBaoChe)}</span></label>
-    <input name="claude_oauth_token" type="password" placeholder="dán token từ lệnh claude setup-token (bỏ trống để giữ nguyên)" ${ro} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px">
+    <input name="claude_oauth_token" type="password" placeholder="dán token từ lệnh claude setup-token (bỏ trống để giữ nguyên)" ${ro} style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:var(--radius-md)">
     <p style="font-size:11.5px;color:var(--muted);margin:5px 0 0">Chạy <code>claude setup-token</code> trên máy CÓ trình duyệt (lệnh cần cửa sổ dòng lệnh thật), rồi dán vào đây. Token lưu ở file riêng quyền 600.</p>`
         : ''
     }
