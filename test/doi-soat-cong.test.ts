@@ -90,8 +90,11 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     // R11.1/R11.15 + R6.18 (vòng ba): cột «người» là danh tính TRONG HỆ NÀY, và hàng này do MÁY ghi
     // nên nó mang danh tính tác nhân máy. Tên tài khoản GitHub là dữ liệu của dịch vụ ngoài — nó
     // thuộc phần MÔ TẢ, không được chiếm chỗ của người thao tác.
-    expect(hang[0].nguoi).toBe(cong.TEN_TAC_NHAN_MAY);
-    expect(hang[0].chi_tiet).toContain('ai-do');
+    // R6.24b — cột «người» trả lời AI ĐÃ THỰC HIỆN. Máy chỉ CHÉP LẠI; ghi ci-bot vào đây là nói sai
+    // (máy không merge gì cả, R6.19). Việc máy ghi nhận thể hiện bằng cờ ngoai_cong + phần mô tả.
+    expect(hang[0].nguoi).toContain('ai-do');
+    expect(hang[0].nguoi).not.toContain(cong.TEN_TAC_NHAN_MAY);
+    expect(hang[0].chi_tiet).toContain(cong.TEN_TAC_NHAN_MAY);
     expect(hang[0].chi_tiet).toMatch(/KHÔNG có xác nhận finding nào/);
     expect(kho.docMeta('r1')?.ketQuaCong?.hanhDong).toBe('merge');
   });
@@ -102,8 +105,7 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     const hang = so.docSoCong('r2');
     expect(hang[0].hanh_dong).toBe('reject');
     expect(hang[0].ngoai_cong).toBe(true);
-    expect(hang[0].nguoi, 'hàng do máy ghi mang danh tính tác nhân máy (R6.18)').toBe(cong.TEN_TAC_NHAN_MAY);
-    expect(hang[0].chi_tiet, 'không biết ai làm trên GitHub thì nói ra').toMatch(/không rõ ai thực hiện/);
+    expect(hang[0].nguoi, 'không biết ai thực hiện thì ghi «không rõ», không mượn tên nào').toMatch(/không rõ/);
   });
 
   it('PR còn MỞ → không ghi hàng nào', async () => {
@@ -304,6 +306,25 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     const s = cong.chiTietNgoaiCong(verdictGia('PASS', 1) as never);
     expect(s).toContain(cong.TEN_TAC_NHAN_MAY);
     expect(s).toMatch(/máy chỉ GHI LẠI, không phải máy thực hiện/);
+  });
+
+  it('PR đã có hàng MERGE → lượt sau KHÔNG gọi GitHub nữa (R6.23, vòng bốn)', async () => {
+    themRun('rQ1', 350);
+    await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'x' }));
+    let goi = 0;
+    const kq = await cong.doiSoatCong(async () => {
+      goi++;
+      return { trang_thai: 'merged', nguoi_merge: 'x' };
+    });
+    expect(kq.daGhi).toBe(0);
+    expect(goi, 'phép kiểm rẻ phải chặn TRƯỚC phép gọi đắt — danh sách phải cạn dần về 0').toBe(0);
+  });
+
+  it('phần tử MÉO trong findings không được đếm thành high (R6.22, vòng bốn)', () => {
+    const v = { result: 'PASS', findings: [{ severity: 'high' }, null, undefined, 'chuỗi', { severity: 'medium' }, { khong_co_severity: 1 }] };
+    const s = cong.chiTietNgoaiCong(v as never);
+    expect(s).toContain('1 high');
+    expect(s).toContain('1 medium');
   });
 
   it('nhiều run cùng một PR → MỘT hàng cho MỘT lần merge, và MỘT lời gọi GitHub', async () => {

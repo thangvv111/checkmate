@@ -43,7 +43,13 @@ export function demMuc(findings: Finding[]): { high: number; medium: number; low
 export function chiTietNgoaiCong(v: { result?: string; findings?: Finding[] } | null): string {
   // Hàm đứng CUỐI mọi đường ghi hàng ngoài-cổng: nó mà ném thì hàng không được ghi và lượt đối soát
   // gãy — lệch ngược hướng an toàn. Lọc phần tử méo thay vì tin hình dạng (vòng một của cổng bắt).
-  const ds = Array.isArray(v?.findings) ? v.findings.filter((f) => f && typeof f === 'object') : [];
+  // Lọc theo THỨ ĐẾM ĐƯỢC, không chỉ theo «là object»: phần tử khuyết `severity` đi vào `demMuc` sẽ
+  // rơi về mức cao nhất (fail-closed của chuanMuc) và làm dòng mô tả báo «2 high» khi chỉ có 1 —
+  // con số sai trong một cuốn sổ không sửa được (vòng bốn của cổng bắt).
+  const MUC = new Set(['high', 'medium', 'low']);
+  const ds = Array.isArray(v?.findings)
+    ? v.findings.filter((f) => f && typeof f === 'object' && MUC.has(String((f as { severity?: unknown }).severity)))
+    : [];
   const d = demMuc(ds);
   const chuaTick = d.medium + d.low;
   return [
@@ -126,7 +132,10 @@ export async function doiSoatCong(
       // còn hành động nào để phát hiện, hỏi GitHub thêm một lần là tốn quota vào câu trả lời không
       // dùng tới. Danh sách phải cạn dần về 0 sau lần đầu, đúng như change này tự khai.
       const daCo = hanhDongCongCuaPr(repo, pr).map((x) => x.hanh_dong);
-      if (daCo.includes('merge') && daCo.includes('reject')) {
+      // Đã có `merge` là hết chuyện: pull request đã merge không còn hành động cổng nào khác để phát
+      // hiện. Đòi ĐỦ CẢ merge lẫn reject thì PR đã xử xong vẫn bị hỏi GitHub mãi, trái chính điều
+      // R6.23 khai «danh sách cạn dần về 0» (vòng bốn của cổng bắt).
+      if (daCo.includes('merge')) {
         boQua += dsRun.length;
         continue;
       }
@@ -181,10 +190,13 @@ export async function doiSoatCong(
           const luc = new Date().toISOString();
           const aiLam = tt?.nguoi_merge ? `người thực hiện trên GitHub: ${tt.nguoi_merge}` : 'không rõ ai thực hiện trên GitHub';
           const chiTiet = `${chiTietNgoaiCong(r?.verdict ?? null)} · ${aiLam}`;
-          // R11.1/R11.15 — cột «người» là danh tính TRONG HỆ NÀY, và hàng này do MÁY ghi nên nó
-          // mang danh tính tác nhân máy (R6.18). Tên tài khoản GitHub là dữ liệu của dịch vụ ngoài:
-          // nó thuộc về phần MÔ TẢ, không được chiếm chỗ của người thao tác (vòng ba của cổng bắt).
-          const nguoi = TEN_TAC_NHAN_MAY;
+          // Cột «người» trả lời câu «AI ĐÃ THỰC HIỆN», không phải «ai đã ghi lại». Hành động này do
+          // người trên GitHub thực hiện; máy chỉ CHÉP LẠI. Ghi tên tác nhân máy vào đây là nói sai:
+          // ci-bot không merge gì cả, và R6.19 nói máy KHÔNG BAO GIỜ merge — sổ mà ghi ci-bot merge
+          // thì tự mâu thuẫn với chính điều khoản ấy.
+          // Việc «máy ghi nhận» thể hiện bằng cột `ngoai_cong` + phần mô tả, không chiếm cột này.
+          // (Vòng ba của cổng đẩy sang danh tính máy, vòng bốn bác lại — chốt ở đây, ghi vào R6.24.)
+          const nguoi = tt?.nguoi_merge ? `${tt.nguoi_merge} (GitHub)` : '(ngoài cổng — không rõ)';
           ghiSoCong({ run_id: runId, luc, hanh_dong: hd, nguoi, tac_gia_pr: tt?.tac_gia, ngoai_cong: true, chi_tiet: chiTiet });
           capNhatCongRun(runId, hd, luc, nguoi, chiTiet, true);
           daGhi++;

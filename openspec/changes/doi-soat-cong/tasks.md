@@ -72,3 +72,21 @@ Vòng ba — 6 finding (3 HIGH):
 - [x] 6.18 MEDIUM: gọi GitHub TRƯỚC rồi mới kiểm hành động đã ghi — phép kiểm RẺ phải chặn trước phép
       gọi ĐẮT (R6.23), và danh sách phải cạn dần về 0 đúng như change tự khai.
 
+Vòng bốn — 3 finding (1 HIGH), trong đó một cái lộ MÂU THUẪN GIỮA HAI LUẬT của chính change này:
+- [x] 6.19 **HIGH — R6.24 vs R6.18 đá nhau**: vòng ba cổng bảo «hàng máy ghi phải mang danh tính tác
+      nhân máy» (R6.18) nên em đổi cột «người» thành `ci-bot`; vòng bốn cổng bác lại vì R6.24 nói
+      «KHÔNG mượn tên tài khoản nào trong hệ». **Chốt dứt điểm bằng R6.24b**: cột «người» trả lời câu
+      *AI ĐÃ THỰC HIỆN*, không phải *ai đã ghi lại*. Máy chỉ CHÉP LẠI nên cột đó mang login GitHub
+      hoặc «không rõ»; ghi `ci-bot merge` vào sổ là tự mâu thuẫn với chính R6.19 («máy KHÔNG BAO GIỜ
+      merge»). Việc máy ghi nhận thể hiện bằng cờ `ngoai_cong` + phần mô tả.
+- [x] 6.20 MEDIUM — phép kiểm rẻ đòi ĐỦ CẢ `merge` lẫn `reject` nên PR đã merge vẫn bị hỏi GitHub
+      mãi. Đã có `merge` là HẾT: PR đã merge không còn hành động cổng nào khác để phát hiện.
+- [x] 6.21 MEDIUM — `chiTietNgoaiCong` lọc theo «là object» nên phần tử khuyết `severity` rơi về mức
+      cao nhất (fail-closed của `chuanMuc`) và báo «2 high» khi chỉ có 1. Nay lọc theo THỨ ĐẾM ĐƯỢC.
+
+## 7. Nợ ghi nhận, chưa xử trong change này
+
+- [ ] 7.1 **M12 — test phụ thuộc mạng thật**: `token-repo.test.ts` gọi GitHub API không token, nên
+      đỏ khi bị rate-limit (xác nhận bằng `curl` → HTTP 403). Không liên quan change này, nhưng nó
+      làm bộ test không tự-đủ: một lượt CI vào lúc hết quota sẽ đỏ oan.
+

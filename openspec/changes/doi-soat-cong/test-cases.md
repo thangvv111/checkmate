@@ -61,3 +61,9 @@ Vòng ba:
 - [x] T6.2 Hàng do máy ghi mang danh tính tác nhân máy ở cột «người»; tên GitHub nằm ở phần mô tả
 - [x] T6.3 Không biết ai thực hiện trên GitHub → nói ra trong mô tả, không để trống
 
+Vòng bốn:
+- [x] T7.1 Cột «người» mang login GitHub (không phải `ci-bot`); danh tính máy nằm ở phần mô tả
+- [x] T7.2 Không biết ai thực hiện → «không rõ», không mượn tên nào
+- [x] T7.3 PR đã có hàng `merge` → lượt sau KHÔNG gọi GitHub (đếm được 0 lời gọi)
+- [x] T7.4 `findings` lẫn phần tử méo → mô tả đếm đúng «1 high · 1 medium», không quy méo thành high
+

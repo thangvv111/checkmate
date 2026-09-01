@@ -95,6 +95,9 @@ nó không còn trả lời được câu hỏi nó sinh ra để trả lời.
     PR cùng số của một repo bất kỳ.
   - «Đã qua cổng» xét theo **HÀNH ĐỘNG**, không phải theo «đã có hàng sổ nào chưa»: một PR từng bị
     trả về dev qua cổng rồi sau đó bị merge thẳng bằng đường khác thì lần MERGE đó vẫn chưa ai ghi.
+    Ngược lại, đã có hàng `merge` là HẾT: pull request đã merge không còn hành động cổng nào khác để
+    phát hiện, nên phép kiểm rẻ phải chặn ngay tại đó — đòi đủ cả hai hành động thì danh sách không
+    bao giờ cạn và mỗi lượt lại tốn một lời gọi cho câu trả lời đã biết.
   - **MỘT hành động = MỘT hàng.** Một PR vá nhiều vòng có nhiều lượt chấm nhưng chỉ có đúng một lần
     merge/đóng; ghi mỗi lượt một hàng là khai «có nhiều hành động», sai sự thật. Hàng gắn vào lượt
     chấm MỚI NHẤT — lượt có verdict còn hiệu lực lúc pull request bị đóng; các lượt cũ hơn đã bị push
@@ -103,6 +106,15 @@ nó không còn trả lời được câu hỏi nó sinh ra để trả lời.
   qua và nói ra, TUYỆT ĐỐI không ghi hàng suy đoán. Thà sổ thiếu một hàng còn hơn sổ mang một hàng sai
   không gỡ được. Hệ quả: người của hàng ngoài-cổng lấy từ chính GitHub, hoặc để «không rõ» — KHÔNG
   mượn tên tài khoản nào trong hệ này, vì hàng đó ghi lại việc người khác làm ở nơi khác ([R11.1](R11-danh-tinh-va-phien.md)).
+- **R6.24b** — **Cột «người» trả lời câu AI ĐÃ THỰC HIỆN, không phải ai đã ghi lại.** Hai vòng chấm
+  liên tiếp trên chính change đối soát đã đẩy điều này qua lại — chốt một lần:
+  - Hành động do MÁY **thực hiện** (tự trả về dev theo R6.17) ⇒ cột «người» mang danh tính tác nhân
+    máy (R6.18).
+  - Hành động do người khác thực hiện ở nơi khác, máy chỉ **chép lại** (đối soát) ⇒ cột «người» mang
+    danh tính người thực hiện lấy từ dịch vụ đó, hoặc «không rõ». Ghi tên tác nhân máy vào đây là nói
+    SAI: máy không merge gì cả, và [R6.19](#) nói máy KHÔNG BAO GIỜ merge — một cuốn sổ ghi
+    «ci-bot merge» thì tự mâu thuẫn với chính điều khoản ấy.
+  - Việc «máy ghi nhận» thể hiện bằng cờ `ngoai_cong` và phần mô tả, KHÔNG chiếm cột «người».
 - **R6.25** — Đối soát PHẢI chạy tách khỏi đường chấm: lỗi của nó không được làm dừng chế độ trực hay
   hỏng một lượt chấm đang chạy (cùng nguyên tắc khối `try` riêng của R6.15). Lưới bọc phải theo TỪNG
   pull request và TỪNG lượt ghi, không chỉ bọc lời gọi ra ngoài: một pull request hỏng làm chết lượt
