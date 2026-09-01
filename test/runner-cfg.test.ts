@@ -54,9 +54,16 @@ describe('docReviewCfg', () => {
   });
 
   it('chỉ khai bo_qua_diff (không khuôn lỗi, không severity) vẫn đọc được, không trả null', () => {
-    const c = docReviewCfg(viet('review:\n  bo_qua_diff:\n    - "^_ref/"\n    - "[chua-dong-ngoac"\n'));
+    const c = docReviewCfg(viet('review:\n  bo_qua_diff:\n    - "^_ref/"\n    - "^build/"\n'));
     expect(c).not.toBeNull();
     expect(c?.bo_qua_diff).toHaveLength(2);
+  });
+
+  it('mẫu SAI CÚ PHÁP regex bị bỏ ngay tại cửa đọc, mẫu đúng vẫn giữ (P6, vòng bảy)', () => {
+    // Để mẫu hỏng đi tiếp thì `new RegExp` ở chỗ dùng sẽ ném và làm sập lượt chấm — repo đích gõ
+    // nhầm một dấu ngoặc không được phép giết cổng. Ca này trước đây KHẲNG ĐỊNH giữ cả mẫu hỏng.
+    const c = docReviewCfg(viet('review:\n  bo_qua_diff:\n    - "^_ref/"\n    - "[chua-dong-ngoac"\n'));
+    expect(c?.bo_qua_diff).toEqual(['^_ref/']);
   });
 
   it('đọc được khuôn lỗi và thang severity riêng của repo', () => {

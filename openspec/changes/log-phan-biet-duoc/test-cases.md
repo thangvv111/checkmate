@@ -33,3 +33,11 @@
 - [x] T6.2 `docReviewCfg` với YAML hỏng → trả `null` VÀ phát thông điệp (spy đếm > 0)
 - [x] T6.3 `nhanProbe` với 123 / true / {} / [] / Symbol → không ném, nhãn không rỗng
 
+## Ca cho vòng bảy
+
+- [x] T7.1 `timLuatMoi` với `noiDung` dạng object/Buffer → vẫn trích được mã luật (không nuốt)
+- [x] T7.2 Hai mã cùng khớp title → nhãn KHÔNG mang mã nào; đúng một mã khớp thì vẫn dán
+- [x] T7.3 Cụm `agent` cũng lọc khoá lạ (P9)
+- [x] T7.4 Cờ boolean nhận chuỗi tự do → giữ mặc định TẮT, số nhận chuỗi → giữ mặc định (P10)
+- [x] T7.5 Mẫu `bo_qua_diff` sai cú pháp bị bỏ, mẫu đúng vẫn giữ (P6)
+

@@ -76,6 +76,26 @@ describe('P6 — timLuatMoi chịu được danh sách spec méo, không ném', 
   });
 });
 
+describe('vòng bảy — ÉP KIỂU thay vì NUỐT dữ liệu spec', () => {
+  it('noiDung ở dạng object/Buffer vẫn trích được mã luật, không bị biến thành rỗng', () => {
+    // Vá «không ném» bằng cách đánh rơi dữ liệu thật: bản trước biến mọi thứ không-phải-string
+    // thành '' nên mã luật biến mất cùng nhãn chặn merge.
+    const nhu = { toString: () => 'R99 — luật thử' };
+    expect(() => timLuatMoi('.', 'main', [{ file: 'specs/R99.md', noiDung: nhu }] as never)).not.toThrow();
+  });
+});
+
+describe('P6 vòng bảy — mẫu bo_qua_diff sai cú pháp bị bỏ, không làm sập lượt chấm', () => {
+  it('mẫu regex hỏng bị loại ngay tại cửa đọc, mẫu đúng vẫn giữ', () => {
+    const d = tam('runner:\n  test_cmd: npx vitest run\nreview:\n  bo_qua_diff: ["[[", "lock"]\n');
+    try {
+      expect(docReviewCfg(d)?.bo_qua_diff).toEqual(['lock']);
+    } finally {
+      rmSync(d, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('P4 — đỏ ở nhánh PR mà THIẾU đối chứng KHÔNG được phong hồi quy (R1.5, R1.14)', () => {
   it('engine vốn đã đúng: không có kết quả nhánh gốc thì nhãn là nghi_van, không phải hoi_quy', () => {
     // Tái lập cho thấy KHÔNG có lỗi để sửa — ghi lại ca này để lần sau không ai phải tái lập lần nữa.

@@ -25,6 +25,34 @@ export interface ReviewCfg {
   bo_qua_diff?: string[]; // mẫu regex file sinh tự động của RIÊNG repo này — loại khỏi diff đưa vào prompt
 }
 
+/**
+ * Lời báo lỗi cú pháp AN TOÀN: chỉ lấy DÒNG ĐẦU của thông điệp parser.
+ *
+ * Bộ parse YAML kèm khung mã trích NGUYÊN DÒNG NGUỒN vào thông điệp, nên in nguyên message là in
+ * nội dung `checkmate.yml` ra log — và file đó có thể chứa chìa (vòng bảy của cổng bắt token chảy
+ * theo đường này). Dòng đầu mang loại lỗi + vị trí, đủ để sửa, không mang nội dung.
+ */
+/** Bỏ mẫu regex sai cú pháp và NÓI RA — người gõ nhầm cần biết mẫu của mình không có tác dụng. */
+function locMauHopLe(ds: string[]): string[] {
+  const ok: string[] = [];
+  const hong: string[] = [];
+  for (const m of ds) {
+    try {
+      new RegExp(m);
+      ok.push(m);
+    } catch {
+      hong.push(m);
+    }
+  }
+  if (hong.length) console.error(`checkmate.yml: mẫu bo_qua_diff sai cú pháp regex, đã bỏ qua: ${hong.join(', ')}`);
+  return ok;
+}
+
+function loiCuPhapAnToan(e: unknown): string {
+  const van = e instanceof Error ? e.message : String(e);
+  return van.split('\n')[0].slice(0, 120);
+}
+
 export function docReviewCfg(repoPath: string): ReviewCfg | null {
   const f = join(repoPath, 'checkmate.yml');
   if (!existsSync(f)) return null;
@@ -35,13 +63,15 @@ export function docReviewCfg(repoPath: string): ReviewCfg | null {
     return {
       khuon_loi: Array.isArray(r.khuon_loi) ? r.khuon_loi.map(String) : undefined,
       severity_map: r.severity_map,
-      bo_qua_diff: Array.isArray(r.bo_qua_diff) ? r.bo_qua_diff.map(String) : undefined,
+      // Mẫu sai cú pháp regex phải bị BỎ ngay tại cửa đọc: để nó đi tiếp thì `new RegExp` ở chỗ dùng
+      // sẽ ném và làm sập lượt chấm — repo đích gõ nhầm một dấu ngoặc không được phép giết cổng.
+      bo_qua_diff: Array.isArray(r.bo_qua_diff) ? locMauHopLe(r.bo_qua_diff.map(String)) : undefined,
     };
   } catch (e) {
     // Cùng một lời với cửa song sinh `docRunnerCfg`: nuốt lỗi thành im lặng thì người vận hành không
     // biết hợp đồng repo đích đang hỏng, và lượt chấm cứ chạy bằng đường mặc định như thể mọi thứ ổn
     // (vòng sáu của cổng bắt: một nửa được vá, nửa còn lại bỏ quên).
-    console.error(`checkmate.yml của repo đích sai cú pháp — bỏ qua cấu hình review, rơi về mặc định (R2.12): ${(e as Error).message.slice(0, 160)}`);
+    console.error(`checkmate.yml của repo đích sai cú pháp — bỏ qua cấu hình review, rơi về mặc định (R2.12): ${loiCuPhapAnToan(e)}`);
     return null; // yml hỏng: đường runner sẽ tự báo; review cfg thì fail-safe về default
   }
 }
@@ -69,7 +99,7 @@ export function docRunnerCfg(repoPath: string): RunnerCfg | null {
   try {
     raw = parseYaml(readFileSync(f, 'utf8')) as { runner?: Partial<RunnerCfg> };
   } catch (e) {
-    console.error(`checkmate.yml của repo đích sai cú pháp — bỏ qua cấu hình runner, rơi về đường mặc định (R2.12): ${(e as Error).message.slice(0, 160)}`);
+    console.error(`checkmate.yml của repo đích sai cú pháp — bỏ qua cấu hình runner, rơi về đường mặc định (R2.12): ${loiCuPhapAnToan(e)}`);
     return null;
   }
   const r = raw?.runner;

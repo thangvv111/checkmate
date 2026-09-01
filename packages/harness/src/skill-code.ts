@@ -102,9 +102,11 @@ export function nhanProbe(titleTho: unknown, idBiet: readonly string[] = []): st
   // Lấy mã KHỚP DÀI NHẤT, không lấy khớp đầu tiên: `idBiet` xếp theo thứ tự kế hoạch nên «P1» luôn
   // đứng trước «P10», và một describe tên «P1 hay P2» khiến mọi probe từ P10 trở lên bị dán nhãn P1
   // (vòng năm của cổng bắt). Mã dài hơn là mã cụ thể hơn.
-  const id = [...idBiet]
-    .filter((x) => khopIdProbe(title ?? '', x))
-    .sort((a, b) => b.length - a.length)[0];
+  // MƠ HỒ THÌ KHÔNG DÁN. Ba lối chọn-một-trong-nhiều đều đã sai: khớp đầu tiên (lấy P1 cho P10),
+  // khớp dài nhất (lấy P10 của describe cho probe P2). Gốc là title không nói được đoạn nào là
+  // describe — nên khi HAI mã trở lên cùng khớp, mọi phép chọn đều là đoán, và mã sai tệ hơn không mã.
+  const khop = [...new Set(idBiet.filter((x) => khopIdProbe(title ?? '', x)))];
+  const id = khop.length === 1 ? khop[0] : undefined;
   if (id) return `${id}·${van}`;
   // Không biết mã (probe thư viện đời cũ, hoặc test lạ): lấy chữ cho người đọc nhận mặt, và VÂN TAY
   // bảo đảm hai title khác nhau không bao giờ ra cùng nhãn — kể cả khi phần chữ bị cắt trùng khít.

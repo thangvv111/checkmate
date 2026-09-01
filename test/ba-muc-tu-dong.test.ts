@@ -91,6 +91,22 @@ describe('P10 vòng sáu — bộ lọc khoá lạ KHÔNG được mở đườn
   });
 });
 
+describe('vòng bảy — công tắc ma ở CỬA SONG SINH và giá trị SAI KIỂU', () => {
+  it('cụm `agent` cũng lọc khoá lạ, không riêng `truc` (P9)', () => {
+    writeFileSync(join(goc, 'config.json'), '{"agent":{"ncc":"anthropic","tu_dong_merge":true,"merge_luon":1}}', 'utf8');
+    const c = cfg.docConfig();
+    expect(Object.keys(c.agent).filter((k) => /merge/i.test(k))).toEqual([]);
+  });
+
+  it('cờ boolean bị lật bằng CHUỖI tự do phải giữ mặc định và nói ra (P10)', () => {
+    // «khong» là chuỗi TRUTHY: `if (cfg.truc.tu_dong_tra_ve)` sẽ đúng và máy đóng pull request.
+    writeFileSync(join(goc, 'config.json'), '{"truc":{"tu_dong_tra_ve":"khong","chu_ky_giay":"600"}}', 'utf8');
+    const c = cfg.docConfig();
+    expect(c.truc.tu_dong_tra_ve, 'sai kiểu → giữ mặc định TẮT').toBe(false);
+    expect(c.truc.chu_ky_giay).toBe(300);
+  });
+});
+
 afterAll(() => rmSync(goc, { recursive: true, force: true }));
 
 describe('cửa ĐỌC cấu hình cũng phải gác giới hạn model (R5.15) — Opus bắt ở vòng ba', () => {

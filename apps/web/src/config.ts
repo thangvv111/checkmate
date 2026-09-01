@@ -160,6 +160,7 @@ const KHOA_CAM = new Set(['__proto__', 'constructor', 'prototype']);
 function locKhoaBiet<T extends object>(macDinh: T, luu: Partial<T> | undefined): T {
   const ra = { ...macDinh };
   const la: string[] = [];
+  const saiKieu: string[] = [];
   for (const [k, v] of Object.entries(luu ?? {})) {
     // `k in macDinh` duyệt CẢ chuỗi prototype, nên `'__proto__' in macDinh` là true — khoá đó lọt bộ
     // lọc, và phép gán `ra[k] = v` kích hoạt setter của Object.prototype, thay prototype của chính
@@ -171,21 +172,36 @@ function locKhoaBiet<T extends object>(macDinh: T, luu: Partial<T> | undefined):
       la.push(k);
       continue;
     }
-    if (Object.prototype.hasOwnProperty.call(macDinh, k)) (ra as Record<string, unknown>)[k] = v;
-    else la.push(k);
+    if (!Object.prototype.hasOwnProperty.call(macDinh, k)) {
+      la.push(k);
+      continue;
+    }
+    // KIỂM KIỂU: một cờ boolean mặc định TẮT bị lật BẬT bằng chuỗi tự do («khong» là truthy!) là
+    // công tắc đóng pull request tự bật mà không ai nói gì (vòng bảy của cổng bắt). Sai kiểu thì
+    // GIỮ mặc định và nói ra — không đoán ý người gõ.
+    const mong = typeof (macDinh as Record<string, unknown>)[k];
+    if (mong !== 'object' && typeof v !== mong) {
+      saiKieu.push(`${k} (mong ${mong}, nhận ${typeof v})`);
+      continue;
+    }
+    (ra as Record<string, unknown>)[k] = v;
   }
   if (la.length) console.error(`config.json có khoá KHÔNG được hỗ trợ, đã bỏ qua: ${la.join(', ')} — không khoá nào trong số này có tác dụng`);
+  if (saiKieu.length) console.error(`config.json có khoá SAI KIỂU, giữ giá trị mặc định: ${saiKieu.join(', ')}`);
   return ra;
 }
 
 function nangCapAgent(a?: Partial<AgentConfig>): AgentConfig {
   if (!a) return structuredClone(MAC_DINH.agent);
   if (a.ncc) {
+    // Cửa song sinh của `truc`: cụm `agent` cũng phải lọc khoá lạ, kẻo `agent.tu_dong_merge` thành
+    // một công tắc ma y hệt (vòng bảy của cổng bắt — vá một cụm, bỏ quên cụm kia, khuôn KL9).
     // Có `ncc` là config KIỂU MỚI — kể cả khi cụm ncc_cau_hinh null/thiếu (JSON.parse('null') hợp lệ,
     // file sửa tay có thể mang nó). Bản trước đòi cả hai trường nên cụm null rơi xuống nhánh đời-cũ
     // phía dưới và ÂM THẦM đổi ncc về anthropic — giấu mất lựa chọn của người dùng, cùng họ với lỗi
     // «thay giá trị lạ bằng mặc định» mà vòng tám của cổng bắt.
-    return { ...MAC_DINH.agent, ...a, ncc_cau_hinh: { ...MAC_DINH.agent.ncc_cau_hinh, ...(a.ncc_cau_hinh ?? {}) } } as AgentConfig;
+    const sach = locKhoaBiet(MAC_DINH.agent, a);
+    return { ...sach, ncc_cau_hinh: { ...MAC_DINH.agent.ncc_cau_hinh, ...(a.ncc_cau_hinh ?? {}) } } as AgentConfig;
   }
   return {
     ncc: 'anthropic',

@@ -54,3 +54,30 @@
       ép kiểu thuộc tính số, nên test tên «123» đến đây là số. Lưới `.filter(Boolean)` nằm ở CHỖ GỌI
       nên không bảo vệ được hàm. Nay ép kiểu trong hàm (KL16 — hàm cuối đường không được ném).
 
+## 5. Vòng bảy — ba HIGH nữa, cả ba do bản vá mục 3–4 đẻ ra, + ba quan sát mới
+
+- [x] 5.1 **HIGH — vá «không ném» bằng cách NUỐT dữ liệu**: `timLuatMoi` đổi `x.noiDung` thành
+      `typeof === 'string' ? … : ''`, nên nội dung spec ở dạng Buffer/String-object biến thành rỗng →
+      mã luật biến mất → mất luôn nhãn chặn merge. Nhánh gốc dùng `join()` nên vẫn ép được. Nay ÉP
+      KIỂU (`String(...)`) thay vì đánh rơi.
+- [x] 5.2 **HIGH — heuristic chọn mã lại sai lần ba**: «khớp dài nhất» lấy `P10` của describe cho
+      probe thật là `P2`. Ba lối chọn đều sai vì title không nói được đoạn nào là describe. Nay MƠ HỒ
+      THÌ KHÔNG DÁN: từ hai mã khớp trở lên → không mang mã nào (mã sai tệ hơn không mã).
+- [x] 5.3 **HIGH — log fail-safe vọng nội dung file**: thông điệp bộ parse YAML kèm khung mã trích
+      NGUYÊN DÒNG NGUỒN, nên `checkmate.yml` chứa chìa thì chìa chảy vào log. Nay chỉ lấy DÒNG ĐẦU
+      (loại lỗi + vị trí), không mang nội dung.
+- [x] 5.4 **P9 — công tắc ma ở cửa song sinh**: chỉ lọc khoá lạ cho `truc`, bỏ quên `agent` (khuôn
+      KL9 lần nữa). Nay áp cho cả hai cụm.
+- [x] 5.5 **P10 — cờ boolean bị lật bằng giá trị SAI KIỂU**: `tu_dong_tra_ve: "khong"` là chuỗi
+      TRUTHY → công tắc đóng pull request tự bật. Nay kiểm kiểu: sai kiểu thì giữ mặc định + nói ra.
+- [x] 5.6 **P6 — mẫu `bo_qua_diff` sai cú pháp regex** đi tiếp tới `new RegExp` sẽ ném và làm sập
+      lượt chấm. Nay bỏ ngay tại cửa đọc + nói ra. (Ca test cũ KHẲNG ĐỊNH giữ cả mẫu hỏng — đã sửa.)
+- [x] 5.7 **P5 — KHÔNG có lỗi**: `timeout_s` kẹp đúng biên [30,1800]; tái lập cho thấy engine đúng.
+
+## 6. Nợ ghi nhận, chưa xử trong change này
+
+- [ ] 6.1 **Test flaky**: `ba-muc-tu-dong.test.ts > hàng sổ mang tổ hợp BỊ CẤM…` đỏ 2 lần trong ~12
+      lượt chạy TOÀN BỘ, nhưng chạy RIÊNG file thì 5/5 xanh (cả trên bản chưa có thay đổi của change
+      này) → nhiễu CHÉO GIỮA CÁC FILE test, không phải lỗi của change. Repo coi flaky là lỗi nên ghi
+      thành nợ M11 thay vì im lặng bỏ qua.
+

@@ -109,7 +109,10 @@ export function timLuatMoi(repo: string, base: string, specsPr: Array<{ file: st
   // đường quyết định nhãn `vi_pham_luat_moi`, và ném ở đây là cả lượt chấm chết thay vì rơi về
   // «không có luật mới» — hướng an toàn (quan sát ngoài phạm vi P6 của cổng).
   const ds = Array.isArray(specsPr) ? specsPr : [];
-  const maPr = trichMaLuat(ds.map((x) => (x && typeof x.noiDung === 'string' ? x.noiDung : '')).join('\n'));
+  // ÉP KIỂU, không NUỐT: bản vá trước biến mọi thứ không-phải-string thành rỗng, nên nội dung spec ở
+  // dạng Buffer/String-object bị mất sạch và mã luật biến mất cùng nhãn chặn merge — vá «không ném»
+  // bằng cách đánh rơi dữ liệu thật (vòng bảy của cổng bắt). Nhánh gốc dùng join() nên vẫn ép được.
+  const maPr = trichMaLuat(ds.map((x) => (x?.noiDung == null ? '' : String(x.noiDung))).join('\n'));
   if (maPr.size === 0) return [];
   let vanBanGoc = '';
   try {

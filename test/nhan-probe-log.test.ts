@@ -105,6 +105,18 @@ describe('A · nhãn probe trong log giữ đúng phần phân biệt', () => {
     expect(nhanProbe(123 as never)).toContain('123');
   });
 
+  it('MƠ HỒ thì KHÔNG dán mã: describe chứa P10/P11 mà probe là P2 → không mang mã nào (vòng bảy)', () => {
+    // Ba lối chọn-một-trong-nhiều đều đã sai: khớp đầu tiên (P1 cho P10), khớp dài nhất (P10 của
+    // describe cho probe P2). Gốc là title không nói được đoạn nào là describe — nên khi hai mã trở
+    // lên cùng khớp, mọi phép chọn đều là đoán, và mã sai tệ hơn không mã.
+    const n = nhanProbe('P10 hay P11 > P2: thử', ['P2', 'P10', 'P11']);
+    expect(n.startsWith('P10·')).toBe(false);
+    expect(n.startsWith('P11·')).toBe(false);
+    expect(n).toContain('P2'); // vẫn đọc được vì phần chữ giữ nguyên
+    // đúng MỘT mã khớp thì vẫn dán như thường
+    expect(nhanProbe('nhóm > P2: thử', ['P2', 'P10'])).toBe(`P2·${nhanProbe('nhóm > P2: thử', ['P2']).split('·')[1]}`);
+  });
+
   it('KHÔNG biết mã thì vẫn cho nhãn đọc được và không trùng', () => {
     const a = nhanProbe('cửa đọc cấu hình máy chủ > phải chặn');
     const b = nhanProbe('cửa đọc cấu hình repo đích > phải chặn');
