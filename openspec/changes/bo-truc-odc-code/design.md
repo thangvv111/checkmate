@@ -44,7 +44,7 @@ dùng làm khuôn ép hệ mới.
 
 | # | Trigger (mã máy) | Gốc ODC | Vì sao chọn |
 |---|---|---|---|
-| 1 | `khop_spec` | Design Conformance | probe neo thẳng một luật `specs/` — đường sống của cổng tuân thủ, `luat_da_phu` đã đo |
+| 1 | `khop_spec` | Design Conformance | probe neo thẳng một luật trong NGUỒN LUẬT hiện hành của repo đích (nay là `specs/` của nó; PO 01/09 đã xếp lịch cấu trúc lại cách ăn nguồn này — trigger ăn theo nguồn, nguồn đổi không đổi trigger) |
 | 2 | `luong_logic` | Logic/Flow | biên ngưỡng, điều kiện kép, số học từ diff — KL1·KL2·KL3 |
 | 3 | `tuong_thich_nguoc` | Backward Compatibility | kiến trúc 2-nhánh CHÍNH LÀ differential testing — KL4, cột `hoi_quy` |
 | 4 | `tac_dung_phu` | Side Effects | state ngoài phạm vi diff — KL9 (cửa song sinh, bị bắt 9 lần) sống ở đây |

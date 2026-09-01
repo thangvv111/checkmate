@@ -10,6 +10,9 @@
       không tham chiếu hằng nào của specs/R* cũ.
 - [ ] 1.4 Toàn bộ hành vi khai trong openspec capability `truc-phan-loai-code` (spec delta của
       change này) — bản máy-và-người cùng đọc; specs/R* KHÔNG thêm điều mới.
+- [ ] 1.5 Sửa CLAUDE.md mục «Hai tầng spec»: phương án A 31/08 đã bị PO thay 01/09 — `specs/R*` là
+      THAM KHẢO; luật máy đọc sống ở code + `checkmate.yml` + openspec capability. Ghi rõ ngày và
+      người chốt để không thành án lệ ngầm.
 
 ## 2. Kho ví dụ theo trigger
 
@@ -53,6 +56,9 @@
       Conformance), rubric 7 trục giữ vai type-của-doc.
 - [ ] 6.3 Change dọn `specs/`: tách phần kể-chuyện khỏi ~7 điều nặng ở R6/R11; án lệ mới ghi kèm mã
       trigger/type thay vì văn tự do.
+- [ ] 6.3b Change **cấu trúc lại cách ăn specs repo ĐÍCH** (PO mở phạm vi 01/09): nạp-toàn-bộ →
+      xét chọn lọc; thay `trichMaLuat` regex thô (đang nhặt cả KL9/L3/P1/P10 vào mẫu số); định hình
+      dạng spec CheckMate đòi ở repo khách.
 - [ ] 6.4 Change chính sách **rerun-N cho probe nghi-flaky**: probe fail không ổn định giữa các lần
       chạy cùng nhánh nhận nhãn riêng (`khong_on_dinh`), KHÔNG rơi vào `hoi_quy` — điều kiện tiên
       quyết để mở lại trigger race xác suất (`dong_thoi`) mà không phá bảng chân trị R1. PO chất vấn

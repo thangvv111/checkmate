@@ -61,13 +61,20 @@ nguyên) · trần probe MAX_PROBE (chuyện của Đ7) · rubric 7 trục doc.
   hoạch 6.3). Change này vì thế **không đẻ R14, không sửa R12/R6**. Luật của bộ trục sống ở ba chỗ
   máy đọc được: danh mục + validate trong engine (test khoá) · tập kích hoạt trong `checkmate.yml` ·
   hành vi trong openspec capability `truc-phan-loai-code` (spec delta của change này).
-- Xung đột cần PO chốt tường minh: điều trên đảo mục «Hai tầng spec» trong CLAUDE.md (phương án A,
-  PO chốt 31/08) — trình kèm câu hỏi riêng, không tự quyết ở đây.
+- **PO đã chốt tường minh (01/09, ba câu):** (a) `specs/R*.md` nội bộ = **tham khảo thuần**, luật
+  máy đọc chuyển sang code + config + openspec capability — thay phương án A 31/08; (b) **cả cơ chế
+  ăn specs của REPO ĐÍCH** (nạp toàn bộ, `trichMaLuat` regex) cũng thuộc diện cấu trúc lại — change
+  riêng; (c) thứ tự: **bộ trục code trước**, dọn specs sau. CLAUDE.md mục «Hai tầng spec» được sửa
+  trong change này cho khớp chốt mới.
 
 ## Kế hoạch nối tiếp (KHÔNG thuộc change này — PO đã duyệt hướng, mở change riêng sau)
 
 1. **Tối ưu cổng doc**: bộ trigger riêng cho doc (KD1–KD3 ánh xạ Internal Document / Design
    Conformance), rubric 7 trục giữ nguyên vai «defect type của doc». Làm SAU khi trục code chạy.
-2. **Dọn `specs/`**: tách phần kể-chuyện-án-lệ khỏi điều luật (~7 điều nặng đã đếm ở R6/R11); mỗi án
-   lệ về sau ghi kèm mã trigger/type thay vì văn tự do — bộ trục này chính là chỗ TRỎ VỀ để án lệ
-   thôi phình. Làm sau, một change riêng, vì đụng văn bản luật máy đọc.
+2. **Tái cấu trúc `specs/` nội bộ thành tham khảo**: tách kể-chuyện khỏi luật (~7 điều nặng ở
+   R6/R11), luật máy đọc dời về code + config + openspec capability; án lệ mới ghi kèm mã
+   trigger/type. Change riêng.
+3. **Cấu trúc lại cách ăn specs của REPO ĐÍCH** (PO chốt 01/09 — phạm vi mở hơn dự kiến): xét lại
+   nạp-toàn-bộ, `trichMaLuat` regex (hiện lẫn rác KL9/L3/P1/P10 vào mẫu số độ phủ), và hình dạng
+   spec mà CheckMate đòi ở repo khách. Change riêng; bộ trục không bị khoá vào cơ chế hiện tại —
+   trigger `khop_spec` ăn theo NGUỒN LUẬT hiện hành, nguồn đổi thì nó ăn nguồn mới.
