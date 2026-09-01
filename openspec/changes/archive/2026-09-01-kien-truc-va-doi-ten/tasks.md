@@ -71,8 +71,8 @@ Bốn commit tách bạch (xem `design.md`): di chuyển thuần → đổi tên
 
 ## 6. Sau-merge — nợ có tên, KHÔNG thuộc change này
 
-- [ ] 6.1 Change **đổi tên lớp B/C**: lớp đọc-cả-hai-tên + di trú SQLite + thông báo repo khách.
-- [ ] 6.2 Change **tách `RunMeta`/`MucSoCai`** khỏi file ứng dụng → siết ô `type` trong ma trận
+- [x] *(chuyển giao khi archive: mục SAU-MERGE, đã vào hàng đợi — không thuộc change này)* 6.1 Change **đổi tên lớp B/C**: lớp đọc-cả-hai-tên + di trú SQLite + thông báo repo khách.
+- [x] *(chuyển giao khi archive: mục SAU-MERGE, đã vào hàng đợi — không thuộc change này)* 6.2 Change **tách `RunMeta`/`MucSoCai`** khỏi file ứng dụng → siết ô `type` trong ma trận
       thành cấm.
-- [ ] 6.3 **`Storage` port** — hoãn có chủ đích. Mở lại khi có tín hiệu thật: tenant thứ hai, cần
+- [x] *(chuyển giao khi archive: mục SAU-MERGE, đã vào hàng đợi — không thuộc change này)* 6.3 **`Storage` port** — hoãn có chủ đích. Mở lại khi có tín hiệu thật: tenant thứ hai, cần
       >1 app server, hoặc yêu cầu chống-lách sổ ở mức DB.
