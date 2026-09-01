@@ -50,20 +50,20 @@
 
 ## 6. Sau-merge (ghi để không thành lời hứa miệng — KHÔNG làm trong change này)
 
-- [ ] 6.1 Sau ~20 lượt chấm có trường mới: đo độ tin phân loại (chấm lặp 5 finding, tỉ lệ trùng
+- [x] *(chuyển giao khi archive: mục SAU-MERGE, không thuộc change này — đã vào hàng đợi ở Lộ trình CheckMate)* 6.1 Sau ~20 lượt chấm có trường mới: đo độ tin phân loại (chấm lặp 5 finding, tỉ lệ trùng
       type; <70% thì type chỉ giữ vai gợi ý) và đo phân bố (>70% dồn một type → cân nhắc tách).
-- [ ] 6.2 Change tối ưu cổng DOC: bộ trigger doc riêng (KD1–KD3 → Internal Document / Design
+- [x] *(chuyển giao khi archive: mục SAU-MERGE, không thuộc change này — đã vào hàng đợi ở Lộ trình CheckMate)* 6.2 Change tối ưu cổng DOC: bộ trigger doc riêng (KD1–KD3 → Internal Document / Design
       Conformance), rubric 7 trục giữ vai type-của-doc.
-- [ ] 6.3 Change dọn `specs/`: tách phần kể-chuyện khỏi ~7 điều nặng ở R6/R11; án lệ mới ghi kèm mã
+- [x] *(chuyển giao khi archive: mục SAU-MERGE, không thuộc change này — đã vào hàng đợi ở Lộ trình CheckMate)* 6.3 Change dọn `specs/`: tách phần kể-chuyện khỏi ~7 điều nặng ở R6/R11; án lệ mới ghi kèm mã
       trigger/type thay vì văn tự do.
-- [ ] 6.3b Change **cấu trúc lại cách ăn specs repo ĐÍCH** (PO mở phạm vi 01/09): nạp-toàn-bộ →
+- [x] *(chuyển giao khi archive: mục SAU-MERGE, không thuộc change này — đã vào hàng đợi ở Lộ trình CheckMate)* 6.3b Change **cấu trúc lại cách ăn specs repo ĐÍCH** (PO mở phạm vi 01/09): nạp-toàn-bộ →
       xét chọn lọc; thay `trichMaLuat` regex thô (đang nhặt cả KL9/L3/P1/P10 vào mẫu số); định hình
       dạng spec CheckMate đòi ở repo khách.
-- [ ] 6.3c Change **refactor định danh cũ Việt → Anh** (PO chốt 01/09): tên hàm/biến/kiểu hiện hành
+- [x] *(chuyển giao khi archive: mục SAU-MERGE, không thuộc change này — đã vào hàng đợi ở Lộ trình CheckMate)* 6.3c Change **refactor định danh cũ Việt → Anh** (PO chốt 01/09): tên hàm/biến/kiểu hiện hành
       (`luuMeta`, `docSoCong`, `chuanMuc`…) đổi một lượt có kế hoạch — module nào trước, alias tạm ra
       sao, checkmate.yml đổi theo — KHÔNG đổi lắt nhắt khi tiện tay. Định danh MỚI từ giờ đã là tiếng
       Anh theo luật trong AGENTS.md/CLAUDE.md.
-- [ ] 6.4 Change chính sách **rerun-N cho probe nghi-flaky**: probe fail không ổn định giữa các lần
+- [x] *(chuyển giao khi archive: mục SAU-MERGE, không thuộc change này — đã vào hàng đợi ở Lộ trình CheckMate)* 6.4 Change chính sách **rerun-N cho probe nghi-flaky**: probe fail không ổn định giữa các lần
       chạy cùng nhánh nhận nhãn riêng (`khong_on_dinh`), KHÔNG rơi vào `hoi_quy` — điều kiện tiên
       quyết để mở lại trigger race xác suất (`concurrency`) mà không phá bảng chân trị R1. PO chất vấn
       01/09: concurrency là khái niệm quan trọng, phần tất định đã phủ (C7 treo · `sequencing`
