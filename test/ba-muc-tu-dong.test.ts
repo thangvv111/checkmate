@@ -55,6 +55,58 @@ describe('cache config theo NỘI DUNG — R9.14 tuyệt đối, không ngoại 
   });
 });
 
+describe('P10 — khoá LẠ trong config.json không được thành công tắc ma (R6.19)', () => {
+  it('khoá lạ bị bỏ: `truc.tu_dong_merge` gõ tay KHÔNG hiện ra như một công tắc đang bật', () => {
+    // Không dòng code nào đọc khoá đó, nhưng nó hiện lên trong /api/cau-hinh và mọi bản dump như một
+    // công tắc ĐANG BẬT — công tắc ma làm hỏng đúng lời bảo đảm «không có công tắc nào bật được máy
+    // tự merge» (quan sát ngoài phạm vi P10 của cổng, PO chốt xử trong change này).
+    writeFileSync(
+      join(goc, 'config.json'),
+      JSON.stringify({ truc: { bat: true, tu_dong_merge: true, auto_merge: true, merge_khi_pass: true, tu_dong_comment: false } }),
+      'utf8',
+    );
+    const c = cfg.docConfig();
+    expect(Object.keys(c.truc).filter((k) => /merge/i.test(k)), 'không khoá nào mang chữ merge được sống sót').toEqual([]);
+    // khoá THẬT vẫn phải đi qua nguyên vẹn — lưới không được nuốt cấu hình đúng
+    expect(c.truc.tu_dong_comment).toBe(false);
+    expect(c.truc.bat).toBe(true);
+  });
+});
+
+describe('P10 vòng sáu — bộ lọc khoá lạ KHÔNG được mở đường ô nhiễm prototype', () => {
+  it('`__proto__` trong config.json không được thành công tắc bật máy tự merge', () => {
+    // Bản vá công-tắc-ma đời trước dùng `k in macDinh` — duyệt CẢ chuỗi prototype, nên `__proto__`
+    // lọt bộ lọc và phép gán kích hoạt setter của Object.prototype: công tắc ma quay lại bằng một
+    // đường NGUY HIỂM HƠN. Lỗi do chính bản vá đẻ ra, cổng bắt ở vòng sáu.
+    writeFileSync(
+      join(goc, 'config.json'),
+      '{"truc":{"bat":true,"__proto__":{"tu_dong_merge":true},"constructor":{"x":1}}}',
+      'utf8',
+    );
+    const c = cfg.docConfig();
+    expect((c.truc as Record<string, unknown>).tu_dong_merge).toBeUndefined();
+    expect(Object.keys(c.truc).filter((k) => /merge/i.test(k))).toEqual([]);
+    expect(({} as Record<string, unknown>).tu_dong_merge, 'Object.prototype không được bị bẩn').toBeUndefined();
+    expect(c.truc.bat, 'khoá THẬT vẫn đi qua').toBe(true);
+  });
+});
+
+describe('vòng bảy — công tắc ma ở CỬA SONG SINH và giá trị SAI KIỂU', () => {
+  it('cụm `agent` cũng lọc khoá lạ, không riêng `truc` (P9)', () => {
+    writeFileSync(join(goc, 'config.json'), '{"agent":{"ncc":"anthropic","tu_dong_merge":true,"merge_luon":1}}', 'utf8');
+    const c = cfg.docConfig();
+    expect(Object.keys(c.agent).filter((k) => /merge/i.test(k))).toEqual([]);
+  });
+
+  it('cờ boolean bị lật bằng CHUỖI tự do phải giữ mặc định và nói ra (P10)', () => {
+    // «khong» là chuỗi TRUTHY: `if (cfg.truc.tu_dong_tra_ve)` sẽ đúng và máy đóng pull request.
+    writeFileSync(join(goc, 'config.json'), '{"truc":{"tu_dong_tra_ve":"khong","chu_ky_giay":"600"}}', 'utf8');
+    const c = cfg.docConfig();
+    expect(c.truc.tu_dong_tra_ve, 'sai kiểu → giữ mặc định TẮT').toBe(false);
+    expect(c.truc.chu_ky_giay).toBe(300);
+  });
+});
+
 afterAll(() => rmSync(goc, { recursive: true, force: true }));
 
 describe('cửa ĐỌC cấu hình cũng phải gác giới hạn model (R5.15) — Opus bắt ở vòng ba', () => {

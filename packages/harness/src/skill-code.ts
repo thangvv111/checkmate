@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { chuanMuc, type Finding, type RunEvent, type Severity } from '../../shared/src/types.js';
 import type { ModelProvider } from './model.js';
 import { goiCode, goiJson } from './jsonx.js';
@@ -76,6 +77,43 @@ export function vanTayChat(msg: string): string {
 //   'test_P1_...'      pytest / junit
 //   'nhóm > P1: ...'   JUnit XML — vitest và surefire ghép tên describe/class vào trước tên test
 // Ranh giới sau id phải KHÔNG phải chữ số, kẻo P1 nuốt kết quả của P10 khi chạy trên 10 probe trở lên.
+/**
+ * Nhãn NGẮN cho một probe trong dòng log tóm tắt.
+ *
+ * Bản đời trước lấy `title.split(':')[0].slice(0, 24)` — cắt 24 ký tự TỪ ĐẦU title, mà đầu title là
+ * tên `describe` DÙNG CHUNG cho cả nhóm probe, nên năm phép thử khác nhau hiện ra y hệt
+ * («cửa đọc cấu hình máy chủ=f» ×5) và người đọc log không lần ra được probe nào đỏ. Phần phân biệt
+ * (mã probe P1…Pn) nằm ở ĐOẠN CUỐI sau dấu `>` — đúng phần bị cắt mất.
+ *
+ * Nay lấy đoạn cuối rồi mới cắt: cắt từ đầu đoạn RIÊNG, không phải đầu chuỗi chung.
+ */
+export function nhanProbe(titleTho: unknown, idBiet: readonly string[] = []): string {
+  // `title` có thể KHÔNG phải chuỗi: bộ đọc JUnit XML của repo đích ép kiểu thuộc tính số, nên một
+  // test tên «123» đến đây là số. Hàm đứng cuối đường ghi log mà ném là chết cả lượt chấm (KL16).
+  const title = typeof titleTho === 'string' ? titleTho : titleTho == null ? '' : String(titleTho);
+  const tho = (title ?? '').replace(/\s+/g, ' ').trim();
+  const van = createHash('sha256').update(title ?? '').digest('hex').slice(0, 4);
+  // KHÔNG đoán cấu trúc title nữa. Bốn vòng của cổng đã bác bốn lối đoán (cắt từ đầu · lấy đoạn cuối
+  // · tìm đoạn khớp P\d+ · bỏ đoạn đầu), và gốc là title đến từ HAI nguồn khác nhau: vitest JSON trả
+  // tên `it` THUẦN, còn JUnit XML của repo đích trả tên đã gộp «describe > it». Không phép đoán nào
+  // đúng cho cả hai.
+  // Nay hỏi CHÍNH cửa nối id (khopIdProbe) xem probe này mang mã nào — hai cửa dùng chung một luật
+  // nên không thể lệch, và mã hiện ra là mã ĐÃ NỐI ĐƯỢC chứ không phải mã đoán ra.
+  // Lấy mã KHỚP DÀI NHẤT, không lấy khớp đầu tiên: `idBiet` xếp theo thứ tự kế hoạch nên «P1» luôn
+  // đứng trước «P10», và một describe tên «P1 hay P2» khiến mọi probe từ P10 trở lên bị dán nhãn P1
+  // (vòng năm của cổng bắt). Mã dài hơn là mã cụ thể hơn.
+  // MƠ HỒ THÌ KHÔNG DÁN. Ba lối chọn-một-trong-nhiều đều đã sai: khớp đầu tiên (lấy P1 cho P10),
+  // khớp dài nhất (lấy P10 của describe cho probe P2). Gốc là title không nói được đoạn nào là
+  // describe — nên khi HAI mã trở lên cùng khớp, mọi phép chọn đều là đoán, và mã sai tệ hơn không mã.
+  const khop = [...new Set(idBiet.filter((x) => khopIdProbe(title ?? '', x)))];
+  const id = khop.length === 1 ? khop[0] : undefined;
+  if (id) return `${id}·${van}`;
+  // Không biết mã (probe thư viện đời cũ, hoặc test lạ): lấy chữ cho người đọc nhận mặt, và VÂN TAY
+  // bảo đảm hai title khác nhau không bao giờ ra cùng nhãn — kể cả khi phần chữ bị cắt trùng khít.
+  const chu = tho.length <= 26 ? tho : `${tho.slice(0, 25)}…`;
+  return `${chu || '(probe không tên)'}·${van}`;
+}
+
 export function khopIdProbe(title: string, id: string): boolean {
   return title
     .split('>')
@@ -437,7 +475,25 @@ export async function chaySkillCode(
       continue;
     }
 
-    const tomTatKq = (kq: KetQuaProbe[] | undefined) => (kq ?? []).map((p) => `${p.title.split(':')[0].slice(0, 24)}=${p.status[0]}`).join(' ') || '(rỗng)';
+    // Mã probe mà lượt này BIẾT: kế hoạch mới + plan của từng probe thư viện. Truyền vào nhãn để nó
+    // hỏi đúng cửa nối id thay vì đoán từ chuỗi.
+    const idBiet = [...keHoach.map((p) => p.id), ...thuVien.map((f) => f.plan.id)].filter(Boolean);
+    const tomTatKq = (kq: KetQuaProbe[] | undefined) => {
+      const daDung = new Map<string, number>();
+      return (
+        (kq ?? [])
+          .map((p) => {
+            let nhan = nhanProbe(p.title, idBiet);
+            // Hai probe trùng tên thật vẫn phải phân biệt được — nếu không, người đọc log lại rơi
+            // đúng vào chỗ «năm dòng giống hệt» mà bản vá này sinh ra để sửa.
+            const lan = (daDung.get(nhan) ?? 0) + 1;
+            daDung.set(nhan, lan);
+            if (lan > 1) nhan = `${nhan}#${lan}`;
+            return `${nhan}=${p.status[0]}`;
+          })
+          .join(' ') || '(rỗng)'
+      );
+    };
     phat({ type: 'log', msg: `Nhánh PR:  ${tomTatKq(branchKq)}` });
     phat({ type: 'log', msg: `Nhánh gốc: ${tomTatKq(baseKq)}` });
     const timKq = (kq: KetQuaProbe[] | undefined, file: string, id: string) =>

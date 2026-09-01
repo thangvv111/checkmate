@@ -15,7 +15,7 @@ runner:
     và chỉ ra nhãn ngoai_pham_vi, không chứng minh được gì.
     ĐỪNG ĐOÁN module chứa hàm — import sai module là cách hỏng probe thường gặp nhất ở repo này.
     Bảng đường dẫn chính xác (đuôi .js, tính từ thư mục test/):
-      ../packages/harness/src/skill-code.js  → phanLoaiMay · vanTayLoi · vanTayChat · khopIdProbe · laLuatMoi · coVeLaProbeHong · chaySkillCode
+      ../packages/harness/src/skill-code.js  → phanLoaiMay · vanTayLoi · vanTayChat · nhanProbe · khopIdProbe · laLuatMoi · coVeLaProbeHong · chaySkillCode
       ../packages/harness/src/target.js      → dungDiff · docTarget · trichMaLuat · timLuatMoi · goiYDuongDanModule
       ../packages/harness/src/runner.js      → parseJUnit · docRunnerCfg · docReviewCfg · mauBoQuaDiff
       ../packages/harness/src/sandbox.js     → loiNapFile · Sandbox
