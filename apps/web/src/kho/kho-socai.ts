@@ -119,13 +119,68 @@ export interface MucSoCong {
   nguoi: string;
   /** R11.16 — tác giả PR ĐÓNG BĂNG tại thời điểm bấm; bảng `run` sửa được nên không nối sang đó để tra */
   tac_gia_pr?: string;
+  /** R6.21 — hàng này do ĐỐI SOÁT ghi: hành động đã xảy ra NGOÀI CheckMate, không qua cổng */
+  ngoai_cong?: boolean;
   chi_tiet?: string;
 }
 
 export function ghiSoCong(m: MucSoCong): void {
   moDb()
-    .prepare('INSERT INTO so_cong (run_id, luc, hanh_dong, nguoi, tac_gia_pr, chi_tiet) VALUES (?,?,?,?,?,?)')
-    .run(m.run_id, m.luc, m.hanh_dong, m.nguoi, m.tac_gia_pr ?? null, m.chi_tiet ?? null);
+    .prepare('INSERT INTO so_cong (run_id, luc, hanh_dong, nguoi, tac_gia_pr, ngoai_cong, chi_tiet) VALUES (?,?,?,?,?,?,?)')
+    .run(m.run_id, m.luc, m.hanh_dong, m.nguoi, m.tac_gia_pr ?? null, m.ngoai_cong ? 1 : 0, m.chi_tiet ?? null);
+}
+
+/**
+ * Run đã chấm một pull request nhưng sổ cổng chưa có hàng nào cho nó (R6.20).
+ *
+ * Đây là danh sách cần ĐỐI SOÁT: hoặc PR còn mở (chưa có hành động nào, đúng), hoặc PR đã merge/đóng
+ * bằng đường khác và sổ đang im lặng ở đúng chỗ cần nói.
+ */
+/**
+ * Mỗi pull request ĐÃ CHẤM một dòng: repo, số PR, và lượt chấm MỚI NHẤT của nó (R6.20).
+ *
+ * KHÔNG lọc bỏ theo «đã có hàng sổ nào chưa». Bản trước lọc như thế nên một lượt đã mang hàng
+ * `reject` do người bấm bị loại khỏi diện, và khi PR đó sau này bị merge thẳng bằng đường khác thì
+ * lần merge KHÔNG được ghi; tệ hơn, lượt mới nhất bị loại làm hàng ngoài-cổng rơi xuống lượt CŨ —
+ * lượt có verdict đã hết hiệu lực (vòng hai của cổng bắt cả hai).
+ * Quyết định ghi hay không thuộc về phép so HÀNH ĐỘNG (`hanhDongCongCuaPr`), không thuộc phép lọc này.
+ */
+export function prCanDoiSoat(): Array<{ run_id: string; pr_so: number; repo: string }> {
+  const hang = moDb()
+    .prepare(
+      // Lượt MỚI NHẤT của mỗi cặp (repo, PR) — `id` của hàng có rowid lớn nhất.
+      // Run không gắn repo thì không đối soát được: không biết hỏi GitHub ở đâu.
+      `SELECT r.id AS run_id, r.pr_so, r.repo
+         FROM run r
+        WHERE r.pr_so IS NOT NULL
+          AND r.repo IS NOT NULL AND r.repo <> ''
+          AND r.rowid = (SELECT MAX(r2.rowid) FROM run r2
+                          WHERE r2.pr_so = r.pr_so AND r2.repo = r.repo)
+        ORDER BY r.rowid DESC`,
+    )
+    .all() as Array<{ run_id: unknown; pr_so: unknown; repo: unknown }>;
+  return hang.map((h) => ({ run_id: String(h.run_id), pr_so: Number(h.pr_so), repo: String(h.repo ?? '') }));
+}
+
+/**
+ * Những HÀNH ĐỘNG cổng đã ghi cho một pull request (mọi lượt chấm của nó), trong cùng một repo.
+ *
+ * Dùng để trả lời «PR này đã qua cổng với hành động X chưa» — khác hẳn «PR này đã có hàng sổ nào
+ * chưa»: một PR từng bị trả về dev qua cổng rồi sau đó bị merge thẳng bằng `gh` thì lần MERGE đó vẫn
+ * là hành động ngoài cổng chưa ai ghi (vòng hai của cổng bắt).
+ */
+export function hanhDongCongCuaPr(repo: string, prSo: number): Array<{ hanh_dong: 'merge' | 'reject'; ngoai_cong: boolean }> {
+  // R6.21 — MỌI phép đếm/lọc hành động cổng phải xét cờ `ngoai_cong`: một PR có hàng merge do NGƯỜI
+  // bấm trong CheckMate và một PR chỉ có hàng merge do MÁY đối soát ghi lại là hai chuyện khác hẳn
+  // nhau, mà bản trước trả về cùng một thứ (vòng ba của cổng bắt).
+  const hang = moDb()
+    .prepare(
+      `SELECT DISTINCT s.hanh_dong AS hd, s.ngoai_cong AS nc
+         FROM so_cong s JOIN run r ON r.id = s.run_id
+        WHERE r.pr_so = ? AND r.repo = ?`,
+    )
+    .all(prSo, repo) as Array<{ hd: unknown; nc: unknown }>;
+  return hang.map((h) => ({ hanh_dong: String(h.hd) as 'merge' | 'reject', ngoai_cong: Number(h.nc ?? 0) === 1 }));
 }
 
 export function docSoCong(runId?: string): MucSoCong[] {
@@ -139,6 +194,7 @@ export function docSoCong(runId?: string): MucSoCong[] {
     luc: String(h.luc),
     hanh_dong: String(h.hanh_dong) as MucSoCong['hanh_dong'],
     nguoi: String(h.nguoi),
+    ngoai_cong: Number(h.ngoai_cong ?? 0) === 1,
     chi_tiet: h.chi_tiet == null ? undefined : String(h.chi_tiet),
   }));
 }

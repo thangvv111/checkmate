@@ -27,10 +27,10 @@ import { existsSync as coFile } from 'node:fs';
 import { join as noiDuong } from 'node:path';
 import { khoiNcc } from './ui-ncc.js';
 import { khoiRepo } from './ui-repo.js';
-import { cloneRepo, danhSachNhanh, danhSachPr, danhSachRepoCuaToken, dongPr, fetchVaRouter, ganTrangThaiCommit, kiemTraRepo, layPrHienTai, mergePr, binhLuanPr, tachOwnerRepo, traVeDev } from './github.js';
+import { cloneRepo, danhSachNhanh, danhSachPr, trangThaiPr, danhSachRepoCuaToken, dongPr, fetchVaRouter, ganTrangThaiCommit, kiemTraRepo, layPrHienTai, mergePr, binhLuanPr, tachOwnerRepo, traVeDev } from './github.js';
 import { coToken, docTokenRepo, docTokenRieng, ghiTokenRepo, xoaTokenRepo } from './kho-bi-mat.js';
 import { coDuongVaoGithub, coGhCli } from './github.js';
-import { banPhanQuyet, banReceipt, banVerdictTuDong, demMuc, ghiSo } from './cong.js';
+import { banPhanQuyet, banReceipt, banVerdictTuDong, demMuc, doiSoatCong, ghiSo, TEN_TAC_NHAN_MAY } from './cong.js';
 import { backfillSoCai, docSoCai } from './ledger.js';
 import { docSoCai as docSoCaiKho, demSoCai as demSoCaiKho } from './kho/kho-socai.js';
 import { diTruTatCa, tomTatDiTru } from './kho/di-tru.js';
@@ -178,11 +178,11 @@ rm.onXong = (meta) => {
       } catch {
         kenh = 'loi_comment';
       }
-      const kq = { hanhDong: 'reject' as const, luc: new Date().toISOString(), nguoi,
-        chiTiet: `tự động trả về PR #${pr.so} @ ${pr.headSha.slice(0, 7)} — FAIL, ${d.high} finding mức chặn` };
-      rm.ghiKetQuaCong(meta.id, kq);
+      // Ghi SỔ trước, rồi bề mặt đọc lại từ sổ (R6.26) — không còn bước đặt giá trị vào bề mặt.
       ghiSo({ hanhDong: 'reject', pr: pr.so, sha: pr.headSha, run_id: meta.id, verdict: v.result, nguoi,
-        tac_gia_pr: pr.tacGia, kenh, dong_pr: true, tu_dong: true });
+        tac_gia_pr: pr.tacGia, kenh, dong_pr: true, tu_dong: true,
+        ghi_chu: `tự động trả về — FAIL, ${d.high} finding mức chặn` });
+      rm.dongBoCongTuSo(meta.id);
       console.log(`Tự động: đã trả về dev PR #${pr.so} (FAIL, ${d.high} finding mức chặn)`);
     } catch (e) {
       console.error('Tự động (trả về dev):', (e as Error).message);
@@ -191,7 +191,6 @@ rm.onXong = (meta) => {
 };
 
 /** R6.18 — tên ghi vào sổ cho hành động do máy thực hiện. Không mượn tên người dùng nào. */
-const TEN_TAC_NHAN_MAY = 'ci-bot';
 
 // Chấm một PR — dùng chung cho nút bấm lẫn poller
 async function chamPr(cfg: ReturnType<typeof docConfig>, soPr: number): Promise<{ id: string } | { daChamRunId: string }> {
@@ -212,6 +211,27 @@ async function chamPr(cfg: ReturnType<typeof docConfig>, soPr: number): Promise<
 
 let dangQuet = false;
 let lanQuetCuoi = 0;
+/**
+ * Đối soát sổ cổng với trạng thái thật của pull request (R6.20–R6.25).
+ *
+ * Tách hẳn khỏi thân chế độ trực: hàn nó vào trong đó thì máy chỉ chấm bằng tay (`truc.bat = false`,
+ * mặc định) sẽ KHÔNG BAO GIỜ đối soát — cuốn sổ im lặng vĩnh viễn ở đúng chỗ nó cần nói (vòng hai
+ * của cổng bắt). Nay chạy lúc khởi động và theo nhịp riêng, không phụ thuộc công tắc trực.
+ */
+async function chayDoiSoat(): Promise<void> {
+  // R6.25 — khối try riêng: lỗi đối soát không được làm dừng việc quét và chấm PR.
+  try {
+    const cfg = docConfig();
+    const ds = await doiSoatCong((so, repo) => trangThaiPr(cfg, so, repo), (m) => console.log(m));
+    if (ds.daGhi || ds.loi) console.log(`Đối soát cổng: ghi ${ds.daGhi} hàng ngoài cổng · bỏ qua ${ds.boQua} · lỗi đọc ${ds.loi}`);
+  } catch (e) {
+    console.error('Đối soát cổng (không ảnh hưởng lượt chấm):', (e as Error).message);
+  }
+}
+
+// Nhịp đối soát RIÊNG, không phụ thuộc `truc.bat`: sổ phải đúng kể cả trên máy chỉ chấm bằng tay.
+setInterval(() => void chayDoiSoat(), 15 * 60 * 1000);
+
 setInterval(() => {
   void (async () => {
     const cfg = docConfig();
@@ -219,6 +239,7 @@ setInterval(() => {
     if (Date.now() - lanQuetCuoi < cfg.truc.chu_ky_giay * 1000) return;
     dangQuet = true;
     lanQuetCuoi = Date.now();
+    await chayDoiSoat();
     try {
       const prs = await danhSachPr(cfg);
       for (const p of prs) {
@@ -813,7 +834,8 @@ app.post('/api/runs/:id/merge', async (req, res) => {
   const st = rm.lay(req.params.id);
   const cfg = docConfig();
   if (!st || !st.meta.verdict || !st.meta.pr) return loiCong(res, 404, 'Run không tồn tại hoặc không gắn PR. <a href="/">← về trang chính</a>');
-  if (st.meta.ketQuaCong) return loiCong(res, 409, `Run này đã ${st.meta.ketQuaCong.hanhDong} lúc ${st.meta.ketQuaCong.luc}.`);
+  const daCong = rm.congHienTai(st.meta.id); // đọc TƯƠI từ sổ — bản trong bộ nhớ có thể cũ (R6.26)
+  if (daCong) return loiCong(res, 409, `Run này đã ${daCong.hanhDong} lúc ${daCong.luc}.`);
   const v = st.meta.verdict;
   const d = demMuc(v.findings);
   if (d.high > 0 || v.result === 'FAIL') return loiCong(res, 403, 'Verdict FAIL (có finding HIGH) — nút merge khoá theo luật cổng.');
@@ -843,9 +865,8 @@ app.post('/api/runs/:id/merge', async (req, res) => {
     await mergePr(cfg, st.meta.pr.so, `${st.meta.tieuDe} (#${st.meta.pr.so})`,
       `CheckMate: PASS @ ${v.artifact_ref.sha_or_hash.slice(0, 10)} · run ${v.run_id}${xacNhan.length ? ` · ${xacNhan.length} cảnh báo medium được ${nguoi} chấp nhận` : ''}`,
       st.meta.pr.headSha); // W1: GitHub tự 409 nếu head đã đổi — đóng nốt cửa sổ race sau lần layPrHienTai ở trên
-    const kq = { hanhDong: 'merge' as const, luc: new Date().toISOString(), nguoi, chiTiet: `merge PR #${st.meta.pr.so} @ ${st.meta.pr.headSha.slice(0, 7)}` };
-    rm.ghiKetQuaCong(st.meta.id, kq);
     ghiSo({ hanhDong: 'merge', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.id, verdict: v.result, nguoi, tac_gia_pr: st.meta.pr.tacGia, xac_nhan_medium: xacNhan });
+    rm.dongBoCongTuSo(st.meta.id); // bề mặt đọc lại TỪ sổ (R6.26)
     res.redirect(303, `/runs/${st.meta.id}`);
   } catch (e) {
     loiCong(res, 500, `GitHub từ chối: ${(e as Error).message.slice(0, 300)}`);
@@ -857,7 +878,8 @@ app.post('/api/runs/:id/reject', async (req, res) => {
   const st = rm.lay(req.params.id);
   const cfg = docConfig();
   if (!st || !st.meta.verdict || !st.meta.pr) return loiCong(res, 404, 'Run không tồn tại hoặc không gắn PR.');
-  if (st.meta.ketQuaCong) return loiCong(res, 409, `Run này đã ${st.meta.ketQuaCong.hanhDong} lúc ${st.meta.ketQuaCong.luc}.`);
+  const daCong = rm.congHienTai(st.meta.id); // đọc TƯƠI từ sổ — bản trong bộ nhớ có thể cũ (R6.26)
+  if (daCong) return loiCong(res, 409, `Run này đã ${daCong.hanhDong} lúc ${daCong.luc}.`);
   let dtReject;
   try {
     dtReject = layDanhTinh(req);
@@ -877,9 +899,9 @@ app.post('/api/runs/:id/reject', async (req, res) => {
       kenh = 'loi_comment';
       console.error('Reject: PR đã đóng nhưng post phán quyết lỗi:', (e as Error).message.slice(0, 200));
     }
-    const kq = { hanhDong: 'reject' as const, luc: new Date().toISOString(), nguoi, chiTiet: `đã đóng PR + phán quyết qua ${kenh === 'loi_comment' ? 'LỖI post (đóng vẫn hiệu lực)' : kenh} (chờ dev vá & reopen)` };
-    rm.ghiKetQuaCong(st.meta.id, kq);
-    ghiSo({ hanhDong: 'reject', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.id, verdict: st.meta.verdict.result, nguoi, tac_gia_pr: st.meta.pr.tacGia, kenh, dong_pr: true });
+    ghiSo({ hanhDong: 'reject', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.id, verdict: st.meta.verdict.result, nguoi, tac_gia_pr: st.meta.pr.tacGia, kenh, dong_pr: true,
+      ghi_chu: [(b.ghi_chu ?? '').trim(), `đã đóng PR + phán quyết qua ${kenh === 'loi_comment' ? 'LỖI post (đóng vẫn hiệu lực)' : kenh} (chờ dev vá & reopen)`].filter(Boolean).join(' · ') });
+    rm.dongBoCongTuSo(st.meta.id); // bề mặt đọc lại TỪ sổ (R6.26)
     res.redirect(303, `/runs/${st.meta.id}`);
   } catch (e) {
     loiCong(res, 500, `GitHub từ chối: ${(e as Error).message.slice(0, 300)}`);
@@ -921,6 +943,8 @@ app.listen(port, '127.0.0.1', () => {
   const { chuyen } = diTruTokenRepo();
   if (chuyen.length) console.log(`Đã chuyển token dùng chung thành token riêng cho ${chuyen.length} repo: ${chuyen.join(', ')}`);
   // Xác của lần chạy trước: hàng `dang_chay` mồ côi khoá trần song song vĩnh viễn nếu không dọn
+  // Sổ phải đúng ngay từ lượt khởi động: máy chỉ chấm bằng tay không có chu kỳ trực nào để bám vào.
+  void chayDoiSoat();
   const moCoi = rm.donLuotMoCoi();
   if (moCoi.length) console.log(`Đã dọn ${moCoi.length} lượt chấm bỏ dở của lần chạy trước: ${moCoi.join(', ')}`);
   console.log(`CheckMate web: http://127.0.0.1:${port}`);

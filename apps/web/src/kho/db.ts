@@ -56,6 +56,9 @@ CREATE TABLE IF NOT EXISTS so_cong (
   -- R11.16: dong bang tai thoi diem bam. Bang run SUA DUOC, nen tra loi cau hoi kiem toan bang cach
   -- noi sang do la pha dung tinh chat ma trigger chi-ghi-them sinh ra de giu.
   tac_gia_pr TEXT,
+  -- R6.21: hang do DOI SOAT ghi (hanh dong xay ra NGOAI CheckMate) phai phan biet duoc voi hang do
+  -- nguoi bam trong cong, o muc DU LIEU chu khong chi bang chu trong ghi chu.
+  ngoai_cong INTEGER NOT NULL DEFAULT 0,
   chi_tiet  TEXT
 );
 CREATE INDEX IF NOT EXISTS ix_so_cong_run ON so_cong(run_id);
@@ -81,12 +84,11 @@ CREATE TABLE IF NOT EXISTS run (
   pr_so          INTEGER,
   pr_head_sha    TEXT,
   pr_tac_gia     TEXT,
-  verdict        TEXT,
-  cong_hanh_dong TEXT,
-  cong_luc       TEXT,
-  cong_nguoi     TEXT,
-  cong_chi_tiet  TEXT
+  verdict        TEXT
 );
+-- Cum cot cong_* DA BO (R6.26). Hanh dong cong chi song trong so_cong; be mat luot cham suy ra tu
+-- do luc DOC. Xem diTruBoCotCong ben duoi de biet vi sao. (Khoi SQL nay nam trong template literal
+-- cua TS nen khong duoc dung dau backtick.)
 CREATE INDEX IF NOT EXISTS ix_run_bat_dau      ON run(bat_dau DESC);
 CREATE INDEX IF NOT EXISTS ix_run_repo_bat_dau ON run(repo, bat_dau DESC);
 CREATE INDEX IF NOT EXISTS ix_run_pr           ON run(pr_so, pr_head_sha);
@@ -152,6 +154,7 @@ export function moDb(): DatabaseSync {
   d.exec('PRAGMA recursive_triggers = ON');
   d.exec(SCHEMA);
   napCotThieu(d);
+  diTruBoCotCong(d);
   d.exec('PRAGMA foreign_keys = ON'); // đặt lại sau ALTER, phòng khi bước trên tắt nó đi
   sietQuyenDb();
   db = d;
@@ -169,11 +172,64 @@ function napCotThieu(d: DatabaseSync): void {
   const them: Array<[string, string, string]> = [
     // [bảng, cột, kiểu] — R11.16: đóng băng tên tác giả PR vào chính hàng sổ cổng
     ['so_cong', 'tac_gia_pr', 'TEXT'],
+    // R6.21 — cờ hàng NGOÀI CỔNG. Thêm CỘT chứ không thêm giá trị cho `hanh_dong`: đổi `CHECK` đòi
+    // dựng lại bảng (SQLite không ALTER được CHECK), mà bảng này là sổ kiểm toán đang giữ dữ liệu
+    // thật và có trigger cấm XOÁ — dựng lại nó là thao tác nguy hiểm nhất có thể làm với một cuốn sổ.
+    ['so_cong', 'ngoai_cong', 'INTEGER NOT NULL DEFAULT 0'],
   ];
   for (const [bang, cot, kieu] of them) {
     const daCo = (d.prepare(`PRAGMA table_info(${bang})`).all() as Array<{ name: string }>).some((c) => c.name === cot);
     if (!daCo) d.exec(`ALTER TABLE ${bang} ADD COLUMN ${cot} ${kieu}`);
   }
+}
+
+/**
+ * R6.26 — bỏ cụm cột `cong_*` khỏi bảng `run`.
+ *
+ * Chín lần khuôn «cửa song sinh» bị bắt đều chung một gốc: cụm cột này là NGUỒN SỰ THẬT THỨ HAI đứng
+ * cạnh sổ chỉ-ghi-thêm, nên mọi luật đặt ở một cửa ghi đều bị cửa còn lại phá — siết `capNhatCongRun`
+ * thì `luuMeta` vẫn đóng dấu được, và ngược lại `luuMeta` còn xoá trắng được hàng sổ vẫn đang có.
+ * Bỏ cột đi thì KHÔNG CÒN CỬA NÀO ĐỂ CANH: «bề mặt phái sinh từ sổ» thành tính chất của cấu trúc,
+ * không còn là một luật phải cưỡng chế ở từng lối vào.
+ *
+ * Trước khi bỏ PHẢI cứu dữ liệu. Hàng bề mặt đang khai một hành động mà sổ không có hàng tương ứng
+ * là bản ghi THẬT của đời cũ — đúng cái bệnh change này chữa — chứ không phải suy đoán, nên nó được
+ * chuyển vào sổ kèm ghi chú nói rõ nguồn ([R6.24](#) chỉ cấm ghi hàng SUY ĐOÁN). Mất nó cùng với cột
+ * mới là điều không gỡ lại được.
+ *
+ * Hàm tự hết việc: chạy xong thì cột không còn, lần khởi động sau không có gì để làm.
+ */
+function diTruBoCotCong(d: DatabaseSync): void {
+  const dangCo = (d.prepare('PRAGMA table_info(run)').all() as Array<{ name: string }>).map((c) => c.name);
+  const con = ['cong_hanh_dong', 'cong_luc', 'cong_nguoi', 'cong_chi_tiet', 'cong_ngoai_cong'].filter((c) => dangCo.includes(c));
+  if (!con.length) return;
+
+  if (dangCo.includes('cong_hanh_dong')) {
+    const hang = d.prepare('SELECT * FROM run WHERE cong_hanh_dong IS NOT NULL').all() as Array<Record<string, unknown>>;
+    const daCo = d.prepare('SELECT 1 FROM so_cong WHERE run_id = ? AND hanh_dong = ?');
+    const them = d.prepare(
+      'INSERT INTO so_cong (run_id, luc, hanh_dong, nguoi, ngoai_cong, chi_tiet) VALUES (?,?,?,?,?,?)',
+    );
+    let cuu = 0;
+    for (const h of hang) {
+      const hd = String(h.cong_hanh_dong);
+      if (hd !== 'merge' && hd !== 'reject') continue; // CHECK của sổ chỉ nhận hai giá trị này
+      if (daCo.get(String(h.id), hd) !== undefined) continue;
+      const cu = h.cong_chi_tiet == null ? '' : String(h.cong_chi_tiet);
+      them.run(
+        String(h.id),
+        h.cong_luc == null ? new Date().toISOString() : String(h.cong_luc),
+        hd,
+        h.cong_nguoi == null ? 'không rõ' : String(h.cong_nguoi),
+        Number(h.cong_ngoai_cong ?? 0) === 1 ? 1 : 0,
+        `${cu ? `${cu} · ` : ''}⟵ di trú từ cụm cột bề mặt đời cũ khi bỏ cột (R6.26): hàng này CÓ trên bề mặt nhưng KHÔNG có trong sổ`,
+      );
+      cuu++;
+    }
+    if (cuu) console.log(`Di trú R6.26: chuyển ${cuu} hành động cổng từ bề mặt vào sổ trước khi bỏ cột`);
+  }
+  for (const c of con) d.exec(`ALTER TABLE run DROP COLUMN ${c}`);
+  console.log(`Di trú R6.26: đã bỏ ${con.length} cột cong_* khỏi bảng run — hành động cổng nay chỉ sống trong sổ`);
 }
 
 /**
