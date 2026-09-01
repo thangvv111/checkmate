@@ -43,12 +43,17 @@ export function demMuc(findings: Finding[]): { high: number; medium: number; low
 export function chiTietNgoaiCong(v: { result?: string; findings?: Finding[] } | null): string {
   // Hàm đứng CUỐI mọi đường ghi hàng ngoài-cổng: nó mà ném thì hàng không được ghi và lượt đối soát
   // gãy — lệch ngược hướng an toàn. Lọc phần tử méo thay vì tin hình dạng (vòng một của cổng bắt).
-  // Lọc theo THỨ ĐẾM ĐƯỢC, không chỉ theo «là object»: phần tử khuyết `severity` đi vào `demMuc` sẽ
-  // rơi về mức cao nhất (fail-closed của chuanMuc) và làm dòng mô tả báo «2 high» khi chỉ có 1 —
-  // con số sai trong một cuốn sổ không sửa được (vòng bốn của cổng bắt).
-  const MUC = new Set(['high', 'medium', 'low']);
+  // Loại phần tử KHÔNG PHẢI finding (null, chuỗi, thiếu hẳn severity) — nhưng KHÔNG nuốt finding có
+  // severity LẠ: `chuanMuc` đã lo việc chuẩn hoá (`'critical'`, `'HIGH'` viết hoa, `'blocker'` đều
+  // fail-closed về high). Bản trước lọc theo đúng ba giá trị nên finding thật mang nhãn lạ bị đánh
+  // rơi và số liệu trong sổ khai THIẾU — vá «đếm sai» bằng cách NUỐT dữ liệu, đúng lớp lỗi mà chuỗi
+  // vá này đã bị bắt hai lần (vòng năm của cổng bắt lần thứ ba).
   const ds = Array.isArray(v?.findings)
-    ? v.findings.filter((f) => f && typeof f === 'object' && MUC.has(String((f as { severity?: unknown }).severity)))
+    ? (v.findings.filter((f) => {
+        if (!f || typeof f !== 'object') return false;
+        const sv = (f as { severity?: unknown }).severity;
+        return typeof sv === 'string' && sv.trim() !== '';
+      }) as Finding[])
     : [];
   const d = demMuc(ds);
   const chuaTick = d.medium + d.low;

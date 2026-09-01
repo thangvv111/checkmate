@@ -84,6 +84,12 @@ Vòng bốn — 3 finding (1 HIGH), trong đó một cái lộ MÂU THUẪN GI�
 - [x] 6.21 MEDIUM — `chiTietNgoaiCong` lọc theo «là object» nên phần tử khuyết `severity` rơi về mức
       cao nhất (fail-closed của `chuanMuc`) và báo «2 high» khi chỉ có 1. Nay lọc theo THỨ ĐẾM ĐƯỢC.
 
+Vòng năm — 1 MEDIUM (verdict PASS, vẫn vá cho sạch):
+- [x] 6.22 `chiTietNgoaiCong` lọc severity theo đúng ba giá trị nên finding mang nhãn lạ
+      (`'critical'`, `'HIGH'` viết hoa, `'blocker'`) bị NUỐT lặng lẽ và số liệu trong sổ khai THIẾU.
+      Đúng lớp lỗi «vá bằng cách nuốt dữ liệu» mà chuỗi vá này đã bị bắt hai lần. Nay chỉ loại phần
+      tử KHÔNG PHẢI finding; `chuanMuc` lo chuẩn hoá (mọi nhãn lạ fail-closed về high).
+
 ## 7. Nợ ghi nhận, chưa xử trong change này
 
 - [ ] 7.1 **M12 — test phụ thuộc mạng thật**: `token-repo.test.ts` gọi GitHub API không token, nên

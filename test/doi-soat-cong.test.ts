@@ -327,6 +327,16 @@ describe('doiSoatCong — ghi đúng, không bịa, không trùng (R6.20–R6.24
     expect(s).toContain('1 medium');
   });
 
+  it('severity LẠ không được NUỐT — chuanMuc lo chuẩn hoá (R6.22, vòng năm)', () => {
+    // Vá «đếm sai» bằng cách lọc đúng ba giá trị thì finding thật mang nhãn 'critical'/'HIGH'/
+    // 'blocker' bị đánh rơi và sổ khai THIẾU — đúng lớp lỗi «vá bằng cách nuốt dữ liệu» mà chuỗi vá
+    // này đã bị bắt hai lần trước đó.
+    const v = { result: 'PASS', findings: [{ severity: 'critical' }, { severity: 'HIGH' }, { severity: 'blocker' }, { severity: 'medium' }, null, 'chuỗi', { khong_co: 1 }] };
+    const s = cong.chiTietNgoaiCong(v as never);
+    expect(s).toContain('3 high'); // critical + HIGH + blocker đều fail-closed về high
+    expect(s).toContain('1 medium');
+  });
+
   it('nhiều run cùng một PR → MỘT hàng cho MỘT lần merge, và MỘT lời gọi GitHub', async () => {
     // Một PR vá nhiều vòng có nhiều lượt chấm nhưng chỉ có ĐÚNG MỘT lần merge. Ghi ba hàng là khai
     // «có ba hành động merge» — sai sự thật trong một cuốn sổ không sửa được.
