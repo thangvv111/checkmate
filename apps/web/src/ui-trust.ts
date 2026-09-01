@@ -7,7 +7,7 @@ function locRepoBox(duong: string, repos: string[], locRepo?: string): string {
   if (!repos.length) return '';
   return `<form method="get" action="${duong}" style="margin:0 0 12px;display:flex;gap:9px;align-items:center">
   <label style="font-size:12px;font-weight:600;color:var(--muted)">Repo</label>
-  <select name="repo" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;font-size:13px">
+  <select name="repo" style="padding:6px 9px;border:1px solid var(--line);border-radius:var(--radius-md);font-size:13px">
     <option value="">tất cả repo</option>
     ${repos.map((r) => `<option value="${escHtml(r)}" ${locRepo === r ? 'selected' : ''}>${escHtml(r)}</option>`).join('')}
   </select>
@@ -63,7 +63,7 @@ export function authorProfilePage(tacGia: string, hoSo: AuthorProfile | undefine
     `${tacGia} — tin cậy CheckMate`,
     `<h1>Hồ sơ: ${escHtml(tacGia)}</h1>
 <p class="sub">${locRepo ? `Chỉ tính verdict trong <b>${escHtml(locRepo)}</b>. ` : 'Gộp mọi repo. '}<a href="/tin-cay${locRepo ? `?repo=${encodeURIComponent(locRepo)}` : ''}">← thang tin cậy</a></p>
-<div class="stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:18px">
+<div class="stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius-md);overflow:hidden;margin-bottom:18px">
   <div style="background:var(--surface);padding:12px 14px"><b style="font-size:20px;color:var(--teal)">${hoSo.soPr}</b><br><span style="font-size:11.5px;color:var(--muted)">PR đã chấm</span></div>
   <div style="background:var(--surface);padding:12px 14px"><b style="font-size:20px;color:var(--teal)">${hoSo.soPr ? Math.round((hoSo.prPassVongDau / hoSo.soPr) * 100) : 0}%</b><br><span style="font-size:11.5px;color:var(--muted)">PASS ngay vòng đầu</span></div>
   <div style="background:var(--surface);padding:12px 14px"><b style="font-size:20px;color:var(--fail)">${hoSo.high}</b><br><span style="font-size:11.5px;color:var(--muted)">finding HIGH tích luỹ</span></div>

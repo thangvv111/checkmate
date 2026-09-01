@@ -4,26 +4,26 @@ Bốn commit tách bạch: token → shell → dashboard → màn probes.
 
 ## 1. Commit 1 — TOKEN
 
-- [ ] 1.1 Chép **cả `design-ccs/styles.css`** vào hằng `CSS` của `apps/web/src/ui.ts` — không port tay
+- [x] 1.1 Chép **cả `design-ccs/styles.css`** vào hằng `CSS` của `apps/web/src/ui.ts` — không port tay
       từng token. Nó mang **12 nhóm token** (`--color-bg/surface/text/accent` + ramp 100–900 · ramp
       neutral · `--color-divider` · `--shadow-sm/md/lg` · `--font-heading/body` · `--space-*` ·
       `--radius-*`) **và cả 22 class component** template dùng (`.btn` + 5 biến thể · `.input`
       `.field` · `.card` `.card-kicker` · `.tag` `.tag-accent` · `.hr` `.nav` `.seg` `.elev-sm`
       `.text-muted` · `.dialog` + 4 phần). Chép nguyên là có luôn bộ component; port tay là tự tạo
       chỗ lệch.
-- [ ] 1.1b Sau khi chép, **đọc lại** phần token: `radius: 0` mọi nơi (pill 99px là ngoại lệ duy nhất),
+- [x] 1.1b Sau khi chép, **đọc lại** phần token: `radius: 0` mọi nơi (pill 99px là ngoại lệ duy nhất),
       và `--font-heading-weight` phải theo `theme.json` của gói.
-- [ ] 1.2 Khai bộ **semantic CheckMate** thành biến riêng, KHÔNG gộp vào accent (xem `design.md`
+- [x] 1.2 Khai bộ **semantic CheckMate** thành biến riêng, KHÔNG gộp vào accent (xem `design.md`
       quyết định 2): PASS `#0E9F7E` / đậm `#08655A` / tint `#E2F3EE` · FAIL `#D0342C` / chữ `#A3271F`
       / tint `#F9E4E2` · medium `#C77A16` / chữ `#8F5810` / tint `#F7ECDA`.
-- [ ] 1.3 Font: `styles.css` **tự `@import` Archivo** ở dòng 2, nên việc còn lại là (a) nạp IBM Plex
+- [x] 1.3 Font: `styles.css` **tự `@import` Archivo** ở dòng 2, nên việc còn lại là (a) nạp IBM Plex
       Mono — template gói nạp riêng, `styles.css` không mang — và (b) thêm **fallback stack thật** vào
       `--font-heading`/`--font-body`. Trang phải đọc được khi Google Fonts không tải: prod chạy sau
       nginx, không giả định mạng ra ngoài luôn thông.
-- [ ] 1.4 Rule 2px giữa section lớn, 1px giữa dòng — thay các đường kẻ hiện tại.
-- [ ] 1.5 Gỡ hard-code màu cũ trong 7 file `ui-*.ts`; giữ nguyên nội dung, chỉ đổi màu sang biến.
+- [x] 1.4 Rule 2px giữa section lớn, 1px giữa dòng — thay các đường kẻ hiện tại.
+- [x] 1.5 Gỡ hard-code màu cũ trong 7 file `ui-*.ts`; giữ nguyên nội dung, chỉ đổi màu sang biến.
       `ui-docs.ts` (320 dòng) nhiều khả năng là chỗ đỏ nhất.
-- [ ] 1.6 `ui-login.ts`: bỏ đoạn ghi chú «giữ PALETTE hiện tại, L4 đổi toàn cục» — nợ đó trả ở đây.
+- [x] 1.6 `ui-login.ts`: bỏ đoạn ghi chú «giữ PALETTE hiện tại, L4 đổi toàn cục» — nợ đó trả ở đây.
 
 ## 2. Commit 2 — SHELL
 
@@ -66,13 +66,13 @@ Bốn commit tách bạch: token → shell → dashboard → màn probes.
 
 ## 5. Lưới
 
-- [ ] 5.1 Lưới token: cấm hard-code hex trong `apps/web/src/ui*.ts`, **trừ** đúng bộ semantic đã khai.
+- [x] 5.1 Lưới token: cấm hard-code hex trong `apps/web/src/ui*.ts`, **trừ** đúng bộ semantic đã khai.
       Cấm hết là lưới báo oan — mà lưới báo oan thì người ta tắt chứ không sửa code.
 - [ ] 5.2 Lưới shell: mọi trang đi qua `shell()`; không trang nào tự dựng thẻ `html`/`body`.
 - [ ] 5.3 Lưới sidebar: đủ 8 mục, mục đang-chọn đánh dấu đúng.
 - [ ] 5.4 Lưới chuyển cảnh: **không gói phụ thuộc nào được thêm** cho việc này (đọc `package.json`),
       và `shell()` phát đủ hai khai báo. Đây là lưới chống «thêm framework cho tiện».
-- [ ] 5.5 Chứng minh các lưới trên **load-bearing**: tạm hard-code một hex lạ và tạm gỡ một mục
+- [x] 5.5 Chứng minh các lưới trên **load-bearing**: tạm hard-code một hex lạ và tạm gỡ một mục
       sidebar, thấy chúng ĐỎ đúng chỗ, rồi khôi phục.
 
 ## 6. Kiểm cơ học

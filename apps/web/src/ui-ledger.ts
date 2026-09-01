@@ -29,7 +29,7 @@ export function ledgerPage(muc: VerdictLedgerEntry[], congTheoRun: Map<string, s
   const locBox = repos.length
     ? `<form method="get" action="/ledger" style="margin:0 0 12px;display:flex;gap:9px;align-items:center">
   <label style="font-size:12px;font-weight:600;color:var(--muted)">Repo</label>
-  <select name="repo" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;font-size:13px">
+  <select name="repo" style="padding:6px 9px;border:1px solid var(--line);border-radius:var(--radius-md);font-size:13px">
     <option value="">tất cả</option>
     ${repos.map((r) => `<option value="${escHtml(r)}" ${locRepo === r ? 'selected' : ''}>${escHtml(r)}</option>`).join('')}
   </select>

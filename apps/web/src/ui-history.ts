@@ -48,7 +48,7 @@ export function historyPage(runs: RunMeta[], loc: HistoryFilter, repos: string[]
 
   const chon = (ten: string, nhan: string, ds: Array<[string, string]>, dangChon?: string) =>
     `<label style="font-size:12px;font-weight:600;color:var(--muted)">${nhan}<br>
-      <select name="${ten}" style="margin-top:3px;padding:6px 9px;border:1px solid var(--line);border-radius:7px;font-size:13px">
+      <select name="${ten}" style="margin-top:3px;padding:6px 9px;border:1px solid var(--line);border-radius:var(--radius-md);font-size:13px">
         <option value="">tất cả</option>
         ${ds.map(([g, n]) => `<option value="${escHtml(g)}" ${dangChon === g ? 'selected' : ''}>${escHtml(n)}</option>`).join('')}
       </select></label>`;
@@ -110,7 +110,7 @@ export function historyPage(runs: RunMeta[], loc: HistoryFilter, repos: string[]
     loc.ncc,
   )}
   <label style="font-size:12px;font-weight:600;color:var(--muted);flex:1;min-width:180px">Tìm (tiêu đề · SHA · số PR)<br>
-    <input name="q" value="${escHtml(loc.q ?? '')}" placeholder="vd: PR #8 hoặc e711ced" style="margin-top:3px;width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:7px;font-size:13px"></label>
+    <input name="q" value="${escHtml(loc.q ?? '')}" placeholder="vd: PR #8 hoặc e711ced" style="margin-top:3px;width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius-md);font-size:13px"></label>
   <button style="margin-bottom:1px">Lọc</button>
   ${loc.repo || loc.verdict || loc.skill || loc.ncc || loc.q ? '<a class="btn phu" href="/lich-su" style="margin-bottom:1px">Bỏ lọc</a>' : ''}
 </form>
