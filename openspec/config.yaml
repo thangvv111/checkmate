@@ -15,17 +15,22 @@ context: |
   `packages/shared` (kiểu dùng chung). Dữ liệu: SQLite (`web-runs/`) + file JSON (`probes-lib/`,
   `.ncc-verify.json`, `config.json`, `.secrets.json`).
 
-  ⛔ HAI TẦNG SPEC — KHÔNG TRỘN (PO chốt 31/08, phương án A):
-  · `specs/R1..R12*.md` ở gốc repo = LUẬT HÀNH VI, là ĐẦU VÀO MÁY ĐỌC của engine. Engine nạp thư
-    mục này để sinh probe; R1.19 so `specs/` giữa hai nhánh để phát hiện «luật chỉ có ở nhánh PR».
-    Đường dẫn hardcode trong `packages/harness/src/target.ts` — không di dời.
-  · `openspec/specs/<capability>/` = NĂNG LỰC theo ngôn ngữ quy trình, sinh ra từ các change.
-  Change đẻ luật mới thì viết vào CẢ HAI, và hai bên phải nói cùng một điều — lệch nhau thì chính
-  cổng chấm sẽ bắt.
+  ⛔ CHỖ SỐNG CỦA LUẬT (PO chốt 01/09 — THAY phương án A 31/08):
+  · `specs/R*.md` ở gốc repo = TÀI LIỆU THAM KHẢO. Nó trộn lẫn luật, án lệ và biên bản tranh luận
+    nên KHÔNG được dùng làm khuôn ép kiến trúc mới, và change mới KHÔNG đẻ thêm điều R*. Một change
+    tái cấu trúc riêng sẽ dọn nó.
+  · Luật máy đọc của tính năng MỚI sống ở ba chỗ: hằng + validate trong engine (có test khoá) ·
+    cấu hình trong `checkmate.yml` · hành vi trong `openspec/specs/<capability>/` (sinh từ change).
+  · Lưu ý kỹ thuật còn hiệu lực tạm: engine HIỆN VẪN nạp `specs/` của REPO ĐÍCH để sinh probe và so
+    hai nhánh. Cơ chế ăn spec repo đích đã được PO xếp lịch cấu trúc lại (change riêng); trước lúc
+    đó đừng di dời đường dẫn trong `packages/harness/src/target.ts`.
 
-  CheckMate TỰ CHẤM CHÍNH NÓ: mọi PR đi qua bản CheckMate chạy trên prod (chế độ trực, poller
-  300s). Quy trình merge: mở PR → chờ verdict → PASS mới merge. KHÔNG merge khi FAIL; merge với
-  finding không-chặn phải ghi nợ CÔNG KHAI trong comment PR. Máy KHÔNG BAO GIỜ tự merge (R6.19).
+  ⛔ CỔNG TẠM DỪNG (PO chốt 01/09): KHÔNG chờ verdict CheckMate để đi tiếp. Đủ điều kiện sang bước
+  sau = code + test xanh + PO duyệt. Đừng poll prod, đừng để PR treo chờ chấm. Lý do: cổng đang
+  nhiễu (hoi_quy = 0 ở 14/14 lượt; verdict FAIL đến từ finding do model viết, không từ nhãn máy).
+  Bật lại CHỈ khi PO nói — không agent nào tự quyết. Vẫn giữ nguyên: máy KHÔNG BAO GIỜ tự merge
+  (R6.19) và không tự merge khi PO chưa duyệt — thứ bị treo là bước chờ verdict, không phải kỷ luật
+  maker–checker.
 
   Hợp đồng repo: `checkmate.yml` khai bảng module/hàm cho engine. Thêm/đổi export mà quên khai →
   lưới `test/hop-dong-repo.test.ts` đỏ (đã bắt hụt 5 lần trong lịch sử repo).

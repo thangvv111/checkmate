@@ -4,13 +4,13 @@ Bốn commit tách bạch (xem `design.md`): di chuyển thuần → đổi tên
 
 ## 1. Dọn luật đã hết hiệu lực (làm TRƯỚC — nó đang dạy sai mọi agent)
 
-- [ ] 1.1 `openspec/config.yaml` mục `context`: bỏ «⛔ HAI TẦNG SPEC — phương án A 31/08» và «chờ
+- [x] 1.1 `openspec/config.yaml` mục `context`: bỏ «⛔ HAI TẦNG SPEC — phương án A 31/08» và «chờ
       verdict → PASS mới merge»; thay bằng chỗ-sống-của-luật hiện hành + ghi cổng đang TẠM DỪNG.
       Đây là chỗ nguy nhất trong năm nơi: nó inject vào **mọi artifact của mọi change**.
-- [ ] 1.2 `openspec/schemas/checkmate/schema.yaml` — instruction artifact `proposal`: ô «Luật R chạm
+- [x] 1.2 `openspec/schemas/checkmate/schema.yaml` — instruction artifact `proposal`: ô «Luật R chạm
       tới» đang bắt khai theo phương án A. Sửa cho khớp luật 01/09 (câu trả lời đúng thường là
       «KHÔNG — cố ý» kèm nơi luật sống). Giữ ô này bắt buộc, chỉ đổi nội dung hướng dẫn.
-- [ ] 1.3 Rà nốt: `grep -rn "phương án A\|chờ verdict\|PASS mới merge" openspec/ *.md` — chỗ nào còn
+- [x] 1.3 *(grep lộ ra KHÔNG phải một chỗ thứ sáu mà SÁU chỗ nữa — tổng 11: AGENTS+CLAUDE ×2 đoạn, 2 schema, config.yaml, instruction proposal, instruction specs, instruction tasks, template proposal, DEPLOY.md)* Rà nốt: `grep -rn "phương án A\|chờ verdict\|PASS mới merge" openspec/ *.md` — chỗ nào còn
       thì sửa hoặc ghi rõ vì sao giữ. Năm nơi đã biết là AGENTS/CLAUDE, hai schema, config.yaml,
       instruction proposal; grep để lộ chỗ thứ sáu nếu có.
 

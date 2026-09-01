@@ -85,5 +85,5 @@ apply:
 
     ## Pha 4: Qua cổng — TAM DUNG tu 01/09/2026 (PO chot): code + test xanh + PO duyet la du;
     bat lai chi khi PO noi. Phan duoi giu nguyen de dung lai khi bat.
-    ## (nguyen van cu)
+    ## (nguyên văn cũ — dùng lại khi PO bật cổng)
     Mở PR, chờ verdict CheckMate trên prod. KHÔNG merge khi FAIL.
