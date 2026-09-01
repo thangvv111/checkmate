@@ -269,18 +269,24 @@ app.get('/', async (req, res) => {
     const prs = await listPrs(cfg);
     const kem = prs.map((p) => {
       const daCham = rm.findByPr(p.so, p.headSha);
+      // «stale» = CÓ verdict cho PR này nhưng ghim một commit KHÁC head hiện tại. Verdict còn đó,
+      // chỉ là nó không còn nói về commit sắp merge — người dùng phải thấy khác «chưa chấm».
+      const bacKy = rm.danhSach({ gioi_han: 1000 }).find((m) => m.pr?.so === p.so && m.verdict);
       return {
         ...p,
         daCham: daCham?.verdict
           ? { runId: daCham.id, ketQua: daCham.verdict.result, soFinding: daCham.verdict.findings.length }
           : undefined,
+        stale: !daCham?.verdict && !!bacKy,
+        dangCham: rm.isPrRunning(p.so),
+        skill: (bacKy?.skill ?? daCham?.skill) as "code" | "doc" | undefined,
       };
     });
     prBlock = prListSection(cfg.repo.github, cfg.repo.base_branch, kem, '');
   } catch (e) {
     prBlock = prListSection(cfg.repo.github, cfg.repo.base_branch, null, (e as Error).message.slice(0, 200));
   }
-  res.send(homePage(rm.danhSach(), prBlock, returnedToDevSection(rm.returnedToDev(), cfg.repo.github), ai(req)));
+  res.send(homePage(rm.danhSach(), prBlock, returnedToDevSection(rm.returnedToDev(), cfg.repo.github), ai(req), cfg.repo.github));
 });
 
 app.get('/docs', (req, res) => {

@@ -44,15 +44,15 @@ Bốn commit tách bạch: token → shell → dashboard → màn probes.
 
 ## 3. Commit 3 — DASHBOARD
 
-- [ ] 3.1 `homePage` dựng lại: kicker accent ‹repo› · h2 Dashboard · dòng định vị muted.
-- [ ] 3.2 Hàng đợi PR theo grid gói: `52px minmax(220px,1.5fr) 1.1fr 90px 170px 290px`, header cột
+- [x] 3.1 `homePage` dựng lại: kicker accent ‹repo› · h2 Dashboard · dòng định vị muted.
+- [x] 3.2 Hàng đợi PR theo grid gói: `52px minmax(220px,1.5fr) 1.1fr 90px 170px 290px`, header cột
       rule 2px, mỗi dòng rule 1px. Cột: PR · tiêu đề (+sub skill) · nhánh@SHA₇ mono · tác giả ·
       pill trạng thái per-commit · hành động.
-- [ ] 3.3 Hai trạng thái phân biệt được (spec «rỗng ≠ hỏng»): **hàng đợi sạch** (dòng mono, không
+- [x] 3.3 Hai trạng thái phân biệt được (spec «rỗng ≠ hỏng»): **hàng đợi sạch** (dòng mono, không
       giống lỗi) · **thiếu token repo** (viền 2px crimson, nêu CẢ nguyên nhân LẪN cách sửa + nút vào
       Cấu hình).
-- [ ] 3.4 Khối «Đã trả về dev — chờ vá & reopen»: dòng rule 1px + ghi chú + nút xem phán quyết.
-- [ ] 3.5 Card «Kiểm nhanh tài liệu rời» + card «Lượt chấm gần đây» (5 dòng, link toàn bộ lịch sử).
+- [x] 3.4 Khối «Đã trả về dev — chờ vá & reopen»: dòng rule 1px + ghi chú + nút xem phán quyết.
+- [x] 3.5 Card «Kiểm nhanh tài liệu rời» + card «Lượt chấm gần đây» (5 dòng, link toàn bộ lịch sử).
 
 ## 4. Commit 4 — MÀN THƯ VIỆN PROBE (có design, thiếu API)
 
@@ -77,7 +77,7 @@ Bốn commit tách bạch: token → shell → dashboard → màn probes.
 
 ## 6. Kiểm cơ học
 
-- [ ] 6.1 `npx tsc --noEmit` sạch · `npm test` xanh TOÀN BỘ.
+- [x] 6.1 `npx tsc --noEmit` sạch · `npm test` xanh TOÀN BỘ.
 - [ ] 6.2 Kiểm chuyển cảnh **trên trình duyệt thật**: có hỗ trợ thì mượt; giả lập không hỗ trợ thì
       điều hướng vẫn đúng và nội dung đầy đủ.
 - [ ] 6.3 **Mở thật 8 màn trong trình duyệt** — `tsc` không bắt được layout vỡ; chụp lại Dashboard để

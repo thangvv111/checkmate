@@ -23,9 +23,9 @@ export function probesPage(nguoi = ''): string {
   <p style="margin:0 0 10px"><b>Vì sao:</b> giao diện đã có thiết kế đầy đủ trong gói design, nhưng
   <b>đường đọc dữ liệu chưa dựng</b> — chưa có API trả thư viện probe ra cho trang web. Không có nguồn
   thì không có gì để bày.</p>
-  <p style="margin:0">Trang này cố ý <b>không</b> hiện câu «chưa có probe nào». Câu đó nghĩa là đã tra
-  và thư viện rỗng; sự thật là chưa tra lần nào. Một màn rỗng trông giống một màn chưa dựng là chỗ
-  người dùng ngồi đợi thứ không bao giờ tới.</p>
+  <p style="margin:0">Trang này cố ý <b>không</b> bày một danh sách rỗng. Danh sách rỗng nghĩa là
+  đã tra và thư viện không có gì; sự thật là chưa tra lần nào. Một màn rỗng trông giống một màn chưa
+  dựng là chỗ người dùng ngồi đợi thứ không bao giờ tới.</p>
 </div>
 
 <div class="card" style="max-width:720px;margin-top:14px">

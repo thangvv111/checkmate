@@ -322,6 +322,57 @@ table.runs td { padding:9px 13px; border-bottom:1px solid var(--color-divider); 
 
 .err { background:var(--fail-tint); border-left:4px solid var(--fail); padding:11px 15px;
   margin:14px 0; display:none; }
+
+/* — Dashboard: hàng đợi PR theo lưới cột của gói — */
+.dash-kicker { color:var(--color-accent); margin:0 0 2px; }
+.dash-sub { color:color-mix(in srgb, var(--color-text) 55%, transparent); font-size:13px; margin:0; }
+.q-dau { display:flex; align-items:baseline; gap:12px; }
+.q-dem { font-family:var(--font-mono); font-size:12px; color:var(--color-neutral-600); }
+.q-grid { display:grid; grid-template-columns:52px minmax(220px,1.5fr) 1.1fr 90px 170px 290px; gap:12px; }
+.q-head { padding:8px; margin-top:8px; border-bottom:2px solid var(--color-divider);
+  font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); }
+.q-row { align-items:center; padding:10px 8px; border-bottom:1px solid var(--color-divider); }
+.q-so { font-family:var(--font-mono); font-size:13px; }
+.q-tieu { display:block; font-weight:600; font-size:14px; }
+.q-skill { font-family:var(--font-mono); font-size:11px; color:var(--color-neutral-600); }
+.q-nhanh { font-family:var(--font-mono); font-size:12px; }
+.q-tacgia { font-size:13px; }
+.q-pill { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.q-nut { display:flex; gap:8px; justify-content:flex-end; align-items:center; }
+.q-nut .btn { font-size:13px; padding:6px 12px; }
+.q-nut form { margin:0; }
+/* Hàng đợi SẠCH — dòng mono, cố ý không giống một lỗi */
+.q-trong { padding:36px 0; font-family:var(--font-mono); font-size:13px; color:var(--color-neutral-600); }
+/* Không ĐỌC ĐƯỢC hàng đợi — khác hẳn hàng đợi rỗng, và phải nói được cách sửa */
+.q-loi { margin-top:20px; padding:16px 18px; display:flex; gap:16px; align-items:center;
+  border:2px solid var(--fail); background:var(--color-bg); }
+.q-loi-tieu { font-weight:600; }
+.q-loi-cach { font-size:13px; margin-top:2px; color:color-mix(in srgb, var(--color-text) 55%, transparent); }
+
+.pill-pass { background:var(--pass-tint); color:var(--pass-ink); }
+.pill-fail { background:var(--fail-tint); color:var(--fail-ink); }
+.pill-chua { background:var(--color-neutral-100); color:var(--color-neutral-800); }
+.pill-merge { background:var(--color-neutral-800); color:var(--color-bg); }
+.pill-stale { background:var(--medium-tint); color:var(--medium-ink); font-family:var(--font-mono); font-size:11px; }
+.dang-cham { font-family:var(--font-mono); font-size:12px; color:var(--color-neutral-600);
+  animation:cmblink 1.4s infinite; }
+@keyframes cmblink { 0%,100% { opacity:1; } 50% { opacity:0.25; } }
+@media (prefers-reduced-motion: reduce) { .dang-cham { animation:none; } }
+
+.tra-ve-row { display:flex; align-items:center; gap:14px; padding:10px 0;
+  border-bottom:1px solid var(--color-divider); }
+.tra-ve-row .giua { flex:1; }
+.tra-ve-row .ten { display:block; font-weight:600; font-size:14px; }
+.tra-ve-row .chu { font-size:12px; color:var(--color-neutral-600); }
+
+.dash-the { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:28px; }
+.rc-row { display:flex; gap:10px; align-items:center; padding:6px 0;
+  border-bottom:1px solid var(--color-divider); text-decoration:none; color:var(--color-text); }
+.rc-row:hover { background:color-mix(in srgb, var(--color-text) 4%, transparent); }
+.rc-ten { flex:1; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rc-gio { font-family:var(--font-mono); font-size:11px; color:var(--color-neutral-600); }
+@media (max-width: 1080px) { .dash-the { grid-template-columns:1fr; }
+  .q-grid { grid-template-columns:44px minmax(160px,1.4fr) 1fr 80px 150px 200px; } }
 `;
 
 // W8: mọi chuỗi ngoại lai (PR title từ GitHub, tên file upload, finding do model viết) phải qua đây trước khi vào DOM
@@ -477,42 +528,94 @@ export interface PrDisplay {
   headSha: string;
   // trạng thái review của ĐÚNG commit đang là head PR (nếu đã chấm)
   daCham?: { runId: string; ketQua: 'PASS' | 'FAIL'; soFinding: number };
+  /** verdict ghim một commit CŨ hơn head hiện tại — verdict còn đó nhưng không còn nói về commit này */
+  stale?: boolean;
+  /** đang có lượt chấm chạy trên PR này — nút khoá để không đẻ hai verdict trùng */
+  dangCham?: boolean;
+  skill?: 'code' | 'doc';
 }
 
+/**
+ * Hàng đợi PR — lưới sáu cột đúng như gói design CCS khai.
+ *
+ * Ba trạng thái PHẢI phân biệt được, vì việc người dùng cần làm ở mỗi trạng thái khác hẳn nhau:
+ *   prs = danh sách  → hàng đợi có việc
+ *   prs = []         → hàng đợi SẠCH; đây là trạng thái bình thường, không phải lỗi
+ *   prs = null       → KHÔNG ĐỌC ĐƯỢC (thiếu token / hết hạn); phải nêu cả nguyên nhân LẪN cách sửa
+ *
+ * Một màn rỗng trông giống một màn hỏng là chỗ người dùng ngồi đợi thứ không bao giờ tới.
+ */
 export function prListSection(repoGithub: string, baseBranch: string, prs: PrDisplay[] | null, loiPr: string): string {
-  const rows = (prs ?? [])
-    .map(
-      (p) => {
-        const nutChay = `<form method="post" action="/api/runs" style="margin:0"><input type="hidden" name="kieu" value="pr"><input type="hidden" name="so" value="${p.so}">
-<button${p.daCham ? ' class="phu-nho"' : ''}>${p.daCham ? 'Chạy lại' : 'Chạy kiểm'}</button></form>`;
-        const trangThai = p.daCham
-          ? `<span class="vd-pill vd-${p.daCham.ketQua}">${p.daCham.ketQua}</span> · ${p.daCham.soFinding} finding<br><a href="/runs/${p.daCham.runId}" style="font-size:12px">xem verdict &amp; cổng merge →</a>`
-          : `<span style="color:var(--muted)">chưa kiểm</span>`;
-        return `<tr><td class="mono">#${p.so}</td><td>${escHtml(p.tieuDe)}<br><span class="mono" style="font-size:11.5px;color:var(--muted)">${escHtml(p.nhanh)} @ ${p.headSha.slice(0, 7)}</span></td><td>${escHtml(p.tacGia)}</td>
-<td>${trangThai}</td><td>${nutChay}</td></tr>`;
-      },
-    )
+  if (prs === null) {
+    return `<div class="q-loi">
+<div style="flex:1">
+<div class="q-loi-tieu">Không đọc được PR — GitHub token thiếu hoặc hết hạn.</div>
+<div class="q-loi-cach">Repo này không chạy kiểm được cho tới khi có token riêng. Cách sửa: vào Cấu hình ▸ Repos, bấm «Nhập token» trên card <span class="mono">${escHtml(repoGithub)}</span> và dán PAT riêng của repo (đọc repo + pull request; thêm quyền ghi nếu dùng cổng Merge).${
+      loiPr ? `<br><span class="mono" style="font-size:12px">${escHtml(loiPr)}</span>` : ''
+    }</div>
+</div>
+<a class="btn btn-secondary" href="/settings" style="flex:none">Vào Cấu hình</a>
+</div>`;
+  }
+
+  const dong = prs
+    .map((p) => {
+      const pill = p.dangCham
+        ? '<span class="dang-cham">● đang chấm — nút khoá</span>'
+        : p.daCham
+          ? `<span class="tag pill-${p.daCham.ketQua === 'PASS' ? 'pass' : 'fail'}">${p.daCham.ketQua}·${p.daCham.soFinding}</span>`
+          : '<span class="tag pill-chua">chưa chấm</span>';
+      const nut = p.dangCham
+        ? ''
+        : p.daCham
+          ? `<a class="btn btn-secondary" href="/runs/${p.daCham.runId}">Xem verdict</a>
+<form method="post" action="/api/runs"><input type="hidden" name="kieu" value="pr"><input type="hidden" name="so" value="${p.so}">
+<button class="btn btn-ghost" type="submit">Vẫn chạy lại</button></form>`
+          : `<form method="post" action="/api/runs"><input type="hidden" name="kieu" value="pr"><input type="hidden" name="so" value="${p.so}">
+<button class="btn btn-primary" type="submit">Chạy kiểm</button></form>`;
+      return `<div class="q-grid q-row">
+<span class="q-so">#${p.so}</span>
+<span><span class="q-tieu">${escHtml(p.tieuDe)}</span><span class="q-skill">skill ${p.skill ?? 'code'}</span></span>
+<span class="q-nhanh">${escHtml(p.nhanh)} @ ${escHtml(p.headSha.slice(0, 7))}</span>
+<span class="q-tacgia">${escHtml(p.tacGia)}</span>
+<span class="q-pill">${pill}${p.stale ? '<span class="tag pill-stale">stale</span>' : ''}</span>
+<span class="q-nut">${nut}</span>
+</div>`;
+    })
     .join('');
-  return `<h2>PR chờ review — <span class="mono">${repoGithub}</span> → <span class="mono">${baseBranch}</span></h2>
-<p class="sub">Tự nạp từ GitHub. Router quyết theo nội dung diff: PR code → skill A · PR chỉ tài liệu (.md) → skill B trên bản tài liệu của PR. <a href="/">↻ làm mới</a></p>
-${loiPr ? `<div class="err" style="display:block">Không nạp được PR: ${loiPr}</div>` : ''}
-${prs && prs.length ? `<table class="runs"><tr><th>#</th><th>Tiêu đề · nhánh</th><th>Tác giả</th><th>Trạng thái review</th><th></th></tr>${rows}</table>` : prs ? '<p class="sub">Không có PR mở nào nhắm vào nhánh đích.</p>' : ''}`;
+
+  return `<div class="hr" style="margin:18px 0 0"></div>
+<section style="margin-top:16px">
+<div class="q-dau"><h4 style="margin:0">Hàng đợi PR chờ review</h4>
+<span class="q-dem">${escHtml(repoGithub)} → ${escHtml(baseBranch)}${prs.length ? ` · ${prs.length}` : ''}</span></div>
+${
+  prs.length
+    ? `<div class="q-grid q-head"><span>PR</span><span>Tiêu đề</span><span>Nhánh @ SHA</span><span>Tác giả</span><span>Review per-commit</span><span></span></div>${dong}`
+    : '<div class="q-trong">Hàng đợi sạch — không có PR chờ chấm.</div>'
+}
+</section>`;
 }
 
 export function returnedToDevSection(runs: RunMeta[], repoGithub: string): string {
   if (!runs.length) return '';
-  const rows = runs
+  const dong = runs
     .slice(0, 10)
     .map(
-      (m) => `<tr><td class="mono">#${m.pr!.so}</td><td>${escHtml(m.tieuDe)}</td>
-<td class="mono" style="font-size:12px">${m.pr!.headSha.slice(0, 7)}</td>
-<td style="font-size:12.5px">${m.ketQuaCong!.nguoi} · ${m.ketQuaCong!.luc.slice(0, 16).replace('T', ' ')}<br>
-<a href="/runs/${m.id}" style="font-size:12px">xem phán quyết →</a> · <a href="https://github.com/${repoGithub}/pull/${m.pr!.so}" style="font-size:12px" target="_blank" rel="noopener">mở PR trên GitHub →</a></td></tr>`,
+      (m) => `<div class="tra-ve-row">
+<span class="q-so">#${m.pr!.so}</span>
+<span class="giua"><span class="ten">${escHtml(m.tieuDe)}</span>
+<span class="chu">đóng ${escHtml(m.ketQuaCong!.luc.slice(0, 16).replace('T', ' '))} · bởi ${escHtml(m.ketQuaCong!.nguoi)}${
+        m.ketQuaCong!.chiTiet ? ` · ghi chú: ${escHtml(m.ketQuaCong!.chiTiet)}` : ''
+      }</span></span>
+<a class="btn btn-ghost" href="/runs/${m.id}">Xem phán quyết</a>
+<a class="btn btn-ghost" href="https://github.com/${escHtml(repoGithub)}/pull/${m.pr!.so}" target="_blank" rel="noopener">Mở PR ↗</a>
+</div>`,
     )
     .join('');
-  return `<h2>Đã trả về dev — chờ vá &amp; reopen</h2>
-<p class="sub">PR đã đóng nên không còn trong hàng đợi chờ duyệt. Dev vá xong, push lên nhánh cũ rồi Reopen chính PR đó là nó quay lại hàng đợi.</p>
-<table class="runs"><tr><th>#</th><th>Artifact</th><th>Commit đã chấm</th><th>Trả về bởi</th></tr>${rows}</table>`;
+  return `<section style="margin-top:28px">
+<h4 style="margin:0">Đã trả về dev — chờ vá &amp; reopen</h4>
+<p class="dash-sub" style="margin:2px 0 6px">PR đã đóng nên không còn trong hàng đợi. Dev vá xong, push lên nhánh cũ rồi Reopen chính PR đó là nó quay lại hàng đợi.</p>
+${dong}</section>`;
 }
 
 // Token vào/ra mỗi lượt — theo dõi chi phí ngay trên bảng, không phải đào log.
@@ -557,52 +660,63 @@ function nguonO(model?: string): string {
   return `<span title="${giaiThich}">${n.nguon}</span>`;
 }
 
-export function homePage(runs: RunMeta[], prBlock = '', daTraVeBlock = '', nguoi = ''): string {
-  const rows = runs
+export function homePage(
+  runs: RunMeta[],
+  prBlock = '',
+  daTraVeBlock = '',
+  nguoi = '',
+  repoFull = '',
+): string {
+  // Năm lượt gần nhất, dạng thẻ — Provider/Model/Token đầy đủ nằm ở /lich-su, cách đây một cú bấm
+  const gan = runs
+    .slice(0, 5)
     .map((r) => {
-      // run cũ (trước khi có trường ketThuc) vẫn lấy được mốc kết thúc từ verdict
-      const kt = r.ketThuc ?? r.verdict?.finished_at;
-      const tg = thoiGianChay(r.batDau, kt);
-      const ketQua =
+      const kq = r.verdict?.result;
+      const pill =
         r.trangThai === 'dang_chay'
-          ? 'đang chạy…'
-          : `${r.verdict ? `<span class="vd-pill vd-${r.verdict.result}">${r.verdict.result}</span> · ${r.verdict.findings.length} finding` : 'lỗi'}${
-              tg ? ` <span style="color:var(--muted);font-size:12px">· ${tg}</span>` : ''
-            }`;
-      return `<tr><td><a href="/runs/${r.id}">${escHtml(r.tieuDe)}</a></td><td>${r.skill}</td>
-<td>${ketQua}</td>
-<td style="font-size:12.5px">${nguonO(r.verdict?.model)}</td>
-<td class="mono" style="font-size:12px;color:var(--muted)">${splitSource(r.verdict?.model).ten}</td>
-<td>${tokenField(r.verdict)}</td>
-<td style="color:var(--muted);white-space:nowrap;font-size:12.5px">${gio(r.batDau)}</td>
-<td style="color:var(--muted);white-space:nowrap;font-size:12.5px">${gio(kt)}</td></tr>`;
+          ? '<span class="dang-cham">● đang chạy</span>'
+          : kq
+            ? `<span class="tag pill-${kq === 'PASS' ? 'pass' : 'fail'}">${kq}</span>`
+            : '<span class="tag pill-chua">lỗi</span>';
+      return `<a class="rc-row" href="/runs/${r.id}">${pill}
+<span class="rc-ten">${escHtml(r.tieuDe)}</span>
+<span class="rc-gio">${gio(r.batDau)}</span></a>`;
     })
     .join('');
+
   return shell(
     'CheckMate',
-    `<h1>Đưa artifact vào cổng kiểm</h1>
-<p class="sub">Chọn PR từ repo đã kết nối, hoặc kiểm nhanh một tài liệu rời. CheckMate đọc spec, tự sinh phép thử, chạy bằng chứng thật rồi mới phán.</p>
+    `<h6 class="dash-kicker">${escHtml(repoFull)}</h6>
+<h2 style="margin:0 0 4px">Dashboard</h2>
+<p class="dash-sub">Verdict ghim commit · mọi kết luận vào sổ cái append-only · trust không nới cổng.</p>
 ${prBlock}
 ${daTraVeBlock}
-<p class="sub" style="margin:-6px 0 16px"><a href="/lich-su">Xem toàn bộ lịch sử chạy →</a></p>
-<h2>Kiểm nhanh một tài liệu rời (PRD / BA doc / spec)</h2>
-<p class="sub">Đường phụ quick-check — tài liệu sống trong repo thì đi qua PR (bên trên) để có ngữ cảnh đầy đủ hơn.</p>
-<form method="post" action="/api/runs" enctype="multipart/form-data" style="margin-bottom:14px">
+<div class="dash-the">
+<section class="card">
+<div class="card-kicker">Kiểm nhanh tài liệu rời</div>
+<div style="font-size:13px">Upload .md / .txt / .docx / .pdf hoặc dán text — chấm bằng skill doc, không cần PR.</div>
+<form method="post" action="/api/runs" enctype="multipart/form-data" style="margin:0">
 <input type="hidden" name="kieu" value="upload">
-<input type="file" name="tep" accept=".md,.txt,.docx,.pdf" style="font-size:13px">
-<button style="margin-left:8px">Tải lên &amp; kiểm</button>
-<span class="goiy" style="margin-left:8px">.md · .txt · .docx · .pdf (≤5MB; bản scan/ảnh chưa hỗ trợ)</span>
+<input type="file" name="tep" accept=".md,.txt,.docx,.pdf" style="font-size:12px">
+<button class="btn btn-secondary" type="submit" style="margin-left:8px">Tải lên &amp; kiểm</button>
+<span class="goiy" style="display:block;margin-top:4px">≤5MB · bản scan/ảnh chưa hỗ trợ OCR</span>
 </form>
-<form method="post" action="/api/runs"><input type="hidden" name="kieu" value="doc">
-<textarea name="noi_dung" id="noidung" placeholder="…hoặc dán thẳng nội dung tài liệu (text / markdown)"></textarea>
+<form method="post" action="/api/runs" style="margin:0"><input type="hidden" name="kieu" value="doc">
+<textarea class="input" name="noi_dung" id="noidung" rows="3" placeholder="…hoặc dán nội dung tài liệu vào đây"></textarea>
 <p class="goiy" id="goiy">Router: dán vào để nhận diện loại artifact.</p>
-<button>Chạy kiểm tài liệu</button></form>
-<p class="goiy">Code chỉ được kiểm qua PR của repo đã kết nối (skill A thực thi code thật). Dán diff code tự do không hỗ trợ.</p>
-${rows ? `<h2>Lượt chạy gần đây</h2><table class="runs"><tr><th>Artifact</th><th>Skill</th><th>Kết quả</th><th title="nguồn model: gói thuê bao Claude Code hay ví API">Provider</th><th>Model</th><th title="token vào / token ra mỗi lượt chấm">Token (vào/ra)</th><th>Bắt đầu</th><th>Kết thúc</th></tr>${rows}</table>` : ''}`,
+<button class="btn btn-primary" type="submit" style="align-self:flex-start">Chạy kiểm tài liệu</button></form>
+<p class="goiy" style="margin:0">Code chỉ kiểm qua PR của repo đã kết nối — skill code thực thi code thật, nên nó cần cả hai nhánh chứ không chỉ một đoạn diff dán vào.</p>
+</section>
+<section class="card">
+<div class="card-kicker">Lượt chấm gần đây</div>
+${gan || '<div class="q-trong" style="padding:18px 0">Chưa có lượt chấm nào.</div>'}
+<a class="btn btn-ghost" href="/lich-su" style="align-self:flex-start">Toàn bộ lịch sử →</a>
+</section>
+</div>`,
     `const ta=document.getElementById('noidung'),gy=document.getElementById('goiy');
 ta.addEventListener('input',()=>{const v=ta.value;
-if(/^diff --git|^@@|^index [0-9a-f]+\\.\\./m.test(v)) gy.textContent='Router: nội dung giống DIFF CODE — code chỉ kiểm qua PR trong danh sách bên trên.';
-else if(v.trim()) gy.textContent='Router: nhận diện TÀI LIỆU YÊU CẦU → skill B (rubric 4 loại lỗi khách quan).';
+if(/^diff --git|^@@|^index [0-9a-f]+\\.\\./m.test(v)) gy.textContent='Router: nội dung giống DIFF CODE — code chỉ kiểm qua PR trong hàng đợi bên trên.';
+else if(v.trim()) gy.textContent='Router: nhận diện TÀI LIỆU YÊU CẦU → skill doc (rubric 4 loại lỗi khách quan).';
 else gy.textContent='Router: dán vào để nhận diện loại artifact.';});`,
     { muc: 'dashboard', nguoi },
   );
