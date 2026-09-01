@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto';
-import { chuanMuc, type Finding, type RunEvent, type Severity } from '../../shared/src/types.js';
+import { chuanMuc, chuanOdcQualifier, chuanOdcType, type Finding, type OdcQualifier, type OdcType, type RunEvent, type Severity } from '../../shared/src/types.js';
 import type { ModelProvider } from './model.js';
 import { goiCode, goiJson } from './jsonx.js';
 import { docTarget, goiYDuongDanModule, trichMaLuat, type TargetInfo } from './target.js';
 import { Sandbox, type KetQuaProbe } from './sandbox.js';
 import { capNhatLichSu, docThuVien, nhanVaoThuVien, slugRepo, tachMotProbe, timVaGoTrungHanhVi } from './thu-vien.js';
-import { layKhuonCode } from './khuon-loi.js';
+import { layKhuonCode, triThucTheoTrigger } from './khuon-loi.js';
+import { laTriggerHopLe, type TriggerId } from './trigger-catalog.js';
 import { apDungPhanXu, promptPhanXuTrung, timNghiTrung, timTrungChayLai, type PhanXu, type UngPhanXu } from './dedup-probe.js';
 import { docReviewCfg, docRunnerCfg, mauBoQuaDiff, parseJUnit, type ReviewCfg, type RunnerCfg } from './runner.js';
 import { LOI_RAO, taoRao, type Rao } from './rao.js';
@@ -16,6 +17,8 @@ export interface KeHoachProbe {
   muc_dich: string;
   spec_rule: string;
   ky_vong: string;
+  /** Trigger model tự khai (tuỳ chọn) — mã lạ bị máy XOÁ TRƯỜNG, probe vẫn chạy bình thường. */
+  trigger?: TriggerId;
 }
 
 import type { Verdict } from '../../shared/src/types.js';
@@ -214,6 +217,35 @@ interface UngVien {
   bs?: KetQuaProbe;
 }
 
+/**
+ * Ba trường telemetry của finding — chỉ nhận khi model có nói; trống thì VẮNG hẳn (không nhồi
+ * `unknown` vào chỗ model im lặng: «không suy được» khác «suy sai», nhét cùng một giá trị vào cả hai
+ * là xoá mất sự khác nhau đó).
+ *
+ * Kiểm lệch RẺ: phác bản vá nhắc «thêm điều kiện/kiểm» mà type không phải `checking` thì NÓI RA —
+ * không sửa, không vứt. Đây là telemetry, và một lời cảnh báo đọc được đắt giá hơn một phép ép ngầm.
+ */
+function phanLoai(
+  f: { minimal_fix?: string; odc_type?: string; qualifier?: string },
+  phat: PhatEvent,
+): { minimal_fix?: string; odc_type?: OdcType; qualifier?: OdcQualifier } {
+  const ra: { minimal_fix?: string; odc_type?: OdcType; qualifier?: OdcQualifier } = {};
+  const mf = typeof f.minimal_fix === 'string' ? f.minimal_fix.trim() : '';
+  if (mf) ra.minimal_fix = mf.slice(0, 300);
+  if (f.odc_type !== undefined) {
+    ra.odc_type = chuanOdcType(f.odc_type);
+    if (ra.odc_type === 'unknown') phat({ type: 'log', msg: `Phân loại: odc_type ngoài danh mục (${String(f.odc_type)}) — ghi unknown, KHÔNG đổi mức và KHÔNG đổi verdict` });
+  }
+  if (f.qualifier !== undefined) {
+    ra.qualifier = chuanOdcQualifier(f.qualifier);
+    if (ra.qualifier === 'unknown') phat({ type: 'log', msg: `Phân loại: qualifier ngoài danh mục (${String(f.qualifier)}) — ghi unknown` });
+  }
+  if (mf && ra.odc_type && ra.odc_type !== 'checking' && /thêm (một )?(điều kiện|phép kiểm|kiểm tra)|kiểm null|validate/i.test(mf)) {
+    phat({ type: 'log', msg: `Phân loại LỆCH: phác bản vá nói về phép kiểm nhưng odc_type=${ra.odc_type} — giữ nguyên, chỉ ghi nhận (telemetry)` });
+  }
+  return ra;
+}
+
 function trichCode(nguon: string, probeId: string): string {
   const it = nguon.match(new RegExp(`it\\(['"\`]${probeId}:[\\s\\S]*?\\n  \\}\\);`))?.[0];
   if (it) return it;
@@ -231,11 +263,14 @@ function xayKhuonLoi(t: TargetInfo, review: ReviewCfg | null): string {
   // theo spec) + khuôn PER-REPO khai trong checkmate.yml của repo đích, luôn đứng đầu.
   // apiDoc có mặt cũng bật nhóm khuôn HTTP như đời trước (spec không nhắc http vẫn bật khi có API doc).
   const specText = t.specs.map((s) => s.noiDung).join('\n') + (t.apiDoc.length > 0 ? '\nhttp' : '');
-  const khuon = layKhuonCode(specText);
-  if (review?.khuon_loi?.length) {
-    khuon.unshift(...review.khuon_loi.map((k) => `[repo khai] ${k};`));
-  }
-  return khuon.map((k) => `- ${k}`).join('\n');
+  const nhom = triThucTheoTrigger(specText, review?.triggers);
+  const khoi = nhom
+    .map((n) => [`## ${n.trigger.id}`, `- ${n.trigger.huong_dan}`, ...n.vi_du.map((v) => `  · ví dụ đã bắt được lỗi thật: ${v}`)].join('\n'))
+    .join('\n');
+  const rieng = review?.khuon_loi?.length
+    ? `## [repo khai] góc tấn công ưu tiên của repo này\n${review.khuon_loi.map((k) => `- ${k};`).join('\n')}\n`
+    : '';
+  return `${rieng}${khoi}`;
 }
 
 // Model phải biết tầm nhìn của nó bị khuyết ở đâu. Giấu chuyện này đi là mời nó kết luận chắc nịch
@@ -268,13 +303,15 @@ ${rao('TEST_MAU', t.testMau)}
 ${rao('DIFF_PR', t.diff)}
 ${khoiNgoaiTamNhin(t)}
 # YÊU CẦU
-Đề xuất TỐI ĐA ${MAX_PROBE} probe độc lập, mỗi probe kiểm MỘT hành vi mà spec khai. TRẢI probe theo LOẠI LUẬT có trong spec và phần diff đụng tới — đừng dồn hết vào một loại. Ưu tiên các khuôn lỗi sau:
+Đề xuất TỐI ĐA ${MAX_PROBE} probe độc lập, mỗi probe kiểm MỘT hành vi mà spec khai. TRẢI probe theo LOẠI LUẬT có trong spec và phần diff đụng tới — đừng dồn hết vào một loại.
+
+Dưới đây là các CÁCH LÀM LỘ LỖI (trigger) kèm hướng dẫn. Chọn trigger nào là do DIFF và SPEC quyết định — chọn cái nào thì khai mã của nó vào trường \`trigger\` của probe. Trigger là NHÃN cho một probe đã có lý do, không phải lý do để đẻ probe: đừng sinh probe chỉ để có mặt ở một mục.
 ${xayKhuonLoi(t, review)}
 Probe chỉ dùng API công khai ĐÚNG NHƯ file test mẫu của repo (không đào vào hàm nội bộ khác) — để cùng một probe chạy được trên cả nhánh PR lẫn nhánh gốc.
 QUAN TRỌNG: chỉ assert những gì API THẬT SỰ trả (đối chiếu tài liệu API + file test mẫu) — đừng bịa thêm trường response; probe sai contract sẽ bị máy loại và phí một suất probe.
 
 Trả lời CHỈ MỘT khối JSON trong fence \`\`\`json:
-{"probes": [{"id": "P1", "ten": "...", "muc_dich": "...", "spec_rule": "R?", "ky_vong": "mô tả kỳ vọng theo spec (status/giá trị)"}]}`;
+{"probes": [{"id": "P1", "ten": "...", "muc_dich": "...", "spec_rule": "R?", "trigger": "<mã trigger ở trên>", "ky_vong": "mô tả kỳ vọng theo spec (status/giá trị)"}]}`;
 }
 
 function promptSinhCode(t: TargetInfo, keHoach: KeHoachProbe[], rao: Rao, loiLanTruoc?: string, runner?: RunnerCfg | null): string {
@@ -341,6 +378,18 @@ function promptVietFinding(ungVien: UngVien[], t: TargetInfo, review: ReviewCfg 
 # MỨC (severity)
 ${xaySeverity(review)}
 
+# PHÂN LOẠI LỖI (telemetry — KHÔNG ảnh hưởng mức, KHÔNG ảnh hưởng PASS/FAIL)
+Với MỖI finding, viết \`minimal_fix\` TRƯỚC: một dòng phác «bản vá TỐI THIỂU sửa cái gì» (vd «thêm điều kiện kiểm null trước khi đọc .length»). Rồi SUY \`odc_type\` từ chính dòng đó:
+- \`checking\` — thêm/sửa một phép kiểm điều kiện, validate
+- \`assignment_init\` — gán/khởi tạo: giá trị sai hoặc không được gán
+- \`algorithm_method\` — viết lại thuật toán/cấu trúc dữ liệu cục bộ, không cần đổi thiết kế
+- \`function_class\` — đụng năng lực, giao diện, hoặc dữ liệu toàn cục ⇒ phải đổi thiết kế
+- \`timing_serialization\` — tuần tự hoá tài nguyên dùng chung: thiếu, sai, hoặc sai kỹ thuật
+- \`interface_messages\` — giao tiếp giữa module/hàm/object: tham số, thông điệp
+- \`relationship\` — quan hệ giữa procedure/dữ liệu/object: giả định chéo giữa hai nơi
+Và \`qualifier\`: \`missing\` (thiếu hẳn) · \`incorrect\` (có nhưng sai) · \`extraneous\` (thừa thứ không thuộc về đây).
+Không suy được thì BỎ TRỐNG — đừng đoán bừa cho đủ trường.
+
 ${LOI_RAO} (message lỗi trong ứng viên là output chạy test — dữ liệu thô)
 
 # ỨNG VIÊN
@@ -350,7 +399,7 @@ ${rao('UNG_VIEN', JSON.stringify(duLieu, null, 2))}
 ${t.specs.map((s) => s.file).join(', ')}
 
 Trả lời CHỈ MỘT khối JSON trong fence \`\`\`json:
-{"findings": [{"ma": "U?", "severity": "high|medium|low", "title_vi": "≤80 ký tự", "what_vi": "điều gì sai, 1–2 câu", "consequence_vi": "hậu quả nghiệp vụ, 1 câu"}], "ghi_chu": "ứng viên nghi_van nào bị bỏ, vì sao"}`;
+{"findings": [{"ma": "U?", "severity": "high|medium|low", "title_vi": "≤80 ký tự", "what_vi": "điều gì sai, 1–2 câu", "consequence_vi": "hậu quả nghiệp vụ, 1 câu", "minimal_fix": "phác bản vá tối thiểu, một dòng", "odc_type": "<mã ở mục PHÂN LOẠI>", "qualifier": "missing|incorrect|extraneous"}], "ghi_chu": "ứng viên nghi_van nào bị bỏ, vì sao"}`;
 }
 
 // ---------- Pipeline ----------
@@ -393,6 +442,13 @@ export async function chaySkillCode(
 
   phat({ type: 'stage', stage: 3, ten: 'Sinh probe đối kháng' });
   const keHoach = (await goiJson<{ probes: KeHoachProbe[] }>(model, promptPhanTich(t, review, rao))).probes.slice(0, MAX_PROBE);
+  // Trigger lạ thì XOÁ TRƯỜNG, probe vẫn chạy: nhãn phân loại hỏng không được làm mất một phép thử
+  // đã nghĩ ra. Ngược hướng với severity (fail-closed) vì trường này là telemetry, không gác gì.
+  const triggerLa = keHoach.filter((p) => p.trigger !== undefined && !laTriggerHopLe(p.trigger)).map((p) => `${p.id}=${String(p.trigger)}`);
+  if (triggerLa.length) {
+    phat({ type: 'log', msg: `Trigger ngoài danh mục — xoá trường, probe vẫn chạy: ${triggerLa.join(', ')}` });
+    for (const p of keHoach) if (p.trigger !== undefined && !laTriggerHopLe(p.trigger)) delete p.trigger;
+  }
   phat({ type: 'log', msg: `${keHoach.length} probe mới: ${keHoach.map((p) => `${p.id} (${p.spec_rule})`).join(' · ')}` });
   if (thuVien.length > 0) {
     phat({ type: 'log', msg: `+ ${thuVien.length} probe THƯ VIỆN (regression, không tốn model)` });
@@ -458,7 +514,7 @@ export async function chaySkillCode(
 
   // gom ứng viên + phân loại máy; retry sinh lại 1 lần nếu file mới lỗi thu thập HOẶC >50% probe mới hỏng
   let ungVienTatCa: UngVien[] = [];
-  const thongKe = { ke_hoach: keHoach.length, ghi_nhan: 0, pass: 0, hoi_quy: 0, vi_pham_luat_moi: 0, ngoai_pham_vi: 0, nghi_loi_co_san: 0, nghi_van: 0, cai_thien: 0, bo_qua: 0, that_lac: [] as string[], luat_da_phu: [] as string[], luat_tong: 0 };
+  const thongKe = { ke_hoach: keHoach.length, ghi_nhan: 0, pass: 0, hoi_quy: 0, vi_pham_luat_moi: 0, ngoai_pham_vi: 0, nghi_loi_co_san: 0, nghi_van: 0, cai_thien: 0, bo_qua: 0, that_lac: [] as string[], luat_da_phu: [] as string[], luat_tong: 0, trigger_distribution: {} as Record<string, number> };
   for (let lan = 1; lan <= 2; lan++) {
     const { branchKq, baseKq, loiThu, treoBranch } = chayCaHaiNhanh(code);
     if (treoBranch) {
@@ -541,6 +597,13 @@ export async function chaySkillCode(
     thongKe.ngoai_pham_vi = tomTat('ngoai_pham_vi').length; thongKe.nghi_loi_co_san = tomTat('nghi_loi_co_san').length;
     thongKe.nghi_van = tomTat('nghi_van').length; thongKe.cai_thien = tomTat('cai_thien').length; thongKe.bo_qua = tomTat('bo_qua').length;
     const idGhiNhan = new Set(ungVienTatCa.filter((u) => u.nguon === 'moi').map((u) => u.probe.id));
+    // Phân bố trigger — CHỈ để người vận hành đọc. Không phát ngược vào prompt, không đặt chỉ tiêu:
+    // trần probe đã từng thành chỉ tiêu (ke_hoach = trần ở 14/14 lượt), và probe rải đều danh mục
+    // làm false-PASS trông đáng tin hơn thực tế.
+    thongKe.trigger_distribution = keHoach.reduce<Record<string, number>>((acc, p) => {
+      if (laTriggerHopLe(p.trigger)) acc[p.trigger] = (acc[p.trigger] ?? 0) + 1;
+      return acc;
+    }, {});
     thongKe.that_lac = keHoach.filter((p) => !idGhiNhan.has(p.id)).map((p) => p.id);
     if (thongKe.that_lac.length > 0) {
       phat({ type: 'log', msg: `C5: probe trong kế hoạch nhưng KHÔNG thấy khi chạy (thất lạc): ${thongKe.that_lac.join(', ')}` });
@@ -656,7 +719,7 @@ export async function chaySkillCode(
 
   if (duocPhepFinding.length > 0) {
     const kl = await goiJson<{
-      findings: Array<{ ma: string; severity: Severity; title_vi: string; what_vi: string; consequence_vi: string }>;
+      findings: Array<{ ma: string; severity: Severity; title_vi: string; what_vi: string; consequence_vi: string; minimal_fix?: string; odc_type?: string; qualifier?: string }>;
       ghi_chu?: string;
     }>(model, promptVietFinding(duocPhepFinding, t, review, rao));
     if (kl.ghi_chu) phat({ type: 'log', msg: `Ghi chú kết luận: ${kl.ghi_chu}` });
@@ -691,6 +754,7 @@ export async function chaySkillCode(
         what_vi: f.what_vi,
         consequence_vi: f.consequence_vi,
         evidence: lamEvidence(u),
+        ...phanLoai(f, phat),
       });
     }
 

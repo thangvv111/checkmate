@@ -2,51 +2,51 @@
 
 ## 1. Chỗ sống của luật (PO 01/09: KHÔNG đẻ thêm điều R* — specs/R* chờ tái cấu trúc)
 
-- [ ] 1.1 Danh mục trigger trong engine: mỗi mã một định nghĩa + ranh giới với mã cạnh; test khoá
+- [x] 1.1 Danh mục trigger trong engine: mỗi mã một định nghĩa + ranh giới với mã cạnh; test khoá
       danh mục (thêm/bớt mã là đỏ — buộc đi qua change có chủ đích, KHÔNG buộc con số cụ thể).
-- [ ] 1.2 Tập kích hoạt per-repo trong `checkmate.yml` (khoá cấu hình mới): danh sách mã bật cho
+- [x] 1.2 Tập kích hoạt per-repo trong `checkmate.yml` (khoá cấu hình mới): danh sách mã bật cho
       repo đó; vắng khoá = toàn danh mục; mã lạ trong config → log + bỏ qua, không chết lượt chấm.
-- [ ] 1.3 Trần ví dụ per-trigger + ngân sách dòng prompt = THAM SỐ cấu hình (mặc định 2/trigger),
+- [x] 1.3 Trần ví dụ per-trigger + ngân sách dòng prompt = THAM SỐ cấu hình (mặc định 2/trigger),
       không tham chiếu hằng nào của specs/R* cũ.
-- [ ] 1.4 Toàn bộ hành vi khai trong openspec capability `truc-phan-loai-code` (spec delta của
+- [x] 1.4 Toàn bộ hành vi khai trong openspec capability `truc-phan-loai-code` (spec delta của
       change này) — bản máy-và-người cùng đọc; specs/R* KHÔNG thêm điều mới.
-- [ ] 1.5 Sửa CLAUDE.md mục «Hai tầng spec»: phương án A 31/08 đã bị PO thay 01/09 — `specs/R*` là
+- [x] 1.5 Sửa CLAUDE.md mục «Hai tầng spec»: phương án A 31/08 đã bị PO thay 01/09 — `specs/R*` là
       THAM KHẢO; luật máy đọc sống ở code + `checkmate.yml` + openspec capability. Ghi rõ ngày và
       người chốt để không thành án lệ ngầm.
 
 ## 2. Kho ví dụ theo trigger
 
-- [ ] 2.1 `khuon-loi.ts`: interface `KhuonLoi` thêm `trigger` (bắt buộc cho `loai='code'`); khai
+- [x] 2.1 `khuon-loi.ts`: interface `KhuonLoi` thêm `trigger` (bắt buộc cho `loai='code'`); khai
       danh mục `TRIGGER_CATALOG` 10 mã + mô tả một dòng mỗi mã (phát vào prompt).
-- [ ] 2.2 Gắn trigger cho KL1–KL17 đúng bảng ánh xạ trong `design.md`; trigger nào >2 khuôn thì chọn
+- [x] 2.2 Gắn trigger cho KL1–KL17 đúng bảng ánh xạ trong `design.md`; trigger nào >2 khuôn thì chọn
       2 giữ lại theo luật đào thải, phần dôi chuyển xuống khối lưu trữ (comment/const riêng không
       phát) — ghi rõ từng cái đi đâu trong commit message.
-- [ ] 2.3 `phatKhuon('code')` phát theo NHÓM trigger: dòng tiêu đề trigger + tối đa 2 ví dụ; giữ
+- [x] 2.3 `phatKhuon('code')` phát theo NHÓM trigger: dòng tiêu đề trigger + tối đa 2 ví dụ; giữ
       `len_dau` (KL5 vượt quyền vẫn đứng đầu); trần tổng R12.3 không đổi.
 
 ## 3. Kế hoạch probe khai trigger
 
-- [ ] 3.1 `skill-code.ts`: `KeHoachProbe` thêm `trigger?` ; prompt phân tích yêu cầu khai trigger
+- [x] 3.1 `skill-code.ts`: `KeHoachProbe` thêm `trigger?` ; prompt phân tích yêu cầu khai trigger
       từ danh mục cho từng probe — KHÔNG kèm bất kỳ câu đòi phủ đủ/đều (R14.4).
-- [ ] 3.2 Máy validate enum sau khi bóc JSON: lạ → xoá trường + log một dòng (R14.2).
-- [ ] 3.3 `probe_stats` thêm `trigger_distribution` (đếm theo trigger, chỉ bề mặt người xem).
+- [x] 3.2 Máy validate enum sau khi bóc JSON: lạ → xoá trường + log một dòng (R14.2).
+- [x] 3.3 `probe_stats` thêm `trigger_distribution` (đếm theo trigger, chỉ bề mặt người xem).
 
 ## 4. Finding khai loại lỗi
 
-- [ ] 4.1 `types.ts`: `Finding` thêm `minimal_fix?`, `odc_type?`, `qualifier?` (3 trường optional —
+- [x] 4.1 `types.ts`: `Finding` thêm `minimal_fix?`, `odc_type?`, `qualifier?` (3 trường optional —
       replay verdict cũ không gãy).
-- [ ] 4.2 Prompt viết finding: bắt viết `minimal_fix` TRƯỚC rồi gán `odc_type`/`qualifier` suy từ
+- [x] 4.2 Prompt viết finding: bắt viết `minimal_fix` TRƯỚC rồi gán `odc_type`/`qualifier` suy từ
       đó; nêu đúng 7+3 giá trị.
-- [ ] 4.3 Máy validate enum cùng cửa với `chuanMuc`: lạ → `unknown` + log; TUYỆT ĐỐI không đụng
+- [x] 4.3 Máy validate enum cùng cửa với `chuanMuc`: lạ → `unknown` + log; TUYỆT ĐỐI không đụng
       severity/verdict (R14.5). Kiểm lệch rẻ: `minimal_fix` khớp /điều kiện|kiểm|check/ mà type ≠
       checking → log lệch (không sửa, không vứt).
-- [ ] 4.4 UI run + trang finding: hiện `odc_type · qualifier` cạnh severity khi có.
+- [x] 4.4 UI run + trang finding: hiện `odc_type · qualifier` cạnh severity khi có.
 
 ## 5. Hợp đồng + lưới
 
-- [ ] 5.1 `checkmate.yml`: khai export mới (⛔C5 — lưới hợp đồng đã bắt hụt 5 lần).
-- [ ] 5.2 `test/khuon-loi.test.ts` cập nhật theo cấu trúc mới; thêm ca cho từng gác mới.
-- [ ] 5.3 Chạy trọn: `npx tsc --noEmit` + `npm test`.
+- [x] 5.1 `checkmate.yml`: khai export mới (⛔C5 — lưới hợp đồng đã bắt hụt 5 lần).
+- [x] 5.2 `test/khuon-loi.test.ts` cập nhật theo cấu trúc mới; thêm ca cho từng gác mới.
+- [x] 5.3 Chạy trọn: `npx tsc --noEmit` + `npm test`.
 
 ## 6. Sau-merge (ghi để không thành lời hứa miệng — KHÔNG làm trong change này)
 
