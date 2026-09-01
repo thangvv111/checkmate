@@ -151,29 +151,29 @@ Vòng mười hai — 4 finding (3 HIGH + 1 MEDIUM), **PO chốt sửa GỐC tha
       chỗ. Đây cũng là bước đầu chống thói quen mỗi vòng chấm lại đắp một lớp vào `specs/`.
 
 Vòng mười ba — 4 finding, **PO chốt DỪNG VÁ, tách thành nợ rồi merge**:
-- [ ] **M14 (HIGH — `daTraVe()` không xét cờ ngoài-cổng)**. Câu truy vấn lọc `sc.hanh_dong = 'reject'`
+- [x] *(chuyển giao khi archive: đã vá ở change `va-no-doi-soat` (PR #22, PASS 0 finding, đang chờ PO bấm cổng merge))* **M14 (HIGH — `daTraVe()` không xét cờ ngoài-cổng)**. Câu truy vấn lọc `sc.hanh_dong = 'reject'`
       mà bỏ qua cột `ngoai_cong`, trong khi [R6.21](../../../specs/R6-verdict-va-cong-merge.md) đòi
       **mọi phép đếm/lọc hành động cổng phải xét trường này**. Hậu quả: một PR bị đóng trên GitHub
       (không ai bấm cổng) vẫn lọt vào khối «đã trả về dev» ở trang chủ — đúng cái khối sinh ra để hàng
       đợi không đánh mất việc. **Vá là một mệnh đề `WHERE` cộng một ca test.**
-- [ ] **M15 (BÁO OAN — cột «người» của hàng đối soát)**. Cổng đề nghị đúng điều
+- [x] *(chuyển giao khi archive: đã xử ở change `va-no-doi-soat` — sửa mô tả R6.24b + trỏ ngược từ R11.2)* **M15 (BÁO OAN — cột «người» của hàng đối soát)**. Cổng đề nghị đúng điều
       [R6.24b](../../../specs/R6-verdict-va-cong-merge.md) đã bác sau hai vòng đẩy qua lại; R11.2 mà nó
       viện dẫn nói về *hành động cổng*, còn đối soát là **ghi nhận một hành động đã xảy ra ở nơi khác**
       và chạy trong chu kỳ chế độ trực, không có phiên người dùng nào. Không sửa code. Nợ ở đây là
       **R6.24b viết chưa đủ chặn hiểu nhầm — ba vòng chấm liên tiếp vấp cùng một chỗ.**
-- [ ] **M16 (CẦN PO QUYẾT — phạm vi chế độ demo)**. Gác R6.12 nằm ở đầu `doiSoatCong`; cửa di trú bỏ
+- [x] *(chuyển giao khi archive: đã xử ở change `va-no-doi-soat` — PO ủy quyền, chọn A: khai rõ phạm vi R6.12)* **M16 (CẦN PO QUYẾT — phạm vi chế độ demo)**. Gác R6.12 nằm ở đầu `doiSoatCong`; cửa di trú bỏ
       cột không có gác nào, nên ở chế độ demo hàng cũ vẫn được nạp vào sổ một lần lúc khởi động.
       Gác nó lại thì **tệ hơn**: cột vẫn bị bỏ mà dữ liệu không được cứu. Hai đường: (A) giữ nguyên,
       ghi rõ phạm vi R6.12 là *thao tác cổng* chứ không phải *di trú dữ liệu lúc khởi động*; (B) demo
       không di trú và không bỏ cột — đổi lại hai schema song song, mọi đường đọc phải chịu được cả hai.
-- [ ] **M17 (LOW — `chiTietNgoaiCong` còn đường ném)**. Nội suy `${v?.result}` và `String(severity)`
+- [x] *(chuyển giao khi archive: đã vá ở change `va-no-doi-soat` — thêm `chuoiAnToan()`)* **M17 (LOW — `chiTietNgoaiCong` còn đường ném)**. Nội suy `${v?.result}` và `String(severity)`
       trên giá trị ngoài đưa vào, đứng ngay trước `ghiSoCong` nên về nguyên tắc R6.25 đòi lưới bọc.
       Chính lượt chấm ghi rõ đầu vào kích hoạt được (Symbol, `toString` tự ném) **không phát sinh từ
       dữ liệu JSON/SQLite thực tế** — chưa đổi hành vi hiện có.
 
 ## 7. Nợ ghi nhận, chưa xử trong change này
 
-- [ ] 7.1 **M12 — test phụ thuộc mạng thật**: `token-repo.test.ts` gọi GitHub API không token, nên
+- [x] 7.1 *(chuyển giao khi archive: M12 nằm trong sổ nợ ở Lộ trình CheckMate, chưa xử)* **M12 — test phụ thuộc mạng thật**: `token-repo.test.ts` gọi GitHub API không token, nên
       đỏ khi bị rate-limit (xác nhận bằng `curl` → HTTP 403). Không liên quan change này, nhưng nó
       làm bộ test không tự-đủ: một lượt CI vào lúc hết quota sẽ đỏ oan.
 
