@@ -87,21 +87,21 @@ export function vanTayChat(msg: string): string {
  *
  * Nay lấy đoạn cuối rồi mới cắt: cắt từ đầu đoạn RIÊNG, không phải đầu chuỗi chung.
  */
-export function nhanProbe(title: string): string {
-  const doan = (title ?? '')
-    .split('>')
-    .map((x) => x.replace(/\s+/g, ' ').trim())
-    .filter(Boolean);
-  if (!doan.length) return '(probe không tên)';
-  // KHÔNG đoán mã probe, và KHÔNG ghép tên describe vào nhãn: cả hai đều làm nhãn mang mã SAI —
-  // «P1 hay P2 > P10: …» từng ra nhãn chứa cả P1 lẫn P2 trong khi probe thật là P10 (hai vòng của
-  // cổng bắt liên tiếp). Nhãn chỉ lấy phần đầu tên `it` (nơi mã probe thật sự nằm, kể cả khi tên đó
-  // chứa dấu `>`), rồi gắn VÂN TAY 4 hex của TRỌN title để hai title khác nhau không bao giờ ra cùng
-  // một nhãn — kể cả khi phần chữ bị cắt trùng khít.
-  const than = doan.length > 1 ? doan.slice(1).join(' > ') : doan[0];
+export function nhanProbe(title: string, idBiet: readonly string[] = []): string {
+  const tho = (title ?? '').replace(/\s+/g, ' ').trim();
   const van = createHash('sha256').update(title ?? '').digest('hex').slice(0, 4);
-  const thanNgan = than.length <= 30 ? than : `${than.slice(0, 29)}…`;
-  return `${thanNgan || '(probe không tên)'}·${van}`;
+  // KHÔNG đoán cấu trúc title nữa. Bốn vòng của cổng đã bác bốn lối đoán (cắt từ đầu · lấy đoạn cuối
+  // · tìm đoạn khớp P\d+ · bỏ đoạn đầu), và gốc là title đến từ HAI nguồn khác nhau: vitest JSON trả
+  // tên `it` THUẦN, còn JUnit XML của repo đích trả tên đã gộp «describe > it». Không phép đoán nào
+  // đúng cho cả hai.
+  // Nay hỏi CHÍNH cửa nối id (khopIdProbe) xem probe này mang mã nào — hai cửa dùng chung một luật
+  // nên không thể lệch, và mã hiện ra là mã ĐÃ NỐI ĐƯỢC chứ không phải mã đoán ra.
+  const id = idBiet.find((x) => khopIdProbe(title ?? '', x));
+  if (id) return `${id}·${van}`;
+  // Không biết mã (probe thư viện đời cũ, hoặc test lạ): lấy chữ cho người đọc nhận mặt, và VÂN TAY
+  // bảo đảm hai title khác nhau không bao giờ ra cùng nhãn — kể cả khi phần chữ bị cắt trùng khít.
+  const chu = tho.length <= 26 ? tho : `${tho.slice(0, 25)}…`;
+  return `${chu || '(probe không tên)'}·${van}`;
 }
 
 export function khopIdProbe(title: string, id: string): boolean {
@@ -465,12 +465,15 @@ export async function chaySkillCode(
       continue;
     }
 
+    // Mã probe mà lượt này BIẾT: kế hoạch mới + plan của từng probe thư viện. Truyền vào nhãn để nó
+    // hỏi đúng cửa nối id thay vì đoán từ chuỗi.
+    const idBiet = [...keHoach.map((p) => p.id), ...thuVien.map((f) => f.plan.id)].filter(Boolean);
     const tomTatKq = (kq: KetQuaProbe[] | undefined) => {
       const daDung = new Map<string, number>();
       return (
         (kq ?? [])
           .map((p) => {
-            let nhan = nhanProbe(p.title);
+            let nhan = nhanProbe(p.title, idBiet);
             // Hai probe trùng tên thật vẫn phải phân biệt được — nếu không, người đọc log lại rơi
             // đúng vào chỗ «năm dòng giống hệt» mà bản vá này sinh ra để sửa.
             const lan = (daDung.get(nhan) ?? 0) + 1;
