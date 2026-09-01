@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import type { RunEvent, Verdict } from '../../../packages/shared/src/types.js';
-import { GOC } from './paths.js';
+import { GOC } from '../../../packages/shared/src/paths.js';
 import { mucTuMeta } from './ledger.js';
 import * as kho from './kho/kho-run.js';
 import { ghiSoCaiNeuChua } from './kho/kho-socai.js';

@@ -3,7 +3,7 @@ import multer from 'multer';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DINH_DANG_NHAN, trichText } from './extract.js';
-import { GOC } from './paths.js';
+import { GOC } from '../../../packages/shared/src/paths.js';
 import { RunManager } from './runs.js';
 import { escHtml, khung, khoiDaTraVe, khoiPrList, trangChu, trangRun, trangSettings } from './ui.js';
 import {

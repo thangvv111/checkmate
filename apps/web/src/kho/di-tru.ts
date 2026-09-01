@@ -4,7 +4,7 @@ import { moDb } from './db.js';
 import { ghiSoCaiNeuChua, ghiSoCong } from './kho-socai.js';
 import { docMeta, luuMeta, luuSuKien } from './kho-run.js';
 import type { RunMeta, StoredEvent } from '../runs.js';
-import { GOC } from '../paths.js';
+import { GOC } from '../../../../packages/shared/src/paths.js';
 import type { MucSoCai } from '../ledger.js';
 
 // Di trú dữ liệu đời file sang cơ sở dữ liệu (specs/R9.7–R9.9).

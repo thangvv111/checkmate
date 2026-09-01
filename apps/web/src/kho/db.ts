@@ -1,7 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { chmodSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { GOC } from '../paths.js';
+import { GOC } from '../../../../packages/shared/src/paths.js';
 
 // Tầng dữ liệu (specs/R9). Đây là nơi DUY NHẤT trong hệ biết mình đang chạy trên SQLite.
 // node:sqlite còn ở diện thử nghiệm, nhưng bề mặt dùng ở đây rất hẹp (exec · prepare · run · get · all),

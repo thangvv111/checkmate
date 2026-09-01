@@ -16,9 +16,9 @@ Bốn commit tách bạch (xem `design.md`): di chuyển thuần → đổi tên
 
 ## 2. Commit 1 — DI CHUYỂN thuần (không đổi một ký tự nội dung)
 
-- [ ] 2.1 Dời `apps/web/src/paths.ts` xuống tầng nền (`packages/shared/src/`), cập nhật mọi chỗ
+- [x] 2.1 Dời `apps/web/src/paths.ts` xuống tầng nền (`packages/shared/src/`), cập nhật mọi chỗ
       import. Nội dung file giữ NGUYÊN VĂN — commit này phải là rename thuần để `git` nhận ra.
-- [ ] 2.2 Xác nhận vòng runtime đã đứt: không còn value-import nào từ `apps/web/src/kho/**` lên
+- [x] 2.2 Xác nhận vòng runtime đã đứt: không còn value-import nào từ `apps/web/src/kho/**` lên
       `apps/web/src/*.ts`.
 
 ## 3. Commit 2 — ĐỔI TÊN lớp A (không file nào đổi chỗ)
