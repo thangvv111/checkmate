@@ -27,7 +27,7 @@ function xepTang(duongDan: string): Tang | null {
   if (p.includes('/packages/shared/')) return 'nen';
   if (/\/packages\/harness\/src\/cli\.ts$/.test(p)) return 'delivery';
   if (p.includes('/packages/harness/')) return 'engine';
-  if (p.includes('/apps/web/src/kho/')) return 'adapter';
+  if (p.includes('/apps/web/src/store/')) return 'adapter';
   if (/\/apps\/web\/src\/(server|ui[^/]*)\.ts$/.test(p)) return 'delivery';
   if (p.includes('/apps/web/')) return 'app';
   return null;
@@ -113,7 +113,11 @@ describe('lưới kiến trúc — phụ thuộc một chiều, đọc từ impo
     for (const t of tangCoThat) {
       expect(MA_TRAN[t], `tầng ${t} có file thật nhưng chưa có hàng trong ma trận`).toBeDefined();
     }
-    expect(tangCoThat.size, 'phải nhìn thấy ít nhất 4 tầng — thấy ít hơn nghĩa là xepTang đang mù').toBeGreaterThanOrEqual(4);
+    // Siết từ «>= 4» lên «đủ 5»: lúc đổi tên thư mục kho/ -> store/, xepTang còn trỏ đường cũ nên
+    // tầng adapter BIẾN MẤT mà test vẫn xanh — lưới tự nó mù đúng lúc cần nhất. Đếm đủ 5 mới bắt được.
+    expect([...tangCoThat].sort(), 'thiếu tầng nào nghĩa là xepTang đang mù với thư mục đó').toEqual(
+      ['adapter', 'app', 'delivery', 'engine', 'nen'],
+    );
   });
 
   it('repo hiện tại KHÔNG vi phạm ma trận', () => {

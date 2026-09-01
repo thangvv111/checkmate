@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { escHtml, splitSource } from '../apps/web/src/ui.js';
-import { filterRuns } from '../apps/web/src/ui-lich-su.js';
-import { maskKey, providerDefinition, PROVIDER_CATALOG } from '../apps/web/src/ncc.js';
+import { filterRuns } from '../apps/web/src/ui-history.js';
+import { maskKey, providerDefinition, PROVIDER_CATALOG } from '../apps/web/src/provider.js';
 import type { RunMeta } from '../apps/web/src/runs.js';
 
 // Tầng web: lọc lịch sử theo repo (specs/R4-lich-su-theo-repo.md) và hiển thị an toàn.

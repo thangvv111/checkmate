@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, resolve } from 'node:path';
-import { readVault, writeVault } from './kho-bi-mat.js';
+import { readVault, writeVault } from './secret-vault.js';
 
 // Lớp NHÀ CUNG CẤP MODEL — tách hai khái niệm vốn bị gộp làm một:
 //   • Nhà cung cấp (Anthropic / GitHub / OpenAI…) — ai chạy model

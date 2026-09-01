@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { TRIGGER_CATALOG, laTriggerHopLe, tapKichHoat, timTrigger } from '../packages/harness/src/trigger-catalog.js';
-import { TRIGGER_EXAMPLES, EXAMPLES_PER_TRIGGER, knowledgeByTrigger } from '../packages/harness/src/khuon-loi.js';
+import { TRIGGER_EXAMPLES, EXAMPLES_PER_TRIGGER, knowledgeByTrigger } from '../packages/harness/src/trigger-examples.js';
 import { normalizeOdcQualifier, normalizeOdcType, chuanMuc } from '../packages/shared/src/types.js';
 
 /**

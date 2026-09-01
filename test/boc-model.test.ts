@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { unwrapJson, unwrapCode, ModelUsedToolError } from '../packages/harness/src/jsonx.js';
-import { makeFence, FENCE_NOTICE } from '../packages/harness/src/rao.js';
+import { makeFence, FENCE_NOTICE } from '../packages/harness/src/fence.js';
 
 // Bóc trả lời model + rào chống prompt injection (specs/R3-boc-tra-loi-model.md).
 // Model đổi đời là đổi thói quen định dạng — lưới này giữ cho việc đổi model không âm thầm làm hỏng luồng.

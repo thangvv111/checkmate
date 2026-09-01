@@ -1,7 +1,7 @@
 import { chuanMuc } from '../../../packages/shared/src/types.js';
 import { readConfig } from './config.js';
 import type { RunMeta } from './runs.js';
-import { JS_PROVIDER } from './ui-ncc.js';
+import { JS_PROVIDER } from './ui-provider.js';
 import { JS_REPO } from './ui-repo.js';
 
 const CSS = `

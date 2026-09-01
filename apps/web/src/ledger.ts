@@ -1,6 +1,6 @@
 import { chuanMuc, type Verdict } from '../../../packages/shared/src/types.js';
 import type { RunMeta } from './runs.js';
-import { readVerdictLedger as khoDocSoCai, appendVerdictLedger as khoGhiSoCai, appendVerdictLedgerIfNew, inVerdictLedger } from './kho/kho-socai.js';
+import { readVerdictLedger as khoDocSoCai, appendVerdictLedger as khoGhiSoCai, appendVerdictLedgerIfNew, inVerdictLedger } from './store/ledger-store.js';
 
 // Sổ cái verdict (spec §12 · B4.1): append-only MỌI verdict — bề mặt truy vết cho kiểm soát/kiểm toán.
 // Khác review-log.jsonl (sổ HÀNH ĐỘNG cổng merge/reject) — sổ này ghi KẾT LUẬN chấm.

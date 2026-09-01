@@ -13,7 +13,7 @@ process.env.CHECKER_LIB_DIR = goc;
 // Ghim trần 40 cho các ca đào thải bên dưới (mặc định sản phẩm nay là 100 — R10.4, PO chốt 31/08)
 process.env.CHECKER_LIB_TRAN = '40';
 
-const tv = await import('../packages/harness/src/thu-vien.js');
+const tv = await import('../packages/harness/src/probe-library.js');
 
 const SLUG = 'repo-thu';
 const plan = (id: string, rule = 'R1'): ProbePlan => ({ id, ten: `thử ${id}`, muc_dich: 'm', spec_rule: rule, ky_vong: 'k' });
@@ -199,7 +199,7 @@ describe('tầng 4 — lịch sử hành vi và gỡ trùng đo được', () =>
 });
 
 describe('đào thải theo điểm GIỮ/LOẠI (R10.22–R10.24) — thay FIFO mù', () => {
-  type Muc = import('../packages/harness/src/thu-vien.js').ProbeLibEntry;
+  type Muc = import('../packages/harness/src/probe-library.js').ProbeLibEntry;
   const muc = (ten: string, phu: Partial<Muc> = {}): Muc => ({
     ten, sha_sinh: 's', luc: '2026-01-01', hash: ten, plan: plan(ten), lich_su: [], ...phu,
   });

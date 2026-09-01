@@ -17,29 +17,29 @@ import {
   verifyPassword,
   createSession,
   deleteSession,
-} from './danh-tinh.js';
+} from './identity.js';
 import { loginPage, type LoginState } from './ui-login.js';
 
 import { MODE, ProviderConfigErrorCfg, configForReview, currentConfig, maskToken, maskToken2, readConfig, migrateRepoToken, readSubscriptionToken, agentEnv, writeConfig, writeSubscriptionToken } from './config.js';
-import { PROVIDER_CATALOG, providerDefinition, validModel, readProviderCheck, writeKey, checkStillValid, type ProviderConfig, type ProviderId, type Method } from './ncc.js';
+import { PROVIDER_CATALOG, providerDefinition, validModel, readProviderCheck, writeKey, checkStillValid, type ProviderConfig, type ProviderId, type Method } from './provider.js';
 import { REPO_ROOT, slugGithubRepo, findRepo, type RepoConfig } from './config.js';
 import { existsSync as coFile } from 'node:fs';
 import { join as noiDuong } from 'node:path';
-import { providerSection } from './ui-ncc.js';
+import { providerSection } from './ui-provider.js';
 import { repoSection } from './ui-repo.js';
 import { cloneRepo, listBranches, listPrs, prState, listReposForToken, closePr, fetchAndRoute, setCommitStatus, checkRepo, getCurrentPr, mergePr, commentPr, splitOwnerRepo, returnToDev } from './github.js';
-import { hasToken, readRepoToken, readOwnToken, writeRepoToken, deleteRepoToken } from './kho-bi-mat.js';
+import { hasToken, readRepoToken, readOwnToken, writeRepoToken, deleteRepoToken } from './secret-vault.js';
 import { hasGithubAccess, hasGhCli } from './github.js';
-import { renderRuling, renderReceipt, renderAutoVerdict, countBySeverity, reconcileGate, appendGateLedgerEntry, MACHINE_ACTOR_NAME } from './cong.js';
+import { renderRuling, renderReceipt, renderAutoVerdict, countBySeverity, reconcileGate, appendGateLedgerEntry, MACHINE_ACTOR_NAME } from './gate.js';
 import { backfillVerdictLedger, readVerdictLedger } from './ledger.js';
-import { readVerdictLedger as docSoCaiKho, countVerdictLedger as demSoCaiKho } from './kho/kho-socai.js';
-import { migrateAll, migrationSummary } from './kho/di-tru.js';
-import { computeProfile } from './tincay.js';
-import { authorProfilePage, trustPage } from './ui-tincay.js';
+import { readVerdictLedger as docSoCaiKho, countVerdictLedger as demSoCaiKho } from './store/ledger-store.js';
+import { migrateAll, migrationSummary } from './store/migrate.js';
+import { computeProfile } from './trust.js';
+import { authorProfilePage, trustPage } from './ui-trust.js';
 import { ledgerPage } from './ui-ledger.js';
-import { historyPage, type HistoryFilter } from './ui-lich-su.js';
+import { historyPage, type HistoryFilter } from './ui-history.js';
 import { docsPage } from './ui-docs.js';
-import { readProviderState, tryProvider, type ProviderState } from './nguon-model.js';
+import { readProviderState, tryProvider, type ProviderState } from './model-source.js';
 import { chuanMuc } from '../../../packages/shared/src/types.js';
 
 const app = express();

@@ -15,10 +15,10 @@ const goc = mkdtempSync(join(tmpdir(), 'checkmate-demo-'));
 process.env.CHECKMATE_GOC = goc;
 delete process.env.CHECKMATE_MODE; // mặc định = demo
 
-const kho = await import('../apps/web/src/kho/kho-run.js');
-const so = await import('../apps/web/src/kho/kho-socai.js');
-const cong = await import('../apps/web/src/cong.js');
-const db = await import('../apps/web/src/kho/db.js');
+const kho = await import('../apps/web/src/store/run-store.js');
+const so = await import('../apps/web/src/store/ledger-store.js');
+const cong = await import('../apps/web/src/gate.js');
+const db = await import('../apps/web/src/store/db.js');
 
 afterAll(() => {
   db.closeDb();

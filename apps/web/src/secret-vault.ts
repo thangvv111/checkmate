@@ -1,6 +1,6 @@
 import { chmodSync, existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import type { ProviderId } from './ncc.js';
+import type { ProviderId } from './provider.js';
 
 /**
  * Kho bí mật — MỘT chỗ duy nhất đọc/ghi `.secrets.json` (specs/R9.13, R4.19).

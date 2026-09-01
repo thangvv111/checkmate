@@ -1,7 +1,7 @@
 import type { ProbePlan } from './skill-code.js';
-import type { LibraryProbe } from './thu-vien.js';
-import type { Fence } from './rao.js';
-import { FENCE_NOTICE } from './rao.js';
+import type { LibraryProbe } from './probe-library.js';
+import type { Fence } from './fence.js';
+import { FENCE_NOTICE } from './fence.js';
 
 // Xử trùng lặp probe theo bốn tầng (specs/R10.6–R10.8). File này giữ ba tầng đầu:
 //   tầng 1 — cơ học: bản chạy-lại cùng commit (sha sinh + id + luật) → loại thẳng
@@ -14,8 +14,8 @@ import { FENCE_NOTICE } from './rao.js';
 
 // splitRule sống ở thu-vien.ts để CẢ tầng cơ học lẫn tầng 4 so luật qua cùng một bản chuẩn hoá —
 // hai bản so lệch nhau ('R1,R2' vs 'R1, R2') là tầng 4 mù đúng ở cặp cần bắt nhất (dàn review bắt được).
-export { splitRule } from './thu-vien.js';
-import { splitRule } from './thu-vien.js';
+export { splitRule } from './probe-library.js';
+import { splitRule } from './probe-library.js';
 
 function giaoRule(a: string | undefined, b: string | undefined): boolean {
   const tb = new Set(splitRule(b));

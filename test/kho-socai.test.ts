@@ -9,9 +9,9 @@ import { join } from 'node:path';
 const thuMuc = mkdtempSync(join(tmpdir(), 'checkmate-db-'));
 process.env.CHECKMATE_DB = join(thuMuc, 'thu.db');
 
-const { openDb, closeDb } = await import('../apps/web/src/kho/db.js');
+const { openDb, closeDb } = await import('../apps/web/src/store/db.js');
 const { appendVerdictLedger, appendVerdictLedgerIfNew, readVerdictLedger, countVerdictLedger, inVerdictLedger, appendGateLedger, readGateLedger, DuplicateRunError } =
-  await import('../apps/web/src/kho/kho-socai.js');
+  await import('../apps/web/src/store/ledger-store.js');
 type VerdictLedgerEntry = Parameters<typeof appendVerdictLedger>[0];
 
 const muc = (p: Partial<VerdictLedgerEntry> & { run_id: string }): VerdictLedgerEntry => ({

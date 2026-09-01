@@ -1,12 +1,12 @@
 import { createHash } from 'node:crypto';
-import { getDocExamples } from './khuon-loi.js';
+import { getDocExamples } from './trigger-examples.js';
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import type { Evidence, Finding, RunEvent, Severity } from '../../shared/src/types.js';
 import type { ModelProvider } from './model.js';
 import { callJson } from './jsonx.js';
 import { chuanMuc } from '../../shared/src/types.js';
-import { FENCE_NOTICE, makeFence, type Fence } from './rao.js';
+import { FENCE_NOTICE, makeFence, type Fence } from './fence.js';
 
 export interface DocSkillResult {
   findings: Finding[];

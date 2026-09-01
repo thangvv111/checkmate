@@ -1,5 +1,5 @@
 import type { VerdictLedgerEntry } from './ledger.js';
-import type { AuthorProfile } from './tincay.js';
+import type { AuthorProfile } from './trust.js';
 import { shell, escHtml } from './ui.js';
 
 // Ô lọc repo dùng chung cho thang tin cậy và hồ sơ từng tác giả.

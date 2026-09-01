@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import type { CheckmateConfig } from './config.js';
-import { readRepoToken } from './kho-bi-mat.js';
+import { readRepoToken } from './secret-vault.js';
 
 /**
  * Chìa dùng cho một lời gọi API, suy từ CHÍNH path đang gọi (R4.18).

@@ -35,9 +35,9 @@ writeFileSync(
   'utf8',
 );
 
-const { openDb, closeDb } = await import('../apps/web/src/kho/db.js');
-const { migrateAll, migrationSummary } = await import('../apps/web/src/kho/di-tru.js');
-const { readVerdictLedger, readGateLedger, countVerdictLedger } = await import('../apps/web/src/kho/kho-socai.js');
+const { openDb, closeDb } = await import('../apps/web/src/store/db.js');
+const { migrateAll, migrationSummary } = await import('../apps/web/src/store/migrate.js');
+const { readVerdictLedger, readGateLedger, countVerdictLedger } = await import('../apps/web/src/store/ledger-store.js');
 
 let lan1: ReturnType<typeof migrateAll>;
 let lan2: ReturnType<typeof migrateAll>;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PROVIDER_CATALOG, providerDefinition, validModel } from '../apps/web/src/ncc.js';
+import { PROVIDER_CATALOG, providerDefinition, validModel } from '../apps/web/src/provider.js';
 
 // Model giới hạn theo phương thức (specs/R5.15–R5.16). Ca chốt: claude-fable-5 đi theo gói thuê bao
 // của chủ máy, CỐ Ý không mở cho đường API. Ba cửa (form lưu, cổng kiểm, giao diện) hỏi cùng một hàm —
@@ -54,7 +54,7 @@ describe('validModel (R5.15)', () => {
 
 describe('cổng kiểm từ chối tổ hợp ngoài giới hạn TRƯỚC khi gọi (R5.16)', () => {
   it('api + fable → ok:false với lời nói đúng nguyên nhân, không gọi model', async () => {
-    const { tryProvider } = await import('../apps/web/src/nguon-model.js');
+    const { tryProvider } = await import('../apps/web/src/model-source.js');
     const t0 = Date.now();
     const kq = await tryProvider('anthropic', { phuong_thuc: 'api', model: 'claude-fable-5' });
     expect(kq.ok).toBe(false);
@@ -66,7 +66,7 @@ describe('cổng kiểm từ chối tổ hợp ngoài giới hạn TRƯỚC khi 
 
 describe('hai nguyên nhân phải nói hai lời khác nhau — Opus bắt trên chính PR này', () => {
   it('model lạ KHÔNG bị từ chối sớm theo danh mục — lỗi (nếu có) phải là lỗi THẬT từ bước sau (R5.18)', async () => {
-    const { tryProvider } = await import('../apps/web/src/nguon-model.js');
+    const { tryProvider } = await import('../apps/web/src/model-source.js');
     const kq = await tryProvider('anthropic', { phuong_thuc: 'api', model: 'model-khong-co-that-xyz' });
     expect(kq.ok).toBe(false); // máy test không có ANTHROPIC_API_KEY → lỗi thiếu khoá, một nguyên nhân thật
     expect(kq.thong_diep).not.toMatch(/không có trong danh mục|không đi được với phương thức/);
@@ -74,7 +74,7 @@ describe('hai nguyên nhân phải nói hai lời khác nhau — Opus bắt trê
   });
 
   it('model chỉ-thuê-bao đi đường API → nói đúng chuyện phương thức, kèm hướng sửa', async () => {
-    const { tryProvider } = await import('../apps/web/src/nguon-model.js');
+    const { tryProvider } = await import('../apps/web/src/model-source.js');
     const kq = await tryProvider('anthropic', { phuong_thuc: 'api', model: 'claude-fable-5' });
     expect(kq.ok).toBe(false);
     expect(kq.thong_diep).toMatch(/chỉ mở cho gói thuê bao/);
@@ -84,8 +84,8 @@ describe('hai nguyên nhân phải nói hai lời khác nhau — Opus bắt trê
 describe('không vọng nguyên văn giá trị ngoài danh mục — Opus bắt hồi quy rò khoá trên chính bản sửa', () => {
   it('dán nhầm API key vào ô model thì key KHÔNG đi ra thông điệp lẫn sổ kiểm', async () => {
     const keyGia = 'sk-ant-api03-TEST-KHONG-CO-THAT-0123456789';
-    const { tryProvider } = await import('../apps/web/src/nguon-model.js');
-    const { readProviderCheck } = await import('../apps/web/src/ncc.js');
+    const { tryProvider } = await import('../apps/web/src/model-source.js');
+    const { readProviderCheck } = await import('../apps/web/src/provider.js');
     const kq = await tryProvider('anthropic', { phuong_thuc: 'api', model: keyGia });
     expect(kq.ok).toBe(false);
     // Nêu độ dài + danh mục là đủ; chép lại thứ người dùng vừa gõ là biến lỗi gõ nhầm thành lỗi lộ khoá
@@ -99,8 +99,8 @@ describe('không vọng nguyên văn giá trị ngoài danh mục — Opus bắt
 
 describe('bản che phân biệt được hai model khác nhau (vòng bảy, finding 1)', () => {
   it('hai model lạ CÙNG độ dài không được trùng một hàng sổ kiểm', async () => {
-    const { tryProvider } = await import('../apps/web/src/nguon-model.js');
-    const { readProviderCheck } = await import('../apps/web/src/ncc.js');
+    const { tryProvider } = await import('../apps/web/src/model-source.js');
+    const { readProviderCheck } = await import('../apps/web/src/provider.js');
     await tryProvider('anthropic', { phuong_thuc: 'api', model: 'model-la-aaaaaaaa' });
     const hangA = JSON.stringify(readProviderCheck());
     await tryProvider('anthropic', { phuong_thuc: 'api', model: 'model-la-bbbbbbbb' });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TRIGGER_EXAMPLES, EXAMPLE_CAP, getCodeExamples, getDocExamples } from '../packages/harness/src/khuon-loi.js';
+import { TRIGGER_EXAMPLES, EXAMPLE_CAP, getCodeExamples, getDocExamples } from '../packages/harness/src/trigger-examples.js';
 
 // Kho khuôn lỗi common (specs/R12) — tri thức đúc từ finding thật, phát vào prompt của cả hai skill.
 

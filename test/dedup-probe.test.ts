@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { applyRuling, splitRule, findSuspectedDuplicate, findRerunDuplicate, type RulingCandidate } from '../packages/harness/src/dedup-probe.js';
-import { splitOneProbe, cutTestBlock, hasTestBlock, checkBalanced, type LibraryProbe } from '../packages/harness/src/thu-vien.js';
+import { splitOneProbe, cutTestBlock, hasTestBlock, checkBalanced, type LibraryProbe } from '../packages/harness/src/probe-library.js';
 import type { ProbePlan } from '../packages/harness/src/skill-code.js';
 
 // Ba tầng đầu của luật xử trùng lặp (specs/R10.6–R10.8) + máy tách file per-probe (R10.2).

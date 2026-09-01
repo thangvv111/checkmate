@@ -1,6 +1,6 @@
 import { randomBytes, scryptSync, timingSafeEqual, createHash } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
-import { openDb } from './kho/db.js';
+import { openDb } from './store/db.js';
 
 /**
  * Danh tính người thao tác và phiên đăng nhập (specs/R11).

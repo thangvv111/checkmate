@@ -9,9 +9,9 @@ import { join } from 'node:path';
 const thuMuc = mkdtempSync(join(tmpdir(), 'checkmate-cong-'));
 process.env.CHECKMATE_DB = join(thuMuc, 'cong.db');
 
-const { openDb, closeDb } = await import('../apps/web/src/kho/db.js');
-const { readGateLedger } = await import('../apps/web/src/kho/kho-socai.js');
-const { appendGateLedgerEntry } = await import('../apps/web/src/cong.js');
+const { openDb, closeDb } = await import('../apps/web/src/store/db.js');
+const { readGateLedger } = await import('../apps/web/src/store/ledger-store.js');
+const { appendGateLedgerEntry } = await import('../apps/web/src/gate.js');
 
 afterAll(() => {
   closeDb();
@@ -70,13 +70,13 @@ describe('tự duyệt: ghi dấu, không chặn (R11.17)', () => {
 
 describe('so tên người bấm với tác giả PR', () => {
   it('bỏ qua khác biệt dấu chấm/gạch và hoa thường', async () => {
-    const { samePerson } = await import('../apps/web/src/cong.js');
+    const { samePerson } = await import('../apps/web/src/gate.js');
     expect(samePerson('thang.vv', 'thang-vv')).toBe(true);
     expect(samePerson('Thang_VV', 'thangvv')).toBe(true);
   });
 
   it('cố ý bắt SÓT hơn bắt OAN — hai người khác nhau không bị gộp', async () => {
-    const { samePerson } = await import('../apps/web/src/cong.js');
+    const { samePerson } = await import('../apps/web/src/gate.js');
     // Bắt oan thì cảnh báo dựng lên đúng lúc cần merge gấp, và lần sau không ai đọc cảnh báo nữa
     expect(samePerson('thang.vv', 'thang.vy')).toBe(false);
     expect(samePerson('', 'thang.vv')).toBe(false);

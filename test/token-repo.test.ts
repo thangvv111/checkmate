@@ -12,7 +12,7 @@ const goc = mkdtempSync(join(tmpdir(), 'checkmate-token-'));
 process.env.CHECKMATE_GOC = goc;
 delete process.env.GITHUB_TOKEN;
 
-const kho = await import('../apps/web/src/kho-bi-mat.js');
+const kho = await import('../apps/web/src/secret-vault.js');
 const gh = await import('../apps/web/src/github.js');
 const cfg = await import('../apps/web/src/config.js');
 

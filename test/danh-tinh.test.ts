@@ -10,8 +10,8 @@ import { join } from 'node:path';
 const thuMuc = mkdtempSync(join(tmpdir(), 'checkmate-dt-'));
 process.env.CHECKMATE_DB = join(thuMuc, 'dt.db');
 
-const { openDb, closeDb } = await import('../apps/web/src/kho/db.js');
-const dt = await import('../apps/web/src/danh-tinh.js');
+const { openDb, closeDb } = await import('../apps/web/src/store/db.js');
+const dt = await import('../apps/web/src/identity.js');
 
 const req = (cookie?: string) => ({ headers: cookie ? { cookie } : {} }) as never;
 const cookiePhien = (token: string) => `${dt.SESSION_COOKIE_NAME}=${token}`;

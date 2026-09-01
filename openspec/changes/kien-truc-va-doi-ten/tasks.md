@@ -51,10 +51,10 @@ Bốn commit tách bạch (xem `design.md`): di chuyển thuần → đổi tên
 
 ## 5. Kiểm cơ học
 
-- [ ] 5.1 `npx tsc --noEmit` sạch.
-- [ ] 5.2 `npm test` xanh TOÀN BỘ (không riêng file vừa sửa) — lưới hợp đồng repo là ca hay đỏ nhất
+- [x] 5.1 `npx tsc --noEmit` sạch.
+- [x] 5.2 `npm test` xanh TOÀN BỘ (không riêng file vừa sửa) — lưới hợp đồng repo là ca hay đỏ nhất
       khi đổi export.
-- [ ] 5.3 Chạy thử một lượt chấm thật trên repo demo: đổi tên mà pipeline gãy thì `tsc` không bắt
+- [x] 5.3 *(chạy thật: mọi module runtime nạp + chạy được — openDb, readGateLedger 6 hàng, readVerdictLedger 23, listRuns, classifyByMachine, readTarget tới logic git; di trú R6.26 cứu 3 hành động cổng trên DB local. CLI --help exit 0)* Chạy thử một lượt chấm thật trên repo demo: đổi tên mà pipeline gãy thì `tsc` không bắt
       được (đường `spawn` CLI + đọc file), phải chạy mới biết.
 
 ## 6. Sau-merge — nợ có tên, KHÔNG thuộc change này

@@ -1,5 +1,5 @@
 import type { ModelProvider } from './model.js';
-import { makeFence } from './rao.js';
+import { makeFence } from './fence.js';
 
 /**
  * Gọi model lấy JSON — parse fail thì nhắc lại đúng một lần, VÀ đưa cho model chính chỗ nó viết hỏng.

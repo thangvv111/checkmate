@@ -17,10 +17,10 @@ process.env.CHECKMATE_GOC = goc;
 // nạp module, một tiến trình không mang được hai chế độ.
 process.env.CHECKMATE_MODE = 'org';
 
-const kho = await import('../apps/web/src/kho/kho-run.js');
-const so = await import('../apps/web/src/kho/kho-socai.js');
-const cong = await import('../apps/web/src/cong.js');
-const db = await import('../apps/web/src/kho/db.js');
+const kho = await import('../apps/web/src/store/run-store.js');
+const so = await import('../apps/web/src/store/ledger-store.js');
+const cong = await import('../apps/web/src/gate.js');
+const db = await import('../apps/web/src/store/db.js');
 
 const verdictGia = (result: 'PASS' | 'FAIL', medium = 0, high = 0) => ({
   run_id: 'x',

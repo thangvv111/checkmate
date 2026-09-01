@@ -1,6 +1,6 @@
 import { escHtml } from './ui.js';
-import { projectValue, PROVIDER_CATALOG, METHODS, type ProviderConfig, type CheckResult, type ProviderId, type Method } from './ncc.js';
-import type { ProviderState } from './nguon-model.js';
+import { projectValue, PROVIDER_CATALOG, METHODS, type ProviderConfig, type CheckResult, type ProviderId, type Method } from './provider.js';
+import type { ProviderState } from './model-source.js';
 
 // Khối "Nhà cung cấp model" trong Cấu hình: mỗi nhà cung cấp một thẻ gập cho gọn,
 // bên trong là phương thức + model + khoá + nút Kiểm tra. Nhà cung cấp chỉ được ĐANG DÙNG

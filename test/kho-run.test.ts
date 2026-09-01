@@ -12,9 +12,9 @@ mkdirSync(join(goc, 'web-runs'), { recursive: true });
 process.env.CHECKMATE_GOC = goc;
 process.env.CHECKMATE_DB = join(goc, 'web-runs', 'run.db');
 
-const { openDb, closeDb } = await import('../apps/web/src/kho/db.js');
-const k = await import('../apps/web/src/kho/kho-run.js');
-const soCong = await import('../apps/web/src/kho/kho-socai.js');
+const { openDb, closeDb } = await import('../apps/web/src/store/db.js');
+const k = await import('../apps/web/src/store/run-store.js');
+const soCong = await import('../apps/web/src/store/ledger-store.js');
 
 const meta = (p: Partial<RunMeta> & { id: string }): RunMeta => ({
   tieuDe: 'PR #8 · code',

@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { currentConfig, readSubscriptionToken, type CheckmateConfig } from './config.js';
-import { projectValue, providerDefinition, readKey, METHODS, validModel, writeProviderCheck, type ProviderConfig, type CheckResult, type ProviderId } from './ncc.js';
+import { projectValue, providerDefinition, readKey, METHODS, validModel, writeProviderCheck, type ProviderConfig, type CheckResult, type ProviderId } from './provider.js';
 
 // Kiểm một nhà cung cấp: gọi thử MỘT câu cực ngắn đúng cấu hình của nó.
 // Vừa là nút "Kiểm tra" trong giao diện, vừa là CỔNG: chưa kiểm thành công thì không được chọn để chấm.

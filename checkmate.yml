@@ -9,7 +9,7 @@ runner:
   huong_dan_probe: |
     Import thẳng từ mã nguồn, dùng đuôi .js trong đường dẫn (mã viết theo NodeNext):
       import { classifyByMachine } from '../packages/harness/src/skill-code.js';
-      import { filterRuns } from '../apps/web/src/ui-lich-su.js';
+      import { filterRuns } from '../apps/web/src/ui-history.js';
     Test chạy trong môi trường node, KHÔNG có server nào đang chạy và KHÔNG được gọi mạng.
     Đừng viết probe cần khoá model, cần GitHub token, hay cần clone repo — chúng sẽ đỏ cả hai nhánh
     và chỉ ra nhãn ngoai_pham_vi, không chứng minh được gì.
@@ -19,32 +19,32 @@ runner:
       ../packages/harness/src/target.js      → buildDiff · readTarget · extractRuleIds · findNewRules · suggestModulePath
       ../packages/harness/src/runner.js      → parseJUnit · readRunnerCfg · readReviewCfg · diffIgnorePatterns
       ../packages/harness/src/sandbox.js     → fileLoadError · Sandbox
-      ../packages/harness/src/thu-vien.js    → admitToLibrary · pickEvictionVictim · readProbeLibrary · withLibraryLock · repoSlug · splitOneProbe · cutTestBlock · hasTestBlock · checkBalanced · splitRule · updateHistory · findAndDropBehaviorDuplicates
-      ../packages/harness/src/khuon-loi.js   → getCodeExamples · getDocExamples · knowledgeByTrigger · TRIGGER_EXAMPLES · EXAMPLE_CAP · EXAMPLES_PER_TRIGGER
+      ../packages/harness/src/probe-library.js    → admitToLibrary · pickEvictionVictim · readProbeLibrary · withLibraryLock · repoSlug · splitOneProbe · cutTestBlock · hasTestBlock · checkBalanced · splitRule · updateHistory · findAndDropBehaviorDuplicates
+      ../packages/harness/src/trigger-examples.js   → getCodeExamples · getDocExamples · knowledgeByTrigger · TRIGGER_EXAMPLES · EXAMPLE_CAP · EXAMPLES_PER_TRIGGER
       ../packages/harness/src/dedup-probe.js → splitRule · findRerunDuplicate · findSuspectedDuplicate · applyRuling · promptDuplicateRuling
       ../packages/harness/src/jsonx.js       → unwrapJson · unwrapCode · ModelUsedToolError · callJson · callCode
-      ../packages/harness/src/rao.js         → makeFence · FENCE_NOTICE
+      ../packages/harness/src/fence.js         → makeFence · FENCE_NOTICE
       ../apps/web/src/ui.js                  → escHtml · splitSource
-      ../apps/web/src/ui-lich-su.js          → filterRuns
-      ../apps/web/src/ncc.js                 → maskKey · projectValue · providerDefinition · PROVIDER_CATALOG · checkStillValid · readKey · writeKey · readProviderCheck · writeProviderCheck · validModel
+      ../apps/web/src/ui-history.js          → filterRuns
+      ../apps/web/src/provider.js                 → maskKey · projectValue · providerDefinition · PROVIDER_CATALOG · checkStillValid · readKey · writeKey · readProviderCheck · writeProviderCheck · validModel
       ../apps/web/src/config.js              → maskToken · maskToken2 · slugGithubRepo · findRepo · migrateRepoToken · currentConfig · readConfig · writeConfig · readSubscriptionToken · writeSubscriptionToken · agentEnv · configForReview · ProviderConfigErrorCfg
-      ../apps/web/src/kho-bi-mat.js          → readRepoToken · readOwnToken · writeRepoToken · deleteRepoToken · hasToken · repoKey · readVault · writeVault
-      ../apps/web/src/danh-tinh.js           → getIdentity · identityIfAny · verifyPassword · createSession · deleteSession · cleanupExpiredSessions · createAccount · changePassword · changeRole · deleteAccount · listAccounts · hasAnyAccount · validName · readCookie · canOperateGate · requireGateRole · canOperate · IdentityError · SESSION_COOKIE_NAME · canRunReview · canEditConfig
+      ../apps/web/src/secret-vault.js          → readRepoToken · readOwnToken · writeRepoToken · deleteRepoToken · hasToken · repoKey · readVault · writeVault
+      ../apps/web/src/identity.js           → getIdentity · identityIfAny · verifyPassword · createSession · deleteSession · cleanupExpiredSessions · createAccount · changePassword · changeRole · deleteAccount · listAccounts · hasAnyAccount · validName · readCookie · canOperateGate · requireGateRole · canOperate · IdentityError · SESSION_COOKIE_NAME · canRunReview · canEditConfig
       ../apps/web/src/ui-login.js            → loginPage
       ../apps/web/src/ledger.js              → entryFromMeta · appendVerdictLedger · readVerdictLedger · backfillVerdictLedger
-      ../apps/web/src/tincay.js              → computeProfile
-      ../apps/web/src/nguon-model.js         → readProviderState · tryProvider · trySource
+      ../apps/web/src/trust.js              → computeProfile
+      ../apps/web/src/model-source.js         → readProviderState · tryProvider · trySource
       ../apps/web/src/extract.js             → SUPPORTED_FORMATS · extractText
       ../apps/web/src/runs.js                → RunManager
       ../packages/harness/src/model.js       → envForCli · costMetrics · costSummary · looksLikeModelReply · authLost · AUTH_LOST_PATTERNS · CliConfigError · checkProvider · pickProvider · ClaudeCliProvider · AnthropicApiProvider · ProviderConfigError
       ../packages/harness/src/skill-doc.js   → runDocSkill
       ../packages/harness/src/trigger-catalog.js → TRIGGER_CATALOG · laTriggerHopLe · timTrigger · tapKichHoat
       ../apps/web/src/github.js              → repoFromPath · splitOwnerRepo · checkRepo · maskTokenInText · hasGhCli · hasGithubAccess · getCurrentPr · commentPr · mergePr · returnToDev · setCommitStatus · closePr · clearPrCache · listPrs · fetchAndRoute · classifyPr · prState · listReposForToken · cloneRepo · listBranches
-      ../apps/web/src/cong.js                → appendGateLedgerEntry · countBySeverity · samePerson · outsideGateDetail · safeString · reconcileGate · MACHINE_ACTOR_NAME · renderReceipt · renderAutoVerdict · renderRuling
-      ../apps/web/src/kho/db.js              → openDb · closeDb
-      ../apps/web/src/kho/kho-run.js         → saveMeta · saveEvents · readMeta · readEvents · listRuns · countRuns · findByPr · isPrRunning · runningCount · cleanupOrphanRuns · returnedToDev
-      ../apps/web/src/kho/kho-socai.js       → appendVerdictLedger · appendVerdictLedgerIfNew · readVerdictLedger · countVerdictLedger · inVerdictLedger · appendGateLedger · readGateLedger · prsNeedingReconcile · gateActionsOfPr · DuplicateRunError
-      ../apps/web/src/kho/di-tru.js          → migrateAll · migrationSummary
+      ../apps/web/src/gate.js                → appendGateLedgerEntry · countBySeverity · samePerson · outsideGateDetail · safeString · reconcileGate · MACHINE_ACTOR_NAME · renderReceipt · renderAutoVerdict · renderRuling
+      ../apps/web/src/store/db.js              → openDb · closeDb
+      ../apps/web/src/store/run-store.js         → saveMeta · saveEvents · readMeta · readEvents · listRuns · countRuns · findByPr · isPrRunning · runningCount · cleanupOrphanRuns · returnedToDev
+      ../apps/web/src/store/ledger-store.js       → appendVerdictLedger · appendVerdictLedgerIfNew · readVerdictLedger · countVerdictLedger · inVerdictLedger · appendGateLedger · readGateLedger · prsNeedingReconcile · gateActionsOfPr · DuplicateRunError
+      ../apps/web/src/store/migrate.js          → migrateAll · migrationSummary
       ⚠ Lớp kho nằm trong THƯ MỤC CON `kho/`, không nằm thẳng dưới `src/` — đây là chỗ đã làm hỏng
         một lượt chấm thật: probe import '../apps/web/src/di-tru.js' và chết vì thiếu đúng một thư mục.
     ⚠ CHỮ KÝ HÀM LỚP KHO — ĐỪNG ĐOÁN THAM SỐ. Đo được: ba lượt chấm liên tiếp có probe chết bằng
@@ -88,7 +88,7 @@ runner:
     lưới chống probe-rỗng loại và bạn mất một lượt sinh.
     Cần file tạm thì dùng mkdtempSync vào thư mục tạm của hệ, dọn trong afterAll.
     Thư viện probe đọc thư mục qua biến môi trường CHECKER_LIB_DIR — đặt biến này trước khi import
-    thu-vien.js nếu probe cần ghi vào thư viện giả.
+    probe-library.js nếu probe cần ghi vào thư viện giả.
 
 review:
   # Ngoài bộ mẫu sinh-tự-động mặc định (lockfile, dist/, nhị phân) — xem specs/R7

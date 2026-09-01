@@ -1,5 +1,5 @@
 import { createInterface } from 'node:readline';
-import { changePassword, changeRole, listAccounts, createAccount, deleteAccount, type Role } from './danh-tinh.js';
+import { changePassword, changeRole, listAccounts, createAccount, deleteAccount, type Role } from './identity.js';
 
 /**
  * Vòng đời tài khoản qua dòng lệnh (specs/R11.19).

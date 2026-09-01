@@ -4,12 +4,12 @@ import type { ModelProvider } from './model.js';
 import { callCode, callJson } from './jsonx.js';
 import { readTarget, suggestModulePath, extractRuleIds, type TargetInfo } from './target.js';
 import { Sandbox, type ProbeResult } from './sandbox.js';
-import { updateHistory, readProbeLibrary, admitToLibrary, repoSlug, splitOneProbe, findAndDropBehaviorDuplicates } from './thu-vien.js';
-import { getCodeExamples, knowledgeByTrigger } from './khuon-loi.js';
+import { updateHistory, readProbeLibrary, admitToLibrary, repoSlug, splitOneProbe, findAndDropBehaviorDuplicates } from './probe-library.js';
+import { getCodeExamples, knowledgeByTrigger } from './trigger-examples.js';
 import { laTriggerHopLe, type TriggerId } from './trigger-catalog.js';
 import { applyRuling, promptDuplicateRuling, findSuspectedDuplicate, findRerunDuplicate, type Ruling, type RulingCandidate } from './dedup-probe.js';
 import { readReviewCfg, readRunnerCfg, diffIgnorePatterns, parseJUnit, type ReviewCfg, type RunnerCfg } from './runner.js';
-import { FENCE_NOTICE, makeFence, type Fence } from './rao.js';
+import { FENCE_NOTICE, makeFence, type Fence } from './fence.js';
 
 export interface ProbePlan {
   id: string;

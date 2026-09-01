@@ -59,9 +59,9 @@ process.env.CHECKMATE_DB = duongDan;
   d.close();
 }
 
-const db = await import('../apps/web/src/kho/db.js');
-const kho = await import('../apps/web/src/kho/kho-run.js');
-const so = await import('../apps/web/src/kho/kho-socai.js');
+const db = await import('../apps/web/src/store/db.js');
+const kho = await import('../apps/web/src/store/run-store.js');
+const so = await import('../apps/web/src/store/ledger-store.js');
 
 afterAll(() => {
   db.closeDb();

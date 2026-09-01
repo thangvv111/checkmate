@@ -240,7 +240,7 @@ describe('vòng tám: phép chiếu chung + cụm null + không vọng phương 
   it('sổ kiểm lưu bản CHE nhưng tổ hợp model lạ vừa kiểm vẫn CÒN hiệu lực (finding 1 — HIGH)', async () => {
     // Vòng tám bắt: sổ ghi bản che (R5.20) mà checkStillValid so bản THÔ → tổ hợp model-lạ không bao
     // giờ «đã kiểm» — người dùng model mới không chọn được ncc. Phép so phải dùng CÙNG phép chiếu với lúc ghi.
-    const { projectValue, providerDefinition, writeProviderCheck, checkStillValid } = await import('../apps/web/src/ncc.js');
+    const { projectValue, providerDefinition, writeProviderCheck, checkStillValid } = await import('../apps/web/src/provider.js');
     const cauHinh = { phuong_thuc: 'api' as const, model: 'model-moi-ra-chua-co-trong-danh-muc' };
     const dn = providerDefinition('openai');
     writeProviderCheck('openai', {
@@ -258,7 +258,7 @@ describe('vòng tám: phép chiếu chung + cụm null + không vọng phương 
   it('cấu hình KHUYẾT trường → checkStillValid trả null ÊM, không TypeError (vòng chín, finding 1)', async () => {
     // Cửa kiểm nổ là đánh sập cả lượt chấm thay vì bỏ qua một nhà cung cấp — hồi quy do chính bản
     // vá vòng tám gây ra (projectValue gọi .length trên undefined)
-    const { writeProviderCheck, checkStillValid } = await import('../apps/web/src/ncc.js');
+    const { writeProviderCheck, checkStillValid } = await import('../apps/web/src/provider.js');
     writeProviderCheck('openai', { ok: true, luc: new Date().toISOString(), thong_diep: 'ok', model: 'gpt-5.2', phuong_thuc: 'api' });
     expect(() => checkStillValid('openai', {} as never)).not.toThrow();
     expect(checkStillValid('openai', {} as never)).toBeNull();
@@ -269,7 +269,7 @@ describe('vòng tám: phép chiếu chung + cụm null + không vọng phương 
   it('hàng sổ mang tổ hợp BỊ CẤM không mở cổng — MỌI cửa tôn trọng R5.15 (vòng chín, finding 2)', async () => {
     // Sổ đời cũ / sửa tay có thể mang anthropic + claude-fable-5 + api với ok:true. Cửa quyết định
     // nhà cung cấp có được dùng để chấm là checkStillValid — nó phải hỏi validModel, không tin sổ suông.
-    const { writeProviderCheck, checkStillValid } = await import('../apps/web/src/ncc.js');
+    const { writeProviderCheck, checkStillValid } = await import('../apps/web/src/provider.js');
     const cam = { phuong_thuc: 'api' as const, model: 'claude-fable-5' };
     writeProviderCheck('anthropic', { ok: true, luc: new Date().toISOString(), thong_diep: 'ok', ...cam });
     expect(checkStillValid('anthropic', cam), 'tổ hợp chỉ-thuê-bao đi đường API không được mở cổng').toBeNull();
@@ -282,7 +282,7 @@ describe('vòng tám: phép chiếu chung + cụm null + không vọng phương 
   it('vế phuong_thuc cũng so ẢNH với ẢNH — áp đều tay hai trường (vòng chín, finding 3)', async () => {
     // Giá trị trong danh mục: ảnh = chính nó, so nào cũng khớp — ca này khoá HÀNH VI để phép so hai
     // trường không lệch nhau lần nữa; giá trị lạ thì validModel đã chặn từ trước theo R5.15.
-    const { projectValue, providerDefinition, writeProviderCheck, checkStillValid } = await import('../apps/web/src/ncc.js');
+    const { projectValue, providerDefinition, writeProviderCheck, checkStillValid } = await import('../apps/web/src/provider.js');
     const dn = providerDefinition('openai');
     const cauHinh = { phuong_thuc: 'api' as const, model: 'model-moi-openai-vua-ra' };
     writeProviderCheck('openai', {
@@ -300,7 +300,7 @@ describe('vòng mười: áp đều tay luật «khuyết thì hỏi, có mặt 
   it('tryProvider với cấu hình khuyết model → resolve ok:false nói rõ trường khuyết, KHÔNG reject (finding 1 — HIGH)', async () => {
     // Cửa song sinh của checkStillValid — vòng chín gác một cửa, vòng mười bắt cửa kia. Cửa kiểm nổ
     // giữa chừng là đánh sập cả lượt thay vì trả một kết quả kiểm thất bại đọc được (R5.7 + R5.19).
-    const { tryProvider } = await import('../apps/web/src/nguon-model.js');
+    const { tryProvider } = await import('../apps/web/src/model-source.js');
     const kq = await tryProvider('anthropic', { phuong_thuc: 'api' } as never);
     expect(kq.ok).toBe(false);
     expect(kq.thong_diep).toMatch(/thiếu trường/);
@@ -331,7 +331,7 @@ describe('vòng mười: áp đều tay luật «khuyết thì hỏi, có mặt 
   });
 
   it('projectValue toàn phần: khuyết → «(thiếu)», sai kiểu → ép chuỗi rồi chiếu như thường', async () => {
-    const { projectValue } = await import('../apps/web/src/ncc.js');
+    const { projectValue } = await import('../apps/web/src/provider.js');
     expect(projectValue(undefined, ['a'])).toBe('(thiếu)');
     expect(projectValue(null, ['a'])).toBe('(thiếu)');
     expect(projectValue('', ['a'])).toBe('(thiếu)');
@@ -344,7 +344,7 @@ describe('vòng mười một: miền che của phuong_thuc + tryProvider với 
   it('tryProvider(ma, undefined/null) → resolve ok:false «thiếu trường», KHÔNG reject (finding 2 — HIGH)', async () => {
     // Gác vòng mười dùng cfg?.model nhưng xong() đọc cfg.model trần — cụm undefined lọt qua gác rồi
     // chết ở dòng đầu của xong. Chuẩn hoá cfg TRƯỚC MỌI THỨ.
-    const { tryProvider } = await import('../apps/web/src/nguon-model.js');
+    const { tryProvider } = await import('../apps/web/src/model-source.js');
     for (const cum of [undefined, null]) {
       const kq = await tryProvider('anthropic', cum as never);
       expect(kq.ok).toBe(false);
@@ -355,8 +355,8 @@ describe('vòng mười một: miền che của phuong_thuc + tryProvider với 
   it('enum hệ thống hợp lệ («thue_bao») KHÔNG bị băm trong thông điệp từ chối sớm (finding 1 — HIGH)', async () => {
     // «thue_bao» với ncc chỉ-API là tổ hợp không hỗ trợ nhưng là giá trị hệ thống chọn từ dropdown —
     // băm nó là giấu chính nguyên nhân, người dùng không biết đổi cái gì trong ⚙ Cấu hình (R5.7).
-    const { PROVIDER_CATALOG } = await import('../apps/web/src/ncc.js');
-    const { tryProvider } = await import('../apps/web/src/nguon-model.js');
+    const { PROVIDER_CATALOG } = await import('../apps/web/src/provider.js');
+    const { tryProvider } = await import('../apps/web/src/model-source.js');
     const chiApi = PROVIDER_CATALOG.find((d) => !d.ngung && d.phuong_thuc.length === 1 && d.phuong_thuc[0] === 'api');
     expect(chiApi, 'cần một ncc chỉ-API để probe không rỗng').toBeTruthy();
     const kq = await tryProvider(chiApi!.ma, { phuong_thuc: 'thue_bao', model: chiApi!.models[0] });

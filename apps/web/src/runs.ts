@@ -3,8 +3,8 @@ import { createInterface } from 'node:readline';
 import type { RunEvent, Verdict } from '../../../packages/shared/src/types.js';
 import { GOC } from '../../../packages/shared/src/paths.js';
 import { entryFromMeta } from './ledger.js';
-import * as kho from './kho/kho-run.js';
-import { appendVerdictLedgerIfNew } from './kho/kho-socai.js';
+import * as kho from './store/run-store.js';
+import { appendVerdictLedgerIfNew } from './store/ledger-store.js';
 
 export interface StoredEvent {
   t: number; // ms từ lúc bắt đầu run

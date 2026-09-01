@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { projectValue, providerDefinition, readKey, METHODS, validModel, type ProviderConfig, type ProviderId } from './ncc.js';
-import { readVault, writeVault, readOwnToken, writeRepoToken } from './kho-bi-mat.js';
+import { projectValue, providerDefinition, readKey, METHODS, validModel, type ProviderConfig, type ProviderId } from './provider.js';
+import { readVault, writeVault, readOwnToken, writeRepoToken } from './secret-vault.js';
 
 // Chế độ vận hành (spec §9): demo = deploy public, khoá repo demo, Settings chỉ-đọc (fail-closed);
 // org = self-host trong tổ chức, mở toàn bộ cấu hình. Bật org bằng --org hoặc CHECKMATE_MODE=org.

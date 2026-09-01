@@ -1,8 +1,8 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { openDb } from './db.js';
-import { appendVerdictLedgerIfNew, appendGateLedger } from './kho-socai.js';
-import { readMeta, saveMeta, saveEvents } from './kho-run.js';
+import { appendVerdictLedgerIfNew, appendGateLedger } from './ledger-store.js';
+import { readMeta, saveMeta, saveEvents } from './run-store.js';
 import type { RunMeta, StoredEvent } from '../runs.js';
 import { GOC } from '../../../../packages/shared/src/paths.js';
 import type { VerdictLedgerEntry } from '../ledger.js';
