@@ -57,6 +57,18 @@ Bốn commit tách bạch (xem `design.md`): di chuyển thuần → đổi tên
 - [x] 5.3 *(chạy thật: mọi module runtime nạp + chạy được — openDb, readGateLedger 6 hàng, readVerdictLedger 23, listRuns, classifyByMachine, readTarget tới logic git; di trú R6.26 cứu 3 hành động cổng trên DB local. CLI --help exit 0)* Chạy thử một lượt chấm thật trên repo demo: đổi tên mà pipeline gãy thì `tsc` không bắt
       được (đường `spawn` CLI + đọc file), phải chạy mới biết.
 
+## 5b. M11 — một nguồn duy nhất cho gốc dữ liệu (PO cho nhập vào change này 01/09)
+
+- [x] 5b.1 Đo lại trước khi vá: KHÔNG phải một chỗ mà **bốn chỗ tự dựng gốc theo BA cách** —
+       (resolve env, nguồn chuẩn) ·  và  (đọc env nhưng
+      KHÔNG resolve) ·  (bỏ qua env hẳn — gốc M11).
+- [x] 5b.2 Ba module lệch nay dùng  từ tầng nền.  cũng đổi fallback sang 
+      (không đặt env thì hành vi y hệt).
+- [x] 5b.3 Lưới : cấm mọi module ngoài  tự dựng gốc.
+      Bắt việc ĐỌC biến, KHÔNG bắt việc nhắc tên trong comment — lưới báo oan thì người ta tắt chứ
+      không sửa code (bản đầu đã báo oan đúng một comment, đã siết).
+- [x] 5b.4 Chứng minh load-bearing: tái lập  trong  → ĐỎ đúng 2 ca.
+
 ## 6. Sau-merge — nợ có tên, KHÔNG thuộc change này
 
 - [ ] 6.1 Change **đổi tên lớp B/C**: lớp đọc-cả-hai-tên + di trú SQLite + thông báo repo khách.

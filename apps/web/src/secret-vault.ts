@@ -1,5 +1,6 @@
 import { chmodSync, existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
+import { GOC } from '../../../packages/shared/src/paths.js';
 import type { ProviderId } from './provider.js';
 
 /**
@@ -10,9 +11,9 @@ import type { ProviderId } from './provider.js';
  * đường ghi, một chỗ chịu trách nhiệm quyền 600.
  */
 
-// CHECKMATE_GOC: cùng cái neo mà lớp kho dùng — để lưới test chạy trên thư mục riêng, không đụng
+// Gốc dữ liệu lấy từ tầng nền — cùng một neo với lớp kho, để lưới test chạy trên thư mục riêng, không đụng
 // kho bí mật thật của máy đang chạy.
-const FILE_SECRET = join(process.env.CHECKMATE_GOC ?? resolve('.'), '.secrets.json');
+const FILE_SECRET = join(GOC, '.secrets.json');
 
 export interface SecretVault {
   claude_code_oauth_token?: string;

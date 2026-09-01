@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
+import { GOC } from '../../../packages/shared/src/paths.js';
 import { readVault, writeVault } from './secret-vault.js';
 
 // Lớp NHÀ CUNG CẤP MODEL — tách hai khái niệm vốn bị gộp làm một:
@@ -101,7 +102,7 @@ export interface CheckResult {
   phuong_thuc: Method;
 }
 
-const GOC = resolve('.');
+
 const FILE_KIEM = join(GOC, '.ncc-verify.json');
 
 // Khoá của một nhà cung cấp: ưu tiên biến môi trường của dịch vụ, sau đó tới khoá dán qua giao diện.

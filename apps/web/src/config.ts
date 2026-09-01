@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { GOC } from '../../../packages/shared/src/paths.js';
 import { projectValue, providerDefinition, readKey, METHODS, validModel, type ProviderConfig, type ProviderId } from './provider.js';
 import { readVault, writeVault, readOwnToken, writeRepoToken } from './secret-vault.js';
 
@@ -63,7 +64,7 @@ export interface CheckmateConfig {
 }
 
 /** Thư mục chứa các clone local do CheckMate tự quản */
-export const REPO_ROOT = process.env.CHECKMATE_REPO_DIR ?? join(resolve('.'), 'repos');
+export const REPO_ROOT = process.env.CHECKMATE_REPO_DIR ?? join(GOC, 'repos');
 
 export function slugGithubRepo(github: string): string {
   return github.replace('/', '-').toLowerCase().replace(/[^a-z0-9._-]/g, '-');
@@ -73,7 +74,7 @@ export function findRepo(c: CheckmateConfig, github: string): RepoConfig | undef
   return c.repos.find((r) => r.github.toLowerCase() === github.toLowerCase());
 }
 
-const GOC = process.env.CHECKMATE_GOC ?? resolve('.');
+
 const FILE = join(GOC, 'config.json');
 // Secrets KHÔNG nằm chung config.json (kho riêng quyền 600 — xem kho-bi-mat.ts)
 
