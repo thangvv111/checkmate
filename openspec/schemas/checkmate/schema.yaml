@@ -289,7 +289,11 @@ apply:
       (`test/hop-dong-repo.test.ts`) là ca hay đỏ nhất khi thêm export mới
     - Test mới phải khoá được đúng hành vi luật R vừa viết
 
-    ## Pha 3: Qua cổng
+    ## Pha 3: Qua cổng — TAM DUNG tu 01/09/2026 (PO chot)
+    Khong cho verdict CheckMate nua: du dieu kien di tiep = code + test xanh + PO duyet.
+    Cong dang nhieu (hoi_quy = 0 o 14/14 luot; verdict FAIL den tu finding model viet,
+    khong tu nhan may). Bat lai CHI khi PO noi. Phan duoi giu nguyen de dung lai khi bat.
+    ## (nguyen van cu)
     Mở PR rồi CHỜ verdict của CheckMate trên prod. FAIL thì vá và push lại — cổng chấm lại tự động
     theo commit. KHÔNG merge khi verdict FAIL. Chấp nhận merge với finding không-chặn thì phải ghi
     nợ CÔNG KHAI trong comment PR.

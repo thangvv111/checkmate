@@ -67,6 +67,22 @@ sống; bỏ trống ô vẫn là done-gate chưa ✓.
 
 ## Cổng — CheckMate tự chấm chính nó
 
+> ### ⛔ TẠM DỪNG từ 01/09/2026 — PO chốt
+> **Không chờ verdict CheckMate để đi tiếp.** Điều kiện đủ để sang bước sau nay là: **code + test
+> xanh + PO duyệt**. Đừng poll prod, đừng để PR treo chờ chấm.
+>
+> **Vì sao:** cổng đang nhiễu. Số đo tuần này: `hoi_quy` = 0 ở **14/14 lượt** (nhãn máy không phong
+> được gì), `vi_pham_luat_moi` = 0 trong khi verdict vẫn FAIL vì finding **do model viết**, và một
+> điểm bị đề nghị sai **ba vòng liên tiếp** dù luật đã chốt. Cổng đang tạo việc nhiều hơn tạo tín hiệu.
+>
+> **Bật lại:** chỉ khi PO nói. KHÔNG agent nào tự quyết bật lại, kể cả khi thấy cổng «có vẻ ổn rồi».
+>
+> **Vẫn giữ nguyên:** mọi thứ khác của mục này — danh tính người bấm, sổ chỉ-ghi-thêm, và **không tự
+> merge khi PO chưa duyệt**. Thứ bị treo là *bước chờ verdict*, không phải kỷ luật maker–checker.
+>
+> **Nợ ghi công khai:** dừng cổng nghĩa là CheckMate tạm không dogfood chính nó — mất nguồn án lệ
+> chính của kho ví dụ theo trigger. Đây là cái giá, ghi ra để không quên.
+
 Mọi PR đi qua bản CheckMate chạy trên prod (chế độ trực, poller 300s, model Opus 5). Quy trình:
 **mở PR → chờ verdict → PASS mới merge.** Không merge khi FAIL. Merge với finding không-chặn phải
 **ghi nợ công khai** trong comment PR.
