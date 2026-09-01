@@ -10,7 +10,7 @@
 
 import { TRIGGER_CATALOG, laTriggerHopLe, tapKichHoat, type TriggerDef, type TriggerId } from './trigger-catalog.js';
 
-export interface KhuonLoi {
+export interface TriggerExample {
   id: string;
   loai: 'code' | 'doc';
   /**
@@ -30,14 +30,14 @@ export interface KhuonLoi {
   len_dau?: boolean;
 }
 
-export const TRAN_KHUON = 20; // mỗi loại (R12.3) — trần TỔNG của kho, giữ nguyên
+export const EXAMPLE_CAP = 20; // mỗi loại (R12.3) — trần TỔNG của kho, giữ nguyên
 
 /**
  * Trần VÍ DỤ mỗi trigger — THAM SỐ, không phải hằng kiến trúc, và KHÔNG neo vào trần nào của hệ
  * luật cũ (lấy hằng của hệ sắp tái cấu trúc ép kích thước hệ mới là giữ tương thích với thứ sắp bị
  * đập). Chỉnh bằng `CHECKER_VI_DU_MOI_TRIGGER`; giá trị hỏng dùng mặc định và NÓI RA.
  */
-export const VI_DU_MOI_TRIGGER = ((): number => {
+export const EXAMPLES_PER_TRIGGER = ((): number => {
   const raw = process.env.CHECKER_VI_DU_MOI_TRIGGER;
   if (raw === undefined) return 2;
   const n = Number(raw);
@@ -48,7 +48,7 @@ export const VI_DU_MOI_TRIGGER = ((): number => {
   return n;
 })();
 
-export const KHO_KHUON: KhuonLoi[] = [
+export const TRIGGER_EXAMPLES: TriggerExample[] = [
   // ---- code · gốc từ đời đầu của prompt ----
   {
     id: 'KL1',
@@ -120,7 +120,7 @@ export const KHO_KHUON: KhuonLoi[] = [
     trigger: 'side_effects',
     khuon:
       'luật vừa được cài/vá ở một cửa: soi các CỬA SONG SINH cùng vai (đường ghi / đường đọc / cửa kiểm / đường hiển thị) — mọi cửa phải cùng luật và cùng lời cho cùng bản chất;',
-    an_le: 'PR #12 vòng 3 (khai «MỌI cửa» sót cửa đọc), vòng 9–10 (gác kiemConHieuLuc, quên thuNcc), vòng 12 (hai cửa hai lời)',
+    an_le: 'PR #12 vòng 3 (khai «MỌI cửa» sót cửa đọc), vòng 9–10 (gác checkStillValid, quên tryProvider), vòng 12 (hai cửa hai lời)',
   },
   {
     id: 'KL10',
@@ -174,7 +174,7 @@ export const KHO_KHUON: KhuonLoi[] = [
     trigger: 'recovery_exception',
     khuon:
       'hàm đứng CUỐI nhiều đường (format lỗi / che / ghi log) mà ném với đầu vào khuyết là đánh sập cả lượt ở đúng chỗ được chỉ định hiển thị — thử nó với undefined/null/sai kiểu;',
-    an_le: 'PR #12 vòng 10 — chieuGiaTri gọi .length trên undefined làm thuNcc reject cả lượt kiểm',
+    an_le: 'PR #12 vòng 10 — projectValue gọi .length trên undefined làm tryProvider reject cả lượt kiểm',
   },
   {
     id: 'KL17',
@@ -225,8 +225,8 @@ function phatKhuon(loai: 'code' | 'doc', vanBanDieuKien?: string): string[] {
   // Chịu đầu vào khuyết như nhau ở CẢ HAI cửa (vòng ba: code ném TypeError còn doc thì không — chính
   // là khuôn KL9 «cửa song sinh» + KL16 «hàm cuối đường không được nổ»).
   const vanBan = String(vanBanDieuKien ?? '');
-  const bat: KhuonLoi[] = [];
-  for (const k of KHO_KHUON.filter((x) => x.loai === loai)) {
+  const bat: TriggerExample[] = [];
+  for (const k of TRIGGER_EXAMPLES.filter((x) => x.loai === loai)) {
     // R12.2 là GÁC theo đúng mức luật khai: án lệ phải CÓ và phải mang MỐC ĐỊNH VỊ — gác chỉ chặn
     // chuỗi rỗng là luật nằm trong test chứ không nằm trong cửa (vòng ba của cổng bắt).
     if (typeof k.an_le !== 'string' || !k.an_le.trim() || !MOC_AN_LE.test(k.an_le)) {
@@ -256,23 +256,23 @@ function phatKhuon(loai: 'code' | 'doc', vanBanDieuKien?: string): string[] {
   }
   // R12.3 đo TRÊN KHO, không đo trên tập đã lọc điều kiện — đo sau lọc thì trần thành ngẫu nhiên
   // theo spec repo đang chấm, kho phình quá mức không ai đo được (vòng ba).
-  const tongKho = KHO_KHUON.filter((x) => x.loai === loai);
-  if (tongKho.length > TRAN_KHUON) {
-    console.log(`[khuon-loi] kho ${loai} đang giữ ${tongKho.length} khuôn, vượt trần ${TRAN_KHUON} — vượt: ${tongKho.slice(TRAN_KHUON).map((k) => k.id).join(', ')} (R12.3: sửa KHO_KHUON, thay khuôn là quyết định nói ra)`);
+  const tongKho = TRIGGER_EXAMPLES.filter((x) => x.loai === loai);
+  if (tongKho.length > EXAMPLE_CAP) {
+    console.log(`[khuon-loi] kho ${loai} đang giữ ${tongKho.length} khuôn, vượt trần ${EXAMPLE_CAP} — vượt: ${tongKho.slice(EXAMPLE_CAP).map((k) => k.id).join(', ')} (R12.3: sửa TRIGGER_EXAMPLES, thay khuôn là quyết định nói ra)`);
   }
   const sap = [...bat.filter((k) => k.len_dau), ...bat.filter((k) => !k.len_dau)];
-  if (sap.length > TRAN_KHUON) {
-    console.log(`[khuon-loi] tập phát ${loai} vượt trần ${TRAN_KHUON} — bỏ: ${sap.slice(TRAN_KHUON).map((k) => k.id).join(', ')}`);
+  if (sap.length > EXAMPLE_CAP) {
+    console.log(`[khuon-loi] tập phát ${loai} vượt trần ${EXAMPLE_CAP} — bỏ: ${sap.slice(EXAMPLE_CAP).map((k) => k.id).join(', ')}`);
   }
-  return sap.slice(0, TRAN_KHUON).map((k) => k.khuon.replace(/\s*\n\s*/g, ' ').trim());
+  return sap.slice(0, EXAMPLE_CAP).map((k) => k.khuon.replace(/\s*\n\s*/g, ' ').trim());
 }
 
 /** Khuôn code phát cho repo có spec này (R12.4): bật khuôn điều kiện khớp, khuôn len_dau lên đầu. */
-export function layKhuonCode(specText?: string): string[] {
+export function getCodeExamples(specText?: string): string[] {
   return phatKhuon('code', specText);
 }
 
-export interface NhomTrigger {
+export interface TriggerGroup {
   trigger: TriggerDef;
   vi_du: string[];
 }
@@ -280,37 +280,37 @@ export interface NhomTrigger {
 /**
  * Tri thức sinh probe TỔ CHỨC THEO TRIGGER — thay danh sách phẳng đời trước.
  *
- * Mỗi trigger phát: một dòng hướng dẫn (thuộc danh mục, luôn có) + tối đa `VI_DU_MOI_TRIGGER` ví dụ
+ * Mỗi trigger phát: một dòng hướng dẫn (thuộc danh mục, luôn có) + tối đa `EXAMPLES_PER_TRIGGER` ví dụ
  * án lệ. Trigger CHƯA có ví dụ nào vẫn được phát — hướng dẫn của nó đứng độc lập, và đó chính là
  * cách vùng mù cũ (`sequencing` trống hoàn toàn trong 17 khuôn) bắt đầu được soi.
  *
  * ĐÀO THẢI: quá trần thì ví dụ dôi rời tập PHÁT (vẫn nằm trong kho cho người đọc) — kho không phình
- * vào prompt theo thời gian nữa. Ưu tiên giữ theo thứ tự khai trong KHO_KHUON: `len_dau` trước, rồi
+ * vào prompt theo thời gian nữa. Ưu tiên giữ theo thứ tự khai trong TRIGGER_EXAMPLES: `len_dau` trước, rồi
  * thứ tự khai — ví dụ mới muốn vào tập phát thì phải có người CHỦ ĐỘNG xếp nó lên, không tự chen.
  */
-export function triThucTheoTrigger(specText?: string, triggerKhai?: readonly string[]): NhomTrigger[] {
+export function knowledgeByTrigger(specText?: string, triggerKhai?: readonly string[]): TriggerGroup[] {
   const batDuoc = new Set(phatKhuon('code', specText));
-  const ra: NhomTrigger[] = [];
+  const ra: TriggerGroup[] = [];
   for (const trigger of tapKichHoat(triggerKhai)) {
-    const ungVien = KHO_KHUON.filter((k) => k.loai === 'code' && k.trigger === trigger.id);
+    const ungVien = TRIGGER_EXAMPLES.filter((k) => k.loai === 'code' && k.trigger === trigger.id);
     const sap = [...ungVien.filter((k) => k.len_dau), ...ungVien.filter((k) => !k.len_dau)];
-    const mot = (k: KhuonLoi): string => k.khuon.replace(/\s*\n\s*/g, ' ').trim();
+    const mot = (k: TriggerExample): string => k.khuon.replace(/\s*\n\s*/g, ' ').trim();
     const qua = sap.filter((k) => batDuoc.has(mot(k)));
-    if (qua.length > VI_DU_MOI_TRIGGER) {
+    if (qua.length > EXAMPLES_PER_TRIGGER) {
       console.log(
-        `[khuon-loi] trigger ${trigger.id}: ${qua.length} ví dụ vượt trần ${VI_DU_MOI_TRIGGER} — rời tập phát: ${qua.slice(VI_DU_MOI_TRIGGER).map((k) => k.id).join(', ')} (vẫn còn trong kho, người đọc được)`,
+        `[khuon-loi] trigger ${trigger.id}: ${qua.length} ví dụ vượt trần ${EXAMPLES_PER_TRIGGER} — rời tập phát: ${qua.slice(EXAMPLES_PER_TRIGGER).map((k) => k.id).join(', ')} (vẫn còn trong kho, người đọc được)`,
       );
     }
-    ra.push({ trigger, vi_du: qua.slice(0, VI_DU_MOI_TRIGGER).map(mot) });
+    ra.push({ trigger, vi_du: qua.slice(0, EXAMPLES_PER_TRIGGER).map(mot) });
   }
   return ra;
 }
 
 /**
  * Khuôn doc — «nơi hay giấu lỗi», phát vào prompt tìm lỗi tài liệu. Không mở rộng rubric.
- * dieu_kien (nếu khuôn có) đánh trên chính VĂN BẢN TÀI LIỆU — cửa song sinh của layKhuonCode, vòng
+ * dieu_kien (nếu khuôn có) đánh trên chính VĂN BẢN TÀI LIỆU — cửa song sinh của getCodeExamples, vòng
  * hai của cổng bắt đúng ca cửa code được vá mà cửa doc bỏ qua điều kiện lặng lẽ.
  */
-export function layKhuonDoc(vanBanTaiLieu?: string): string[] {
+export function getDocExamples(vanBanTaiLieu?: string): string[] {
   return phatKhuon('doc', vanBanTaiLieu);
 }

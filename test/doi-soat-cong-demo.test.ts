@@ -15,19 +15,19 @@ const goc = mkdtempSync(join(tmpdir(), 'checkmate-demo-'));
 process.env.CHECKMATE_GOC = goc;
 delete process.env.CHECKMATE_MODE; // mặc định = demo
 
-const kho = await import('../apps/web/src/kho/kho-run.js');
-const so = await import('../apps/web/src/kho/kho-socai.js');
-const cong = await import('../apps/web/src/cong.js');
-const db = await import('../apps/web/src/kho/db.js');
+const kho = await import('../apps/web/src/store/run-store.js');
+const so = await import('../apps/web/src/store/ledger-store.js');
+const cong = await import('../apps/web/src/gate.js');
+const db = await import('../apps/web/src/store/db.js');
 
 afterAll(() => {
-  db.dongDb();
+  db.closeDb();
   rmSync(goc, { recursive: true, force: true });
 });
 
 describe('đối soát ở chế độ demo', () => {
   it('KHÔNG ghi hàng nào vào sổ cổng, dù PR đã merge ngoài cổng', async () => {
-    kho.luuMeta({
+    kho.saveMeta({
       id: 'rDemo',
       tieuDe: 'demo',
       skill: 'code',
@@ -37,20 +37,20 @@ describe('đối soát ở chế độ demo', () => {
       pr: { so: 900, headSha: 'a'.repeat(40) },
       verdict: { result: 'PASS', findings: [] },
     } as never);
-    const kq = await cong.doiSoatCong(async () => ({ trang_thai: 'merged', nguoi_merge: 'ai-do' }));
+    const kq = await cong.reconcileGate(async () => ({ trang_thai: 'merged', nguoi_merge: 'ai-do' }));
     expect(kq.daGhi).toBe(0);
-    expect(so.docSoCong('rDemo')).toHaveLength(0);
-    expect(kho.docMeta('rDemo')?.ketQuaCong, 'bề mặt run cũng không được đổi').toBeUndefined();
+    expect(so.readGateLedger('rDemo')).toHaveLength(0);
+    expect(kho.readMeta('rDemo')?.ketQuaCong, 'bề mặt run cũng không được đổi').toBeUndefined();
   });
 
-  it('chế độ demo: luuMeta cũng KHÔNG dán được dấu merge lên bề mặt (R6.26)', () => {
-    // Vòng mười hai bắt đúng chỗ này: gác demo nằm trong capNhatCongRun, còn luuMeta không có gác
+  it('chế độ demo: saveMeta cũng KHÔNG dán được dấu merge lên bề mặt (R6.26)', () => {
+    // Vòng mười hai bắt đúng chỗ này: gác demo nằm trong capNhatCongRun, còn saveMeta không có gác
     // nào nên vẫn ghi thẳng ketQuaCong 'merge' lên bề mặt. Nay không còn cột để ghi, ở mọi chế độ.
-    kho.luuMeta({
-      ...kho.docMeta('rDemo')!,
+    kho.saveMeta({
+      ...kho.readMeta('rDemo')!,
       ketQuaCong: { hanhDong: 'merge', luc: new Date().toISOString(), nguoi: 'ke-gia-mao', chiTiet: 'bịa', ngoaiCong: true },
     } as never);
-    expect(kho.docMeta('rDemo')?.ketQuaCong).toBeUndefined();
-    expect(so.docSoCong('rDemo')).toHaveLength(0);
+    expect(kho.readMeta('rDemo')?.ketQuaCong).toBeUndefined();
+    expect(so.readGateLedger('rDemo')).toHaveLength(0);
   });
 });

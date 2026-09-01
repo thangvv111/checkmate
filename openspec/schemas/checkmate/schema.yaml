@@ -18,14 +18,15 @@ artifacts:
       - **Luật R chạm tới**: ô BẮT BUỘC — xem dưới.
       - **Impact**: code/API/phụ thuộc bị ảnh hưởng, trỏ file thật (`apps/web/src/...`, `packages/harness/src/...`).
 
-      ⛔ Ô «Luật R chạm tới» (PO chốt 31/08 — phương án A): luật hành vi của engine sống ở
-      `specs/R*.md` của repo, KHÔNG chuyển vào openspec. Đó là đầu vào MÁY ĐỌC: engine nạp
-      `specs/` để sinh probe, và R1.19 so `specs/` giữa hai nhánh để phát hiện «luật chỉ có ở
-      nhánh PR». Vì vậy mọi change phải khai rõ: change này THÊM/SỬA luật R nào (ghi mã dự kiến,
-      vd R10.25–R10.28), hay KHÔNG chạm luật nào (ghi «không — chỉ đổi cách hiện thực»).
-      Khai thiếu thì cổng sẽ thấy code đổi mà spec không đổi, hoặc ngược lại — cả hai đều thành
-      finding. Luật MỚI thêm ở nhánh PR sẽ được cổng dán nhãn `vi_pham_luat_moi` nếu code nhánh
-      PR tự mâu thuẫn với chính luật đó.
+      ⛔ Ô «Luật R chạm tới» — BẮT BUỘC, nhưng luật đã đổi (PO chốt 01/09, THAY phương án A 31/08):
+      `specs/R*.md` nay là TÀI LIỆU THAM KHẢO và change mới KHÔNG đẻ thêm điều R*. Vì vậy câu trả
+      lời đúng THƯỜNG là «KHÔNG — cố ý», kèm nơi luật của change này thật sự sống: hằng + validate
+      trong engine (có test khoá) · cấu hình `checkmate.yml` · hành vi trong
+      `openspec/specs/<capability>/`.
+      Vẫn phải điền ô này: bỏ trống là done-gate chưa ✓. Nó tồn tại để không ai lặng lẽ đổi luật ở
+      một chỗ mà quên chỗ kia — chỉ là «chỗ kia» nay không còn mặc định là `specs/R*.md`.
+      Ngoại lệ duy nhất còn phải ghi «CÓ»: change cố ý sửa văn bản `specs/R*.md` (ví dụ change tái
+      cấu trúc chính nó) — khi đó liệt kê file sẽ sửa.
 
       Giữ 1–2 trang. Tập trung «vì sao», không phải «làm thế nào» — chuyện đó ở design.md.
     requires: []
@@ -55,11 +56,11 @@ artifacts:
       - Mỗi yêu cầu ít nhất một scenario.
 
       CheckMate — hai luật riêng:
-      1. **HAI TẦNG SPEC, KHÔNG TRỘN** (PO chốt 31/08, phương án A): `openspec/specs/<capability>/`
-         mô tả NĂNG LỰC theo ngôn ngữ người dùng/quy trình. `specs/R*.md` là LUẬT HÀNH VI máy đọc,
-         engine nạp để sinh probe. Change đẻ luật mới thì viết luật vào `specs/R*.md` (một task
-         tường minh trong tasks.md) VÀ viết capability spec ở đây; hai bên phải nói cùng một điều,
-         lệch nhau là chính cổng sẽ bắt.
+      1. **ĐÂY LÀ CHỖ LUẬT SỐNG** (PO chốt 01/09, THAY phương án A 31/08): `openspec/specs/<capability>/`
+         mô tả hành vi mà change cam kết — cho cả người lẫn máy đọc. `specs/R*.md` nay là TÀI LIỆU
+         THAM KHẢO, change mới KHÔNG đẻ thêm điều R*. Luật máy-cưỡng-chế của tính năng mới nằm ở:
+         hằng + validate trong engine (có test khoá) · cấu hình `checkmate.yml` · capability spec ở
+         đây. Ba chỗ phải nói cùng một điều; lệch nhau thì lưới test là chỗ bắt.
       2. **Scenario «actor sai / đầu vào sai → bị chặn»**: yêu cầu chạm bí mật, danh tính, vai,
          cổng merge, hay verdict PHẢI có scenario tiêu cực, không chỉ happy-path. CheckMate là
          cổng kiểm soát chất lượng — chỗ nguy hiểm nhất của nó là XANH GIẢ, và xanh giả sinh ra
@@ -142,8 +143,9 @@ artifacts:
       ```
 
       ⛔ HAI TASK GẦN NHƯ LUÔN BẮT BUỘC, đừng quên:
-      - **Viết luật vào `specs/R*.md`** khi proposal khai có chạm luật (phương án A: engine đọc
-        thư mục này để sinh probe — luật không viết vào đây thì cổng không biết nó tồn tại).
+      - **Task khai CHỖ SỐNG CỦA LUẬT** (PO 01/09): luật của change sống ở engine (hằng + validate
+        có test khoá), `checkmate.yml`, và capability spec — KHÔNG đẻ thêm điều `specs/R*.md`. Chỉ
+        change cố ý sửa văn bản `specs/R*.md` mới cần task viết vào đó.
       - **Khai vào bảng module của `checkmate.yml`** khi thêm/đổi export: lưới hợp đồng
         (`test/hop-dong-repo.test.ts`) đã bắt hụt 5 lần vì quên; khai thiếu thì probe của lượt chấm
         chết với «... is not a function» và biến thành finding sai hẳn bản chất.

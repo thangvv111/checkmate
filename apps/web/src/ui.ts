@@ -1,7 +1,7 @@
 import { chuanMuc } from '../../../packages/shared/src/types.js';
-import { docConfig } from './config.js';
+import { readConfig } from './config.js';
 import type { RunMeta } from './runs.js';
-import { JS_NCC } from './ui-ncc.js';
+import { JS_PROVIDER } from './ui-provider.js';
 import { JS_REPO } from './ui-repo.js';
 
 const CSS = `
@@ -92,12 +92,12 @@ export function escHtml(s: unknown): string {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 }
 
-export function khung(tieuDe: string, than: string, js = '', repoNhanEp = ''): string {
+export function shell(tieuDe: string, than: string, js = '', repoNhanEp = ''): string {
   // Badge repo đang chọn hiện trên MỌI trang — đọc thẳng config thay vì bắt từng trang truyền xuống
   let repoNhan = repoNhanEp;
   if (!repoNhan) {
     try {
-      const c = docConfig();
+      const c = readConfig();
       repoNhan = c.repos.length > 1 ? `${c.repo_dang_chon} ▾` : c.repo_dang_chon;
     } catch {
       repoNhan = '';
@@ -115,7 +115,7 @@ ${repoNhan ? `<span class="mono" style="margin-left:auto;font-size:12px;color:#9
 <main class="wrap">${than}</main>${js ? `<script>${js}</script>` : ''}</body></html>`;
 }
 
-export interface PrHienThi {
+export interface PrDisplay {
   so: number;
   tieuDe: string;
   tacGia: string;
@@ -125,7 +125,7 @@ export interface PrHienThi {
   daCham?: { runId: string; ketQua: 'PASS' | 'FAIL'; soFinding: number };
 }
 
-export function khoiPrList(repoGithub: string, baseBranch: string, prs: PrHienThi[] | null, loiPr: string): string {
+export function prListSection(repoGithub: string, baseBranch: string, prs: PrDisplay[] | null, loiPr: string): string {
   const rows = (prs ?? [])
     .map(
       (p) => {
@@ -145,7 +145,7 @@ ${loiPr ? `<div class="err" style="display:block">Không nạp được PR: ${lo
 ${prs && prs.length ? `<table class="runs"><tr><th>#</th><th>Tiêu đề · nhánh</th><th>Tác giả</th><th>Trạng thái review</th><th></th></tr>${rows}</table>` : prs ? '<p class="sub">Không có PR mở nào nhắm vào nhánh đích.</p>' : ''}`;
 }
 
-export function khoiDaTraVe(runs: RunMeta[], repoGithub: string): string {
+export function returnedToDevSection(runs: RunMeta[], repoGithub: string): string {
   if (!runs.length) return '';
   const rows = runs
     .slice(0, 10)
@@ -163,7 +163,7 @@ export function khoiDaTraVe(runs: RunMeta[], repoGithub: string): string {
 
 // Token vào/ra mỗi lượt — theo dõi chi phí ngay trên bảng, không phải đào log.
 // Đường CLI không trả usage nên số là ước từ ký tự: đánh dấu ~ để không ai nhầm là số đo thật.
-export function oToken(v?: { chi_phi?: { calls: number; token_vao: number; token_ra: number; uoc_tinh: boolean } }): string {
+export function tokenField(v?: { chi_phi?: { calls: number; token_vao: number; token_ra: number; uoc_tinh: boolean } }): string {
   const c = v?.chi_phi;
   if (!c) return '<span style="color:var(--muted)">—</span>';
   const k = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
@@ -173,7 +173,7 @@ export function oToken(v?: { chi_phi?: { calls: number; token_vao: number; token
 
 // verdict.model có dạng "<provider>/<model>" — tách ra hai cột để nhìn phát biết lượt đó
 // chạy bằng nguồn nào (gói thuê bao hay ví API) và model gì.
-export function tachNguon(model?: string): { nguon: string; ten: string; nguonMa: string } {
+export function splitSource(model?: string): { nguon: string; ten: string; nguonMa: string } {
   if (!model) return { nguon: '—', ten: '—', nguonMa: '' };
   const i = model.indexOf('/');
   if (i < 0) return { nguon: '—', ten: model, nguonMa: '' };
@@ -197,13 +197,13 @@ function gio(iso?: string): string {
 }
 
 function nguonO(model?: string): string {
-  const n = tachNguon(model);
+  const n = splitSource(model);
   if (n.nguon === '—') return '<span style="color:var(--muted)">—</span>';
   const giaiThich = n.nguon === 'Gói thuê bao' ? 'Claude Code CLI — không tiêu credit API' : n.nguon === 'API' ? 'Anthropic API — tính tiền theo token' : n.nguon;
   return `<span title="${giaiThich}">${n.nguon}</span>`;
 }
 
-export function trangChu(runs: RunMeta[], prBlock = '', daTraVeBlock = ''): string {
+export function homePage(runs: RunMeta[], prBlock = '', daTraVeBlock = ''): string {
   const rows = runs
     .map((r) => {
       // run cũ (trước khi có trường ketThuc) vẫn lấy được mốc kết thúc từ verdict
@@ -218,13 +218,13 @@ export function trangChu(runs: RunMeta[], prBlock = '', daTraVeBlock = ''): stri
       return `<tr><td><a href="/runs/${r.id}">${escHtml(r.tieuDe)}</a></td><td>${r.skill}</td>
 <td>${ketQua}</td>
 <td style="font-size:12.5px">${nguonO(r.verdict?.model)}</td>
-<td class="mono" style="font-size:12px;color:var(--muted)">${tachNguon(r.verdict?.model).ten}</td>
-<td>${oToken(r.verdict)}</td>
+<td class="mono" style="font-size:12px;color:var(--muted)">${splitSource(r.verdict?.model).ten}</td>
+<td>${tokenField(r.verdict)}</td>
 <td style="color:var(--muted);white-space:nowrap;font-size:12.5px">${gio(r.batDau)}</td>
 <td style="color:var(--muted);white-space:nowrap;font-size:12.5px">${gio(kt)}</td></tr>`;
     })
     .join('');
-  return khung(
+  return shell(
     'CheckMate',
     `<h1>Đưa artifact vào cổng kiểm</h1>
 <p class="sub">Chọn PR từ repo đã kết nối, hoặc kiểm nhanh một tài liệu rời. CheckMate đọc spec, tự sinh phép thử, chạy bằng chứng thật rồi mới phán.</p>
@@ -271,9 +271,9 @@ export interface SettingsView {
   daLuu?: boolean;
 }
 
-export function trangSettings(v: SettingsView): string {
+export function settingsPage(v: SettingsView): string {
   const ro = v.mode === 'demo' ? 'disabled' : '';
-  return khung(
+  return shell(
     'Cấu hình — CheckMate',
     `<h1>Cấu hình</h1>
 <p class="sub">Chế độ: <b>${v.mode === 'demo' ? 'DEMO (chỉ đọc — bản public khoá vào repo demo)' : 'ORG (self-host, chỉnh được)'}</b> · <a href="/">← về trang chính</a></p>
@@ -320,7 +320,7 @@ ${v.khoiNccHtml}
 </div>
 ${v.mode === 'org' ? '<button>Lưu cấu hình</button>' : '<p class="goiy">Bản demo public không cho sửa — self-host với cờ <code>--org</code> để mở cấu hình.</p>'}
 </form>`,
-    JS_NCC + JS_REPO,
+    JS_PROVIDER + JS_REPO,
   );
 }
 
@@ -353,9 +353,9 @@ ${nutMerge}
 <p class="goiy" style="margin-top:8px">Trả về dev = post phán quyết đầy đủ lên PR <b>và đóng PR</b> để nó rời hàng đợi chờ duyệt (khỏi bị chạy kiểm lại vô ích). Dev vá xong push lên nhánh cũ rồi <b>Reopen</b> chính PR này — lịch sử review giữ nguyên.</p></div>`;
 }
 
-export function trangRun(meta: RunMeta, replay: boolean, speed = 1): string {
+export function runPage(meta: RunMeta, replay: boolean, speed = 1): string {
   const stages = ['Nhận artifact', 'Nạp spec / rubric', 'Sinh phép thử đối kháng', 'Chạy & đối chiếu bằng chứng', 'Kết luận'];
-  return khung(
+  return shell(
     `${escHtml(meta.tieuDe)} — CheckMate`,
     `<h1>${escHtml(meta.tieuDe)}</h1>
 <p class="sub">Run <code>${meta.id}</code> · skill ${meta.skill} · ${replay ? 'PHÁT LẠI từ cache (nhịp thời gian thật)' : 'chạy trực tiếp'}

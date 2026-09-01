@@ -1,10 +1,10 @@
-import { khung, escHtml, oToken, tachNguon } from './ui.js';
+import { shell, escHtml, tokenField, splitSource } from './ui.js';
 import type { RunMeta } from './runs.js';
 
 // Trang Lịch sử chạy — tách khỏi trang chính vì danh sách lớn dần theo thời gian và theo số repo.
 // Lọc bằng query string (server-side): repo · verdict · skill · nhà cung cấp · tìm chữ. Phân trang 25 dòng.
 
-export interface LocLichSu {
+export interface HistoryFilter {
   repo?: string;
   verdict?: string; // PASS | FAIL | loi
   skill?: string; // code | doc
@@ -22,7 +22,7 @@ function thoiGian(batDau: string, ketThuc?: string): string {
   return giay < 60 ? `${giay}s` : `${Math.floor(giay / 60)}p${String(giay % 60).padStart(2, '0')}`;
 }
 
-export function locRuns(runs: RunMeta[], loc: LocLichSu): RunMeta[] {
+export function filterRuns(runs: RunMeta[], loc: HistoryFilter): RunMeta[] {
   const q = loc.q?.trim().toLowerCase();
   return runs.filter((r) => {
     if (loc.repo && (r.repo ?? '') !== loc.repo) return false;
@@ -31,7 +31,7 @@ export function locRuns(runs: RunMeta[], loc: LocLichSu): RunMeta[] {
       const v = r.verdict?.result ?? (r.trangThai === 'loi' ? 'loi' : '');
       if (loc.verdict === 'loi' ? r.trangThai !== 'loi' : v !== loc.verdict) return false;
     }
-    if (loc.ncc && tachNguon(r.verdict?.model).nguonMa !== loc.ncc) return false;
+    if (loc.ncc && splitSource(r.verdict?.model).nguonMa !== loc.ncc) return false;
     if (q) {
       const trong = `${r.tieuDe} ${r.verdict?.artifact_ref.sha_or_hash ?? ''} ${r.pr?.so ?? ''}`.toLowerCase();
       if (!trong.includes(q)) return false;
@@ -40,8 +40,8 @@ export function locRuns(runs: RunMeta[], loc: LocLichSu): RunMeta[] {
   });
 }
 
-export function trangLichSu(runs: RunMeta[], loc: LocLichSu, repos: string[]): string {
-  const daLoc = locRuns(runs, loc);
+export function historyPage(runs: RunMeta[], loc: HistoryFilter, repos: string[]): string {
+  const daLoc = filterRuns(runs, loc);
   const soTrang = Math.max(1, Math.ceil(daLoc.length / MOI_TRANG));
   const trang = Math.min(Math.max(1, loc.trang), soTrang);
   const cua = daLoc.slice((trang - 1) * MOI_TRANG, trang * MOI_TRANG);
@@ -57,7 +57,7 @@ export function trangLichSu(runs: RunMeta[], loc: LocLichSu, repos: string[]): s
     .map((r) => {
       const kt = r.ketThuc ?? r.verdict?.finished_at;
       const tg = thoiGian(r.batDau, kt);
-      const n = tachNguon(r.verdict?.model);
+      const n = splitSource(r.verdict?.model);
       const kq =
         r.trangThai === 'dang_chay'
           ? '<span style="color:var(--muted)">đang chạy…</span>'
@@ -71,7 +71,7 @@ export function trangLichSu(runs: RunMeta[], loc: LocLichSu, repos: string[]): s
 <td>${kq}${tg ? ` <span style="color:var(--muted);font-size:12px">· ${tg}</span>` : ''}</td>
 <td style="font-size:12.5px">${n.nguon === '—' ? '<span style="color:var(--muted)">—</span>' : escHtml(n.nguon)}</td>
 <td class="mono" style="font-size:11.5px;color:var(--muted)">${escHtml(n.ten)}</td>
-<td>${oToken(r.verdict)}</td>
+<td>${tokenField(r.verdict)}</td>
 <td class="mono" style="font-size:11.5px;color:var(--muted);white-space:nowrap">${r.batDau.slice(0, 16).replace('T', ' ')}</td>
 <td class="mono" style="font-size:11.5px;color:var(--muted);white-space:nowrap">${kt ? kt.slice(0, 16).replace('T', ' ') : '—'}</td>
 </tr>`;
@@ -89,7 +89,7 @@ export function trangLichSu(runs: RunMeta[], loc: LocLichSu, repos: string[]): s
     return `/lich-su?${p.toString()}`;
   };
 
-  return khung(
+  return shell(
     'Lịch sử chạy — CheckMate',
     `<h1>Lịch sử chạy</h1>
 <p class="sub">${daLoc.length} lượt chấm${daLoc.length !== runs.length ? ` (lọc từ ${runs.length})` : ''} · <a href="/">← về trang chính</a></p>

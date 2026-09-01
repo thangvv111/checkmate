@@ -9,15 +9,15 @@ import { escHtml } from './ui.js';
  * phẩm lệch. L4 đổi palette toàn cục một lần, trang này đi theo.
  */
 
-export type TrangThaiLogin = 'moi' | 'sai_mat_khau' | 'phien_het_han' | 'chua_co_tai_khoan';
+export type LoginState = 'moi' | 'sai_mat_khau' | 'phien_het_han' | 'chua_co_tai_khoan';
 
 export interface LoginView {
-  trangThai: TrangThaiLogin;
+  trangThai: LoginState;
   /** đường quay lại sau khi đăng nhập — chỉ nhận đường nội bộ */
   tiep?: string;
 }
 
-const BANNER: Record<Exclude<TrangThaiLogin, 'moi'>, { mau: string; nen: string; chu: string }> = {
+const BANNER: Record<Exclude<LoginState, 'moi'>, { mau: string; nen: string; chu: string }> = {
   sai_mat_khau: {
     mau: 'var(--fail)',
     nen: 'var(--fail-soft)',
@@ -37,7 +37,7 @@ const BANNER: Record<Exclude<TrangThaiLogin, 'moi'>, { mau: string; nen: string;
   },
 };
 
-export function trangLogin(v: LoginView): string {
+export function loginPage(v: LoginView): string {
   const b = v.trangThai === 'moi' ? null : BANNER[v.trangThai];
   const chuaCoTk = v.trangThai === 'chua_co_tai_khoan';
   const o = 'width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:7px;font-size:14px;box-sizing:border-box';

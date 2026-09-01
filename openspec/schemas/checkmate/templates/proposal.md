@@ -19,13 +19,12 @@
 
 ## Luật R chạm tới
 
-<!-- ⛔ Ô BẮT BUỘC (PO chốt 31/08, phương án A). Luật hành vi sống ở specs/R*.md của repo và là
-     ĐẦU VÀO MÁY ĐỌC: engine nạp specs/ để sinh probe, R1.19 so specs/ hai nhánh để phát hiện
-     «luật chỉ có ở nhánh PR». Chọn MỘT:
-       CÓ    — liệt kê mã luật dự kiến (vd R10.25–R10.28) + file specs/R*.md sẽ sửa
-       KHÔNG — kèm lý do (vd: chỉ đổi cách hiện thực, hành vi khai trong spec giữ nguyên)
-     Bỏ trống là done-gate chưa ✓: cổng sẽ thấy code đổi mà luật không đổi (hoặc ngược lại) và
-     biến chuyện đó thành finding. -->
+<!-- ⛔ Ô BẮT BUỘC. Luật đã đổi (PO chốt 01/09, THAY phương án A 31/08): specs/R*.md nay là TÀI
+     LIỆU THAM KHẢO, change mới KHÔNG đẻ thêm điều R*. Chọn MỘT:
+       KHÔNG — cố ý (câu trả lời THƯỜNG ĐÚNG), kèm nơi luật của change này thật sự sống: hằng +
+               validate trong engine (có test khoá) · checkmate.yml · openspec/specs/<capability>/
+       CÓ    — chỉ khi change cố ý sửa văn bản specs/R*.md; liệt kê file sẽ sửa
+     Bỏ trống vẫn là done-gate chưa ✓: ô này tồn tại để không ai đổi luật một chỗ mà quên chỗ kia. -->
 - **Luật R chạm tới:** <CÓ — mã luật + file | KHÔNG — vì sao>
 
 ## Impact

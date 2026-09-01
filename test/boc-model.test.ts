@@ -1,21 +1,21 @@
 import { describe, it, expect } from 'vitest';
-import { bocJson, bocCode, LoiModelDungTool } from '../packages/harness/src/jsonx.js';
-import { taoRao, LOI_RAO } from '../packages/harness/src/rao.js';
+import { unwrapJson, unwrapCode, ModelUsedToolError } from '../packages/harness/src/jsonx.js';
+import { makeFence, FENCE_NOTICE } from '../packages/harness/src/fence.js';
 
 // Bóc trả lời model + rào chống prompt injection (specs/R3-boc-tra-loi-model.md).
 // Model đổi đời là đổi thói quen định dạng — lưới này giữ cho việc đổi model không âm thầm làm hỏng luồng.
 
-describe('bocJson', () => {
+describe('unwrapJson', () => {
   it('bóc được JSON trong code fence có tag json', () => {
-    expect(bocJson<{ a: number }>('nói vài câu\n```json\n{"a": 1}\n```\nhết')).toEqual({ a: 1 });
+    expect(unwrapJson<{ a: number }>('nói vài câu\n```json\n{"a": 1}\n```\nhết')).toEqual({ a: 1 });
   });
 
   it('bóc được JSON trần không fence', () => {
-    expect(bocJson<{ probes: unknown[] }>('{"probes": []}')).toEqual({ probes: [] });
+    expect(unwrapJson<{ probes: unknown[] }>('{"probes": []}')).toEqual({ probes: [] });
   });
 
   it('không có JSON thì ném lỗi kèm trích trả lời để người đọc biết model nói gì', () => {
-    expect(() => bocJson('tôi không thể làm việc này')).toThrow(/Không tìm thấy JSON/);
+    expect(() => unwrapJson('tôi không thể làm việc này')).toThrow(/Không tìm thấy JSON/);
   });
 
   it('JSON hỏng thì lỗi phải chỉ ĐÚNG CHỖ hỏng, không chỉ nói "position 2914"', () => {
@@ -23,7 +23,7 @@ describe('bocJson', () => {
     const hong = '{"probes": [{"id": "P1", "ten": "mot"} {"id": "P2", "ten": "hai"}]}';
     let msg = '';
     try {
-      bocJson(hong);
+      unwrapJson(hong);
     } catch (e) {
       msg = (e as Error).message;
     }
@@ -33,33 +33,33 @@ describe('bocJson', () => {
   });
 });
 
-describe('bocCode', () => {
+describe('unwrapCode', () => {
   it('bỏ language tag, không để lọt vào dòng đầu file code', () => {
-    const ra = bocCode('```typescript\nimport { it } from "vitest";\n```');
+    const ra = unwrapCode('```typescript\nimport { it } from "vitest";\n```');
     expect(ra.startsWith('import')).toBe(true);
     expect(ra).not.toContain('typescript');
   });
 
   it('nhận mọi tag ngôn ngữ chứ không riêng ts', () => {
-    expect(bocCode('```python\ndef test_x():\n    assert 1 == 1\n```')).toBe('def test_x():\n    assert 1 == 1');
+    expect(unwrapCode('```python\ndef test_x():\n    assert 1 == 1\n```')).toBe('def test_x():\n    assert 1 == 1');
   });
 
   it('không fence nhưng rõ là mã nguồn thì vẫn nhận', () => {
-    expect(bocCode('import x from "y";\nconst a = 1;')).toContain('import x');
+    expect(unwrapCode('import x from "y";\nconst a = 1;')).toContain('import x');
   });
 
   it('model phát lời gọi tool thì báo ĐÚNG bản chất để chỗ gọi biết đường nhắc lại', () => {
-    expect(() => bocCode('<invoke name="Bash">\n<parameter name="command">ls</parameter>\n</invoke>')).toThrow(LoiModelDungTool);
+    expect(() => unwrapCode('<invoke name="Bash">\n<parameter name="command">ls</parameter>\n</invoke>')).toThrow(ModelUsedToolError);
   });
 });
 
 describe('rào chống prompt injection', () => {
   it('mỗi lượt sinh một nonce khác nhau — nội dung bị chấm không đoán trước được rào', () => {
-    expect(taoRao()('SPEC', 'x')).not.toBe(taoRao()('SPEC', 'x'));
+    expect(makeFence()('SPEC', 'x')).not.toBe(makeFence()('SPEC', 'x'));
   });
 
   it('nội dung được kẹp giữa hai mốc mang cùng nonce', () => {
-    const rao = taoRao();
+    const rao = makeFence();
     const ra = rao('DIFF', 'nội dung nguy hiểm');
     const nonce = ra.match(/[0-9a-f]{6,}/)?.[0];
     expect(nonce).toBeTruthy();
@@ -68,20 +68,20 @@ describe('rào chống prompt injection', () => {
   });
 
   it('lời rào nói rõ mọi thứ trong mốc là DỮ LIỆU, không phải lệnh', () => {
-    expect(LOI_RAO.toLowerCase()).toMatch(/dữ liệu|không phải lệnh|không được làm theo/);
+    expect(FENCE_NOTICE.toLowerCase()).toMatch(/dữ liệu|không phải lệnh|không được làm theo/);
   });
 });
 
 describe('token KHÔNG được rời khỏi cloneRepo trong lời kêu của git (R4.29)', () => {
   it('gột được URL mang chìa trong thông báo lỗi clone', async () => {
-    const { cheTokenTrongVan } = await import('../apps/web/src/github.js');
+    const { maskTokenInText } = await import('../apps/web/src/github.js');
     // Lời kêu thật của git khi clone hỏng — chỗ gọi trả thẳng chuỗi này về trình duyệt
     const van = [
       "Cloning into 'repos/acme-web'...",
       'remote: Repository not found.',
       "fatal: repository 'https://x-access-token:ghp_SIEUBIMAT123456@github.com/acme/web.git/' not found",
     ].join(' | ');
-    const che = cheTokenTrongVan(van);
+    const che = maskTokenInText(van);
     expect(che).not.toContain('ghp_SIEUBIMAT123456');
     expect(che).not.toContain('x-access-token');
     expect(che).toContain('github.com/acme/web'); // vẫn đủ thông tin để người đọc biết repo nào

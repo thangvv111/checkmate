@@ -83,6 +83,8 @@ sống; bỏ trống ô vẫn là done-gate chưa ✓.
 > **Nợ ghi công khai:** dừng cổng nghĩa là CheckMate tạm không dogfood chính nó — mất nguồn án lệ
 > chính của kho ví dụ theo trigger. Đây là cái giá, ghi ra để không quên.
 
+*(Nguyên văn cũ dưới đây giữ để dùng lại khi PO bật cổng — hiện KHÔNG hiệu lực.)*
+
 Mọi PR đi qua bản CheckMate chạy trên prod (chế độ trực, poller 300s, model Opus 5). Quy trình:
 **mở PR → chờ verdict → PASS mới merge.** Không merge khi FAIL. Merge với finding không-chặn phải
 **ghi nợ công khai** trong comment PR.

@@ -1,23 +1,23 @@
 import { escHtml } from './ui.js';
-import { chieuGiaTri, DANH_MUC_NCC, DS_PHUONG_THUC, type CauHinhNcc, type KetQuaKiem, type MaNcc, type PhuongThuc } from './ncc.js';
-import type { TrangThaiNcc } from './nguon-model.js';
+import { projectValue, PROVIDER_CATALOG, METHODS, type ProviderConfig, type CheckResult, type ProviderId, type Method } from './provider.js';
+import type { ProviderState } from './model-source.js';
 
 // Khối "Nhà cung cấp model" trong Cấu hình: mỗi nhà cung cấp một thẻ gập cho gọn,
 // bên trong là phương thức + model + khoá + nút Kiểm tra. Nhà cung cấp chỉ được ĐANG DÙNG
 // sau khi kiểm thành công với đúng cấu hình đó (cổng verify, không cho chọn mù).
 
-export interface KhoiNccView {
-  dangDung: MaNcc;
-  cauHinh: Partial<Record<MaNcc, CauHinhNcc>>;
-  trangThai: Record<string, TrangThaiNcc>;
-  soKiem: Partial<Record<MaNcc, KetQuaKiem>>;
+export interface ProviderSectionView {
+  dangDung: ProviderId;
+  cauHinh: Partial<Record<ProviderId, ProviderConfig>>;
+  trangThai: Record<string, ProviderState>;
+  soKiem: Partial<Record<ProviderId, CheckResult>>;
   tokenThueBaoChe: string;
   moKhoa: boolean; // chế độ org mới cho sửa
 }
 
-const NHAN_PT: Record<PhuongThuc, string> = { thue_bao: 'Gói thuê bao', api: 'API (tính theo token)' };
+const NHAN_PT: Record<Method, string> = { thue_bao: 'Gói thuê bao', api: 'API (tính theo token)' };
 
-function huyHieu(kiem: KetQuaKiem | undefined, cfg: CauHinhNcc): string {
+function huyHieu(kiem: CheckResult | undefined, cfg: ProviderConfig): string {
   if (!kiem) return '<span style="font-size:11.5px;color:var(--muted)">chưa kiểm</span>';
   const hopLe = kiem.ok && kiem.model === cfg.model && kiem.phuong_thuc === cfg.phuong_thuc;
   if (hopLe) {
@@ -29,11 +29,11 @@ function huyHieu(kiem: KetQuaKiem | undefined, cfg: CauHinhNcc): string {
   return '<span style="font-size:11.5px;color:var(--fail);font-weight:600">✗ kiểm thất bại</span>';
 }
 
-export function khoiNcc(v: KhoiNccView): string {
+export function providerSection(v: ProviderSectionView): string {
   const ro = v.moKhoa ? '' : 'disabled';
-  const the = DANH_MUC_NCC.map((dn) => {
+  const the = PROVIDER_CATALOG.map((dn) => {
     const ro2 = dn.ngung ? 'disabled' : ro; // dịch vụ đã ngừng thì khoá hẳn, không cho cấu hình vô ích
-    const cfg: CauHinhNcc = v.cauHinh[dn.ma] ?? { phuong_thuc: dn.phuong_thuc[0], model: dn.models[0] };
+    const cfg: ProviderConfig = v.cauHinh[dn.ma] ?? { phuong_thuc: dn.phuong_thuc[0], model: dn.models[0] };
     const tt = v.trangThai[dn.ma];
     const kiem = v.soKiem[dn.ma];
     const dangDung = v.dangDung === dn.ma;
@@ -65,7 +65,7 @@ export function khoiNcc(v: KhoiNccView): string {
             // Giá trị trong config NGOÀI danh mục: không có option khớp thì trình duyệt lặng lẽ hiện
             // option đầu — giấu đúng thứ đang làm đường chấm chặn (vòng tám, finding 3). Hiện bản che
             // (R5.20 — có thể là khoá dán nhầm) để người dùng thấy có thứ phải sửa.
-            dn.phuong_thuc.includes(cfg.phuong_thuc) ? '' : `<option value="" selected disabled>⚠ trong config: ${escHtml(chieuGiaTri(cfg.phuong_thuc, DS_PHUONG_THUC))}</option>`
+            dn.phuong_thuc.includes(cfg.phuong_thuc) ? '' : `<option value="" selected disabled>⚠ trong config: ${escHtml(projectValue(cfg.phuong_thuc, METHODS))}</option>`
           }
         </select>
       </label>
@@ -84,7 +84,7 @@ export function khoiNcc(v: KhoiNccView): string {
             // value RỖNG có chủ đích: server nhận rỗng thì GIỮ giá trị cũ trong config (round-trip an
             // toàn), còn value thô là vọng nguyên văn ra HTML — R5.20 áp cho mọi bề mặt, giá trị này
             // có thể là khoá dán nhầm.
-            dn.models.includes(cfg.model) ? '' : `<option value="" selected>⚠ trong config: ${escHtml(chieuGiaTri(cfg.model, dn.models))}</option>`
+            dn.models.includes(cfg.model) ? '' : `<option value="" selected>⚠ trong config: ${escHtml(projectValue(cfg.model, dn.models))}</option>`
           }
         </select>
       </label>
@@ -119,7 +119,7 @@ export function khoiNcc(v: KhoiNccView): string {
 </div>`;
 }
 
-export const JS_NCC = `
+export const JS_PROVIDER = `
   // R5.15 — đổi phương thức thì khoá/mở model chỉ-thuê-bao ngay tại chỗ (server vẫn validate lại)
   document.querySelectorAll('select[name^="pt_"]').forEach(function (sel) {
     var ma = sel.name.slice(3);

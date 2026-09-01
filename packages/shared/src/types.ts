@@ -70,11 +70,11 @@ const ODC_QUALIFIER = new Set<string>(['missing', 'incorrect', 'extraneous']);
  * `high`; hai trường này là TELEMETRY, không gác gì cả, nên giá trị lạ về `unknown`. Cho telemetry
  * quyền đổi verdict là mở đường lách «bịa phân loại khéo thì merge được».
  */
-export function chuanOdcType(x: unknown): OdcType {
+export function normalizeOdcType(x: unknown): OdcType {
   const t = typeof x === 'string' ? x.toLowerCase().trim() : '';
   return ODC_TYPE.has(t) ? (t as OdcType) : 'unknown';
 }
-export function chuanOdcQualifier(x: unknown): OdcQualifier {
+export function normalizeOdcQualifier(x: unknown): OdcQualifier {
   const t = typeof x === 'string' ? x.toLowerCase().trim() : '';
   return ODC_QUALIFIER.has(t) ? (t as OdcQualifier) : 'unknown';
 }

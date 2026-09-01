@@ -1,28 +1,29 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { join, resolve } from 'node:path';
-import { docKho, ghiKho } from './kho-bi-mat.js';
+import { join } from 'node:path';
+import { GOC } from '../../../packages/shared/src/paths.js';
+import { readVault, writeVault } from './secret-vault.js';
 
 // Lớp NHÀ CUNG CẤP MODEL — tách hai khái niệm vốn bị gộp làm một:
 //   • Nhà cung cấp (Anthropic / GitHub / OpenAI…) — ai chạy model
 //   • Phương thức (gói thuê bao / API)            — tiền ra từ đâu
 // Mỗi nhà cung cấp cấu hình độc lập; chỉ nhà cung cấp đã KIỂM THÀNH CÔNG mới được chọn để chấm.
 
-export type MaNcc = 'anthropic' | 'github' | 'openai' | 'google';
-export type PhuongThuc = 'thue_bao' | 'api';
+export type ProviderId = 'anthropic' | 'github' | 'openai' | 'google';
+export type Method = 'thue_bao' | 'api';
 
 // MIỀN CHE của trường phuong_thuc là enum HỆ THỐNG này, KHÔNG phải danh mục của từng nhà cung cấp:
 // «thue_bao» với một ncc chỉ-API là tổ hợp không hỗ trợ nhưng vẫn là giá trị hệ thống người dùng chọn
 // từ dropdown — băm nó là giấu chính nguyên nhân trong thông điệp lỗi (vòng mười một của cổng bắt).
 // Chỉ giá trị ngoài enum này (gõ tay/khoá dán nhầm) mới đáng che theo R5.20.
-export const DS_PHUONG_THUC: readonly PhuongThuc[] = ['thue_bao', 'api'];
+export const METHODS: readonly Method[] = ['thue_bao', 'api'];
 
-export interface DinhNghiaNcc {
-  ma: MaNcc;
+export interface ProviderDefinition {
+  ma: ProviderId;
   ten: string;
   /** Dịch vụ đã ngừng hoạt động — giữ trong danh mục để giải thích, nhưng KHÔNG cho chọn */
   ngung?: string;
-  phuong_thuc: PhuongThuc[]; // những phương thức nhà cung cấp này hỗ trợ
+  phuong_thuc: Method[]; // những phương thức nhà cung cấp này hỗ trợ
   models: string[];
   /** R5.15 — model CHỈ dùng được với gói thuê bao, không mở cho đường API */
   chi_thue_bao?: string[];
@@ -35,7 +36,7 @@ export interface DinhNghiaNcc {
  * MỌI cửa (form lưu, cổng kiểm, giao diện) hỏi cùng một hàm này — chặn ở một cửa mà hở cửa khác thì
  * giới hạn chỉ là lời dặn.
  */
-export function modelHopLe(dn: DinhNghiaNcc, phuongThuc: PhuongThuc, model: string): boolean {
+export function validModel(dn: ProviderDefinition, phuongThuc: Method, model: string): boolean {
   // NGHĨA HẸP có chủ đích (R5.18, chốt sau vòng sáu của cổng): chỉ chặn vi phạm ràng buộc KHAI TƯỜNG
   // MINH. Model ngoài danh mục KHÔNG làm false — danh mục là gợi ý cho giao diện, không phải trần
   // cứng; nhà cung cấp là trọng tài về việc model có tồn tại. Bản đầu coi danh mục là trần đã chặn
@@ -45,7 +46,7 @@ export function modelHopLe(dn: DinhNghiaNcc, phuongThuc: PhuongThuc, model: stri
   return true;
 }
 
-export const DANH_MUC_NCC: DinhNghiaNcc[] = [
+export const PROVIDER_CATALOG: ProviderDefinition[] = [
   {
     ma: 'anthropic',
     ten: 'Anthropic (Claude)',
@@ -84,57 +85,57 @@ export const DANH_MUC_NCC: DinhNghiaNcc[] = [
   },
 ];
 
-export function dinhNghia(ma: MaNcc): DinhNghiaNcc {
-  return DANH_MUC_NCC.find((n) => n.ma === ma) ?? DANH_MUC_NCC[0];
+export function providerDefinition(ma: ProviderId): ProviderDefinition {
+  return PROVIDER_CATALOG.find((n) => n.ma === ma) ?? PROVIDER_CATALOG[0];
 }
 
-export interface CauHinhNcc {
-  phuong_thuc: PhuongThuc;
+export interface ProviderConfig {
+  phuong_thuc: Method;
   model: string;
 }
 
-export interface KetQuaKiem {
+export interface CheckResult {
   ok: boolean;
   luc: string;
   thong_diep: string;
   model: string;
-  phuong_thuc: PhuongThuc;
+  phuong_thuc: Method;
 }
 
-const GOC = resolve('.');
+
 const FILE_KIEM = join(GOC, '.ncc-verify.json');
 
 // Khoá của một nhà cung cấp: ưu tiên biến môi trường của dịch vụ, sau đó tới khoá dán qua giao diện.
-export function docKhoa(ma: MaNcc): string {
-  const dn = dinhNghia(ma);
+export function readKey(ma: ProviderId): string {
+  const dn = providerDefinition(ma);
   if (!dn.khoa) return '';
   const env = process.env[dn.khoa.ten_bien]?.trim();
   if (env) return env;
-  return docKho().khoa?.[ma]?.trim() ?? '';
+  return readVault().khoa?.[ma]?.trim() ?? '';
 }
 
-export function ghiKhoa(ma: MaNcc, khoa: string): void {
-  const kho = docKho();
-  ghiKho({ ...kho, khoa: { ...(kho.khoa ?? {}), [ma]: khoa } });
+export function writeKey(ma: ProviderId, khoa: string): void {
+  const kho = readVault();
+  writeVault({ ...kho, khoa: { ...(kho.khoa ?? {}), [ma]: khoa } });
 }
 
-export function cheKhoa(k: string): string {
+export function maskKey(k: string): string {
   return k ? `đã có (${k.length} ký tự, ${k.slice(0, 8)}…)` : 'chưa có';
 }
 
 // ---- Sổ kiểm: nhà cung cấp chỉ được chọn sau khi kiểm THÀNH CÔNG ----
 
-export function docSoKiem(): Partial<Record<MaNcc, KetQuaKiem>> {
+export function readProviderCheck(): Partial<Record<ProviderId, CheckResult>> {
   try {
     if (!existsSync(FILE_KIEM)) return {};
-    return JSON.parse(readFileSync(FILE_KIEM, 'utf8')) as Partial<Record<MaNcc, KetQuaKiem>>;
+    return JSON.parse(readFileSync(FILE_KIEM, 'utf8')) as Partial<Record<ProviderId, CheckResult>>;
   } catch {
     return {};
   }
 }
 
-export function ghiSoKiem(ma: MaNcc, kq: KetQuaKiem): void {
-  const so = docSoKiem();
+export function writeProviderCheck(ma: ProviderId, kq: CheckResult): void {
+  const so = readProviderCheck();
   writeFileSync(FILE_KIEM, JSON.stringify({ ...so, [ma]: kq }, null, 2), 'utf8');
 }
 
@@ -146,10 +147,10 @@ export function ghiSoKiem(ma: MaNcc, kq: KetQuaKiem): void {
  * 8 hex) và phép đối chiếu hiệu lực phải dùng CÙNG phép chiếu — vòng tám của cổng bắt đúng ca sổ lưu
  * bản che còn đối chiếu so bản thô, làm tổ hợp đã kiểm không bao giờ còn hiệu lực.
  */
-export function chieuGiaTri(giaTri: unknown, danhMuc: readonly string[]): string {
+export function projectValue(giaTri: unknown, danhMuc: readonly string[]): string {
   // TOÀN PHẦN có chủ đích: phép chiếu đứng ở cuối nhiều đường (thông điệp lỗi, sổ kiểm, đối chiếu,
   // giao diện) — nó mà ném với đầu vào khuyết/sai kiểu là đánh sập cả lượt chấm ở đúng chỗ chỉ định
-  // hiển thị (vòng mười của cổng bắt: thuNcc nổ .length trên undefined). Khuyết → «(thiếu)»; sai
+  // hiển thị (vòng mười của cổng bắt: tryProvider nổ .length trên undefined). Khuyết → «(thiếu)»; sai
   // kiểu → ép chuỗi rồi chiếu như thường (giá trị CÓ MẶT phải giữ dấu vết, không được nuốt).
   if (giaTri == null || giaTri === '') return '(thiếu)';
   const s = String(giaTri);
@@ -157,8 +158,8 @@ export function chieuGiaTri(giaTri: unknown, danhMuc: readonly string[]): string
   return `(ngoài danh mục — ${s.length} ký tự, sha256:${createHash('sha256').update(s).digest('hex').slice(0, 8)})`;
 }
 
-export function kiemConHieuLuc(ma: MaNcc, cfg: CauHinhNcc): KetQuaKiem | null {
-  const k = docSoKiem()[ma];
+export function checkStillValid(ma: ProviderId, cfg: ProviderConfig): CheckResult | null {
+  const k = readProviderCheck()[ma];
   if (!k?.ok) return null;
   // So bằng CÙNG phép chiếu với lúc ghi sổ: sổ giữ bản che của giá trị ngoài danh mục (R5.20), nên so
   // bản thô là tổ hợp model-lạ vừa kiểm xong đã «hết hiệu lực» ngay — người dùng model mới không bao
@@ -167,17 +168,17 @@ export function kiemConHieuLuc(ma: MaNcc, cfg: CauHinhNcc): KetQuaKiem | null {
   // hình dạng đủ, và cửa kiểm nổ TypeError là đánh sập cả lượt chấm thay vì bỏ qua một nhà cung cấp
   // (vòng chín của cổng bắt hồi quy này trên chính bản vá vòng tám).
   if (typeof cfg.model !== 'string' || !cfg.model.trim() || !cfg.phuong_thuc) return null;
-  const dn = dinhNghia(ma);
+  const dn = providerDefinition(ma);
   // R5.15 — «MỌI cửa phải tôn trọng giới hạn model», và cửa quyết định một nhà cung cấp có được dùng
   // để chấm hay không chính là cửa này: hàng sổ đời cũ hay sửa tay mang tổ hợp cấm không được mở cổng,
   // dù sổ nói đã kiểm OK (vòng chín).
-  if (!modelHopLe(dn, cfg.phuong_thuc, cfg.model)) return null;
+  if (!validModel(dn, cfg.phuong_thuc, cfg.model)) return null;
   // Sổ luôn lưu ẢNH của phép chiếu (xong() ghi bản che cho giá trị lạ) — nên chiếu vế cấu hình rồi so
   // ảnh với ảnh, ĐỀU TAY cả hai trường (R5.20 gồm cả phuong_thuc — vòng chín bắt vế so lệch). Chiếu
   // vế sổ thêm lần nữa là che-của-che, không bao giờ khớp — test của bản vá vòng tám bắt ra.
   // Sổ đời cũ lỡ lưu giá trị lạ dạng thô thì so ảnh sẽ lệch → coi như hết hiệu lực, phải Kiểm tra
   // lại — lệch về phía nói KHÔNG, đúng chiều an toàn.
-  if ((k.model ?? '') !== chieuGiaTri(cfg.model, dn.models)) return null;
-  if ((k.phuong_thuc ?? '') !== chieuGiaTri(String(cfg.phuong_thuc), DS_PHUONG_THUC)) return null;
+  if ((k.model ?? '') !== projectValue(cfg.model, dn.models)) return null;
+  if ((k.phuong_thuc ?? '') !== projectValue(String(cfg.phuong_thuc), METHODS)) return null;
   return k;
 }

@@ -35,27 +35,27 @@ writeFileSync(
   'utf8',
 );
 
-const { moDb, dongDb } = await import('../apps/web/src/kho/db.js');
-const { diTruTatCa, tomTatDiTru } = await import('../apps/web/src/kho/di-tru.js');
-const { docSoCai, docSoCong, demSoCai } = await import('../apps/web/src/kho/kho-socai.js');
+const { openDb, closeDb } = await import('../apps/web/src/store/db.js');
+const { migrateAll, migrationSummary } = await import('../apps/web/src/store/migrate.js');
+const { readVerdictLedger, readGateLedger, countVerdictLedger } = await import('../apps/web/src/store/ledger-store.js');
 
-let lan1: ReturnType<typeof diTruTatCa>;
-let lan2: ReturnType<typeof diTruTatCa>;
+let lan1: ReturnType<typeof migrateAll>;
+let lan2: ReturnType<typeof migrateAll>;
 
 beforeAll(() => {
-  moDb();
-  lan1 = diTruTatCa();
-  lan2 = diTruTatCa();
+  openDb();
+  lan1 = migrateAll();
+  lan2 = migrateAll();
 });
 afterAll(() => {
-  dongDb();
+  closeDb();
   rmSync(goc, { recursive: true, force: true });
 });
 
 describe('di trú sổ cái', () => {
   it('nạp được các bản ghi hợp lệ', () => {
-    expect(demSoCai()).toBe(2);
-    expect(docSoCai().map((m) => m.run_id).sort()).toEqual(['a1', 'a2']);
+    expect(countVerdictLedger()).toBe(2);
+    expect(readVerdictLedger().map((m) => m.run_id).sort()).toEqual(['a1', 'a2']);
   });
 
   it('dòng hỏng và bản ghi thiếu khoá bị bỏ qua nhưng ĐƯỢC ĐẾM, không im lặng nuốt', () => {
@@ -65,20 +65,20 @@ describe('di trú sổ cái', () => {
   });
 
   it('tóm tắt nói ra số bỏ qua để người vận hành thấy', () => {
-    expect(tomTatDiTru(lan1)).toMatch(/bỏ qua 2 dòng hỏng/);
+    expect(migrationSummary(lan1)).toMatch(/bỏ qua 2 dòng hỏng/);
   });
 });
 
 describe('di trú sổ hành động cổng', () => {
   it('nạp hành động hợp lệ và dựng lại phần chi tiết', () => {
-    const c = docSoCong('a1');
+    const c = readGateLedger('a1');
     expect(c).toHaveLength(1);
     expect(c[0].nguoi).toBe('vinac');
     expect(c[0].chi_tiet).toMatch(/2 cảnh báo medium/);
   });
 
   it('hành động không hợp lệ bị bỏ qua và đếm vào phần hỏng', () => {
-    expect(docSoCong('a2')).toHaveLength(0);
+    expect(readGateLedger('a2')).toHaveLength(0);
     expect(lan1.find((k) => k.buoc === 'so-cong-jsonl')!.boQua).toBe(1);
   });
 });
@@ -86,13 +86,13 @@ describe('di trú sổ hành động cổng', () => {
 describe('chạy đúng một lần', () => {
   it('lượt sau không làm gì nữa', () => {
     expect(lan2.every((k) => !k.daChay)).toBe(true);
-    expect(tomTatDiTru(lan2)).toBe('');
+    expect(migrationSummary(lan2)).toBe('');
   });
 
   it('không nhân đôi bản ghi khi gọi lại', () => {
-    diTruTatCa();
-    expect(demSoCai()).toBe(2);
-    expect(docSoCong()).toHaveLength(1);
+    migrateAll();
+    expect(countVerdictLedger()).toBe(2);
+    expect(readGateLedger()).toHaveLength(1);
   });
 
   it('KHÔNG xoá file gốc — chúng ở lại làm bản đối chứng', () => {

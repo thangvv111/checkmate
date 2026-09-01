@@ -12,10 +12,10 @@ export interface RepoView extends RepoConfig {
   co_gh: boolean;
 }
 
-export interface KhoiRepoView {
+export interface RepoSectionView {
   repos: RepoView[];
   dangChon: string;
-  coToken: boolean;
+  hasToken: boolean;
   moKhoa: boolean;
 }
 
@@ -30,7 +30,7 @@ function chipToken(r: RepoView): string {
   return `<span style="${CHIP};background:var(--fail-soft);color:var(--fail)" title="Không chấm được repo này cho tới khi có token">thiếu token</span>`;
 }
 
-export function khoiRepo(v: KhoiRepoView): string {
+export function repoSection(v: RepoSectionView): string {
   const ro = v.moKhoa ? '' : 'disabled';
   const dong = v.repos
     .map((r) => {

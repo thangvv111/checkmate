@@ -1,5 +1,5 @@
 import { createInterface } from 'node:readline';
-import { doiMatKhau, doiVai, dsTaiKhoan, taoTaiKhoan, xoaTaiKhoan, type Vai } from './danh-tinh.js';
+import { changePassword, changeRole, listAccounts, createAccount, deleteAccount, type Role } from './identity.js';
 
 /**
  * Vòng đời tài khoản qua dòng lệnh (specs/R11.19).
@@ -15,9 +15,9 @@ import { doiMatKhau, doiVai, dsTaiKhoan, taoTaiKhoan, xoaTaiKhoan, type Vai } fr
  *   npm run tai-khoan -- xoa thang.vv
  */
 
-const VAI_HOP_LE: Vai[] = ['nguoi_xem', 'tu_dong', 'van_hanh', 'duyet_cong'];
+const VAI_HOP_LE: Role[] = ['nguoi_xem', 'tu_dong', 'van_hanh', 'duyet_cong'];
 
-const GIAI_THICH_VAI: Record<Vai, string> = {
+const GIAI_THICH_VAI: Record<Role, string> = {
   nguoi_xem: 'chỉ xem — không chạy chấm, không bấm cổng',
   tu_dong: 'vai của TÁC NHÂN MÁY — chạy chấm và trả về dev, KHÔNG sửa cấu hình, KHÔNG merge (R11.18b)',
   van_hanh: 'chạy chấm và sửa cấu hình — KHÔNG bấm được cổng merge',
@@ -54,13 +54,13 @@ async function hoiMatKhauHaiLan(): Promise<string> {
   return a;
 }
 
-function epVai(x: string | undefined): Vai {
-  if (!x || !VAI_HOP_LE.includes(x as Vai)) {
-    console.error(`✗ Vai phải là một trong: ${VAI_HOP_LE.join(' · ')}`);
+function epVai(x: string | undefined): Role {
+  if (!x || !VAI_HOP_LE.includes(x as Role)) {
+    console.error(`✗ Role phải là một trong: ${VAI_HOP_LE.join(' · ')}`);
     for (const v of VAI_HOP_LE) console.error(`    ${v.padEnd(11)} ${GIAI_THICH_VAI[v]}`);
     process.exit(2);
   }
-  return x as Vai;
+  return x as Role;
 }
 
 function huongDan(): void {
@@ -72,7 +72,7 @@ function huongDan(): void {
   npm run tai-khoan -- doi-vai <tên> <vai>              đổi vai
   npm run tai-khoan -- xoa <tên>                        gỡ tài khoản (huỷ luôn phiên của nó)
 
-Vai:`);
+Role:`);
   for (const v of VAI_HOP_LE) console.log(`  ${v.padEnd(11)} ${GIAI_THICH_VAI[v]}`);
   console.log(`
 Tên đăng nhập: chữ thường, số, dấu chấm/gạch dưới/gạch nối, 3–32 ký tự (R11.9). Ép khuôn tại đây vì tên
@@ -89,7 +89,7 @@ async function chay(): Promise<void> {
 
   switch (lenh) {
     case 'ds': {
-      const ds = dsTaiKhoan();
+      const ds = listAccounts();
       if (!ds.length) {
         console.log('Chưa có tài khoản nào. Tạo tài khoản đầu tiên:\n  npm run tai-khoan -- them <tên> --vai duyet_cong');
         return;
@@ -104,14 +104,14 @@ async function chay(): Promise<void> {
       const ten = viTri[0];
       if (!ten) return huongDan();
       const vai = epVai(co('vai'));
-      taoTaiKhoan(ten, await hoiMatKhauHaiLan(), vai);
+      createAccount(ten, await hoiMatKhauHaiLan(), vai);
       console.log(`✓ Đã tạo «${ten}» với vai ${vai} — ${GIAI_THICH_VAI[vai]}`);
       return;
     }
     case 'doi-mk': {
       const ten = viTri[0];
       if (!ten) return huongDan();
-      doiMatKhau(ten, await hoiMatKhauHaiLan());
+      changePassword(ten, await hoiMatKhauHaiLan());
       console.log(`✓ Đã đổi mật khẩu «${ten}». Mọi phiên đang sống của tài khoản này đã bị huỷ — đổi vì nghi lộ mà để phiên cũ chạy là không đổi gì.`);
       return;
     }
@@ -119,14 +119,14 @@ async function chay(): Promise<void> {
       const [ten, vaiTho] = viTri;
       if (!ten) return huongDan();
       const vai = epVai(vaiTho);
-      doiVai(ten, vai);
+      changeRole(ten, vai);
       console.log(`✓ «${ten}» nay mang vai ${vai} — ${GIAI_THICH_VAI[vai]}`);
       return;
     }
     case 'xoa': {
       const ten = viTri[0];
       if (!ten) return huongDan();
-      xoaTaiKhoan(ten);
+      deleteAccount(ten);
       console.log(`✓ Đã gỡ «${ten}» và huỷ mọi phiên của tài khoản đó (R11.21).`);
       console.log('  Các hàng đã ghi trong sổ hành động cổng GIỮ NGUYÊN tên này — sổ chỉ ghi thêm, và dấu vết kiểm toán không đi theo tài khoản.');
       return;

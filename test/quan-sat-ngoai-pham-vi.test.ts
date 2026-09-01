@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { docReviewCfg, docRunnerCfg } from '../packages/harness/src/runner.js';
-import { timLuatMoi } from '../packages/harness/src/target.js';
-import { phanLoaiMay } from '../packages/harness/src/skill-code.js';
+import { readReviewCfg, readRunnerCfg } from '../packages/harness/src/runner.js';
+import { findNewRules } from '../packages/harness/src/target.js';
+import { classifyByMachine } from '../packages/harness/src/skill-code.js';
 
 /**
  * Bốn quan sát «ngoài phạm vi PR» của cổng trên PR #20 — PO chốt 01/09 xử luôn trong change này.
@@ -22,14 +22,14 @@ const tam = (noiDung: string): string => {
 
 describe('P8 — checkmate.yml sai cú pháp phải FAIL-SAFE về null, không ném (R2.12)', () => {
   it('cả hai cửa đọc hợp đồng đều rơi về null với YAML hỏng — không cửa nào được ném', () => {
-    // Lỗi THẬT: docReviewCfg đã gác đúng từ lâu, docRunnerCfg thì không — hợp đồng repo đích sai một
+    // Lỗi THẬT: readReviewCfg đã gác đúng từ lâu, readRunnerCfg thì không — hợp đồng repo đích sai một
     // dấu nháy là cả lượt chấm chết ở bước đọc, thay vì rơi về đường vitest mặc định như luật khai.
     const d = tam('runner:\n  test_cmd: ["npx vitest run\nreview:\n  khuon_loi: ["thiếu đóng\n');
     try {
-      expect(() => docRunnerCfg(d)).not.toThrow();
-      expect(docRunnerCfg(d)).toBeNull();
-      expect(() => docReviewCfg(d)).not.toThrow();
-      expect(docReviewCfg(d)).toBeNull();
+      expect(() => readRunnerCfg(d)).not.toThrow();
+      expect(readRunnerCfg(d)).toBeNull();
+      expect(() => readReviewCfg(d)).not.toThrow();
+      expect(readReviewCfg(d)).toBeNull();
     } finally {
       rmSync(d, { recursive: true, force: true });
     }
@@ -38,7 +38,7 @@ describe('P8 — checkmate.yml sai cú pháp phải FAIL-SAFE về null, không 
   it('YAML đúng cú pháp vẫn đọc được bình thường — lưới không nuốt cấu hình thật', () => {
     const d = tam('runner:\n  test_cmd: npx vitest run\n  framework: vitest\n');
     try {
-      expect(docRunnerCfg(d)?.test_cmd).toBe('npx vitest run');
+      expect(readRunnerCfg(d)?.test_cmd).toBe('npx vitest run');
     } finally {
       rmSync(d, { recursive: true, force: true });
     }
@@ -46,8 +46,8 @@ describe('P8 — checkmate.yml sai cú pháp phải FAIL-SAFE về null, không 
 });
 
 describe('P8 vòng sáu — CẢ HAI cửa phải NÓI RA khi hợp đồng hỏng, không nuốt im lặng', () => {
-  it('docReviewCfg cũng phát thông điệp như docRunnerCfg', () => {
-    // Vá một nửa: docRunnerCfg có console.error còn docReviewCfg chỉ trả null lặng lẽ — người vận
+  it('readReviewCfg cũng phát thông điệp như readRunnerCfg', () => {
+    // Vá một nửa: readRunnerCfg có console.error còn readReviewCfg chỉ trả null lặng lẽ — người vận
     // hành không biết hợp đồng đang hỏng, lượt chấm cứ chạy như thể mọi thứ ổn.
     const d = tam('review:\n  khuon_loi: [\"thiếu đóng\n');
     const goc = console.error;
@@ -56,7 +56,7 @@ describe('P8 vòng sáu — CẢ HAI cửa phải NÓI RA khi hợp đồng hỏ
       dem++;
     };
     try {
-      expect(docReviewCfg(d)).toBeNull();
+      expect(readReviewCfg(d)).toBeNull();
       expect(dem, 'cửa review phải nói ra như cửa runner').toBeGreaterThan(0);
     } finally {
       console.error = goc;
@@ -65,13 +65,13 @@ describe('P8 vòng sáu — CẢ HAI cửa phải NÓI RA khi hợp đồng hỏ
   });
 });
 
-describe('P6 — timLuatMoi chịu được danh sách spec méo, không ném', () => {
+describe('P6 — findNewRules chịu được danh sách spec méo, không ném', () => {
   it('khuyết / không phải mảng / phần tử lạ đều rơi về «không có luật mới»', () => {
     // Hàm nằm trên đường quyết định nhãn `vi_pham_luat_moi`; ném ở đây là cả lượt chấm chết thay vì
     // rơi về hướng an toàn (không quy tội PR).
     for (const x of [undefined, null, 'chuoi', 123, [null], [{ file: 'a' }], [{ noiDung: 5 }]]) {
-      expect(() => timLuatMoi('.', 'main', x as never), `${JSON.stringify(x)}`).not.toThrow();
-      expect(timLuatMoi('.', 'main', x as never)).toEqual([]);
+      expect(() => findNewRules('.', 'main', x as never), `${JSON.stringify(x)}`).not.toThrow();
+      expect(findNewRules('.', 'main', x as never)).toEqual([]);
     }
   });
 });
@@ -81,7 +81,7 @@ describe('vòng bảy — ÉP KIỂU thay vì NUỐT dữ liệu spec', () => {
     // Vá «không ném» bằng cách đánh rơi dữ liệu thật: bản trước biến mọi thứ không-phải-string
     // thành '' nên mã luật biến mất cùng nhãn chặn merge.
     const nhu = { toString: () => 'R99 — luật thử' };
-    expect(() => timLuatMoi('.', 'main', [{ file: 'specs/R99.md', noiDung: nhu }] as never)).not.toThrow();
+    expect(() => findNewRules('.', 'main', [{ file: 'specs/R99.md', noiDung: nhu }] as never)).not.toThrow();
   });
 });
 
@@ -89,7 +89,7 @@ describe('P6 vòng bảy — mẫu bo_qua_diff sai cú pháp bị bỏ, không l
   it('mẫu regex hỏng bị loại ngay tại cửa đọc, mẫu đúng vẫn giữ', () => {
     const d = tam('runner:\n  test_cmd: npx vitest run\nreview:\n  bo_qua_diff: ["[[", "lock"]\n');
     try {
-      expect(docReviewCfg(d)?.bo_qua_diff).toEqual(['lock']);
+      expect(readReviewCfg(d)?.bo_qua_diff).toEqual(['lock']);
     } finally {
       rmSync(d, { recursive: true, force: true });
     }
@@ -100,8 +100,8 @@ describe('P4 — đỏ ở nhánh PR mà THIẾU đối chứng KHÔNG được 
   it('engine vốn đã đúng: không có kết quả nhánh gốc thì nhãn là nghi_van, không phải hoi_quy', () => {
     // Tái lập cho thấy KHÔNG có lỗi để sửa — ghi lại ca này để lần sau không ai phải tái lập lần nữa.
     const do_ = { title: 't', status: 'failed' as const, message: 'lỗi X', file: 'f' };
-    expect(phanLoaiMay(do_, undefined)).toBe('nghi_van');
-    expect(phanLoaiMay(do_, { ...do_, status: 'passed' as const })).toBe('hoi_quy');
-    expect(phanLoaiMay(undefined, undefined)).toBe('khong_chay');
+    expect(classifyByMachine(do_, undefined)).toBe('nghi_van');
+    expect(classifyByMachine(do_, { ...do_, status: 'passed' as const })).toBe('hoi_quy');
+    expect(classifyByMachine(undefined, undefined)).toBe('khong_chay');
   });
 });

@@ -125,7 +125,9 @@ Từ 31/08: CheckMate trên máy chủ giữ một **bản clone riêng** của 
 `truc.bat: true`). Mỗi PR mở trên repo này được prod tự chấm rồi đăng verdict + gắn commit status —
 một lượt chấm **độc lập với máy dev**: engine prod, clone riêng, hợp đồng đọc từ clone.
 
-Quy trình merge từ đây: mở PR → chờ verdict độc lập từ prod trên PR → merge khi PASS.
+⛔ **Quy trình merge — TẠM DỪNG bước chờ verdict (PO chốt 01/09):** đủ điều kiện đi tiếp là code +
+test xanh + PO duyệt; đừng poll prod. Nguyên văn cũ, dùng lại khi PO bật cổng: «mở PR → chờ
+verdict độc lập từ prod trên PR → merge khi PASS».
 Lượt chấm local vẫn chạy được khi cần lặp nhanh, nhưng verdict tính cho cổng là verdict prod.
 
 Clone này KHÔNG tự cập nhật cây làm việc (fetch chỉ cập nhật refs). Hợp đồng `checkmate.yml` đọc từ cây

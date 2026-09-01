@@ -1,6 +1,6 @@
-import type { MucSoCai } from './ledger.js';
-import type { HoSoTacGia } from './tincay.js';
-import { khung, escHtml } from './ui.js';
+import type { VerdictLedgerEntry } from './ledger.js';
+import type { AuthorProfile } from './trust.js';
+import { shell, escHtml } from './ui.js';
 
 // Ô lọc repo dùng chung cho thang tin cậy và hồ sơ từng tác giả.
 function locRepoBox(duong: string, repos: string[], locRepo?: string): string {
@@ -16,7 +16,7 @@ function locRepoBox(duong: string, repos: string[], locRepo?: string): string {
 </form>`;
 }
 
-export function trangTinCay(hoSo: HoSoTacGia[], repos: string[] = [], locRepo?: string): string {
+export function trustPage(hoSo: AuthorProfile[], repos: string[] = [], locRepo?: string): string {
   const rows = hoSo
     .map(
       (h) => `<tr>
@@ -30,7 +30,7 @@ export function trangTinCay(hoSo: HoSoTacGia[], repos: string[] = [], locRepo?: 
 </tr>`,
     )
     .join('');
-  return khung(
+  return shell(
     'Thang tin cậy tác giả — CheckMate',
     `<h1>Thang tin cậy tác giả</h1>
 <p class="sub">Track record tính từ <a href="/ledger">sổ cái verdict</a> — máy đếm, không tự khai.${
@@ -42,9 +42,9 @@ ${hoSo.length ? `<table class="runs"><tr><th>Tác giả</th><th>PR</th><th>Verdi
   );
 }
 
-export function trangHoSoTacGia(tacGia: string, hoSo: HoSoTacGia | undefined, verdicts: MucSoCai[], locRepo?: string): string {
+export function authorProfilePage(tacGia: string, hoSo: AuthorProfile | undefined, verdicts: VerdictLedgerEntry[], locRepo?: string): string {
   if (!hoSo) {
-    return khung(
+    return shell(
       'Hồ sơ tác giả — CheckMate',
       `<h1>${escHtml(tacGia)}</h1><p class="sub">Chưa có verdict nào của tác giả này${locRepo ? ` trong ${escHtml(locRepo)}` : ''}. <a href="/tin-cay">← thang tin cậy</a></p>`,
     );
@@ -59,7 +59,7 @@ export function trangHoSoTacGia(tacGia: string, hoSo: HoSoTacGia | undefined, ve
 <td class="mono">${m.high}H · ${m.medium}M · ${m.low}L</td></tr>`,
     )
     .join('');
-  return khung(
+  return shell(
     `${tacGia} — tin cậy CheckMate`,
     `<h1>Hồ sơ: ${escHtml(tacGia)}</h1>
 <p class="sub">${locRepo ? `Chỉ tính verdict trong <b>${escHtml(locRepo)}</b>. ` : 'Gộp mọi repo. '}<a href="/tin-cay${locRepo ? `?repo=${encodeURIComponent(locRepo)}` : ''}">← thang tin cậy</a></p>

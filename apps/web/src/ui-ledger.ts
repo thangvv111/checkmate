@@ -1,9 +1,9 @@
-import type { MucSoCai } from './ledger.js';
-import { khung, escHtml } from './ui.js';
+import type { VerdictLedgerEntry } from './ledger.js';
+import { shell, escHtml } from './ui.js';
 
 // Sổ cái là một dạng lịch sử, nên nó cũng phải tách được theo repo (specs/R4.9) — trộn verdict của
 // nhiều repo vào một bảng thì con số tổng ở đầu trang không nói lên điều gì về repo nào cả.
-export function trangLedger(muc: MucSoCai[], congTheoRun: Map<string, string>, repos: string[] = [], locRepo?: string): string {
+export function ledgerPage(muc: VerdictLedgerEntry[], congTheoRun: Map<string, string>, repos: string[] = [], locRepo?: string): string {
   const theoRepo = locRepo ? muc.filter((m) => (m.repo ?? '') === locRepo) : muc;
   const sx = [...theoRepo].sort((a, b) => b.luc.localeCompare(a.luc));
   const demPass = sx.filter((m) => m.verdict === 'PASS').length;
@@ -37,7 +37,7 @@ export function trangLedger(muc: MucSoCai[], congTheoRun: Map<string, string>, r
   ${locRepo ? '<a class="btn phu" href="/ledger">Bỏ lọc</a>' : ''}
 </form>`
     : '';
-  return khung(
+  return shell(
     'Sổ cái verdict — CheckMate',
     `<h1>Sổ cái verdict</h1>
 <p class="sub">Append-only — mọi kết luận chấm đều vào sổ, không sửa không xoá. ${sx.length} verdict${locRepo ? ` của ${escHtml(locRepo)} (lọc từ ${muc.length})` : ''} (${demPass} PASS · ${demFail} FAIL)${tongVao ? ` · tổng ${(tongVao / 1000).toFixed(0)}k token vào + ${(tongRa / 1000).toFixed(0)}k ra` : ''} · <a href="/">← về trang chính</a></p>

@@ -1,0 +1,104 @@
+{
+ "probes": [
+  {
+   "ten": "lib_0c9ad5b_0db269.probe.test.ts",
+   "sha_sinh": "0c9ad5b6869fef03d2fee95bc4a9bca80d1e3db6",
+   "luc": "2026-08-30T08:12:19.065Z",
+   "hash": "0db2691fcac20a2debb566eca9bd9f0a092b8128de937ce0f4c2148e129e1a56",
+   "plan": {
+    "id": "P2",
+    "ten": "ghiSo: xac_nhan_medium rỗng ([]) không được sinh chữ 'cảnh báo medium' phantom trong chi_tiet",
+    "muc_dich": "moTaXacNhan dùng ternary `ds.length ? ... : ''` — biên đúng ngay ds.length === 0. Với mảng RỖNG (không phải undefined/không có trường), chi_tiet chỉ nên giữ đúng ghi_chu, không kèm theo cụm 'chấp nhận 0 cảnh báo medium:' hay dấu ' · ' thừa ở cuối do join(' · ') với chuỗi rỗng.",
+    "spec_rule": "R9.6",
+    "ky_vong": "ghiSo({hanhDong:'merge', run_id:'r-empty', nguoi:'thang', ghi_chu:'không có cảnh báo nào cần xin phép', xac_nhan_medium: []}) → docSoCong('r-empty')[0].chi_tiet === 'không có cảnh báo nào cần xin phép' (không chứa 'cảnh báo medium', không có ' · ' ở cuối hay ở đâu cả)."
+   },
+   "lich_su": [
+    {
+     "sha": "eb33fb247b972e97a05632b4c967bc1f6ee94c18",
+     "luc": "2026-08-30T13:52:25.541Z",
+     "trang_thai": "pass"
+    },
+    {
+     "sha": "7c84024858de985def25ee6aef5d22745becc437",
+     "luc": "2026-08-30T14:05:24.127Z",
+     "trang_thai": "pass"
+    },
+    {
+     "sha": "2da6b5bbf752c67fd4abd18d28af2aa2106c53cc",
+     "luc": "2026-08-30T14:48:05.727Z",
+     "trang_thai": "pass"
+    },
+    {
+     "sha": "f6d45d42e970aa457c90f5c86c2eadd831319b8f",
+     "luc": "2026-08-30T15:02:56.089Z",
+     "trang_thai": "pass"
+    },
+    {
+     "sha": "bfc58d64a078cea303763e21197e58280cd59203",
+     "luc": "2026-08-30T15:15:28.958Z",
+     "trang_thai": "pass"
+    },
+    {
+     "sha": "0a949a33721125701919a17bd69d67d09f2e4d79",
+     "luc": "2026-08-30T15:22:50.087Z",
+     "trang_thai": "pass"
+    },
+    {
+     "sha": "ba902877c7ea87468a2be78ec16fdd1ab52312f2",
+     "luc": "2026-08-31T09:00:34.375Z",
+     "trang_thai": "pass"
+    }
+   ]
+  },
+  {
+   "ten": "lib_0c9ad5b_3b403a.probe.test.ts",
+   "sha_sinh": "0c9ad5b6869fef03d2fee95bc4a9bca80d1e3db6",
+   "luc": "2026-08-30T08:12:19.067Z",
+   "hash": "3b403a91640728ede0c1881ec1c361a2043c72d6705f581e03aadbd0be39d7e7",
+   "plan": {
+    "id": "P5",
+    "ten": "Baseline không đổi: bocJson với JSON hỏng vẫn trả lỗi kèm đoạn văn quanh vị trí hỏng (không bị PR này đụng tới)",
+    "muc_dich": "jsonx.js không nằm trong diff của PR này. Probe này xác nhận hành vi R3.15 vẫn nguyên vẹn — bằng chứng PASS của lượt chấm không chỉ dựa trên vùng PR sửa mà còn chứng minh phần liền kề (rào chống lỗi model) chưa bị phá khi PR động vào các module khác trong cùng gói harness.",
+    "spec_rule": "R3.15",
+    "ky_vong": "bocJson('{\"probes\": [{\"id\": \"P1\"} {\"id\": \"P2\"}]}') ném lỗi có message chứa cả 'không parse được', 'HỎNG Ở ĐÂY', và 'P1' — giống hệt test mẫu, PASS trên cả hai nhánh."
+   },
+   "lich_su": [
+    {
+     "sha": "eb33fb247b972e97a05632b4c967bc1f6ee94c18",
+     "luc": "2026-08-30T13:52:25.541Z",
+     "trang_thai": "pass"
+    },
+    {
+     "sha": "7c84024858de985def25ee6aef5d22745becc437",
+     "luc": "2026-08-30T14:05:24.127Z",
+     "trang_thai": "pass"
+    },
+    {
+     "sha": "2da6b5bbf752c67fd4abd18d28af2aa2106c53cc",
+     "luc": "2026-08-30T14:48:05.727Z",
+     "trang_thai": "pass"
+    },
+    {
+     "sha": "f6d45d42e970aa457c90f5c86c2eadd831319b8f",
+     "luc": "2026-08-30T15:02:56.089Z",
+     "trang_thai": "pass"
+    },
+    {
+     "sha": "bfc58d64a078cea303763e21197e58280cd59203",
+     "luc": "2026-08-30T15:15:28.958Z",
+     "trang_thai": "pass"
+    },
+    {
+     "sha": "0a949a33721125701919a17bd69d67d09f2e4d79",
+     "luc": "2026-08-30T15:22:50.087Z",
+     "trang_thai": "pass"
+    },
+    {
+     "sha": "ba902877c7ea87468a2be78ec16fdd1ab52312f2",
+     "luc": "2026-08-31T09:00:34.375Z",
+     "trang_thai": "pass"
+    }
+   ]
+  }
+ ]
+}

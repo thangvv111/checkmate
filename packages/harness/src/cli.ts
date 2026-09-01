@@ -1,9 +1,9 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chuanMuc, type ArtifactRef, type Finding, type RunEvent, type Verdict } from '../../shared/src/types.js';
-import { LoiCauHinhProvider, chonProvider, kiemTraProvider, soLieuChiPhi, tomTatChiPhi } from './model.js';
-import { chaySkillCode } from './skill-code.js';
-import { chaySkillDoc } from './skill-doc.js';
+import { ProviderConfigError, pickProvider, checkProvider, costMetrics, costSummary } from './model.js';
+import { runCodeSkill } from './skill-code.js';
+import { runDocSkill } from './skill-doc.js';
 
 function layArg(ten: string, macDinh?: string): string | undefined {
   const i = process.argv.indexOf(`--${ten}`);
@@ -77,7 +77,7 @@ async function main(): Promise<void> {
   }
 
   try {
-    kiemTraProvider();
+    checkProvider();
   } catch (e) {
     const msg = (e as Error).message;
     if (lenhJson) console.log(JSON.stringify({ type: 'error', msg }));
@@ -85,7 +85,7 @@ async function main(): Promise<void> {
     process.exit(4); // 4 = cấu hình provider, phân biệt với 3 = lỗi khi chạy
   }
 
-  const model = chonProvider();
+  const model = pickProvider();
   const events: RunEvent[] = [];
   const ghiPhat = (e: RunEvent): void => {
     events.push(e);
@@ -101,7 +101,7 @@ async function main(): Promise<void> {
     let probeStats: Verdict['probe_stats'];
     let quanSat: Verdict['quan_sat_ngoai_pr'];
     if (skill === 'code') {
-      const kq = await chaySkillCode(model, repo!, branch!, base, ghiPhat);
+      const kq = await runCodeSkill(model, repo!, branch!, base, ghiPhat);
       findings = kq.findings;
       probeStats = kq.probeStats;
       quanSat = kq.quanSat.length > 0 ? kq.quanSat : undefined;
@@ -113,14 +113,14 @@ async function main(): Promise<void> {
       const sha = execFileSync('git', ['rev-parse', branch], { cwd: repo, encoding: 'utf8' }).trim();
       const sb = new Sandbox(repo, sha);
       try {
-        const kq = await chaySkillDoc(model, join(sb.dir, file!), ghiPhat);
+        const kq = await runDocSkill(model, join(sb.dir, file!), ghiPhat);
         findings = kq.findings;
         artifactRef = { type: 'doc', name: file!, sha_or_hash: sha };
       } finally {
         sb.huy();
       }
     } else {
-      const kq = await chaySkillDoc(model, file!, ghiPhat);
+      const kq = await runDocSkill(model, file!, ghiPhat);
       findings = kq.findings;
       artifactRef = { type: 'doc', name: kq.tenFile, sha_or_hash: kq.hash };
     }
@@ -131,14 +131,14 @@ async function main(): Promise<void> {
       result: findings.some((f) => chuanMuc(f.severity) === 'high') ? 'FAIL' : 'PASS',
       findings,
       probe_stats: probeStats,
-      chi_phi: soLieuChiPhi(),
+      chi_phi: costMetrics(),
       quan_sat_ngoai_pr: quanSat,
       model: model.ten,
       mode: 'live',
       started_at: batDau,
       finished_at: new Date().toISOString(),
     };
-    ghiPhat({ type: 'log', msg: `Chi phí lượt chấm: ${tomTatChiPhi()}` });
+    ghiPhat({ type: 'log', msg: `Chi phí lượt chấm: ${costSummary()}` });
     ghiPhat({ type: 'verdict', verdict });
 
     const outFile = layArg('out') ?? join('runs', `${runId}.json`);
@@ -147,7 +147,7 @@ async function main(): Promise<void> {
     if (!lenhJson) console.log(`\nĐã lưu run: ${outFile}`);
     process.exit(verdict.result === 'FAIL' ? 1 : 0);
   } catch (e) {
-    const laCauHinh = e instanceof LoiCauHinhProvider;
+    const laCauHinh = e instanceof ProviderConfigError;
     ghiPhat({ type: 'error', msg: (laCauHinh ? 'Cấu hình provider: ' : '') + (e as Error).message });
     process.exit(laCauHinh ? 4 : 3);
   }

@@ -1,7 +1,7 @@
-import type { KeHoachProbe } from './skill-code.js';
-import type { ProbeThuVien } from './thu-vien.js';
-import type { Rao } from './rao.js';
-import { LOI_RAO } from './rao.js';
+import type { ProbePlan } from './skill-code.js';
+import type { LibraryProbe } from './probe-library.js';
+import type { Fence } from './fence.js';
+import { FENCE_NOTICE } from './fence.js';
 
 // Xử trùng lặp probe theo bốn tầng (specs/R10.6–R10.8). File này giữ ba tầng đầu:
 //   tầng 1 — cơ học: bản chạy-lại cùng commit (sha sinh + id + luật) → loại thẳng
@@ -12,37 +12,37 @@ import { LOI_RAO } from './rao.js';
 // Nguyên tắc rủi ro không đối xứng: loại nhầm một probe thật là mất tài sản regression trong im lặng;
 // giữ nhầm một bản sao chỉ tốn chỗ. Mọi đường mờ đều nghiêng về GIỮ.
 
-// tachRule sống ở thu-vien.ts để CẢ tầng cơ học lẫn tầng 4 so luật qua cùng một bản chuẩn hoá —
+// splitRule sống ở thu-vien.ts để CẢ tầng cơ học lẫn tầng 4 so luật qua cùng một bản chuẩn hoá —
 // hai bản so lệch nhau ('R1,R2' vs 'R1, R2') là tầng 4 mù đúng ở cặp cần bắt nhất (dàn review bắt được).
-export { tachRule } from './thu-vien.js';
-import { tachRule } from './thu-vien.js';
+export { splitRule } from './probe-library.js';
+import { splitRule } from './probe-library.js';
 
 function giaoRule(a: string | undefined, b: string | undefined): boolean {
-  const tb = new Set(tachRule(b));
-  return tachRule(a).some((r) => tb.has(r));
+  const tb = new Set(splitRule(b));
+  return splitRule(a).some((r) => tb.has(r));
 }
 
 /** Tầng 1 (R10.6): bản chạy-lại của cùng lượt chấm — trùng cả commit sinh, id và luật. */
-export function timTrungChayLai(thuVien: ProbeThuVien[], plan: KeHoachProbe, shaSinh: string): ProbeThuVien | null {
+export function findRerunDuplicate(library: LibraryProbe[], plan: ProbePlan, shaSinh: string): LibraryProbe | null {
   return (
-    thuVien.find(
-      (m) => m.sha_sinh === shaSinh && m.plan.id === plan.id && tachRule(m.plan.spec_rule).join(',') === tachRule(plan.spec_rule).join(','),
+    library.find(
+      (m) => m.sha_sinh === shaSinh && m.plan.id === plan.id && splitRule(m.plan.spec_rule).join(',') === splitRule(plan.spec_rule).join(','),
     ) ?? null
   );
 }
 
 /** Tầng 2 (R10.7): diện nghi — luật spec giao nhau, hoặc cùng commit sinh. Chưa loại. */
-export function timNghiTrung(thuVien: ProbeThuVien[], plan: KeHoachProbe, shaSinh: string): ProbeThuVien[] {
-  return thuVien.filter((m) => giaoRule(m.plan.spec_rule, plan.spec_rule) || m.sha_sinh === shaSinh);
+export function findSuspectedDuplicate(library: LibraryProbe[], plan: ProbePlan, shaSinh: string): LibraryProbe[] {
+  return library.filter((m) => giaoRule(m.plan.spec_rule, plan.spec_rule) || m.sha_sinh === shaSinh);
 }
 
-export interface UngPhanXu {
+export interface RulingCandidate {
   ma: string; // N1, N2... — khoá model phải trỏ vào
-  moi: { plan: KeHoachProbe; code: string };
-  nghi: ProbeThuVien[];
+  moi: { plan: ProbePlan; code: string };
+  nghi: LibraryProbe[];
 }
 
-export interface PhanXu {
+export interface Ruling {
   ma: string;
   trung: boolean;
   chac_chan: boolean;
@@ -53,7 +53,7 @@ export interface PhanXu {
 const CAT_CODE = 1400;
 
 /** Tầng 3 (R10.8): câu hỏi HẸP cho model — có cho ra cùng một finding không, không phải "có giống nhau không". */
-export function promptPhanXuTrung(ung: UngPhanXu[], rao: Rao): string {
+export function promptDuplicateRuling(ung: RulingCandidate[], rao: Fence): string {
   const duLieu = ung.map((u) => ({
     ma: u.ma,
     probe_moi: {
@@ -80,7 +80,7 @@ Hai probe cho ra CÙNG MỘT finding khi chúng kiểm CÙNG một hành vi theo
 
 LUẬT RỦI RO: loại nhầm một probe thật là mất tài sản regression trong im lặng; giữ nhầm chỉ tốn chỗ. Vì vậy chỉ đặt "trung": true kèm "chac_chan": true khi bạn CHẮC CHẮN; mọi phân vân đều trả "trung": false.
 
-${LOI_RAO}
+${FENCE_NOTICE}
 
 # ỨNG VIÊN
 ${rao('UNG_VIEN_TRUNG', JSON.stringify(duLieu, null, 2))}
@@ -89,7 +89,7 @@ Trả lời CHỈ MỘT khối JSON trong fence \`\`\`json:
 {"phan_xu": [{"ma": "N?", "trung": true|false, "chac_chan": true|false, "voi": "<ten_file probe thư viện trùng, nếu trung>", "ly_do": "≤2 câu"}]}`;
 }
 
-export interface QuyetDinhNap {
+export interface AdmitDecision {
   bo: boolean;
   voi?: string;
   ly_do?: string;
@@ -99,8 +99,8 @@ export interface QuyetDinhNap {
  * Áp phán xử của model — nghiêng về GIỮ (R10.8): chỉ bỏ khi trung && chac_chan && chỉ đúng tên probe
  * thư viện có thật trong diện nghi. Model trả thiếu, trả thừa, hay trỏ tên lạ đều là GIỮ.
  */
-export function apDungPhanXu(ung: UngPhanXu[], phanXu: PhanXu[]): Map<string, QuyetDinhNap> {
-  const ra = new Map<string, QuyetDinhNap>();
+export function applyRuling(ung: RulingCandidate[], phanXu: Ruling[]): Map<string, AdmitDecision> {
+  const ra = new Map<string, AdmitDecision>();
   for (const u of ung) {
     const cacPx = phanXu.filter((p) => p.ma === u.ma);
     // Model trả CÙNG một mã hai lần (tự sửa lời trong cùng khối JSON) = output mơ hồ — mơ hồ là GIỮ,

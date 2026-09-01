@@ -1,9 +1,9 @@
-import type { MucSoCai } from './ledger.js';
+import type { VerdictLedgerEntry } from './ledger.js';
 
 // Thang tin cậy tác giả (spec §12 · B4.2) — track record tính TỪ SỔ CÁI, không tự khai.
 // NGUYÊN TẮC: trust KHÔNG nới cổng — mọi PR vẫn bị chấm như nhau; hồ sơ chỉ để nhìn và xếp ưu tiên.
 
-export interface HoSoTacGia {
+export interface AuthorProfile {
   tacGia: string;
   soVerdict: number;
   pass: number;
@@ -17,8 +17,8 @@ export interface HoSoTacGia {
   lanCuoi: string;
 }
 
-export function tinhHoSo(soCai: MucSoCai[]): HoSoTacGia[] {
-  const theoTacGia = new Map<string, MucSoCai[]>();
+export function computeProfile(soCai: VerdictLedgerEntry[]): AuthorProfile[] {
+  const theoTacGia = new Map<string, VerdictLedgerEntry[]>();
   for (const m of soCai) {
     if (!m.tac_gia || !m.pr) continue; // chỉ tính verdict gắn PR có tác giả
     const ds = theoTacGia.get(m.tac_gia) ?? [];
@@ -26,10 +26,10 @@ export function tinhHoSo(soCai: MucSoCai[]): HoSoTacGia[] {
     theoTacGia.set(m.tac_gia, ds);
   }
 
-  const kq: HoSoTacGia[] = [];
+  const kq: AuthorProfile[] = [];
   for (const [tacGia, ds] of theoTacGia) {
     const sx = [...ds].sort((a, b) => a.luc.localeCompare(b.luc));
-    const theoPr = new Map<number, MucSoCai[]>();
+    const theoPr = new Map<number, VerdictLedgerEntry[]>();
     for (const m of sx) {
       const l = theoPr.get(m.pr!) ?? [];
       l.push(m);
