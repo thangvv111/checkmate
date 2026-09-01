@@ -56,6 +56,15 @@ Lệnh: `/opsx:propose`, `/opsx:apply`, `/opsx:verify`, `/opsx:archive` (skill t
 Proposal vẫn có ô «Luật R chạm tới» — từ nay câu trả lời đúng thường là «KHÔNG — cố ý» kèm nơi luật
 sống; bỏ trống ô vẫn là done-gate chưa ✓.
 
+## Ngôn ngữ định danh — tiếng Anh (PO chốt 01/09)
+
+- **Mọi định danh MỚI SINH** — tên hàm, biến, kiểu, khoá cấu hình, mã enum, tên file code — viết
+  **tiếng Anh**. Thuật ngữ trong tài liệu giữ tiếng Anh, chỉ chú thích tiếng Việt khi cần giải thích.
+- Văn TRÌNH BÀY cho PO (proposal, báo cáo, commit message, comment giải thích) vẫn tiếng Việt.
+- Code cũ mang tên tiếng Việt (`luuMeta`, `docSoCong`, `chuanMuc`…) **giữ nguyên** — đổi hàng loạt là
+  một change refactor riêng đã xếp lịch; đừng đổi lắt nhắt từng chỗ khi tiện tay, nó tạo trạng thái
+  nửa nạc nửa mỡ tệ hơn cả hai đầu.
+
 ## Cổng — CheckMate tự chấm chính nó
 
 Mọi PR đi qua bản CheckMate chạy trên prod (chế độ trực, poller 300s, model Opus 5). Quy trình:

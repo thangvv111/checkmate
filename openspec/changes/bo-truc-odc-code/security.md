@@ -13,13 +13,13 @@ không phải dữ liệu repo đích, không mở đường tiêm mới. Chỗ 
 `dieu_kien` RegExp đánh trên spec repo đích để bật ví dụ — cơ chế CŨ của R12.4, không đổi trong
 change này; spec độc hại chỉ bật/tắt được ví dụ vô hại, không đổi được văn bản phát.
 
-**Model là đầu vào không tin được.** Ba trường mới đều qua validate enum đóng, lạ → `khong_ro` +
+**Model là đầu vào không tin được.** Ba trường mới đều qua validate enum đóng, lạ → `unknown` +
 log. Giá trị model trả KHÔNG bao giờ được nội suy vào SQL/lệnh/log định dạng tự do — đường ghi
-verdict là JSON.stringify sẵn có. `va_toi_thieu` là chuỗi tự do của model: chỉ hiển thị UI (đã
+verdict là JSON.stringify sẵn có. `minimal_fix` là chuỗi tự do của model: chỉ hiển thị UI (đã
 escape như title_vi/what_vi hiện hành), không đi vào lệnh nào.
 
 **Fail-closed đúng chiều cho từng trục.** Severity giữ nguyên đường cũ (lạ → high). Trục telemetry
-cố ý KHÔNG fail-closed về mức nặng — `khong_ro` — vì nó không gác gì cả; cho nó quyền đổi verdict
+cố ý KHÔNG fail-closed về mức nặng — `unknown` — vì nó không gác gì cả; cho nó quyền đổi verdict
 mới là mở một đường lách («type bịa khéo thì merge được»). Ranh giới này có ca T4.1 khoá.
 
 **Goodhart là rủi ro an toàn, không chỉ chi phí.** Probe chiếu lệ rải đều trigger làm false-PASS

@@ -22,7 +22,7 @@ về kho phẳng tự phình.
 - **THEN** toàn danh mục được phát — hành vi mặc định không đòi ai cấu hình
 
 #### Scenario: probe khai trigger hợp lệ
-- **WHEN** model trả kế hoạch probe với `trigger: "bien_the_dau_vao"` thuộc danh mục
+- **WHEN** model trả kế hoạch probe với `trigger: "variation"` thuộc danh mục
 - **THEN** trường được giữ nguyên và đi vào thống kê của lượt chấm
 
 #### Scenario: deadlock tất định không cần trigger riêng
@@ -45,7 +45,7 @@ Mỗi ví dụ giữ nguyên các gác cơ học của R12: án lệ phải có 
 một dòng, `dieu_kien` bật theo spec repo đích nếu có.
 
 #### Scenario: thêm ví dụ vào trigger đã đầy
-- **WHEN** trigger `duong_loi` đã đủ N ví dụ và một bài học mới được đúc vào đó
+- **WHEN** trigger `recovery_exception` đã đủ N ví dụ và một bài học mới được đúc vào đó
 - **THEN** ví dụ ít giá trị nhất (chưa từng dẫn tới finding thật, hoặc cũ nhất trong các ví dụ ngang
   giá trị) rời khỏi tập phát-vào-prompt, và tổng số dòng phát không đổi
 
@@ -72,24 +72,24 @@ hơn thực tế.
 
 ### Requirement: Hai trường phân loại lỗi trên finding
 
-Finding của skill code SHALL mang ba trường tuỳ chọn: `va_toi_thieu` (một dòng phác «bản vá tối
+Finding của skill code SHALL mang ba trường tuỳ chọn: `minimal_fix` (một dòng phác «bản vá tối
 thiểu sửa cái gì»), `odc_type` (một trong bảy giá trị ODC: assignment_init · checking ·
 algorithm_method · function_class · timing_serialization · interface_messages · relationship), và
-`qualifier` (missing · incorrect · extraneous). Model MUST viết `va_toi_thieu` trước rồi suy
-`odc_type` từ đó. Máy validate enum: giá trị ngoài danh mục thì trường về `khong_ro` kèm log.
+`qualifier` (missing · incorrect · extraneous). Model MUST viết `minimal_fix` trước rồi suy
+`odc_type` từ đó. Máy validate enum: giá trị ngoài danh mục thì trường về `unknown` kèm log.
 
 Ba trường này là **telemetry**: chúng MUST NOT tham gia quyết định PASS/FAIL, MUST NOT đổi severity,
 và vắng mặt không làm finding kém giá trị pháp lý. Verdict cũ không có trường này MUST đọc lại được
 nguyên vẹn.
 
 #### Scenario: phân loại suy từ phác bản vá
-- **WHEN** model viết `va_toi_thieu: "thêm điều kiện kiểm null trước khi đọc .length"` và
+- **WHEN** model viết `minimal_fix: "thêm điều kiện kiểm null trước khi đọc .length"` và
   `odc_type: "checking"`, `qualifier: "missing"`
 - **THEN** finding mang đủ ba trường trong verdict
 
 #### Scenario: type lạ không đổi verdict
 - **WHEN** model trả `odc_type: "sieu_loi"` cho một finding high
-- **THEN** trường về `khong_ro`, log một dòng, severity và kết quả PASS/FAIL không đổi
+- **THEN** trường về `unknown`, log một dòng, severity và kết quả PASS/FAIL không đổi
 
 #### Scenario: replay verdict cũ
 - **WHEN** đọc lại một verdict ghi trước change này (finding không có ba trường mới)

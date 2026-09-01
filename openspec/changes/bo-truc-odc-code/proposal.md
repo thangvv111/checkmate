@@ -34,7 +34,7 @@ phân loại lỗi phần mềm đứng yên 34 năm nhờ tách ba thứ mà Ch
    không neo vào hằng nào của hệ luật cũ. Ví dụ mới VÀO thì ví dụ cũ RA (ưu tiên giữ ví dụ đã dẫn
    tới finding thật gần nhất) — **kho không phình theo thời gian nữa**, trả lời thẳng câu «một năm
    sau thì sao».
-3. **Trục PHÂN LOẠI cho finding** — Finding thêm 3 trường tuỳ chọn: `va_toi_thieu` (phác một dòng
+3. **Trục PHÂN LOẠI cho finding** — Finding thêm 3 trường tuỳ chọn: `minimal_fix` (phác một dòng
    «bản vá tối thiểu sửa cái gì» — viết TRƯỚC), `odc_type` (7 giá trị ODC, suy từ phác đó),
    `qualifier` (missing · incorrect · extraneous). Chỉ là telemetry: **không tham gia** quyết
    PASS/FAIL, không đụng sàn severity.
@@ -77,4 +77,4 @@ nguyên) · trần probe MAX_PROBE (chuyện của Đ7) · rubric 7 trục doc.
 3. **Cấu trúc lại cách ăn specs của REPO ĐÍCH** (PO chốt 01/09 — phạm vi mở hơn dự kiến): xét lại
    nạp-toàn-bộ, `trichMaLuat` regex (hiện lẫn rác KL9/L3/P1/P10 vào mẫu số độ phủ), và hình dạng
    spec mà CheckMate đòi ở repo khách. Change riêng; bộ trục không bị khoá vào cơ chế hiện tại —
-   trigger `khop_spec` ăn theo NGUỒN LUẬT hiện hành, nguồn đổi thì nó ăn nguồn mới.
+   trigger `spec_conformance` ăn theo NGUỒN LUẬT hiện hành, nguồn đổi thì nó ăn nguồn mới.

@@ -2,7 +2,7 @@
 
 ## Trục trigger (sinh probe)
 
-- [ ] T1.1 Danh mục `TRIGGER_CODE` có đúng 10 mã, mỗi mã có mô tả một dòng không rỗng — khoá bộ ĐÓNG:
+- [ ] T1.1 Danh mục `TRIGGER_CATALOG` có đúng 10 mã, mỗi mã có mô tả một dòng không rỗng — khoá bộ ĐÓNG:
       thêm/bớt mã là đỏ, buộc đi qua sửa spec R14.1 có chủ đích.
 - [ ] T1.2 Mọi khuôn `loai='code'` trong tập PHÁT đều mang `trigger` thuộc danh mục; mỗi trigger
       ≤ 2 ví dụ trong tập phát (R14.3).
@@ -18,23 +18,23 @@
 
 ## Trục phân loại finding
 
-- [ ] T2.1 GIVEN model trả finding có `va_toi_thieu` + `odc_type: "checking"` + `qualifier:
+- [ ] T2.1 GIVEN model trả finding có `minimal_fix` + `odc_type: "checking"` + `qualifier:
       "missing"` THEN verdict ghi đủ ba trường.
-- [ ] T2.2 GIVEN `odc_type: "sieu_loi"` (lạ) trên finding high THEN trường về `khong_ro`, log một
+- [ ] T2.2 GIVEN `odc_type: "sieu_loi"` (lạ) trên finding high THEN trường về `unknown`, log một
       dòng, severity VẪN high, kết quả PASS/FAIL KHÔNG đổi (R14.5/R14.7 — ranh giới với đường
       fail-closed của severity: hai trục xử lạ theo hai kiểu, đúng chủ đích).
 - [ ] T2.3 GIVEN verdict cũ (fixture không có ba trường) WHEN đọc lại THEN nguyên vẹn, không lỗi —
       replay không gãy.
 - [ ] T2.4 Finding máy tự viết (hồi quy model bỏ sót — lưới máy 2) KHÔNG mang ba trường mới: máy
       không phỏng đoán bản vá — vắng mặt là câu trả lời trung thực.
-- [ ] T2.5 `va_toi_thieu` nhắc «thêm điều kiện kiểm» mà `odc_type: "algorithm_method"` → log lệch
+- [ ] T2.5 `minimal_fix` nhắc «thêm điều kiện kiểm» mà `odc_type: "algorithm_method"` → log lệch
       xuất hiện; finding không bị sửa, không bị vứt.
 
 ## Cửa song sinh + biên (khuôn lặp nhiều nhất repo — soi trước khi cổng soi)
 
 - [ ] T3.1 Hai đường validate enum (trigger của probe · type/qualifier của finding) dùng CHUNG một
       hàm — không hai cửa hai luật.
-- [ ] T3.2 `trigger_phan_bo` trong `probe_stats` đếm đúng khi: mọi probe có trigger · một phần có ·
+- [ ] T3.2 `trigger_distribution` trong `probe_stats` đếm đúng khi: mọi probe có trigger · một phần có ·
       không probe nào có (ba ca, ca cuối trả map rỗng chứ không undefined).
 - [ ] T3.3 Skill DOC không nhận trigger code: finding doc mang `odc_type` bị bỏ + log (bộ trục doc
       là change sau — nhận sớm nửa vời là hai schema song song).

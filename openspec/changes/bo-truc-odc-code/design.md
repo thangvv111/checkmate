@@ -44,30 +44,30 @@ dùng làm khuôn ép hệ mới.
 
 | # | Trigger (mã máy) | Gốc ODC | Vì sao chọn |
 |---|---|---|---|
-| 1 | `khop_spec` | Design Conformance | probe neo thẳng một luật trong NGUỒN LUẬT hiện hành của repo đích (nay là `specs/` của nó; PO 01/09 đã xếp lịch cấu trúc lại cách ăn nguồn này — trigger ăn theo nguồn, nguồn đổi không đổi trigger) |
-| 2 | `luong_logic` | Logic/Flow | biên ngưỡng, điều kiện kép, số học từ diff — KL1·KL2·KL3 |
-| 3 | `tuong_thich_nguoc` | Backward Compatibility | kiến trúc 2-nhánh CHÍNH LÀ differential testing — KL4, cột `hoi_quy` |
-| 4 | `tac_dung_phu` | Side Effects | state ngoài phạm vi diff — KL9 (cửa song sinh, bị bắt 9 lần) sống ở đây |
-| 5 | `bay_ngon_ngu` | Language Dependency | coercion, `undefined.length` (KL16 là TypeError JS) — mang `dieu_kien` theo ngôn ngữ repo đích |
-| 6 | `goi_thang` | Coverage | gọi hàm/endpoint mới với input thường — probe rẻ nhất, nền của PASS-phải-chứng-minh |
-| 7 | `bien_the_dau_vao` | Variation **gộp** Rare Situation | khuyết/sai kiểu/ngoài miền/tổ hợp lạ — KL7·KL8·KL11; gộp vì ranh giới Variation↔Rare mờ, hai ô mờ là hai ô bịa |
-| 8 | `thu_tu` | Sequencing | chuỗi thao tác tạo→sửa→xoá→đọc lại, VÀ **interleaving dựng tay tất định**: nửa đầu thao tác A → trọn B → nửa sau A (deadlock dựng lại được, transaction lồng, lock ordering, `SQLITE_BUSY`, lock rò sau crash) — vùng 17 khuôn hiện **TRỐNG HOÀN TOÀN** |
-| 9 | `tuong_tac` | Interaction | hai chức năng hợp lệ riêng lẻ, hỏng khi ghép — KL12·KL13 |
-| 10 | `duong_loi` | Recovery/Exception | error path: 4xx-không-vỡ-500, hàm cuối đường ném — KL6·KL16 |
+| 1 | `spec_conformance` | Design Conformance | probe neo thẳng một luật trong NGUỒN LUẬT hiện hành của repo đích (nay là `specs/` của nó; PO 01/09 đã xếp lịch cấu trúc lại cách ăn nguồn này — trigger ăn theo nguồn, nguồn đổi không đổi trigger) |
+| 2 | `logic_flow` | Logic/Flow | biên ngưỡng, điều kiện kép, số học từ diff — KL1·KL2·KL3 |
+| 3 | `backward_compat` | Backward Compatibility | kiến trúc 2-nhánh CHÍNH LÀ differential testing — KL4, cột `hoi_quy` |
+| 4 | `side_effects` | Side Effects | state ngoài phạm vi diff — KL9 (cửa song sinh, bị bắt 9 lần) sống ở đây |
+| 5 | `language_dependency` | Language Dependency | coercion, `undefined.length` (KL16 là TypeError JS) — mang `dieu_kien` theo ngôn ngữ repo đích |
+| 6 | `coverage` | Coverage | gọi hàm/endpoint mới với input thường — probe rẻ nhất, nền của PASS-phải-chứng-minh |
+| 7 | `variation` | Variation **gộp** Rare Situation | khuyết/sai kiểu/ngoài miền/tổ hợp lạ — KL7·KL8·KL11; gộp vì ranh giới Variation↔Rare mờ, hai ô mờ là hai ô bịa |
+| 8 | `sequencing` | Sequencing | chuỗi thao tác tạo→sửa→xoá→đọc lại, VÀ **interleaving dựng tay tất định**: nửa đầu thao tác A → trọn B → nửa sau A (deadlock dựng lại được, transaction lồng, lock ordering, `SQLITE_BUSY`, lock rò sau crash) — vùng 17 khuôn hiện **TRỐNG HOÀN TOÀN** |
+| 9 | `interaction` | Interaction | hai chức năng hợp lệ riêng lẻ, hỏng khi ghép — KL12·KL13 |
+| 10 | `recovery_exception` | Recovery/Exception | error path: 4xx-không-vỡ-500, hàm cuối đường ném — KL6·KL16 |
 
 | Loại | Vì sao loại |
 |---|---|
-| Concurrency / Timing | CHỈ loại phần **race xác suất** (hai tiến trình ghi đồng thời thật, kết quả tuỳ lịch OS): probe fail 1/10 lần rơi vào bảng chân trị R1 là sinh `hoi_quy` OAN — cổng kêu oan vài lần là người ta tắt cổng, và repo này vừa trả giá cho một test flaky (M11). Phần concurrency **tất định** KHÔNG bị bỏ, nó có ba đường bắt: deadlock-làm-treo → lưới C7 máy tự viết finding high (`findingTreo`) không cần trigger nào · interleaving dựng tay + lock ordering → `thu_tu` · cơ chế khoá không được tôn trọng (tạo lock bằng tay rồi kiểm hàm có bị chặn) → `khop_spec`/`duong_loi`. Race xác suất vào lại bộ khi có chính sách rerun-N (kế hoạch 6.4) |
+| Concurrency / Timing | CHỈ loại phần **race xác suất** (hai tiến trình ghi đồng thời thật, kết quả tuỳ lịch OS): probe fail 1/10 lần rơi vào bảng chân trị R1 là sinh `hoi_quy` OAN — cổng kêu oan vài lần là người ta tắt cổng, và repo này vừa trả giá cho một test flaky (M11). Phần concurrency **tất định** KHÔNG bị bỏ, nó có ba đường bắt: deadlock-làm-treo → lưới C7 máy tự viết finding high (`findingTreo`) không cần trigger nào · interleaving dựng tay + lock ordering → `sequencing` · cơ chế khoá không được tôn trọng (tạo lock bằng tay rồi kiểm hàm có bị chặn) → `spec_conformance`/`recovery_exception`. Race xác suất vào lại bộ khi có chính sách rerun-N (kế hoạch 6.4) |
 | Workload/Stress | sandbox không kiểm soát tài nguyên đồng đều — probe perf là nguồn flaky vô hạn |
-| Lateral Compatibility | cross-repo/cross-service probe không chạy được trong sandbox; phần trong-repo thì `tuong_tac` đã phủ |
+| Lateral Compatibility | cross-repo/cross-service probe không chạy được trong sandbox; phần trong-repo thì `interaction` đã phủ |
 | Internal Document | comment lệch code không làm probe fail được — trigger này thuộc cổng DOC (KD1–KD3 chính là nó), sẽ dùng ở change tối ưu doc |
 | HW/SW Configuration | sandbox một máy đồng nhất; ma trận version nhân đôi chi phí mỗi ô |
-| Simple/Complex Path | trùng vai `luong_logic` ở mô hình này (đều là white-box theo diff) — hai tên cho một việc là mời phân loại tuỳ tiện |
+| Simple/Complex Path | trùng vai `logic_flow` ở mô hình này (đều là white-box theo diff) — hai tên cho một việc là mời phân loại tuỳ tiện |
 | Startup/Restart | có giá trị (migration lên/xuống) nhưng chưa đủ án lệ trong repo đích nào; ứng viên đầu tiên VÀO danh mục khi một repo đích cần — đường thêm mã đã mở sẵn |
 
 **Phép thử đã chạy trước khi chốt** (đòi hỏi của vòng phản biện): ánh xạ toàn bộ KL1–KL17 vào 10
-trigger — **17/17 có nhà, 0 mồ côi**, và hai trigger (`thu_tu`, một phần `tuong_tac`) lộ vùng kho
-hiện tại mù. KL10 (rò giá trị gõ tay ra log) về `tac_dung_phu` với ghi chú impact bảo mật.
+trigger — **17/17 có nhà, 0 mồ côi**, và hai trigger (`sequencing`, một phần `interaction`) lộ vùng kho
+hiện tại mù. KL10 (rò giá trị gõ tay ra log) về `side_effects` với ghi chú impact bảo mật.
 
 ## Phân loại finding: gán-lúc-chưa-vá và cách giữ cho nó thật
 
@@ -75,14 +75,14 @@ ODC gán defect type lúc **đóng** defect («classify when you know how the de
 Guidelines). CheckMate gán lúc **mở** finding — tức bắt model dự đoán bản vá. Ba rủi ro thật và cách
 xử từng cái:
 
-1. **Một finding nhiều cách vá hợp lệ** → bắt model viết `va_toi_thieu` (phác bản vá tối thiểu, một
+1. **Một finding nhiều cách vá hợp lệ** → bắt model viết `minimal_fix` (phác bản vá tối thiểu, một
    dòng) TRƯỚC, rồi `odc_type` phải suy ra được từ phác đó. Kiểm cơ học được một phần: phác nhắc
    «thêm điều kiện/kiểm» mà type không phải `checking` thì log lệch (không vứt — telemetry).
 2. **Thiên lệch dồn về Checking** (probe đối kháng lộ input chưa chặn nhìn đâu cũng như thiếu check)
    → chấp nhận ở v1, ĐO trước khi chữa: nếu phân bố >70% một type sau ~20 lượt thì đó là dữ liệu
    thật để cân nhắc tách, không phải lỗi thiết kế phải chặn trước.
 3. **Trường bắt buộc ép bịa** → cả ba trường tuỳ chọn; không suy được thì bỏ trống, máy ghi
-   `khong_ro` khi giá trị lạ. Nhất quán với R6.27: không đọc được thì nói không đọc được.
+   `unknown` khi giá trị lạ. Nhất quán với R6.27: không đọc được thì nói không đọc được.
 
 **Ai tiêu thụ** (vòng phản biện hỏi đúng): phân bố type/trigger ghi vào `probe_stats` + màn Đ7 sắp
 làm đọc nó — «repo này hỏng kiểu gì» là input cho việc chỉnh suất probe per-repo. Không có người

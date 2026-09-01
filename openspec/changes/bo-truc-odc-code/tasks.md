@@ -17,7 +17,7 @@
 ## 2. Kho ví dụ theo trigger
 
 - [ ] 2.1 `khuon-loi.ts`: interface `KhuonLoi` thêm `trigger` (bắt buộc cho `loai='code'`); khai
-      danh mục `TRIGGER_CODE` 10 mã + mô tả một dòng mỗi mã (phát vào prompt).
+      danh mục `TRIGGER_CATALOG` 10 mã + mô tả một dòng mỗi mã (phát vào prompt).
 - [ ] 2.2 Gắn trigger cho KL1–KL17 đúng bảng ánh xạ trong `design.md`; trigger nào >2 khuôn thì chọn
       2 giữ lại theo luật đào thải, phần dôi chuyển xuống khối lưu trữ (comment/const riêng không
       phát) — ghi rõ từng cái đi đâu trong commit message.
@@ -29,16 +29,16 @@
 - [ ] 3.1 `skill-code.ts`: `KeHoachProbe` thêm `trigger?` ; prompt phân tích yêu cầu khai trigger
       từ danh mục cho từng probe — KHÔNG kèm bất kỳ câu đòi phủ đủ/đều (R14.4).
 - [ ] 3.2 Máy validate enum sau khi bóc JSON: lạ → xoá trường + log một dòng (R14.2).
-- [ ] 3.3 `probe_stats` thêm `trigger_phan_bo` (đếm theo trigger, chỉ bề mặt người xem).
+- [ ] 3.3 `probe_stats` thêm `trigger_distribution` (đếm theo trigger, chỉ bề mặt người xem).
 
 ## 4. Finding khai loại lỗi
 
-- [ ] 4.1 `types.ts`: `Finding` thêm `va_toi_thieu?`, `odc_type?`, `qualifier?` (3 trường optional —
+- [ ] 4.1 `types.ts`: `Finding` thêm `minimal_fix?`, `odc_type?`, `qualifier?` (3 trường optional —
       replay verdict cũ không gãy).
-- [ ] 4.2 Prompt viết finding: bắt viết `va_toi_thieu` TRƯỚC rồi gán `odc_type`/`qualifier` suy từ
+- [ ] 4.2 Prompt viết finding: bắt viết `minimal_fix` TRƯỚC rồi gán `odc_type`/`qualifier` suy từ
       đó; nêu đúng 7+3 giá trị.
-- [ ] 4.3 Máy validate enum cùng cửa với `chuanMuc`: lạ → `khong_ro` + log; TUYỆT ĐỐI không đụng
-      severity/verdict (R14.5). Kiểm lệch rẻ: `va_toi_thieu` khớp /điều kiện|kiểm|check/ mà type ≠
+- [ ] 4.3 Máy validate enum cùng cửa với `chuanMuc`: lạ → `unknown` + log; TUYỆT ĐỐI không đụng
+      severity/verdict (R14.5). Kiểm lệch rẻ: `minimal_fix` khớp /điều kiện|kiểm|check/ mà type ≠
       checking → log lệch (không sửa, không vứt).
 - [ ] 4.4 UI run + trang finding: hiện `odc_type · qualifier` cạnh severity khi có.
 
@@ -59,8 +59,12 @@
 - [ ] 6.3b Change **cấu trúc lại cách ăn specs repo ĐÍCH** (PO mở phạm vi 01/09): nạp-toàn-bộ →
       xét chọn lọc; thay `trichMaLuat` regex thô (đang nhặt cả KL9/L3/P1/P10 vào mẫu số); định hình
       dạng spec CheckMate đòi ở repo khách.
+- [ ] 6.3c Change **refactor định danh cũ Việt → Anh** (PO chốt 01/09): tên hàm/biến/kiểu hiện hành
+      (`luuMeta`, `docSoCong`, `chuanMuc`…) đổi một lượt có kế hoạch — module nào trước, alias tạm ra
+      sao, checkmate.yml đổi theo — KHÔNG đổi lắt nhắt khi tiện tay. Định danh MỚI từ giờ đã là tiếng
+      Anh theo luật trong AGENTS.md/CLAUDE.md.
 - [ ] 6.4 Change chính sách **rerun-N cho probe nghi-flaky**: probe fail không ổn định giữa các lần
       chạy cùng nhánh nhận nhãn riêng (`khong_on_dinh`), KHÔNG rơi vào `hoi_quy` — điều kiện tiên
-      quyết để mở lại trigger race xác suất (`dong_thoi`) mà không phá bảng chân trị R1. PO chất vấn
-      01/09: concurrency là khái niệm quan trọng, phần tất định đã phủ (C7 treo · `thu_tu`
-      interleaving · `khop_spec` cơ chế khoá), phần xác suất chờ đúng cửa này.
+      quyết để mở lại trigger race xác suất (`concurrency`) mà không phá bảng chân trị R1. PO chất vấn
+      01/09: concurrency là khái niệm quan trọng, phần tất định đã phủ (C7 treo · `sequencing`
+      interleaving · `spec_conformance` cơ chế khoá), phần xác suất chờ đúng cửa này.
