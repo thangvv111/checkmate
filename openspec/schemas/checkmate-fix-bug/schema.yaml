@@ -83,5 +83,7 @@ apply:
     - `npm test` xanh TOÀN BỘ
     - Ca khoá lỗi nay xanh; tạm no-op bản vá thì nó phải đỏ lại (test load-bearing)
 
-    ## Pha 4: Qua cổng
+    ## Pha 4: Qua cổng — TAM DUNG tu 01/09/2026 (PO chot): code + test xanh + PO duyet la du;
+    bat lai chi khi PO noi. Phan duoi giu nguyen de dung lai khi bat.
+    ## (nguyen van cu)
     Mở PR, chờ verdict CheckMate trên prod. KHÔNG merge khi FAIL.

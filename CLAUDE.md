@@ -42,17 +42,46 @@ schema `checkmate`. Fix chỉ kéo hiện thực khớp lại luật đã khai t
 
 Lệnh: `/opsx:propose`, `/opsx:apply`, `/opsx:verify`, `/opsx:archive` (skill trong `.claude/`).
 
-### ⛔ Hai tầng spec — không trộn (PO chốt 31/08, phương án A)
+### ⛔ Chỗ sống của luật (PO chốt 01/09 — THAY phương án A 31/08)
 
-- **`specs/R*.md`** (gốc repo) = **luật hành vi, đầu vào MÁY ĐỌC**. Engine nạp thư mục này để sinh
-  probe; R1.19 so `specs/` giữa hai nhánh để phát hiện «luật chỉ có ở nhánh PR». Đường dẫn hardcode
-  ở `packages/harness/src/target.ts` — **không di dời**.
-- **`openspec/specs/<capability>/`** = **năng lực** theo ngôn ngữ quy trình, sinh từ các change.
+- **`specs/R*.md`** (gốc repo) = **TÀI LIỆU THAM KHẢO** — nó đang trộn lẫn luật, án lệ và biên bản
+  tranh luận nên KHÔNG được dùng làm khuôn ép kiến trúc mới, và change mới **KHÔNG đẻ thêm điều R***.
+  Một change tái cấu trúc riêng sẽ dọn nó. (Lưu ý kỹ thuật còn hiệu lực tạm: engine HIỆN VẪN nạp
+  `specs/` của repo đích để sinh probe và so hai nhánh — cơ chế ăn spec repo đích cũng đã được PO xếp
+  lịch cấu trúc lại, change riêng; trước lúc đó đừng di dời đường dẫn trong
+  `packages/harness/src/target.ts`.)
+- **Luật máy đọc của tính năng MỚI** sống ở ba chỗ: hằng + validate trong engine (có test khoá) ·
+  cấu hình trong `checkmate.yml` · hành vi trong **`openspec/specs/<capability>/`** (sinh từ change).
 
-Change đẻ luật mới thì viết vào **cả hai**, nói cùng một điều. Proposal có ô bắt buộc «Luật R chạm
-tới» — bỏ trống là done-gate chưa ✓.
+Proposal vẫn có ô «Luật R chạm tới» — từ nay câu trả lời đúng thường là «KHÔNG — cố ý» kèm nơi luật
+sống; bỏ trống ô vẫn là done-gate chưa ✓.
+
+## Ngôn ngữ định danh — tiếng Anh (PO chốt 01/09)
+
+- **Mọi định danh MỚI SINH** — tên hàm, biến, kiểu, khoá cấu hình, mã enum, tên file code — viết
+  **tiếng Anh**. Thuật ngữ trong tài liệu giữ tiếng Anh, chỉ chú thích tiếng Việt khi cần giải thích.
+- Văn TRÌNH BÀY cho PO (proposal, báo cáo, commit message, comment giải thích) vẫn tiếng Việt.
+- Code cũ mang tên tiếng Việt (`luuMeta`, `docSoCong`, `chuanMuc`…) **giữ nguyên** — đổi hàng loạt là
+  một change refactor riêng đã xếp lịch; đừng đổi lắt nhắt từng chỗ khi tiện tay, nó tạo trạng thái
+  nửa nạc nửa mỡ tệ hơn cả hai đầu.
 
 ## Cổng — CheckMate tự chấm chính nó
+
+> ### ⛔ TẠM DỪNG từ 01/09/2026 — PO chốt
+> **Không chờ verdict CheckMate để đi tiếp.** Điều kiện đủ để sang bước sau nay là: **code + test
+> xanh + PO duyệt**. Đừng poll prod, đừng để PR treo chờ chấm.
+>
+> **Vì sao:** cổng đang nhiễu. Số đo tuần này: `hoi_quy` = 0 ở **14/14 lượt** (nhãn máy không phong
+> được gì), `vi_pham_luat_moi` = 0 trong khi verdict vẫn FAIL vì finding **do model viết**, và một
+> điểm bị đề nghị sai **ba vòng liên tiếp** dù luật đã chốt. Cổng đang tạo việc nhiều hơn tạo tín hiệu.
+>
+> **Bật lại:** chỉ khi PO nói. KHÔNG agent nào tự quyết bật lại, kể cả khi thấy cổng «có vẻ ổn rồi».
+>
+> **Vẫn giữ nguyên:** mọi thứ khác của mục này — danh tính người bấm, sổ chỉ-ghi-thêm, và **không tự
+> merge khi PO chưa duyệt**. Thứ bị treo là *bước chờ verdict*, không phải kỷ luật maker–checker.
+>
+> **Nợ ghi công khai:** dừng cổng nghĩa là CheckMate tạm không dogfood chính nó — mất nguồn án lệ
+> chính của kho ví dụ theo trigger. Đây là cái giá, ghi ra để không quên.
 
 Mọi PR đi qua bản CheckMate chạy trên prod (chế độ trực, poller 300s, model Opus 5). Quy trình:
 **mở PR → chờ verdict → PASS mới merge.** Không merge khi FAIL. Merge với finding không-chặn phải

@@ -17,8 +17,8 @@ describe('kho khuôn lỗi common (R12)', () => {
   it('khuôn BẮT BUỘC (len_dau) sống sót trần — sắp trước, cắt sau (vòng một của cổng bắt)', () => {
     // Dựng kho giả vượt trần: 25 khuôn thường + KL5 bắt buộc đứng CUỐI danh sách khai
     const khoGia = [
-      ...Array.from({ length: 25 }, (_, i) => ({ id: `T${i}`, loai: 'code' as const, khuon: `khuôn thường ${i} đủ dài để qua ngưỡng kiểm tra`, an_le: 'test.ts' })),
-      { id: 'BB', loai: 'code' as const, khuon: 'BẮT BUỘC có probe thử VƯỢT QUYỀN — khuôn đứng cuối danh sách khai', an_le: 'test.ts', dieu_kien: /quyền/, len_dau: true },
+      ...Array.from({ length: 25 }, (_, i) => ({ id: `T${i}`, loai: 'code' as const, trigger: 'variation' as const, khuon: `khuôn thường ${i} đủ dài để qua ngưỡng kiểm tra`, an_le: 'test.ts' })),
+      { id: 'BB', loai: 'code' as const, trigger: 'variation' as const, khuon: 'BẮT BUỘC có probe thử VƯỢT QUYỀN — khuôn đứng cuối danh sách khai', an_le: 'test.ts', dieu_kien: /quyền/, len_dau: true },
     ];
     const goc = KHO_KHUON.splice(0, KHO_KHUON.length, ...khoGia as never[]);
     try {
@@ -61,8 +61,10 @@ describe('kho khuôn lỗi common (R12)', () => {
   });
 
   const khoGiaVao = (kho: unknown[]): unknown[] => KHO_KHUON.splice(0, KHO_KHUON.length, ...(kho as never[]));
+  // Ví dụ code PHẢI thuộc một trigger (cửa phát từ chối ví dụ mồ côi) — helper gắn mặc định để mọi
+  // ca cũ vẫn nói đúng thứ nó định nói; ca nào muốn thử trigger thiếu/lạ thì truyền đè qua `phu`.
   const khuonThuong = (id: string, loai: 'code' | 'doc', phu: Record<string, unknown> = {}) =>
-    ({ id, loai, khuon: `${id} mọi nhánh lỗi phải có probe kiểm đủ dài qua ngưỡng`, an_le: 'test.ts — ca dựng trong test', ...phu });
+    ({ id, loai, khuon: `${id} mọi nhánh lỗi phải có probe kiểm đủ dài qua ngưỡng`, an_le: 'test.ts — ca dựng trong test', ...(loai === 'code' ? { trigger: 'variation' } : {}), ...phu });
 
   it('dieu_kien mang cờ g/y KHÔNG được giữ trạng thái — hai lượt gọi cùng spec phải giống hệt (vòng hai, HIGH)', () => {
     const goc = khoGiaVao([khuonThuong('GY', 'code', { dieu_kien: /quyền/g, len_dau: true })]);

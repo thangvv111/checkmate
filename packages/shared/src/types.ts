@@ -40,6 +40,45 @@ export interface EvidenceQuote {
 
 export type Evidence = EvidenceTestRun | EvidenceQuotePair | EvidenceQuote;
 
+/**
+ * Bảy defect type của ODC (IBM, IEEE TSE 1992; bản 5.2/2013) — «bản vá TỐI THIỂU sửa cái gì».
+ * Phân loại theo bản chất bản vá, không theo cách lỗi lộ ra (cái đó là trigger của probe).
+ */
+export type OdcType =
+  | 'assignment_init'       // gán/khởi tạo: giá trị sai, hoặc không được gán
+  | 'checking'              // thiếu/sai phép kiểm tham số hay dữ liệu trong điều kiện
+  | 'algorithm_method'      // viết lại thuật toán/cấu trúc dữ liệu cục bộ, không cần đổi thiết kế
+  | 'function_class'        // đụng năng lực, giao diện, dữ liệu toàn cục ⇒ phải đổi thiết kế
+  | 'timing_serialization'  // tuần tự hoá tài nguyên dùng chung: thiếu, sai, hoặc sai kỹ thuật
+  | 'interface_messages'    // giao tiếp giữa module/hàm/object — tham số, thông điệp
+  | 'relationship'          // quan hệ giữa procedure/dữ liệu/object — giả định chéo giữa hai nơi
+  | 'unknown';              // model không suy được, hoặc trả giá trị ngoài danh mục
+
+/** Qualifier ODC — nonexistent / wrong / irrelevant. */
+export type OdcQualifier = 'missing' | 'incorrect' | 'extraneous' | 'unknown';
+
+const ODC_TYPE = new Set<string>([
+  'assignment_init', 'checking', 'algorithm_method', 'function_class',
+  'timing_serialization', 'interface_messages', 'relationship',
+]);
+const ODC_QUALIFIER = new Set<string>(['missing', 'incorrect', 'extraneous']);
+
+/**
+ * Chuẩn hoá hai trường phân loại — cửa validate DUY NHẤT (cửa song sinh của `chuanMuc`).
+ *
+ * Khác `chuanMuc` một cách CÓ CHỦ ĐÍCH: severity gác cổng merge nên giá trị lạ fail-closed về
+ * `high`; hai trường này là TELEMETRY, không gác gì cả, nên giá trị lạ về `unknown`. Cho telemetry
+ * quyền đổi verdict là mở đường lách «bịa phân loại khéo thì merge được».
+ */
+export function chuanOdcType(x: unknown): OdcType {
+  const t = typeof x === 'string' ? x.toLowerCase().trim() : '';
+  return ODC_TYPE.has(t) ? (t as OdcType) : 'unknown';
+}
+export function chuanOdcQualifier(x: unknown): OdcQualifier {
+  const t = typeof x === 'string' ? x.toLowerCase().trim() : '';
+  return ODC_QUALIFIER.has(t) ? (t as OdcQualifier) : 'unknown';
+}
+
 export interface Finding {
   id: string;
   skill: SkillId;
@@ -48,6 +87,15 @@ export interface Finding {
   what_vi: string;
   consequence_vi: string;
   evidence: Evidence;
+  /**
+   * Ba trường TELEMETRY (tuỳ chọn — verdict cũ không có chúng vẫn đọc nguyên vẹn).
+   * `minimal_fix` viết TRƯỚC, `odc_type` suy TỪ nó: ODC nguyên bản gán type lúc ĐÓNG defect (đã
+   * biết vá gì), CheckMate gán lúc MỞ finding, nên phải bắt phác bản vá ra trước rồi mới phân loại.
+   * KHÔNG tham gia quyết PASS/FAIL, KHÔNG đổi severity.
+   */
+  minimal_fix?: string;
+  odc_type?: OdcType;
+  qualifier?: OdcQualifier;
 }
 
 export interface ArtifactRef {
@@ -87,6 +135,13 @@ export interface Verdict {
     cai_thien: number;
     bo_qua: number;
     that_lac: string[]; // id probe trong kế hoạch nhưng không thấy khi chạy
+    /**
+     * Phân bố probe theo trigger — CHỈ bề mặt người xem (màn cấu hình thuật toán sẽ đọc).
+     * TUYỆT ĐỐI không phát ngược vào prompt và không có chỉ tiêu «phủ đủ trigger»: trần probe đã
+     * từng biến thành chỉ tiêu (ke_hoach = trần ở 14/14 lượt đo được), và probe chiếu lệ rải đều
+     * danh mục sẽ làm false-PASS TRÔNG đáng tin hơn thực tế.
+     */
+    trigger_distribution?: Record<string, number>;
   };
   // Quan sát NGOÀI phạm vi PR: probe fail trên cả hai nhánh — verdict không đổi vì cổng chỉ trả lời
   // "PR này có làm hỏng gì không", nhưng lỗi-có-sẵn không được im lặng: báo tách để đội mở việc riêng.

@@ -21,6 +21,8 @@ export interface RunnerCfg {
 // Engine không biết gì về domain; không khai thì dùng bộ khuôn tổng quát + khuôn có-điều-kiện theo spec.
 export interface ReviewCfg {
   khuon_loi?: string[]; // các góc tấn công ưu tiên cho domain này
+  /** Tập KÍCH HOẠT trigger cho repo này (mã trong trigger-catalog). Vắng = toàn danh mục. */
+  triggers?: string[];
   severity_map?: { high?: string; medium?: string; low?: string }; // cái gì là high VỚI REPO NÀY
   bo_qua_diff?: string[]; // mẫu regex file sinh tự động của RIÊNG repo này — loại khỏi diff đưa vào prompt
 }
@@ -59,9 +61,12 @@ export function docReviewCfg(repoPath: string): ReviewCfg | null {
   try {
     const raw = parseYaml(readFileSync(f, 'utf8')) as { review?: ReviewCfg };
     const r = raw?.review;
-    if (!r || (!Array.isArray(r.khuon_loi) && !r.severity_map && !Array.isArray(r.bo_qua_diff))) return null;
+    if (!r || (!Array.isArray(r.khuon_loi) && !r.severity_map && !Array.isArray(r.bo_qua_diff) && !Array.isArray(r.triggers))) return null;
     return {
       khuon_loi: Array.isArray(r.khuon_loi) ? r.khuon_loi.map(String) : undefined,
+      // Mã lạ KHÔNG lọc ở đây — `tapKichHoat` là cửa validate duy nhất, lọc hai chỗ là hai luật
+      // sẽ lệch nhau (đúng khuôn «cửa song sinh» bị bắt chín lần).
+      triggers: Array.isArray(r.triggers) ? r.triggers.map(String) : undefined,
       severity_map: r.severity_map,
       // Mẫu sai cú pháp regex phải bị BỎ ngay tại cửa đọc: để nó đi tiếp thì `new RegExp` ở chỗ dùng
       // sẽ ném và làm sập lượt chấm — repo đích gõ nhầm một dấu ngoặc không được phép giết cổng.

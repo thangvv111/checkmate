@@ -382,8 +382,12 @@ function ve(e){
   const muc=f.severity==='blocking'?'high':(f.severity==='non_blocking'?'medium':f.severity);
   d.className='finding sev-'+muc;
   const nhan={high:'✗ HIGH — chặn merge',medium:'⚠ MEDIUM — cảnh báo',low:'△ LOW'}[muc]||muc;
-  d.innerHTML='<div class="sev">'+nhan+'</div><h3>'+esc(f.title_vi)+'</h3>'+
-   '<div class="row"><b>Điều gì sai:</b> '+esc(f.what_vi)+'</div><div class="row"><b>Hậu quả:</b> '+esc(f.consequence_vi)+'</div>'+evHtml(f.evidence);
+  /* Phân loại ODC — telemetry, chỉ hiện khi CÓ; vắng thì không chiếm chỗ, và "unknown" vẫn hiện
+     để người đọc biết model đã trả một giá trị không đọc được (khác hẳn với model im lặng). */
+  const pl=[f.odc_type&&('type: '+f.odc_type),f.qualifier&&('qualifier: '+f.qualifier)].filter(Boolean).join(' · ');
+  d.innerHTML='<div class="sev">'+nhan+(pl?' <span style="opacity:.72;font-weight:400">· '+esc(pl)+'</span>':'')+'</div><h3>'+esc(f.title_vi)+'</h3>'+
+   '<div class="row"><b>Điều gì sai:</b> '+esc(f.what_vi)+'</div><div class="row"><b>Hậu quả:</b> '+esc(f.consequence_vi)+'</div>'+
+   (f.minimal_fix?'<div class="row"><b>Bản vá tối thiểu:</b> '+esc(f.minimal_fix)+'</div>':'')+evHtml(f.evidence);
   document.getElementById('findings').appendChild(d);}
  else if(e.type==='verdict'){const v=e.verdict;document.querySelectorAll('.stages li').forEach(li=>li.className='done');
   const kv=document.getElementById('verdict');kv.className='verdict '+v.result;
