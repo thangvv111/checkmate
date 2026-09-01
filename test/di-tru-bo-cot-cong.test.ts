@@ -69,6 +69,14 @@ afterAll(() => {
 });
 
 describe('di trú R6.26 trên cơ sở dữ liệu đời cũ', () => {
+  it('M16 — tiền đề: file này chạy ở chế độ DEMO, và di trú VẪN phải chạy', async () => {
+    // PO chốt phương án A (01/09): R6.12 cấm THAO TÁC CỔNG, không cấm DI TRÚ DỮ LIỆU lúc khởi động.
+    // Gác cửa di trú lại thì cột vẫn bị bỏ mà dữ liệu KHÔNG được cứu — biến một bước bảo toàn thành
+    // một bước mất dữ liệu. Ca này đỏ nếu ai đó về sau thêm gác demo vào cửa ấy.
+    const { MODE } = await import('../apps/web/src/config.js');
+    expect(MODE, 'không đặt CHECKMATE_MODE thì mặc định là demo').toBe('demo');
+  });
+
   it('bỏ sạch cụm cột cong_* khỏi bảng run', () => {
     const cot = (db.moDb().prepare('PRAGMA table_info(run)').all() as Array<{ name: string }>).map((c) => c.name);
     for (const c of ['cong_hanh_dong', 'cong_luc', 'cong_nguoi', 'cong_chi_tiet', 'cong_ngoai_cong']) {

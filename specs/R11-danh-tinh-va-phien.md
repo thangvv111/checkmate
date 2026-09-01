@@ -19,6 +19,10 @@ máy chủ đó là `ubuntu`. Sổ có hàng, chỉ là hàng vô nghĩa.
 - **R11.2** — Không có phiên hợp lệ thì mọi hành động cổng PHẢI bị từ chối, **kể cả khi lớp xác thực
   bên ngoài đã cho qua**. Hai lớp trả lời hai câu khác nhau: nginx hỏi "có được vào site không", ứng
   dụng hỏi "ai đang bấm". Lớp ngoài KHÔNG ĐƯỢC coi là nguồn danh tính.
+
+  **Không áp cho đối soát** ([R6.24b](R6-verdict-va-cong-merge.md)): đối soát không THỰC HIỆN một hành
+  động cổng, nó **chép lại** một hành động đã xảy ra ở hệ khác, và cột «người» của hàng đó mang danh
+  tính lấy từ hệ ấy chứ không phải từ kho tài khoản này.
 - **R11.3** — Hàm đọc danh tính KHÔNG ĐƯỢC có bất kỳ giá trị mặc định nào. Thiếu phiên, phiên hết hạn,
   tài khoản đã bị gỡ, hay tên không hợp lệ → **ném lỗi**, route từ chối. Chính một `catch { return … }`
   đã sinh ra lỗi mà R11 tồn tại để sửa; vá một fallback bằng một fallback khác là không vá gì.

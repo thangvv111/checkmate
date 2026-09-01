@@ -43,6 +43,12 @@ hết hiệu lực khi commit đổi.
   hàng nhưng mọi hàng mang cùng một cái tên.
 - **R6.12** — Chế độ demo KHÔNG ĐƯỢC cho thao tác cổng merge và KHÔNG ĐƯỢC cho sửa cấu hình.
 
+  **Phạm vi**: điều này cấm *thao tác cổng* — merge, trả về dev, ghi một hành động MỚI. Nó KHÔNG cấm
+  *di trú dữ liệu lúc khởi động*, thứ chỉ chuyển chỗ một bản ghi ĐÃ TỒN TẠI và ghi rõ nguồn trong ghi
+  chú của hàng. Gác cửa di trú theo chế độ thì cột cũ vẫn bị bỏ mà dữ liệu **không được cứu** — biến
+  một bước bảo toàn thành một bước mất dữ liệu; còn để hai schema song song theo chế độ thì mọi đường
+  đọc phải chịu được cả hai, đúng loại phức tạp đẻ ra lỗi im lặng (PO chốt 01/09, M16).
+
 ## Tự động hoá ở cổng
 
 *Nguyên tắc chi phối cả mục này: **tự động hoá được phép nói KHÔNG, không được phép nói CÓ.** Merge là
@@ -115,6 +121,14 @@ nó không còn trả lời được câu hỏi nó sinh ra để trả lời.
     SAI: máy không merge gì cả, và [R6.19](#) nói máy KHÔNG BAO GIỜ merge — một cuốn sổ ghi
     «ci-bot merge» thì tự mâu thuẫn với chính điều khoản ấy.
   - Việc «máy ghi nhận» thể hiện bằng cờ `ngoai_cong` và phần mô tả, KHÔNG chiếm cột «người».
+  - **RANH GIỚI với R11 — đọc trước khi định sửa điều này lần nữa.** Đối soát KHÔNG PHẢI một hành động
+    cổng: nó ghi nhận một hành động **đã xảy ra ở nơi khác**, và chạy trong chu kỳ chế độ trực nên
+    không có phiên người dùng nào. Vì thế [R11.2](R11-danh-tinh-va-phien.md) (không phiên thì từ chối
+    hành động cổng) và [R11.4](R11-danh-tinh-va-phien.md) (mọi chỗ đọc danh tính đi qua một hàm) KHÔNG
+    áp cho cột «người» của hàng ngoài-cổng — cột ấy **chép** danh tính của một hệ khác, nó không *đọc
+    danh tính của hệ này*. Áp R11.2 vào đây thì đối soát không bao giờ chạy được, và cuốn sổ quay lại
+    im lặng ở đúng chỗ nó cần nói. Ba vòng chấm liên tiếp đã đề nghị đổi cột này sang danh tính hệ
+    thống; ghi ranh giới ở đây để vòng thứ tư không phải tái lập lại từ đầu (M15).
 - **R6.27** — Mọi mục bị bộ lọc loại khỏi phép đếm PHẢI được **đếm và nói ra** trong phần mô tả.
   Phép đếm nằm ở CHỖ LỌC, không phải ở từng ca đầu vào: hai vòng chấm liên tiếp bắt cùng khuôn «khai
   dữ liệu KHÔNG ĐỌC ĐƯỢC thành BẰNG KHÔNG» ở hai lối khác nhau — một lần `findings` sai kiểu ở ngoài,
