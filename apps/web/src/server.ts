@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { SUPPORTED_FORMATS, extractText } from './extract.js';
 import { GOC } from '../../../packages/shared/src/paths.js';
 import { RunManager } from './runs.js';
-import { escHtml, shell, returnedToDevSection, prListSection, homePage, runPage, settingsPage } from './ui.js';
+import { escHtml, shell, returnedToDevSection, prListSection, homePage, runPage, settingsPage, findingHtml, verdictHtml } from './ui.js';
 import {
   SESSION_COOKIE_NAME,
   hasAnyAccount,
@@ -135,6 +135,41 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 *
   if (tomTat) console.log(`Di trú sang cơ sở dữ liệu — ${tomTat}`);
   const them = backfillVerdictLedger(rm.danhSach({ gioi_han: 500 }));
   if (them > 0) console.log(`Sổ cái verdict: backfill ${them} lượt chấm cũ vào sổ`);
+}
+
+/**
+ * Hỏi lại head pull request trong lúc lượt chấm chạy.
+ *
+ * Head đổi giữa chừng thì verdict sắp ra đời đã hết hiệu lực ở cổng. Trước đây người dùng chỉ biết
+ * điều đó SAU KHI đã bấm Merge và nhận 409 — hệ an toàn nhưng không trung thực sớm. Nay nói ra ngay.
+ *
+ * Lượt chấm VẪN CHẠY TỚI HẾT (PO chốt): dừng giữa chừng là vứt phần việc gần xong, mà verdict trên
+ * commit cũ vẫn còn giá trị đọc — phần lớn finding vẫn đúng với mã nguồn.
+ *
+ * 30 giây là đủ: lượt trung vị 3,6 phút thì chậm nhất nửa phút. Webhook rút xuống ~1s, tức lợi thêm
+ * dưới 29 giây — không đáng đổi lấy một cửa vào không-xác-thực (nợ 8.4 của change).
+ */
+const NHIP_HOI_HEAD_MS = 30_000;
+
+function theoDoiHead(id: string, soPr: number): void {
+  const ghim = rm.headDangGhim(id);
+  if (!ghim) return;
+  const h = setInterval(() => {
+    if (!rm.dangChay(id)) return clearInterval(h);
+    void (async () => {
+      try {
+        const nay = await getCurrentPr(readConfig(), soPr);
+        if (nay.headSha && nay.headSha !== ghim && rm.ghiHeadDoi(id, nay.headSha)) {
+          console.log(`PR #${soPr}: head đổi giữa lượt chấm ${id} (${ghim.slice(0, 7)} → ${nay.headSha.slice(0, 7)})`);
+          clearInterval(h);
+        }
+      } catch {
+        // GitHub hỏng thì THÔI, đừng làm sập lượt chấm: đây là lớp NÓI, không phải lớp chặn — ba lớp
+        // ghim SHA ở đường ghi vẫn nguyên và vẫn từ chối merge nếu head đã đổi.
+      }
+    })();
+  }, NHIP_HOI_HEAD_MS);
+  h.unref?.();
 }
 
 // ---- Chế độ trực (B4.3): hook run-xong + poller ----
@@ -695,7 +730,9 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
           agentEnv(cfg),
           { so: pr.so, headSha: pr.headSha, tacGia },
           cfg.repo.github,
+          ai(req),
         );
+        theoDoiHead(id, pr.so);
       } else {
         id = rm.batDau(
           `PR #${pr.so} · code (${pr.filesDoi.length} file đổi)`,
@@ -704,7 +741,9 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
           agentEnv(cfg),
           { so: pr.so, headSha: pr.headSha, tacGia },
           cfg.repo.github,
+          ai(req),
         );
+        theoDoiHead(id, pr.so);
       }
     } catch (e) {
       return res.status(500).send(shell('CheckMate', `<h1>Không chạy được PR #${so}</h1><p class="sub">${(e as Error).message.slice(0, 300)} · <a href="/">← quay lại</a></p>`));
@@ -714,7 +753,7 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
     if (nd.length < 200) return res.status(422).send(shell('CheckMate', '<h1>Tài liệu quá ngắn</h1><p class="sub">Cần tối thiểu 200 ký tự để kiểm có nghĩa. <a href="/">← quay lại</a></p>'));
     const f = join(TMP_DOC, `doc-${Date.now()}.md`);
     writeFileSync(f, nd, 'utf8');
-    id = rm.batDau('Tài liệu dán tay', 'doc', ['--skill', 'doc', '--file', f], agentEnv(cfg), undefined, cfg.repo.github);
+    id = rm.batDau('Tài liệu dán tay', 'doc', ['--skill', 'doc', '--file', f], agentEnv(cfg), undefined, cfg.repo.github, ai(req));
   } else if (kieu === 'upload') {
     if (!req.file) return res.status(422).send(shell('CheckMate', '<h1>Chưa chọn file</h1><p class="sub"><a href="/">← quay lại</a></p>'));
     let text: string;
@@ -728,7 +767,7 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
     }
     const f = join(TMP_DOC, `up-${Date.now()}.md`);
     writeFileSync(f, text, 'utf8');
-    id = rm.batDau(`Tài liệu tải lên · ${req.file.originalname}`, 'doc', ['--skill', 'doc', '--file', f], agentEnv(cfg), undefined, cfg.repo.github);
+    id = rm.batDau(`Tài liệu tải lên · ${req.file.originalname}`, 'doc', ['--skill', 'doc', '--file', f], agentEnv(cfg), undefined, cfg.repo.github, ai(req));
   } else {
     return res.status(422).send('Thiếu loại artifact');
   }
@@ -837,7 +876,9 @@ app.get('/api/runs/:id/info', (req, res) => {
 app.get('/runs/:id', (req, res) => {
   const st = rm.lay(req.params.id);
   if (!st) return res.status(404).send(shell('CheckMate', '<h1>Không tìm thấy run</h1><p class="sub"><a href="/">← quay lại</a></p>'));
-  res.send(runPage(st.meta, req.query.replay === '1', Math.min(32, Math.max(1, Number(req.query.speed) || 1)), ai(req)));
+  // Lượt đã xong: đưa cả dòng sự kiện xuống để máy chủ DỰNG SẴN nội dung. Lượt đang chạy: đưa phần
+  // đã có để trang mở ra không trống, rồi luồng nối tiếp từ đúng chỗ đó (`?tu=`).
+  res.send(runPage(st.meta, req.query.trinh_dien === '1', st.events, ai(req)));
 });
 
 // ---- Cổng merge / trả về dev (spec §10) ----
@@ -904,6 +945,13 @@ app.post('/api/runs/:id/reject', async (req, res) => {
     return loiCong(res, e instanceof IdentityError && e.ma === 'khong_du_quyen' ? 403 : 401, (e as Error).message);
   }
   const b = req.body as Record<string, string>;
+  // Ghi chú BẮT BUỘC, và ép ở MÁY CHỦ chứ không chỉ ở nút. `required` phía trình duyệt chỉ chặn được
+  // người bấm nút; một POST thẳng đi qua nó như không có. Mà trả về dev là hành động ĐÓNG PR — một
+  // chiều — và nó đi vào sổ chỉ-ghi-thêm: một dòng sổ không nói được vì sao là một dòng sổ vô dụng
+  // đúng lúc người ta cần nó nhất.
+  if (!(b.ghi_chu ?? '').trim()) {
+    return loiCong(res, 422, 'Trả về dev phải có ghi chú — dev cần biết vá gì. <a href="javascript:history.back()">← quay lại</a>');
+  }
   try {
     const nguoi = dtReject.ten;
     // W4: đóng PR (không-hoàn-tác) TRƯỚC — comment nói "PR đã đóng" chỉ được đăng khi điều đó đã đúng
@@ -924,26 +972,60 @@ app.post('/api/runs/:id/reject', async (req, res) => {
   }
 });
 
+/**
+ * Gắn HTML ĐÃ DỰNG vào sự kiện trước khi phát đi.
+ *
+ * Trình duyệt không tự ghép HTML của finding hay verdict — nó nhận chuỗi và chèn. Nhờ vậy chỉ có
+ * MỘT hàm dựng mỗi loại, dùng chung cho đường máy chủ dựng sẵn lẫn đường luồng. Hai bản dựng song
+ * song thì bản ít người nhìn hơn sẽ lệch trước, và lệch im lặng.
+ */
+function kemHtml(ev: { t: number; e: unknown }): { t: number; e: unknown; html?: string } {
+  const e = ev.e as { type?: string; finding?: Parameters<typeof findingHtml>[0]; verdict?: Parameters<typeof verdictHtml>[0] };
+  if (e.type === 'finding' && e.finding) return { ...ev, html: findingHtml(e.finding) };
+  if (e.type === 'verdict' && e.verdict) return { ...ev, html: verdictHtml(e.verdict) };
+  return ev;
+}
+
+/** Dòng sự kiện dạng JSON — bản trình diễn tải một lần rồi tự canh nhịp ở phía trình duyệt. */
+app.get('/api/runs/:id/su-kien', (req, res) => {
+  const st = rm.lay(req.params.id);
+  if (!st) return res.status(404).json({ loi: 'Không tìm thấy lượt chấm.' });
+  res.json(st.events.map(kemHtml));
+});
+
 app.get('/api/runs/:id/events', (req, res) => {
   const st = rm.lay(req.params.id);
   if (!st) return res.status(404).end();
   res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
-  const gui = (ev: { t: number; e: unknown }) => res.write(`data: ${JSON.stringify(ev)}\n\n`);
+  /**
+   * Đánh số từng sự kiện và tiếp từ chỗ đứt.
+   *
+   * Trước đây không có `id:`, nên khi trình duyệt tự nối lại (mất mạng, máy ngủ) máy chủ đổ lại
+   * TOÀN BỘ từ đầu trong khi giao diện chỉ nối thêm — một lần rớt mạng cho ra hai bản finding giống
+   * hệt nhau, và người đọc không có cách nào biết đó là trùng lặp hay hai phát hiện thật.
+   *
+   * Số hiệu là CHỈ SỐ trong dòng sự kiện, nên nó bền qua cả việc máy chủ khởi động lại: sổ trên đĩa
+   * giữ đúng thứ tự đó.
+   */
+  // `tu` = số sự kiện máy chủ ĐÃ DỰNG SẴN vào trang; `Last-Event-ID` = chỗ đứt khi trình duyệt tự
+  // nối lại. Lấy giá trị LỚN HƠN: cả hai đều nói «đã có tới đây rồi», và lấy nhầm giá trị nhỏ là
+  // đổ lại thứ đã hiện.
+  const daCo = Number(req.headers['last-event-id']);
+  const tuHeader = Number.isFinite(daCo) && daCo >= 0 ? daCo + 1 : 0;
+  const tuQuery = Math.max(0, Number(req.query.tu) || 0);
+  const batTu = Math.max(tuHeader, tuQuery);
+  let ke = batTu;
+  const gui = (ev: { t: number; e: unknown }) => {
+    res.write(`id: ${ke}\ndata: ${JSON.stringify(kemHtml(ev))}\n\n`);
+    ke++;
+  };
+  // `__END__` là dấu chấm hết, không phải một sự kiện của lượt chấm — phát KHÔNG kèm số hiệu để lần
+  // nối lại sau vẫn tiếp đúng từ sự kiện thật cuối cùng.
+  const guiHet = () => res.write(`data: ${JSON.stringify({ t: 0, e: { type: 'log', msg: '__END__' } })}\n\n`);
 
-  const timed = req.query.timed === '1' && st.meta.trangThai !== 'dang_chay';
-  if (timed) {
-    // phát lại đúng nhịp thời gian gốc (chế độ sân khấu); ?speed=N để tua nhanh khi tổng duyệt
-    const speed = Math.min(32, Math.max(1, Number(req.query.speed) || 1));
-    const timers = st.events.map((ev) => setTimeout(() => gui(ev), Math.round(ev.t / speed)));
-    const cuoi = Math.round((st.events.length ? st.events[st.events.length - 1].t : 0) / speed);
-    const ket = setTimeout(() => { gui({ t: cuoi, e: { type: 'log', msg: '__END__' } }); res.end(); }, cuoi + 300);
-    req.on('close', () => { timers.forEach(clearTimeout); clearTimeout(ket); });
-    return;
-  }
-
-  for (const ev of st.events) gui(ev);
+  for (const ev of st.events.slice(batTu)) gui(ev);
   if (st.meta.trangThai !== 'dang_chay') {
-    gui({ t: 0, e: { type: 'log', msg: '__END__' } });
+    guiHet();
     return res.end();
   }
   const sub = (ev: { t: number; e: unknown }) => gui(ev);
@@ -961,7 +1043,11 @@ app.listen(port, '127.0.0.1', () => {
   // Xác của lần chạy trước: hàng `dang_chay` mồ côi khoá trần song song vĩnh viễn nếu không dọn
   // Sổ phải đúng ngay từ lượt khởi động: máy chỉ chấm bằng tay không có chu kỳ trực nào để bám vào.
   void chayDoiSoat();
-  const moCoi = rm.cleanupOrphanRuns();
+  // NỐI LẠI trước, DỌN XÁC sau. Lượt còn sổ sự kiện trên đĩa là lượt tiến trình con vẫn đang ghi
+  // tiếp — nó sống sót qua lần khởi động lại này, và đánh dấu nó hỏng là vứt bỏ việc đang chạy đúng.
+  const noiLai = rm.noiLaiLuotDangChay();
+  if (noiLai.length) console.log(`Nối lại ${noiLai.length} lượt chấm còn dang dở: ${noiLai.join(', ')}`);
+  const moCoi = rm.cleanupOrphanRuns(noiLai);
   if (moCoi.length) console.log(`Đã dọn ${moCoi.length} lượt chấm bỏ dở của lần chạy trước: ${moCoi.join(', ')}`);
   console.log(`CheckMate web: http://127.0.0.1:${port}`);
 });

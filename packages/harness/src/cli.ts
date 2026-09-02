@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chuanMuc, type ArtifactRef, type Finding, type RunEvent, type Verdict } from '../../shared/src/types.js';
 import { ProviderConfigError, pickProvider, checkProvider, costMetrics, costSummary } from './model.js';
@@ -87,8 +87,34 @@ async function main(): Promise<void> {
 
   const model = pickProvider();
   const events: RunEvent[] = [];
+
+  /**
+   * Sổ sự kiện CHỈ-GHI-THÊM trên đĩa — nguồn sự thật của lượt chấm.
+   *
+   * Trước đây sự kiện chỉ đi qua stdout tới tiến trình gọi và nằm trong bộ nhớ của nó tới lúc lượt
+   * chấm kết thúc. Tiến trình đó dừng — khởi động lại, deploy, hay hỏng — thì mọi thứ tích luỹ được
+   * đều bay, kể cả các bước đã chạy xong và đã trả tiền cho lời gọi model. Tiến trình con vẫn chạy
+   * tiếp, nhưng nó đang nói vào một đường ống mà đầu kia đã tắt.
+   *
+   * Ghi NỐI TIẾP từng dòng, không ghi đè cả tệp: một lượt sinh vài trăm sự kiện, và ghi đè thì mỗi
+   * lần lại phải giữ toàn bộ trong bộ nhớ — đúng thứ đang muốn thoát khỏi.
+   */
+  const soSuKien = layArg('events-out');
+  if (soSuKien) mkdirSync(join(soSuKien, '..'), { recursive: true });
+  const t0 = Date.now();
+
   const ghiPhat = (e: RunEvent): void => {
     events.push(e);
+    if (soSuKien) {
+      try {
+        appendFileSync(soSuKien, `${JSON.stringify({ t: Date.now() - t0, e })}\n`, 'utf8');
+      } catch (loi) {
+        // KÊU TO, đừng nuốt. Sổ này là nguồn sự thật của lượt chấm — tiến trình gọi đọc nó chứ
+        // không đọc stdout. Ghi hỏng mà im lặng thì lượt chấm vẫn chạy, vẫn đốt token, và biến mất
+        // không dấu vết. stderr là đường duy nhất còn lại để nói ra.
+        console.error(`✗ KHÔNG GHI ĐƯỢC SỔ SỰ KIỆN (${soSuKien}): ${(loi as Error).message}`);
+      }
+    }
     phat(e);
   };
 
@@ -100,11 +126,21 @@ async function main(): Promise<void> {
     let artifactRef: ArtifactRef;
     let probeStats: Verdict['probe_stats'];
     let quanSat: Verdict['quan_sat_ngoai_pr'];
+    let diffBlindSpots: Verdict['diff_blind_spots'];
+    let libraryChanges: Verdict['library_changes'];
+    let noBaseline: Verdict['no_baseline'];
+    let probeCompare: Verdict['probe_compare'];
     if (skill === 'code') {
       const kq = await runCodeSkill(model, repo!, branch!, base, ghiPhat);
       findings = kq.findings;
       probeStats = kq.probeStats;
       quanSat = kq.quanSat.length > 0 ? kq.quanSat : undefined;
+      // Rỗng thì để VẮNG hẳn, đừng ghi `[]`: bản ghi đời cũ cũng vắng, nên hai bên đọc như nhau và
+      // giao diện chỉ phải nhớ MỘT luật — vắng thì không bày khối đó.
+      diffBlindSpots = kq.diffBlindSpots.length > 0 ? kq.diffBlindSpots : undefined;
+      libraryChanges = kq.libraryChanges.length > 0 ? kq.libraryChanges : undefined;
+      noBaseline = kq.noBaseline ? true : undefined;
+      probeCompare = kq.probeCompare.rows.length || kq.probeCompare.pass_both ? kq.probeCompare : undefined;
       artifactRef = { type: 'pr', name: branch!, sha_or_hash: kq.target.branchSha };
     } else if (repo && branch) {
       // docs-as-code: đọc file ở đúng bản của nhánh/PR qua worktree
@@ -133,6 +169,13 @@ async function main(): Promise<void> {
       probe_stats: probeStats,
       chi_phi: costMetrics(),
       quan_sat_ngoai_pr: quanSat,
+      diff_blind_spots: diffBlindSpots,
+      library_changes: libraryChanges,
+      no_baseline: noBaseline,
+      probe_compare: probeCompare,
+      // Ai bấm chạy — tầng web truyền xuống. Vắng = lượt do máy chạy (chế độ trực), và đó là một
+      // khẳng định có nghĩa chứ không phải thiếu dữ liệu.
+      run_by: layArg('run-by') || undefined,
       model: model.ten,
       mode: 'live',
       started_at: batDau,

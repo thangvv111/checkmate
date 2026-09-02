@@ -24,7 +24,7 @@ runner:
       ../packages/harness/src/dedup-probe.js → splitRule · findRerunDuplicate · findSuspectedDuplicate · applyRuling · promptDuplicateRuling
       ../packages/harness/src/jsonx.js       → unwrapJson · unwrapCode · ModelUsedToolError · callJson · callCode
       ../packages/harness/src/fence.js         → makeFence · FENCE_NOTICE
-      ../apps/web/src/ui.js                  → escHtml · splitSource · CSS · shell
+      ../apps/web/src/ui.js                  → escHtml · splitSource · CSS · shell · findingHtml · verdictHtml
       ../apps/web/src/ui-history.js          → filterRuns
       ../apps/web/src/provider.js                 → maskKey · projectValue · providerDefinition · PROVIDER_CATALOG · checkStillValid · readKey · writeKey · readProviderCheck · writeProviderCheck · validModel
       ../apps/web/src/config.js              → maskToken · maskToken2 · slugGithubRepo · findRepo · migrateRepoToken · currentConfig · readConfig · writeConfig · readSubscriptionToken · writeSubscriptionToken · agentEnv · configForReview · ProviderConfigErrorCfg
@@ -36,7 +36,7 @@ runner:
       ../apps/web/src/trust.js              → computeProfile
       ../apps/web/src/model-source.js         → readProviderState · tryProvider · trySource
       ../apps/web/src/extract.js             → SUPPORTED_FORMATS · extractText
-      ../apps/web/src/runs.js                → RunManager
+      ../apps/web/src/runs.js                → RunManager · duongSoSuKien · docSoSuKienTuDia
       ../packages/harness/src/model.js       → envForCli · costMetrics · costSummary · looksLikeModelReply · authLost · AUTH_LOST_PATTERNS · CliConfigError · checkProvider · pickProvider · ClaudeCliProvider · AnthropicApiProvider · ProviderConfigError
       ../packages/harness/src/skill-doc.js   → runDocSkill
       ../packages/harness/src/trigger-catalog.js → TRIGGER_CATALOG · laTriggerHopLe · timTrigger · tapKichHoat
