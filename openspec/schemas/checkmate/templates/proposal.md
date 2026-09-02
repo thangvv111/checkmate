@@ -17,15 +17,16 @@
      Tra tên có thật ở openspec/specs/. Không đổi yêu cầu thì để trống. -->
 - `<existing-name>`: <yêu cầu nào đang đổi>
 
-## Luật R chạm tới
+## Luật chạm tới
 
-<!-- ⛔ Ô BẮT BUỘC. Luật đã đổi (PO chốt 01/09, THAY phương án A 31/08): specs/R*.md nay là TÀI
-     LIỆU THAM KHẢO, change mới KHÔNG đẻ thêm điều R*. Chọn MỘT:
-       KHÔNG — cố ý (câu trả lời THƯỜNG ĐÚNG), kèm nơi luật của change này thật sự sống: hằng +
-               validate trong engine (có test khoá) · checkmate.yml · openspec/specs/<capability>/
-       CÓ    — chỉ khi change cố ý sửa văn bản specs/R*.md; liệt kê file sẽ sửa
+<!-- ⛔ Ô BẮT BUỘC. Luật sống ở openspec/specs/<capability>/ (delta spec của change), hằng + validate
+     trong engine (có test khoá), checkmate.yml, và sáu ⛔C của CLAUDE.md. Trả lời bằng một hoặc nhiều:
+       capability › requirement — change ADDED/MODIFIED/REMOVED requirement nào (khớp specs/ của change)
+       ⛔C<n>                   — change chạm bất biến nào của CLAUDE.md (chỉ nêu; không đổi được ở đây)
+       hàng docs/r-rules-map.md — change trả nhà cho điều `pending` nào (change backfill)
+       KHÔNG — cố ý            — kèm một câu vì sao change này không đổi luật nào
      Bỏ trống vẫn là done-gate chưa ✓: ô này tồn tại để không ai đổi luật một chỗ mà quên chỗ kia. -->
-- **Luật R chạm tới:** <CÓ — mã luật + file | KHÔNG — vì sao>
+- **Luật chạm tới:** <capability › requirement | ⛔C<n> | hàng bảng tra | KHÔNG — vì sao>
 
 ## Impact
 

@@ -1,11 +1,12 @@
-# CheckMate tự chấm chính mình. File này là hợp đồng của repo checkmate với engine — xem specs/R2.
+# CheckMate tự chấm chính mình. File này là hợp đồng của repo checkmate với engine — hợp đồng runner/review
+# thuộc capability `target-contract` (đang backfill; mã cũ R2 tra ở docs/r-rules-map.md).
 
 # Nguồn engine đọc để chấm. Không khai thì engine tự dò (specs/ · spec/ · openspec/specs/ …) và ghi ra
-# đã dò ở đâu. Repo này khai vì luật sống ở HAI chỗ — xem CLAUDE.md «Chỗ sống của luật».
+# đã dò ở đâu. Repo này khai tường minh: luật đang hiệu lực CHỈ ở openspec/specs/ — specs/R*.md đã gỡ
+# 02/09/2026 (bản gốc chỉ đọc ở docs/archive/r-rules/, bảng tra docs/r-rules-map.md).
 sources:
   specs:
-    - specs/*.md # tài liệu tham khảo R1..R12 — đang được rút dần, change riêng sẽ dọn
-    - openspec/specs/**/*.md # luật máy đọc của tính năng mới, sinh từ change
+    - openspec/specs/**/*.md # luật máy đọc, sinh từ change — archive mới thành luật
   api_doc: README.md
 
 runner:
@@ -27,6 +28,7 @@ runner:
       ../packages/harness/src/target.js      → buildDiff · readTarget · listTree · extractRuleIds · findNewRules · suggestModulePath
       ../packages/harness/src/runner.js      → parseJUnit · readRunnerCfg · readReviewCfg · readSourcesCfg · diffIgnorePatterns
       ../packages/harness/src/sources.js     → readSources · describeSources · matchPattern · globToRegExp · skipReason · SPEC_CANDIDATES · API_DOC_CANDIDATES · TEST_SAMPLE_CANDIDATES · MAX_SOURCE_BYTES
+      ../packages/shared/src/spec-source.js  → readSourcesCfg · matchPattern · globToRegExp · loiCuPhapAnToan · SPEC_CANDIDATES · API_DOC_CANDIDATES · TEST_SAMPLE_CANDIDATES
       ../packages/harness/src/sandbox.js     → fileLoadError · Sandbox
       ../packages/harness/src/probe-library.js    → admitToLibrary · pickEvictionVictim · readProbeLibrary · withLibraryLock · repoSlug · splitOneProbe · cutTestBlock · hasTestBlock · checkBalanced · splitRule · updateHistory · findAndDropBehaviorDuplicates
       ../packages/harness/src/trigger-examples.js   → getCodeExamples · getDocExamples · knowledgeByTrigger · TRIGGER_EXAMPLES · EXAMPLE_CAP · EXAMPLES_PER_TRIGGER
@@ -102,7 +104,7 @@ runner:
     probe-library.js nếu probe cần ghi vào thư viện giả.
 
 review:
-  # Ngoài bộ mẫu sinh-tự-động mặc định (lockfile, dist/, nhị phân) — xem specs/R7
+  # Ngoài bộ mẫu sinh-tự-động mặc định (lockfile, dist/, nhị phân) — luật diff-visibility (mã cũ R7, tra docs/r-rules-map.md)
   bo_qua_diff:
     - '^_ref/' # bản design CCS bàn giao: tài liệu tham chiếu, không phải mã của repo
     - '^bench/kq/' # kết quả benchmark, sinh ra từ lượt chạy

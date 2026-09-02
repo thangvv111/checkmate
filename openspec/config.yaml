@@ -15,15 +15,15 @@ context: |
   `packages/shared` (kiểu dùng chung). Dữ liệu: SQLite (`web-runs/`) + file JSON (`probes-lib/`,
   `.ncc-verify.json`, `config.json`, `.secrets.json`).
 
-  ⛔ CHỖ SỐNG CỦA LUẬT (PO chốt 01/09 — THAY phương án A 31/08):
-  · `specs/R*.md` ở gốc repo = TÀI LIỆU THAM KHẢO. Nó trộn lẫn luật, án lệ và biên bản tranh luận
-    nên KHÔNG được dùng làm khuôn ép kiến trúc mới, và change mới KHÔNG đẻ thêm điều R*. Một change
-    tái cấu trúc riêng sẽ dọn nó.
-  · Luật máy đọc của tính năng MỚI sống ở ba chỗ: hằng + validate trong engine (có test khoá) ·
-    cấu hình trong `checkmate.yml` · hành vi trong `openspec/specs/<capability>/` (sinh từ change).
-  · Lưu ý kỹ thuật còn hiệu lực tạm: engine HIỆN VẪN nạp `specs/` của REPO ĐÍCH để sinh probe và so
-    hai nhánh. Cơ chế ăn spec repo đích đã được PO xếp lịch cấu trúc lại (change riêng); trước lúc
-    đó đừng di dời đường dẫn trong `packages/harness/src/target.ts`.
+  ⛔ CHỖ SỐNG CỦA LUẬT (PO chốt 01/09; gỡ specs/R*.md 02/09 — change retire-r-rules):
+  · Luật máy đọc sống ở ba chỗ: hằng + validate trong engine (có test khoá) · cấu hình trong
+    `checkmate.yml` · hành vi trong `openspec/specs/<capability>/` (sinh từ change, archive mới thành luật).
+  · `specs/R*.md` (R1–R13) đã gỡ khỏi vai trò luật: bản gốc chỉ đọc ở `docs/archive/r-rules/`, mỗi điều
+    có hàng trong `docs/r-rules-map.md`; điều `pending` backfill thành capability theo bảng chia của
+    change retire-r-rules, mỗi capability một change. Không viết luật vào docs/archive/, không sửa hàng
+    loạt chú thích trích mã R (lưới test/r-rules-map.test.ts giữ mọi mã tra được).
+  · Nguồn spec của REPO ĐÍCH do repo khai (`sources` trong checkmate.yml) hoặc engine tự dò và báo cáo —
+    capability `spec-source`.
 
   ⛔ CỔNG TẠM DỪNG (PO chốt 01/09): KHÔNG chờ verdict CheckMate để đi tiếp. Đủ điều kiện sang bước
   sau = code + test xanh + PO duyệt. Đừng poll prod, đừng để PR treo chờ chấm. Lý do: cổng đang
@@ -38,7 +38,7 @@ context: |
 rules:
   tasks:
     - Task phải là checkbox `- [ ] X.Y` — pha apply đọc checkbox để theo dõi, dòng không đúng dạng sẽ không được tính
-    - Proposal khai CÓ chạm luật R → PHẢI có task tường minh viết luật vào `specs/R*.md`; engine chỉ biết luật nào có thật qua thư mục đó
+    - Proposal khai «Luật chạm tới» → PHẢI có task viết/sửa requirement ở delta spec của change (`specs/<capability>/spec.md`) kèm test khoá; luật KHÔNG viết vào docs/archive/r-rules/
     - Thêm/đổi export → PHẢI có task khai vào bảng module của `checkmate.yml` (hoặc ghi N/A kèm lý do)
   test-cases:
     - Section "Trục nhạy cảm" trong template là BẮT BUỘC — điền test hoặc đánh `[N/A]` kèm lý do, KHÔNG được xoá

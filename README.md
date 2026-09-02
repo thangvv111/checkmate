@@ -45,8 +45,9 @@ thật; PR fail + gốc pass = hồi quy). FAIL ⟺ có ≥1 finding mức chặ
 
 ## CheckMate tự chấm chính mình
 
-Repo này có `specs/` (R1–R7 — luật hành vi của chính CheckMate) và `checkmate.yml` (hợp đồng runner +
-khuôn lỗi và thang severity riêng), nên nó là một repo đích hợp lệ của chính nó:
+Repo này khai nguồn spec của chính nó trong `checkmate.yml` (`sources.specs: openspec/specs/**/*.md` — luật
+đang hiệu lực, sinh từ change) cùng hợp đồng runner + khuôn lỗi và thang severity riêng, nên nó là một repo
+đích hợp lệ của chính nó. Luật cũ `specs/R*.md` đã gỡ 02/09/2026 — bảng tra `docs/r-rules-map.md`:
 
 ```bash
 npm test

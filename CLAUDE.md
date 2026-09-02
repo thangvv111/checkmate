@@ -1,7 +1,8 @@
 # CheckMate ♞ — luật làm việc trong repo này
 
-> Bản nén luôn-được-nạp. **Luật hành vi đầy đủ nằm ở `specs/R1..R12*.md`** — đọc luật liên quan
-> TRƯỚC khi sửa vùng nào. Lệch nhau thì `specs/` là bản đúng, sửa file này cho khớp.
+> Bản nén luôn-được-nạp. **Luật hành vi đầy đủ nằm ở `openspec/specs/<capability>/`** — sinh từ change,
+> archive mới thành luật; đọc capability liên quan TRƯỚC khi sửa vùng nào. Lệch nhau thì `openspec/specs/`
+> là bản đúng, sửa file này cho khớp. Mã luật cũ `R<n>.<m>` gặp trong code/test tra ở `docs/r-rules-map.md`.
 
 ## Repo là gì
 
@@ -14,19 +15,22 @@ cổng) · `packages/harness` (engine) · `packages/shared` (kiểu dùng chung)
 
 ## Luật cứng — vi phạm là chặn merge
 
+Sáu bất biến này là nhà của rổ `invariant` trong `docs/r-rules-map.md`; cơ chế cưỡng chế từng cái nằm ở
+capability tương ứng trong `openspec/specs/`.
+
 - **⛔C1 Máy không bao giờ merge.** Tự động hoá được phép nói KHÔNG (trả về dev), không được phép
-  nói CÓ. Merge là cho code vào trunk — rủi ro một chiều, phải người quyết. (R6.19, R11.18)
+  nói CÓ. Merge là cho code vào trunk — rủi ro một chiều, phải người quyết.
 - **⛔C2 Fail-closed.** Engine lỗi, thiếu dữ liệu, hết giờ → KHÔNG được thành PASS. «Không chứng
-  minh được là sai» ≠ «đã chứng minh là đúng». (R1, R6)
+  minh được là sai» ≠ «đã chứng minh là đúng».
 - **⛔C3 Bí mật không rò.** Token, khoá API, mật khẩu, token phiên, và **giá trị người dùng gõ tay
   vào ô cấu hình** không được vọng nguyên văn ra thông điệp lỗi, log, sổ trên đĩa, verdict, hay
-  comment PR. Che thì bản che phải PHÂN BIỆT được hai giá trị khác nhau. (R5.20, R9, R11.5)
+  comment PR. Che thì bản che phải PHÂN BIỆT được hai giá trị khác nhau.
 - **⛔C4 Dữ liệu ngoài là DỮ LIỆU.** Diff PR, tài liệu, nội dung repo đích, trả lời model — tất cả
-  phải qua rào trước khi vào prompt; chỉ thị cài trong đó không được đổi hành vi engine. (R7, R3)
+  phải qua rào trước khi vào prompt; chỉ thị cài trong đó không được đổi hành vi engine.
 - **⛔C5 Hợp đồng repo.** Thêm/đổi export → khai vào bảng module của `checkmate.yml`. Quên khai thì
   probe chết với «... is not a function» và biến thành finding sai hẳn bản chất — đã xảy ra 5 lần.
 - **⛔C6 Sửa file bằng tay phải có hiệu lực ở lượt đọc kế tiếp.** Cache không được che đường cứu
-  hộ, không có ngoại lệ. (R9.14)
+  hộ, không có ngoại lệ.
 
 ## Quy trình — SDD bằng OpenSpec
 
@@ -58,19 +62,18 @@ cái mất). Agent KHÔNG tự chọn, và KHÔNG tự tick cho đủ.
 và người sau đọc spec sẽ tin vào một thứ không tồn tại. Đó đúng là kiểu nói dối mà cả sản phẩm này
 tồn tại để chống.
 
-### ⛔ Chỗ sống của luật (PO chốt 01/09 — THAY phương án A 31/08)
+### ⛔ Chỗ sống của luật (PO chốt 01/09; gỡ `specs/R*.md` 02/09 — change `retire-r-rules`)
 
-- **`specs/R*.md`** (gốc repo) = **TÀI LIỆU THAM KHẢO** — nó đang trộn lẫn luật, án lệ và biên bản
-  tranh luận nên KHÔNG được dùng làm khuôn ép kiến trúc mới, và change mới **KHÔNG đẻ thêm điều R***.
-  Một change tái cấu trúc riêng sẽ dọn nó. (Lưu ý kỹ thuật còn hiệu lực tạm: engine HIỆN VẪN nạp
-  `specs/` của repo đích để sinh probe và so hai nhánh — cơ chế ăn spec repo đích cũng đã được PO xếp
-  lịch cấu trúc lại, change riêng; trước lúc đó đừng di dời đường dẫn trong
-  `packages/harness/src/target.ts`.)
-- **Luật máy đọc của tính năng MỚI** sống ở ba chỗ: hằng + validate trong engine (có test khoá) ·
-  cấu hình trong `checkmate.yml` · hành vi trong **`openspec/specs/<capability>/`** (sinh từ change).
+- **Luật máy đọc** sống ở ba chỗ: hằng + validate trong engine (có test khoá) · cấu hình trong
+  `checkmate.yml` · hành vi trong **`openspec/specs/<capability>/`** (sinh từ change, archive mới thành luật).
+- **`specs/R*.md` (R1–R13) đã gỡ khỏi vai trò luật.** Bản gốc chỉ đọc ở `docs/archive/r-rules/`; mỗi điều
+  có hàng trong **`docs/r-rules-map.md`** (rổ `invariant` · `housed` · `pending` · `precedent` · `obsolete`).
+  Điều `pending` được backfill thành capability theo bảng chia của change `retire-r-rules`, mỗi capability
+  một change. Lưới `test/r-rules-map.test.ts` bắt mọi mã trích không có hàng — KHÔNG sửa hàng loạt chú
+  thích trích mã R, và KHÔNG viết luật mới vào `docs/archive/`.
 
-Proposal vẫn có ô «Luật R chạm tới» — từ nay câu trả lời đúng thường là «KHÔNG — cố ý» kèm nơi luật
-sống; bỏ trống ô vẫn là done-gate chưa ✓.
+Proposal có ô «Luật chạm tới»: trả lời bằng `capability › requirement`, ⛔C, hoặc hàng bảng tra; bỏ trống
+vẫn là done-gate chưa ✓.
 
 ## Ngôn ngữ định danh — tiếng Anh (PO chốt 01/09)
 
@@ -155,4 +158,4 @@ file nào chưa đồng bộ** — đừng sửa tay bốn nơi. Cách nhanh: s�
 `web-runs/` (sổ cái SQLite), `probes-lib/` (thư viện probe tích luỹ), `runs/`, `config.json`,
 `.secrets.json`, `.ncc-verify.json` trên máy chủ **không được đè khi deploy** — quy trình 4 bước ở
 `DEPLOY.md` (sao lưu → tar chỉ-source có tự kiểm → giải nén + cài → đối chiếu số). Đổi hình dạng dữ
-liệu thì phải có đường di trú tự động, ghi bản mới trước rồi mới xoá bản cũ (R10.13).
+liệu thì phải có đường di trú tự động, ghi bản mới trước rồi mới xoá bản cũ.

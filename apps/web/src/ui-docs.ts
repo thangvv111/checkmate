@@ -292,8 +292,9 @@ export function docsPage(nguoi = ''): string {
         mục «Quan sát ngoài phạm vi PR» liệt kê từng probe fail-cả-hai-nhánh kèm luật spec nó neo — đầu vào
         để đội mở việc sửa riêng, tách khỏi phán quyết dành cho tác giả PR.</li>
         <li><b>Spec càng rõ, checker càng sắc.</b> Chưa có spec thì vẫn chạy được chế độ đối chứng hai nhánh
-        (bắt breaking change), nhưng probe neo-luật cần spec. Vài file markdown mỏng trong <code>specs/</code>
-        là đủ khởi động — và đó cũng là kỷ luật tổ chức nên có sẵn.</li>
+        (bắt breaking change), nhưng probe neo-luật cần spec. Vài file markdown mỏng — khai đường trong
+        <code>checkmate.yml</code> (<code>sources.specs</code>) hoặc để engine tự dò và báo cáo — là đủ khởi
+        động, và đó cũng là kỷ luật tổ chức nên có sẵn.</li>
         <li><b>Tầng chỉ quan sát được sau khi deploy</b> (hạ tầng, tích hợp thật) nằm ngoài sandbox —
         CheckMate đứng trên nền test của repo, không thay thế giám sát production.</li>
         <li><b>Verdict là của máy, quyết định là của người.</b> Merge một PR có cảnh báo Medium là lựa chọn
