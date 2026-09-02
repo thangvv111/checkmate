@@ -76,4 +76,5 @@ KHÔNG viết spec cho capability nào và KHÔNG quyết bỏ/đổi điều R 
 - [x] 6.2 `grep -rn "specs/R" .` ngoài `docs/archive/r-rules/`, `docs/r-rules-map.md`,
       `openspec/changes/archive/` → 0 dòng TRONG CHUỖI (lưới no-internal-refs cho harness + web); chú thích
       trỏ mã R giữ nguyên theo PO, tra được qua bảng — đã đo: chỉ còn chú thích và câu «đã gỡ» ở AGENTS.md.
-- [x] 6.3 Lưới 5.1 xanh trên chính `main` sau merge — không con trỏ mồ côi ở ngày đầu.
+- [ ] 6.3 Lưới 5.1 xanh trên chính `main` sau merge — không con trỏ mồ côi ở ngày đầu. (Chỉ kiểm được
+      SAU merge — tick khi đã chạy trên main.)

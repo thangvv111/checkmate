@@ -58,7 +58,8 @@ dời file) — không có luật mới, nhưng có cơ chế mới phải khoá
 - [x] T3.3 [Tái lập ca đã gãy — PR #32]: PR chỉ đổi `openspec/specs/spec-source/spec.md` với router hôm
       nay đi **doc** (ca đỏ trước fix, xanh sau fix). Test load-bearing hai chiều: tạm no-op phép khớp
       nguồn → ca này đỏ lại.
-- [x] T3.4 [Con trỏ mồ côi]: thêm giả một file chứa `R99.9` → lưới đỏ, thông điệp nêu `file:line`.
+- [x] T3.4 [Con trỏ mồ côi]: chèn mã KHÔNG có hàng (`R77.7`) vào một file git theo dõi → lưới đỏ, nêu
+      `DEPLOY.md:210 R77.7` (đã kiểm 02/09, file trả nguyên). Lưu ý `R99.9` không dùng được: nó có hàng `obsolete`.
 - [x] T3.5 [Hồi quy sources.test]: `readSources` với `checkmate.yml` của chính repo sau 1.4 → không còn
       probe nào ở `specs/*.md`; không ⚠ «không khớp file nào» (vì mẫu đã bỏ, không để mẫu chết).
 
