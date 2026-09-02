@@ -126,12 +126,10 @@ Năm commit tách bạch: hợp đồng → bền dòng sự kiện → server-r
 ## 7. Kiểm cơ học
 
 - [x] 7.1 `npx tsc --noEmit` sạch · `npm test` xanh TOÀN BỘ.
-- [ ] 7.2 Chạy thật một lượt trên gốc dữ liệu riêng: mở màn Run **đang chạy**, rồi **đã xong**.
-      ĐÃ LÀM một nửa, trên gốc dữ liệu riêng với lượt chấm DỰNG TAY (dữ liệu thật hình dạng thật,
-      nhưng KHÔNG gọi model): mở màn đang-chạy ✓ · mở màn đã-xong ✓ · trình diễn không có đường tới
-      hành động cổng ✓ · giết web giữa chừng rồi khởi động lại, nối lại đủ ✓ (7.3).
-      CÒN THIẾU: một lượt gọi model THẬT. Nó đốt token của PO và cần repo đích cấu hình trong gốc
-      riêng — **chờ PO chốt** có chạy hay không. Cơ chế đã được kiểm; thứ chưa kiểm là engine đầu-cuối.
+- [x] 7.2 Chạy thật một lượt trên gốc dữ liệu riêng: mở màn Run **đang chạy**, rồi **đã xong**.
+      PO đã chạy một lượt THẬT trên bản đang mở và xác nhận. Trước đó cơ chế đã được kiểm bằng lượt
+      dựng tay: đang-chạy ✓ · đã-xong ✓ · trình diễn không có đường tới hành động cổng ✓ · giết web
+      giữa chừng rồi khởi động lại, nối lại đủ ✓ (7.3).
 - [x] 7.3 **Giết tiến trình web giữa lượt chấm rồi khởi động lại** — dòng sự kiện phải còn, và lượt
       dựng lại đúng tới thời điểm đó. Đây là ca không test đơn vị nào thay được.
 - [x] 7.4 Tắt kịch bản trình duyệt → màn Run của lượt đã xong vẫn đọc đủ.
