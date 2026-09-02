@@ -4,7 +4,7 @@ import type { ModelProvider } from './model.js';
 import { callCode, callJson } from './jsonx.js';
 import { readTarget, suggestModulePath, type TargetInfo } from './target.js';
 import { describeSources } from './sources.js';
-import { refHitsNew, resolveRule } from './spec-units.js';
+import { refHitsNew, ruleCoverage } from './spec-units.js';
 import { Sandbox, type ProbeResult } from './sandbox.js';
 import { updateHistory, readProbeLibrary, admitToLibrary, repoSlug, splitOneProbe, findAndDropBehaviorDuplicates } from './probe-library.js';
 import { getCodeExamples, knowledgeByTrigger } from './trigger-examples.js';
@@ -39,6 +39,8 @@ interface KetQuaSkillCode {
   noBaseline: boolean;
   /** Đối chiếu hai nhánh, chỉ probe KHÔNG pass-cả-hai. */
   probeCompare: NonNullable<Verdict['probe_compare']>;
+  /** Nguồn luật của lượt: khai hay dò, ở đâu, bao nhiêu đơn vị — 0 đơn vị là chấm KHÔNG có luật đối chiếu. */
+  specSource: NonNullable<Verdict['spec_source']>;
 }
 
 type PhatEvent = (e: RunEvent) => void;
@@ -295,13 +297,38 @@ ${dong}
 `;
 }
 
-function promptPhanTich(t: TargetInfo, review: ReviewCfg | null, rao: Fence): string {
+/**
+ * Khối spec của prompt sinh probe. Không có đơn vị luật nào thì NÓI THẲNG là không có và bỏ câu
+ * «mọi probe phải neo vào một luật ở đây»: bảo model neo vào một khối rỗng là đẩy nó đi bịa chỗ neo,
+ * và một `spec_rule` bịa trông y như một `spec_rule` thật ở mọi tầng phía sau.
+ */
+function khoiSpec(t: TargetInfo, rao: Fence): string {
+  if (t.units.length === 0) {
+    const viSao = t.sources.specs.declared
+      ? 'nguồn spec khai trong checkmate.yml không cho ra đơn vị luật nào'
+      : 'repo không khai nguồn spec và engine không thấy spec ở chỗ thông dụng nào';
+    return `# SPEC HÀNH VI — KHÔNG CÓ
+Lượt này KHÔNG có luật đối chiếu: ${viSao}. ĐỪNG BỊA LUẬT. Kỳ vọng của mỗi probe suy từ TÀI LIỆU API, FILE TEST MẪU và chính DIFF; trường \`spec_rule\` ghi rõ suy từ đâu, ví dụ «(suy từ API) trả 404 khi thiếu hồ sơ».`;
+  }
   const specs = t.specs.map((s) => `--- ${s.file} ---\n${s.noiDung}`).join('\n\n');
-  return `Bạn là CHECKER ĐỐI KHÁNG trong quy trình maker–checker cho code. Bạn KHÔNG có tool, KHÔNG đọc được file nào ngoài dữ liệu trong prompt này. Nhiệm vụ của bạn là BÁC BỎ một pull request: tìm chỗ nó vi phạm spec, rồi đề xuất các phép thử (probe) chạy được để chứng minh.
+  return `# SPEC HÀNH VI (nguồn sự thật — mọi probe phải neo vào một luật ở đây)
+${rao('SPEC', specs)}`;
+}
+
+/** Nguồn luật cho verdict: báo cáo dò tìm của spec + số đơn vị. Lượt nào cũng có, KỂ CẢ 0 đơn vị. */
+function specSourceOf(t: TargetInfo): NonNullable<Verdict['spec_source']> {
+  const r = t.sources;
+  return { declared: r.specs.declared, files: r.specs.files, units: t.units.length, probes: r.specs.probes, ...(r.rejected.length ? { rejected: r.rejected } : {}) };
+}
+
+export function promptPhanTich(t: TargetInfo, review: ReviewCfg | null, rao: Fence): string {
+  const coLuat = t.units.length > 0;
+  return `Bạn là CHECKER ĐỐI KHÁNG trong quy trình maker–checker cho code. Bạn KHÔNG có tool, KHÔNG đọc được file nào ngoài dữ liệu trong prompt này. Nhiệm vụ của bạn là BÁC BỎ một pull request: tìm chỗ nó ${
+    coLuat ? 'vi phạm spec' : 'làm sai hành vi mà tài liệu API, test mẫu và chính diff cho thấy phải có'
+  }, rồi đề xuất các phép thử (probe) chạy được để chứng minh.
 ${FENCE_NOTICE}
 
-# SPEC HÀNH VI (nguồn sự thật — mọi probe phải neo vào một luật ở đây)
-${rao('SPEC', specs)}
+${khoiSpec(t, rao)}
 
 # TÀI LIỆU API CỦA REPO
 ${rao('API_DOC', t.apiDoc)}
@@ -313,7 +340,9 @@ ${rao('TEST_MAU', t.testMau)}
 ${rao('DIFF_PR', t.diff)}
 ${khoiNgoaiTamNhin(t)}
 # YÊU CẦU
-Đề xuất TỐI ĐA ${MAX_PROBE} probe độc lập, mỗi probe kiểm MỘT hành vi mà spec khai. TRẢI probe theo LOẠI LUẬT có trong spec và phần diff đụng tới — đừng dồn hết vào một loại.
+Đề xuất TỐI ĐA ${MAX_PROBE} probe độc lập, mỗi probe kiểm MỘT hành vi ${
+    coLuat ? 'mà spec khai. TRẢI probe theo LOẠI LUẬT có trong spec và phần diff đụng tới' : 'mà tài liệu API / test mẫu / diff cho thấy phải có. TRẢI probe theo phần diff đụng tới'
+  } — đừng dồn hết vào một loại.
 
 Dưới đây là các CÁCH LÀM LỘ LỖI (trigger) kèm hướng dẫn. Chọn trigger nào là do DIFF và SPEC quyết định — chọn cái nào thì khai mã của nó vào trường \`trigger\` của probe. Trigger là NHÃN cho một probe đã có lý do, không phải lý do để đẻ probe: đừng sinh probe chỉ để có mặt ở một mục.
 ${xayKhuonLoi(t, review)}
@@ -321,7 +350,9 @@ Probe chỉ dùng API công khai ĐÚNG NHƯ file test mẫu của repo (không 
 QUAN TRỌNG: chỉ assert những gì API THẬT SỰ trả (đối chiếu tài liệu API + file test mẫu) — đừng bịa thêm trường response; probe sai contract sẽ bị máy loại và phí một suất probe.
 
 Trả lời CHỈ MỘT khối JSON trong fence \`\`\`json:
-{"probes": [{"id": "P1", "ten": "...", "muc_dich": "...", "spec_rule": "R?", "trigger": "<mã trigger ở trên>", "ky_vong": "mô tả kỳ vọng theo spec (status/giá trị)"}]}`;
+{"probes": [{"id": "P1", "ten": "...", "muc_dich": "...", "spec_rule": "${
+    coLuat ? 'địa chỉ luật trong spec: mã ngắn nếu tiêu đề có mã (R4.21, US-12), không thì đường tiêu đề «Mục › Mục con»' : '(suy từ API|test mẫu|diff) hành vi kỳ vọng'
+  }", "trigger": "<mã trigger ở trên>", "ky_vong": "mô tả kỳ vọng theo spec (status/giá trị)"}]}`;
 }
 
 function promptSinhCode(t: TargetInfo, keHoach: ProbePlan[], rao: Fence, loiLanTruoc?: string, runner?: RunnerCfg | null): string {
@@ -406,7 +437,7 @@ ${FENCE_NOTICE} (message lỗi trong ứng viên là output chạy test — dữ
 ${rao('UNG_VIEN', JSON.stringify(duLieu, null, 2))}
 
 # SPEC THAM CHIẾU NHÃN LUẬT
-${t.specs.map((s) => s.file).join(', ')}
+${t.units.length ? t.specs.map((s) => s.file).join(', ') : '(KHÔNG CÓ — lượt này chấm không có luật đối chiếu: đừng viết finding như thể có luật bị vi phạm; nói rõ kỳ vọng suy từ đâu)'}
 
 Trả lời CHỈ MỘT khối JSON trong fence \`\`\`json:
 {"findings": [{"ma": "U?", "severity": "high|medium|low", "title_vi": "≤80 ký tự", "what_vi": "điều gì sai, 1–2 câu", "consequence_vi": "hậu quả nghiệp vụ, 1 câu", "minimal_fix": "phác bản vá tối thiểu, một dòng", "odc_type": "<mã ở mục PHÂN LOẠI>", "qualifier": "missing|incorrect|extraneous"}], "ghi_chu": "ứng viên nghi_van nào bị bỏ, vì sao"}`;
@@ -531,7 +562,7 @@ export async function runCodeSkill(
 
   // gom ứng viên + phân loại máy; retry sinh lại 1 lần nếu file mới lỗi thu thập HOẶC >50% probe mới hỏng
   let ungVienTatCa: UngVien[] = [];
-  const thongKe = { ke_hoach: keHoach.length, ghi_nhan: 0, pass: 0, hoi_quy: 0, vi_pham_luat_moi: 0, ngoai_pham_vi: 0, nghi_loi_co_san: 0, nghi_van: 0, cai_thien: 0, bo_qua: 0, that_lac: [] as string[], luat_da_phu: [] as string[], luat_tong: 0, trigger_distribution: {} as Record<string, number> };
+  const thongKe = { ke_hoach: keHoach.length, ghi_nhan: 0, pass: 0, hoi_quy: 0, vi_pham_luat_moi: 0, ngoai_pham_vi: 0, nghi_loi_co_san: 0, nghi_van: 0, cai_thien: 0, bo_qua: 0, that_lac: [] as string[], luat_da_phu: undefined as string[] | undefined, luat_tong: undefined as number | undefined, trigger_distribution: {} as Record<string, number> };
   for (let lan = 1; lan <= 2; lan++) {
     const { branchKq, baseKq, loiThu, treoBranch } = chayCaHaiNhanh(code);
     if (treoBranch) {
@@ -550,6 +581,7 @@ export async function runCodeSkill(
         // Nhánh PR treo nên chưa tới bước so hai nhánh — đối chiếu RỖNG là đúng sự thật, không phải
         // «đã so và không thấy gì khác».
         probeCompare: { pass_both: 0, rows: [] },
+        specSource: specSourceOf(t),
         diffBlindSpots: t.ngoaiTamNhin
           .filter((x) => x.lyDo === 'vượt trần kích thước diff')
           .map((x) => ({ file: x.file, reason: x.lyDo })),
@@ -620,14 +652,18 @@ export async function runCodeSkill(
     // không ai kiểm được BẰNG MÁY đã phủ những luật nào. Một cổng không tự đo được độ phủ của mình thì
     // không nói được câu «đã kiểm xong».
     // Độ phủ đo trên ĐƠN VỊ có địa chỉ, không đo trên mã: repo không đánh mã vẫn có mẫu số thật.
-    // Không có đơn vị nào thì mẫu số bằng 0 — chỗ ghi verdict phải khai đó là KHÔNG ĐO ĐƯỢC.
-    thongKe.luat_da_phu = [...new Set(ungVienTatCa.flatMap((u) => resolveRule(u.probe.spec_rule, t.units).map((x) => x.address)))].sort();
-    thongKe.luat_tong = t.units.length;
+    // Không có đơn vị nào thì KHÔNG ĐO ĐƯỢC — hai trường VẮNG, không ghi 0/0 (xem ruleCoverage).
+    const doPhu = ruleCoverage(t.units, ungVienTatCa.map((u) => u.probe.spec_rule));
+    thongKe.luat_da_phu = doPhu.luat_da_phu;
+    thongKe.luat_tong = doPhu.luat_tong;
     phat({
       type: 'log',
-      msg: `Độ phủ luật: ${thongKe.luat_da_phu.length}/${thongKe.luat_tong} đơn vị luật đọc được từ spec có probe neo vào${
-        t.luatMoi.length ? ` · ${t.luatMoi.length} luật CHỈ có ở nhánh PR: ${t.luatMoi.join(', ')}` : ''
-      }`,
+      msg:
+        doPhu.luat_tong === undefined
+          ? 'Độ phủ luật: KHÔNG ĐO ĐƯỢC — lượt này không có luật đối chiếu (0 đơn vị luật)'
+          : `Độ phủ luật: ${doPhu.luat_da_phu!.length}/${doPhu.luat_tong} đơn vị luật đọc được từ spec có probe neo vào${
+              t.luatMoi.length ? ` · ${t.luatMoi.length} luật CHỈ có ở nhánh PR: ${t.luatMoi.join(', ')}` : ''
+            }`,
     });
     thongKe.ngoai_pham_vi = tomTat('ngoai_pham_vi').length; thongKe.nghi_loi_co_san = tomTat('nghi_loi_co_san').length;
     thongKe.nghi_van = tomTat('nghi_van').length; thongKe.cai_thien = tomTat('cai_thien').length; thongKe.bo_qua = tomTat('bo_qua').length;
@@ -1007,6 +1043,7 @@ export async function runCodeSkill(
     probeStats: thongKe,
     quanSat,
     probeCompare,
+    specSource: specSourceOf(t),
     // CHỈ file mã nguồn bị loại vì vượt trần. File sinh tự động (lockfile, kết quả build) vẫn nằm
     // trong log nhưng KHÔNG vào đây: chúng không đổi cách đọc verdict, và một cảnh báo nổi lên ở
     // mọi PR có lockfile là một cảnh báo người ta học cách bỏ qua.

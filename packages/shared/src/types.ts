@@ -126,7 +126,11 @@ export interface Verdict {
     hoi_quy: number;
     /** R1.18 — PR khai luật mới rồi vi phạm ngay luật vừa khai; chặn merge như hồi quy */
     vi_pham_luat_moi?: number;
-    /** R1.22 — độ phủ luật: bao nhiêu luật có probe neo vào, trên tổng số luật đọc được từ specs/ */
+    /**
+     * Độ phủ luật: đơn vị luật có probe neo vào, trên tổng số đơn vị đọc được từ spec của repo đích.
+     * CẢ HAI VẮNG khi lượt chấm không có đơn vị luật nào — độ phủ khi đó KHÔNG ĐO ĐƯỢC, không phải 0:
+     * `0` là đã đếm và không probe nào neo được; không-đo-được là không có mẫu số. Xem `spec_source`.
+     */
     luat_da_phu?: string[];
     luat_tong?: number;
     ngoai_pham_vi: number; // fail cả hai nhánh cùng nguyên nhân — không quy tội PR
@@ -205,6 +209,22 @@ export interface Verdict {
    * Cổng vốn đã chặn ở đường ghi; trường này để màn hình nói ra TRƯỚC khi người dùng bấm.
    */
   head_moved?: { new_sha: string; at: string };
+  /**
+   * Nguồn luật của lượt này — lấy từ đâu, đọc được bao nhiêu đơn vị. `units: 0` là lượt chấm KHÔNG
+   * CÓ LUẬT ĐỐI CHIẾU: verdict yếu hơn (không phong được «vi phạm luật mới», độ phủ không đo được) và
+   * điều đó phải được bày ra TRƯỚC verdict, vì nó đổi cách đọc verdict. `probes` là từng chỗ đã khai
+   * hoặc đã dò, kể cả chỗ không thấy gì — dò tìm là phán đoán, phán đoán phải nói ra.
+   * Vắng trường = bản ghi đời cũ, KHÔNG BIẾT.
+   */
+  spec_source?: {
+    /** true = repo khai trong checkmate.yml · false = engine tự dò. */
+    declared: boolean;
+    files: string[];
+    units: number;
+    probes: Array<{ pattern: string; files: number; units?: number; used: boolean; note?: string }>;
+    /** Đường khai bị loại ở cửa đọc (tuyệt đối, có `..`). */
+    rejected?: Array<{ key: string; pattern: string; reason: string }>;
+  };
   mode: 'live' | 'replay';
   started_at: string;
   finished_at: string;

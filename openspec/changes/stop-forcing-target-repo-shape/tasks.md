@@ -34,16 +34,16 @@ Bốn commit: đơn vị luật → nguồn spec cấu hình được → khai r
 
 ## 3. Commit 3 — KHÔNG CÓ LUẬT THÌ KHAI RA (PO chốt vế hai)
 
-- [ ] 3.1 `types.ts` — thêm trường **tuỳ chọn** vào `Verdict` khai nguồn luật và số đơn vị đọc được.
+- [x] 3.1 `types.ts` — thêm trường **tuỳ chọn** vào `Verdict` khai nguồn luật và số đơn vị đọc được.
       ⛔ CHỈ THÊM: `Verdict` bị `JSON.stringify` nguyên khối xuống DB.
-- [ ] 3.2 Độ phủ khi không có đơn vị nào: khai **không đo được**, KHÔNG khai `0`. `0` là phép đo đã
+- [x] 3.2 Độ phủ khi không có đơn vị nào: khai **không đo được**, KHÔNG khai `0`. `0` là phép đo đã
       thực hiện; không-đo-được là không có mẫu số. Một chữ số cho hai tình trạng là để người đọc tin nhầm.
-- [ ] 3.3 Prompt sinh probe khi khối luật rỗng: **bỏ câu «mọi probe phải neo vào một luật ở đây»** và
+- [x] 3.3 Prompt sinh probe khi khối luật rỗng: **bỏ câu «mọi probe phải neo vào một luật ở đây»** và
       nói thẳng lượt này không có luật đối chiếu. Bảo model neo vào chỗ trống là đẩy nó đi bịa chỗ neo.
-- [ ] 3.4 Màn Run: cảnh báo «chấm không có luật đối chiếu» cùng hạng với vùng-mù-diff và
+- [x] 3.4 Màn Run: cảnh báo «chấm không có luật đối chiếu» cùng hạng với vùng-mù-diff và
       không-có-đối-chứng — đứng TRƯỚC verdict, vì nó đổi cách đọc verdict.
-- [ ] 3.5 Bảng số liệu verdict khai nguồn luật đã lấy + số đơn vị.
-- [ ] 3.6 Lưới: không spec → vẫn chấm, verdict khai rõ, độ phủ là không-đo-được. Vế đối chứng: CÓ spec
+- [x] 3.5 Bảng số liệu verdict khai nguồn luật đã lấy + số đơn vị.
+- [x] 3.6 Lưới: không spec → vẫn chấm, verdict khai rõ, độ phủ là không-đo-được. Vế đối chứng: CÓ spec
       → không cảnh báo nào, độ phủ đo bình thường.
 
 ## 4. Commit 4 — DỌN NỐT HARD-CODE

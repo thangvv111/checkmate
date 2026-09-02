@@ -181,6 +181,18 @@ export function findNewUnits(pr: SpecUnit[], base: SpecUnit[]): string[] {
   return [...moi];
 }
 
+/**
+ * Độ phủ luật của một lượt: đơn vị nào có probe neo vào, trên bao nhiêu đơn vị.
+ * KHÔNG có đơn vị nào → trả về hai trường VẮNG, không trả `0/0`: `0` là một phép đo đã thực hiện,
+ * không-đo-được là không có mẫu số. Một chữ số cho hai tình trạng là để người đọc tin nhầm.
+ */
+export function ruleCoverage(units: SpecUnit[], specRules: Array<string | undefined>): { luat_da_phu?: string[]; luat_tong?: number } {
+  if (units.length === 0) return {};
+  const daPhu = new Set<string>();
+  for (const r of specRules) for (const u of resolveRule(r, units)) daPhu.add(u.address);
+  return { luat_da_phu: [...daPhu].sort(), luat_tong: units.length };
+}
+
 /** Một vế `spec_rule` có trỏ vào dấu hiệu luật-mới nào không — khớp mã một chiều như luật cũ, và khớp địa chỉ. */
 export function refHitsNew(specRule: string | undefined, newMarks: string[]): boolean {
   if (!specRule || newMarks.length === 0) return false;

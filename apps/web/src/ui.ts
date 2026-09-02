@@ -1262,6 +1262,7 @@ function hangMeta(k: string, v: string, xam = false): string {
 export function verdictHtml(v: Verdict): string {
   const dem = (m: string): number => v.findings.filter((f) => chuanMuc(f.severity) === m).length;
   const ps = v.probe_stats;
+  const ss = v.spec_source;
   const cp = v.chi_phi;
   const kk = (n: number): string => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
   const giay = Math.max(0, Math.round((Date.parse(v.finished_at) - Date.parse(v.started_at)) / 1000));
@@ -1271,6 +1272,21 @@ export function verdictHtml(v: Verdict): string {
     hangMeta('Finding', `${v.findings.length} · ${dem('high')} high · ${dem('medium')} med · ${dem('low')} low`),
     ps ? hangMeta('Probe', `${ps.ghi_nhan}/${ps.ke_hoach} ghi nhận · ${ps.pass} pass · ${ps.hoi_quy} hồi quy`) : '',
     ps ? hangMeta('Ngoài phạm vi', String(ps.ngoai_pham_vi)) : '',
+    // Nguồn luật và độ phủ. Có `spec_source` mà VẮNG `luat_tong` = KHÔNG ĐO ĐƯỢC, không phải 0 — hai
+    // tình trạng khác nhau, không được chung một chữ số. Bản ghi đời cũ không có `spec_source` thì
+    // không bày hàng nào: vắng là không biết, không phải «không có».
+    ss
+      ? hangMeta(
+          'Luật đối chiếu',
+          ss.units === 0 ? 'KHÔNG CÓ — chấm không có luật đối chiếu' : `${ss.units} đơn vị · ${ss.files.length} file · ${ss.declared ? 'khai trong checkmate.yml' : 'tự dò'}`,
+          ss.units === 0,
+        )
+      : '',
+    ps && ps.luat_tong !== undefined
+      ? hangMeta('Độ phủ luật', `${ps.luat_da_phu?.length ?? 0}/${ps.luat_tong} đơn vị có probe`)
+      : ss
+        ? hangMeta('Độ phủ luật', 'không đo được', true)
+        : '',
     // Vùng xám — bốn số PHẢI hiện, kể cả bằng không. Im lặng và số không là hai điều khác nhau.
     ps ? hangMeta('◍ nghi vấn', String(ps.nghi_van), true) : '',
     ps ? hangMeta('◍ bỏ qua', String(ps.bo_qua), true) : '',
@@ -1468,6 +1484,25 @@ ${so === 4 ? banKhongDoiChung : ''}
       )}</span></div></div>`
     : '';
 
+  // Cùng hạng với vùng-mù và không-đối-chứng: không có luật đối chiếu ĐỔI CÁCH ĐỌC verdict — không
+  // phong được «vi phạm luật mới», độ phủ không đo được — nên nó đứng trước verdict, không ở chú thích.
+  const ss = v?.spec_source;
+  const banKhongLuat =
+    ss && ss.units === 0
+      ? `<div class="ban-canh"><h6>Chấm KHÔNG có luật đối chiếu</h6>
+<div class="n">${
+          ss.declared
+            ? `Nguồn spec khai trong <span class="mono">checkmate.yml</span> không cho ra đơn vị luật nào: <span class="mono">${escHtml(
+                ss.probes.map((p) => `${p.pattern} (${p.note ?? `${p.files} file`})`).join(' · '),
+              )}</span>.`
+            : `Repo không khai nguồn spec và engine không thấy spec ở chỗ thông dụng nào (đã dò: <span class="mono">${escHtml(
+                ss.probes.map((p) => p.pattern).join(' · '),
+              )}</span>).`
+        }
+Probe lượt này suy từ diff và tài liệu API — verdict <b>yếu hơn</b> lượt có luật: không phong được «vi phạm luật mới», độ phủ luật <b>không đo được</b>.
+Repo có spec thì khai <span class="mono">sources.specs</span> trong <span class="mono">checkmate.yml</span>.</div></div>`
+      : '';
+
   const dsFinding = xong && v ? v.findings : suKien.filter((x) => x.e.type === 'finding').map((x) => (x.e as { finding: Finding }).finding);
 
   const headDoi = v?.head_moved ?? (suKien.find((x) => x.e.type === 'head_moved')?.e as { new_sha: string } | undefined);
@@ -1505,7 +1540,7 @@ ${xong && !trinhDien ? `<a class="btn btn-secondary" href="/runs/${escHtml(meta.
 ${dieuKhien}${banStale}
 <div class="hr"></div>
 <div id="cac-buoc">${buocHtml}</div>
-${banVungMu}
+${banKhongLuat}${banVungMu}
 <section id="findings">${dungSan ? dsFinding.map(findingHtml).join('') : ''}</section>
 <div id="verdict-o">${dungSan ? (v ? verdictHtml(v) : khongCoSo ? khongRaVerdictHtml(loiCuoi[0]!) : '') : ''}</div>
 ${khoiCong(meta, trinhDien)}
