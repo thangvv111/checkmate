@@ -26,6 +26,8 @@ Luật ra vào:
 | 4 | **Bỏ Basic Auth** ở nginx — gói ba việc, rào `/login` đi trước | `man-run-va-cong-merge` |
 | 5 | Dựng lại nội dung **5 màn còn lại** theo gói design CCS | `dong-bo-giao-dien-ccs` |
 | 6 | Repo đích **khai đè** thư mục tài liệu quy trình (router) và danh sách tự dò nguồn spec qua `checkmate.yml`; gỡ mặc định chỉ khi cửa khai đã có | `product-independent-of-openspec` |
+| 8 | Đổi tên chế độ `demo` → **chỉ-đọc** (code + thông điệp + unit systemd prod) — spec đã gọi đúng tên, code giữ giá trị cũ để không đụng prod | `merge-gate` |
+| 9 | Tách điều kiện «chấm lại cùng commit» của `/api/runs` thành hàm thuần, để scenario R6.10 khoá được cả nửa route | `merge-gate` |
 | 7 | **Xoá / archive một repo khỏi CheckMate** — ưu tiên thấp; «gỡ khỏi danh sách» đã có luật cũ (R4.7, R4.27), «archive» giữ lịch sử và mở lại được thì chưa | PO 02/09 |
 
 ## Luật R chạm tới

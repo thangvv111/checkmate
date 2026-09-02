@@ -15,7 +15,7 @@ repo có hàng, hàng `pending` trỏ change có thật trong bảng chia, hàng
 
 Bảng chia change backfill (PO chốt 02/09): `merge-gate` · `verdict-contract` · `identity-session` · `probe-classification` · `data-layer` · `probe-library` · `target-contract` · `repo-history` · `provider-gate` · `model-reply-parsing` · `diff-visibility` · `concurrent-runs`.
 
-Đếm: pending 210 · precedent 13 · housed 26 · invariant 6 · obsolete 4 — tổng 259 hàng cho 243 mã.
+Đếm: pending 197 · precedent 16 · housed 39 · invariant 6 · obsolete 4 — tổng 262 hàng.
 
 ## Ba đích của backfill (PO chốt 02/09 — change `product-independent-of-openspec`)
 
@@ -150,35 +150,35 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R5.19 | Đường chấm gặp cấu hình KHUYẾT trường (model rỗng/thiếu) thì HỎI, không ĐOÁN | pending | provider-gate | test/ba-muc-tu-dong.test.ts |
 | R5.20 | Giá trị NGOÀI danh mục — model, và MỌI trường gõ tay được, gồm cả `phuong_thuc` — không | invariant | CLAUDE.md ⛔C3 | test/ba-muc-tu-dong.test.ts |
 | R5.20 | vòng 8: che-của-che không bao giờ khớp sổ kiểm; vòng 11: băm `phuong_thuc` giấu nguyên nhân trong lỗi | precedent | pending: provider-gate (đoạn «Vì sao») | docs/archive/r-rules/R5-cong-nha-cung-cap.md |
-| R6 | Verdict và cổng merge | pending | merge-gate · verdict-contract | test/dinh-tuyen-skill.test.ts |
+| R6 | Verdict và cổng merge | housed | merge-gate › Merge chỉ khi verdict PASS còn hiệu lực trên pull request đang mở | test/dinh-tuyen-skill.test.ts |
 | R6.1 | Kết quả chỉ có hai giá trị: `PASS` hoặc `FAIL`. Không có trạng thái thứ ba kiểu "PASS có | pending | verdict-contract | — |
 | R6.2 | Verdict PHẢI ghim `artifact_ref.sha_or_hash` | pending | verdict-contract | — |
 | R6.3 | Có finding mức `high` thì kết quả PHẢI là `FAIL`. | pending | verdict-contract | — |
 | R6.4 | Verdict PHẢI kèm `probe_stats` (thống kê probe) để người đọc biết `PASS` nói trên cơ sở nào: | pending | verdict-contract | — |
 | R6.5 | Số probe lên kế hoạch và số thực chạy phải được nêu tách bạch | pending | verdict-contract | — |
-| R6.6 | Verdict `FAIL`, hoặc còn finding `high`, thì nút merge PHẢI khoá | pending | merge-gate | — |
-| R6.7 | Finding mức `medium` chỉ được bỏ qua khi người dùng tick xác nhận từng cái | pending | merge-gate | — |
-| R6.8 | Trước khi merge PHẢI hỏi lại GitHub trạng thái PR hiện tại | pending | merge-gate | — |
-| R6.9 | PR đã có commit mới (`headSha` khác `headSha` lúc chấm) thì verdict cũ hết hiệu lực | pending | merge-gate | — |
-| R6.10 | Chấm lại đúng một commit đã có verdict thì PHẢI cảnh báo trước rằng kết quả gần như chắc | pending | merge-gate | — |
-| R6.11 | Mọi hành động qua cổng (merge / trả về dev) PHẢI ghi vào sổ cái kèm người thực hiện, thời | pending | merge-gate | — |
-| R6.12 | Chế độ demo KHÔNG ĐƯỢC cho thao tác cổng merge và KHÔNG ĐƯỢC cho sửa cấu hình. | pending | merge-gate | test/di-tru-bo-cot-cong.test.ts |
-| R6.12 | phạm vi: cấm THAO TÁC cổng, không cấm di trú dữ liệu lúc khởi động (PO 01/09, M16) | precedent | pending: merge-gate (đoạn «Vì sao») | docs/archive/r-rules/R6-verdict-va-cong-merge.md |
+| R6.6 | Verdict `FAIL`, hoặc còn finding `high`, thì nút merge PHẢI khoá | housed | merge-gate › Merge chỉ khi verdict PASS còn hiệu lực trên pull request đang mở | test/merge-gate.test.ts |
+| R6.7 | Finding mức `medium` chỉ được bỏ qua khi người dùng tick xác nhận từng cái | housed | merge-gate › Cảnh báo medium phải được xác nhận từng cái, máy chủ đối chiếu tập id | test/merge-gate.test.ts |
+| R6.8 | Trước khi merge PHẢI hỏi lại GitHub trạng thái PR hiện tại | housed | merge-gate › Merge chỉ khi verdict PASS còn hiệu lực trên pull request đang mở | test/merge-gate.test.ts |
+| R6.9 | PR đã có commit mới (`headSha` khác `headSha` lúc chấm) thì verdict cũ hết hiệu lực | housed | merge-gate › Merge chỉ khi verdict PASS còn hiệu lực trên pull request đang mở | test/merge-gate.test.ts |
+| R6.10 | Chấm lại đúng một commit đã có verdict thì PHẢI cảnh báo trước rằng kết quả gần như chắc | housed | merge-gate › Merge chỉ khi verdict PASS còn hiệu lực trên pull request đang mở | test/merge-gate.test.ts |
+| R6.11 | Mọi hành động qua cổng (merge / trả về dev) PHẢI ghi vào sổ cái kèm người thực hiện, thời | housed | merge-gate › Hành động cổng vào sổ chỉ-ghi-thêm với danh tính phiên và danh sách cảnh báo đã chấp nhận | test/merge-gate.test.ts |
+| R6.12 | Chế độ demo KHÔNG ĐƯỢC cho thao tác cổng merge và KHÔNG ĐƯỢC cho sửa cấu hình. | housed | merge-gate › Chế độ chỉ-đọc không cho thao tác cổng và không cho sửa cấu hình | test/di-tru-bo-cot-cong.test.ts |
+| R6.12 | phạm vi: cấm THAO TÁC cổng, không cấm di trú dữ liệu lúc khởi động (PO 01/09, M16) | precedent | merge-gate › Chế độ chỉ-đọc không cho thao tác cổng và không cho sửa cấu hình (đoạn «Vì sao») | test/merge-gate.test.ts |
 | R6.13 | Lượt chấm PHẢI có ít nhất một probe ở trạng thái `pass`, `hoi_quy` hoặc `cai_thien` thì mới | pending | verdict-contract | packages/harness/src/skill-code.ts |
 | R6.13 | `ngoai_pham_vi` là trạng thái hút: cả bộ probe import sai module → PASS trên lượt không có phép thử nào chạy | precedent | pending: verdict-contract (đoạn «Vì sao») · ứng viên kho khuôn (đích b) | docs/archive/r-rules/R6-verdict-va-cong-merge.md |
 | R6.14 | Trước khi bỏ cuộc, lượt chấm PHẢI sinh lại file probe một lần, và lượt sinh lại PHẢI được | pending | verdict-contract | — |
-| R6.15 | Ba việc tự động ở cổng PHẢI là ba công tắc RIÊNG, không được gộp thành một, vì mức độ gây | pending | merge-gate | test/ba-muc-tu-dong.test.ts |
-| R6.16 | Đăng verdict tự động KHÔNG ĐƯỢC giới hạn ở chế độ trực | pending | merge-gate | apps/web/src/config.ts |
-| R6.17 | Tự động trả về dev CHỈ được chạy khi verdict là `FAIL` và có ít nhất một finding mức | pending | merge-gate | apps/web/src/config.ts |
-| R6.18 | Hành động cổng do máy thực hiện PHẢI ghi vào sổ với danh tính của tác nhân máy, không | pending | merge-gate | test/doi-soat-cong.test.ts |
-| R6.19 | Tác nhân máy KHÔNG ĐƯỢC merge trong mọi cấu hình | invariant | CLAUDE.md ⛔C1 | test/ba-muc-tu-dong.test.ts |
+| R6.15 | Ba việc tự động ở cổng PHẢI là ba công tắc RIÊNG, không được gộp thành một, vì mức độ gây | housed | merge-gate › Tự động ở cổng: ba công tắc riêng, máy chỉ được nói KHÔNG | test/ba-muc-tu-dong.test.ts |
+| R6.16 | Đăng verdict tự động KHÔNG ĐƯỢC giới hạn ở chế độ trực | housed | merge-gate › Tự động ở cổng: ba công tắc riêng, máy chỉ được nói KHÔNG | apps/web/src/config.ts |
+| R6.17 | Tự động trả về dev CHỈ được chạy khi verdict là `FAIL` và có ít nhất một finding mức | housed | merge-gate › Tự động ở cổng: ba công tắc riêng, máy chỉ được nói KHÔNG | apps/web/src/config.ts |
+| R6.18 | Hành động cổng do máy thực hiện PHẢI ghi vào sổ với danh tính của tác nhân máy, không | housed | merge-gate › Tự động ở cổng: ba công tắc riêng, máy chỉ được nói KHÔNG | test/doi-soat-cong.test.ts |
+| R6.19 | Tác nhân máy KHÔNG ĐƯỢC merge trong mọi cấu hình | invariant | CLAUDE.md ⛔C1 | test/merge-gate.test.ts |
 | R6.20 | Hệ thống PHẢI đối soát trạng thái thật của pull request với sổ cổng | housed | doi-soat-cong › Sổ cổng phải phản ánh cả hành động xảy ra ngoài cổng | openspec/specs/doi-soat-cong/spec.md |
 | R6.21 | Hàng ngoài-cổng PHẢI phân biệt được với hàng do người bấm trong CheckMate ở mức dữ | housed | doi-soat-cong › Hàng ngoài-cổng không được trông giống hàng qua-cổng | openspec/specs/doi-soat-cong/spec.md |
 | R6.22 | Hàng ngoài-cổng PHẢI nói rõ không có xác nhận finding nào, kèm số finding | housed | doi-soat-cong › Hàng ngoài-cổng không được trông giống hàng qua-cổng | openspec/specs/doi-soat-cong/spec.md |
 | R6.23 | Đối soát PHẢI idempotent: chạy lại nhiều lần không đẻ hàng trùng. Sổ chỉ ghi thêm và | housed | doi-soat-cong › Đối soát idempotent và không bịa | openspec/specs/doi-soat-cong/spec.md |
 | R6.24 | Không đọc được trạng thái pull request (thiếu quyền, mạng hỏng, PR bị xoá) thì PHẢI bỏ | housed | doi-soat-cong › Đối soát idempotent và không bịa | openspec/specs/doi-soat-cong/spec.md |
-| R6.24b | Cột «người» trả lời câu AI ĐÃ THỰC HIỆN, không phải ai đã ghi lại | pending | merge-gate | test/doi-soat-cong.test.ts |
-| R6.24b | cột «người» = AI ĐÃ THỰC HIỆN; đối soát chỉ chép lại → danh tính từ GitHub hoặc «không rõ»; ranh giới với R11.2/R11.4; ba vòng chấm đề nghị sai (M15). KHÔNG có trong doi-soat-cong | precedent | pending: merge-gate → thêm «Vì sao» vào doi-soat-cong › Đối soát idempotent và không bịa | docs/archive/r-rules/R6-verdict-va-cong-merge.md |
+| R6.24b | Cột «người» trả lời câu AI ĐÃ THỰC HIỆN, không phải ai đã ghi lại | housed | doi-soat-cong › Đối soát idempotent và không bịa | test/doi-soat-cong.test.ts |
+| R6.24b | cột «người» = AI ĐÃ THỰC HIỆN; đối soát chỉ chép lại → danh tính từ GitHub hoặc «không rõ»; ranh giới với R11.2/R11.4; ba vòng chấm đề nghị sai (M15). KHÔNG có trong doi-soat-cong | precedent | doi-soat-cong › Đối soát idempotent và không bịa (đoạn «Vì sao») | test/merge-gate.test.ts |
 | R6.25 | Đối soát PHẢI chạy tách khỏi đường chấm | housed | doi-soat-cong › Đối soát không được làm hỏng lượt chấm | openspec/specs/doi-soat-cong/spec.md |
 | R6.26 | Hành động cổng CHỈ tồn tại trong sổ chỉ-ghi-thêm | housed | doi-soat-cong › Hành động cổng chỉ sống trong sổ — bề mặt là bản phái sinh | openspec/specs/doi-soat-cong/spec.md |
 | R6.27 | Mọi mục bị bộ lọc loại khỏi phép đếm PHẢI được đếm và nói ra trong phần mô tả. | housed | doi-soat-cong › Mọi mục không đọc được phải được đếm và nói ra | openspec/specs/doi-soat-cong/spec.md |

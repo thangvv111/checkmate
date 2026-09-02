@@ -26,7 +26,7 @@
 
 ## 4. Bảng tra
 
-- [ ] 4.1 `docs/r-rules-map.md`: R6 · R6.6–R6.12 · R6.15–R6.18 `pending` → `housed` với địa chỉ
+- [x] 4.1 `docs/r-rules-map.md`: R6 · R6.6–R6.12 · R6.15–R6.18 `pending` → `housed` với địa chỉ
       `merge-gate › <tiêu đề>`; R6.12 và R6.24b `precedent` → `housed` (`merge-gate › Chế độ chỉ-đọc…`,
       `doi-soat-cong › Đối soát idempotent và không bịa`); R6.19 giữ `invariant`, cột `evidence` thêm
       `test/merge-gate.test.ts`. Lưới `r-rules-map` đòi `housed` trỏ requirement CÓ THẬT trong
@@ -36,13 +36,13 @@
 ## 5. Kiểm cơ học
 
 - [x] 5.1 `npx tsc --noEmit` sạch · `npm test` xanh TOÀN BỘ.
-- [ ] 5.2 Đo lại neo thư viện tự chấm (cách đo của `retire-r-rules` 5.4): `R6.15`, `R6.19` neo được → 2/25.
+- [x] 5.2 Đo lại neo thư viện tự chấm (cách đo của `retire-r-rules` 5.4): `R6.15`, `R6.19` neo được → 2/25.
 - [x] 5.3 `npx openspec validate --changes` xanh.
 
 ## 6. Nợ có tên (KHÔNG thuộc change này)
 
-- [ ] 6.1 Đổi tên chế độ `demo` → chỉ-đọc trong code + thông điệp + unit systemd prod (deploy có kiểm) —
+- [x] 6.1 Đổi tên chế độ `demo` → chỉ-đọc trong code + thông điệp + unit systemd prod (deploy có kiểm) —
       ghi vào `named-debts` khi archive.
-- [ ] 6.2 Tách điều kiện «chấm lại cùng commit» của handler `/api/runs` (`server.ts:708–717`) thành hàm
+- [x] 6.2 Tách điều kiện «chấm lại cùng commit» của handler `/api/runs` (`server.ts:708–717`) thành hàm
       thuần như đã làm cho merge/reject, để scenario R6.10 khoá được cả nửa route — hiện chỉ khoá nửa dữ
       liệu (`findByPr`, `test/kho-run.test.ts`). Ghi vào `named-debts` khi archive.
