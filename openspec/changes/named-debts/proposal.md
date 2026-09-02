@@ -25,6 +25,7 @@ Luật ra vào:
 | 3 | **Webhook GitHub** realtime có chữ ký — cửa vào không xác thực đầu tiên của sản phẩm | `man-run-va-cong-merge` |
 | 4 | **Bỏ Basic Auth** ở nginx — gói ba việc, rào `/login` đi trước | `man-run-va-cong-merge` |
 | 5 | Dựng lại nội dung **5 màn còn lại** theo gói design CCS | `dong-bo-giao-dien-ccs` |
+| 6 | Repo đích **khai đè** thư mục tài liệu quy trình (router) và danh sách tự dò nguồn spec qua `checkmate.yml`; gỡ mặc định chỉ khi cửa khai đã có | `product-independent-of-openspec` |
 
 ## Luật R chạm tới
 

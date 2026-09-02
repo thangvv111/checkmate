@@ -15,15 +15,19 @@ context: |
   `packages/shared` (kiểu dùng chung). Dữ liệu: SQLite (`web-runs/`) + file JSON (`probes-lib/`,
   `.ncc-verify.json`, `config.json`, `.secrets.json`).
 
-  ⛔ CHỖ SỐNG CỦA LUẬT (PO chốt 01/09; gỡ specs/R*.md 02/09 — change retire-r-rules):
-  · Luật máy đọc sống ở ba chỗ: hằng + validate trong engine (có test khoá) · cấu hình trong
-    `checkmate.yml` · hành vi trong `openspec/specs/<capability>/` (sinh từ change, archive mới thành luật).
-  · `specs/R*.md` (R1–R13) đã gỡ khỏi vai trò luật: bản gốc chỉ đọc ở `docs/archive/r-rules/`, mỗi điều
-    có hàng trong `docs/r-rules-map.md`; điều `pending` backfill thành capability theo bảng chia của
-    change retire-r-rules, mỗi capability một change. Không viết luật vào docs/archive/, không sửa hàng
-    loạt chú thích trích mã R (lưới test/r-rules-map.test.ts giữ mọi mã tra được).
-  · Nguồn spec của REPO ĐÍCH do repo khai (`sources` trong checkmate.yml) hoặc engine tự dò và báo cáo —
-    capability `spec-source`.
+  ⛔ CHỖ SỐNG CỦA LUẬT (PO chốt 01/09 · 02/09):
+  · Luật VẬN HÀNH của sản phẩm = code + test (hành vi) + kho khuôn / prompt / danh mục trigger / rubric
+    (tri thức chấm, shipped trong sản phẩm). Sản phẩm không đọc hồ sơ xây dựng của chính nó lúc chạy;
+    gói deploy không mang hồ sơ (scripts/pack-deploy.sh, lưới test/deploy-bundle.test.ts).
+  · Hồ sơ XÂY DỰNG = openspec/ (requirement + scenario mà change cam kết) · docs/ · CLAUDE.md. Luật máy
+    đọc của tính năng mới vẫn ở ba chỗ: hằng + validate trong engine (có test khoá) · `checkmate.yml`
+    của repo đích · hồ sơ capability.
+  · `specs/R*.md` (R1–R13) đã gỡ 02/09: bản gốc chỉ đọc ở `docs/archive/r-rules/`, mỗi điều có hàng trong
+    `docs/r-rules-map.md`; điều `pending` backfill theo BA ĐÍCH ghi ở đầu bảng (hành vi → code + test ·
+    tri thức vận hành → nạp vào sản phẩm · nguyên tắc xây dựng → CLAUDE.md), mỗi capability một change.
+    Không viết luật vào docs/archive/, không sửa hàng loạt chú thích trích mã R.
+  · Nguồn spec của repo đích do repo khai (`sources` trong checkmate.yml) hoặc engine tự dò và báo cáo —
+    capability `spec-source`. Engine đọc hợp đồng và hồ sơ của mọi repo đích từ bản clone của repo đó.
 
   ⛔ CỔNG TẠM DỪNG (PO chốt 01/09): KHÔNG chờ verdict CheckMate để đi tiếp. Đủ điều kiện sang bước
   sau = code + test xanh + PO duyệt. Đừng poll prod, đừng để PR treo chờ chấm. Lý do: cổng đang

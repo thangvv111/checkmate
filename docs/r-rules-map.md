@@ -17,6 +17,21 @@ Bảng chia change backfill (PO chốt 02/09): `merge-gate` · `verdict-contract
 
 Đếm: pending 210 · precedent 13 · housed 26 · invariant 6 · obsolete 4 — tổng 259 hàng cho 243 mã.
 
+## Ba đích của backfill (PO chốt 02/09 — change `product-independent-of-openspec`)
+
+Luật vận hành của sản phẩm là **code + test + kho khuôn**; `openspec/` là hồ sơ xây dựng. Mỗi change backfill
+phân từng điều `pending` về đúng một đích (điều mang cả luật lẫn án lệ thì hai hàng, hai đích):
+
+| đích | đi đâu | nhận ra bằng |
+|---|---|---|
+| **a. hành vi sản phẩm** | code + test khoá; requirement trong `openspec/specs/` là hồ sơ đi kèm | điều nói «hệ thống PHẢI…» |
+| **b. tri thức vận hành common** | **nạp vào sản phẩm**: kho khuôn `packages/harness/src/trigger-examples.ts` (qua cửa đào thải, trần N mỗi trigger) · prompt · `trigger-catalog.ts` · rubric | án lệ khái quát hoá được thành khuôn thử cho repo khác |
+| **c. nguyên tắc xây dựng** | CLAUDE.md · config OpenSpec | cách làm việc trong repo, không phải hành vi sản phẩm |
+
+Hàng `precedent` ghi «ứng viên kho khuôn (đích b)» là án lệ chưa có trong kho (kho 20 khuôn đã hút R6.26→KL9,
+R5.20→KL10/13/14, R5.17→KL12, R5.19→KL11, R5.18→KL17, R13.8→KL8/16). Nạp hay không là quyết định của change
+backfill tương ứng — không nhét thêm ngoài cửa đào thải.
+
 ## Bảng tra
 
 | code | title | bucket | home | evidence |
@@ -24,6 +39,7 @@ Bảng chia change backfill (PO chốt 02/09): `merge-gate` · `verdict-contract
 | R1 | Phân loại probe bằng MÁY, đối chứng hai nhánh | pending | probe-classification | test/dedup-probe.test.ts |
 | R1.1 | `br` không có kết quả thì trạng thái PHẢI là `khong_chay` | pending | probe-classification | test/phan-loai.test.ts |
 | R1.2 | Probe `skipped` (bị bỏ qua, ví dụ `it.skip`) KHÔNG ĐƯỢC tính là `pass` | pending | probe-classification | test/fixtures/verdict-doi-cu.json |
+| R1.2 | probe `skipped` không được tính là pass — đường lách lưới rẻ nhất | precedent | pending: probe-classification (đoạn «Vì sao») · ứng viên kho khuôn (đích b) | docs/archive/r-rules/R1-phan-loai-probe.md |
 | R1.3 | Xanh cả hai nhánh → `pass`. | pending | probe-classification | — |
 | R1.4 | Đỏ ở nhánh gốc mà xanh ở nhánh PR → `cai_thien` | pending | probe-classification | — |
 | R1.5 | Đỏ ở nhánh PR mà xanh ở nhánh gốc → `hoi_quy` (regression | pending | probe-classification | test/phan-loai.test.ts |
@@ -60,6 +76,7 @@ Bảng chia change backfill (PO chốt 02/09): `merge-gate` · `verdict-contract
 | R2.12 | `checkmate.yml` cú pháp hỏng thì `docReviewCfg` PHẢI fail-safe (hỏng an toàn) về `null`, | pending | target-contract | test/quan-sat-ngoai-pham-vi.test.ts |
 | R2.13 | Nối id probe với testcase PHẢI nhận đủ ba dạng tên mà các bộ chạy sinh ra | pending | target-contract | — |
 | R2.14 | Việc nối id PHẢI kiểm ranh giới | pending | target-contract | test/dedup-probe.test.ts |
+| R2.14 | nối id probe phải kiểm ranh giới: `P1` nuốt kết quả của `P10` khi lượt chấm có từ 10 probe | precedent | pending: target-contract (đoạn «Vì sao») · ứng viên kho khuôn (đích b) | docs/archive/r-rules/R2-hop-dong-repo-dich.md |
 | R2.15 | File probe không nạp được (lỗi import, lỗi cú pháp) vẫn cho ra JUnit XML hợp lệ, nhưng | pending | target-contract | test/loi-nap-file.test.ts |
 | R2.16 | Khi không ghi nhận được probe nào, thông điệp lỗi PHẢI kèm nguyên nhân mà bộ chạy test đã | pending | target-contract | — |
 | R2.17 | Đường dẫn tới repo đích PHẢI được đưa về tuyệt đối trước khi dùng làm đích của symlink hay | pending | target-contract | — |
@@ -148,7 +165,7 @@ Bảng chia change backfill (PO chốt 02/09): `merge-gate` · `verdict-contract
 | R6.12 | Chế độ demo KHÔNG ĐƯỢC cho thao tác cổng merge và KHÔNG ĐƯỢC cho sửa cấu hình. | pending | merge-gate | test/di-tru-bo-cot-cong.test.ts |
 | R6.12 | phạm vi: cấm THAO TÁC cổng, không cấm di trú dữ liệu lúc khởi động (PO 01/09, M16) | precedent | pending: merge-gate (đoạn «Vì sao») | docs/archive/r-rules/R6-verdict-va-cong-merge.md |
 | R6.13 | Lượt chấm PHẢI có ít nhất một probe ở trạng thái `pass`, `hoi_quy` hoặc `cai_thien` thì mới | pending | verdict-contract | packages/harness/src/skill-code.ts |
-| R6.13 | `ngoai_pham_vi` là trạng thái hút: cả bộ probe import sai module → PASS trên lượt không có phép thử nào chạy | precedent | pending: verdict-contract (đoạn «Vì sao») | docs/archive/r-rules/R6-verdict-va-cong-merge.md |
+| R6.13 | `ngoai_pham_vi` là trạng thái hút: cả bộ probe import sai module → PASS trên lượt không có phép thử nào chạy | precedent | pending: verdict-contract (đoạn «Vì sao») · ứng viên kho khuôn (đích b) | docs/archive/r-rules/R6-verdict-va-cong-merge.md |
 | R6.14 | Trước khi bỏ cuộc, lượt chấm PHẢI sinh lại file probe một lần, và lượt sinh lại PHẢI được | pending | verdict-contract | — |
 | R6.15 | Ba việc tự động ở cổng PHẢI là ba công tắc RIÊNG, không được gộp thành một, vì mức độ gây | pending | merge-gate | test/ba-muc-tu-dong.test.ts |
 | R6.16 | Đăng verdict tự động KHÔNG ĐƯỢC giới hạn ở chế độ trực | pending | merge-gate | apps/web/src/config.ts |
@@ -191,14 +208,14 @@ Bảng chia change backfill (PO chốt 02/09): `merge-gate` · `verdict-contract
 | R8.10 | Sandbox chạy trên chính máy chủ CheckMate, không phải trên hạ tầng của nhà cung cấp | pending | concurrent-runs | — |
 | R8.11 | Tiến trình chạy test PHẢI nhận môi trường đã lọc | pending | concurrent-runs | test/env-cli.test.ts |
 | R8.12 | Môi trường truyền cho MỌI tiến trình con | pending | concurrent-runs | — |
-| R8.12 | bản trước truyền cả môi trường rồi cắt một tên → `GITHUB_TOKEN` chảy sang tiến trình CLI ở mọi lượt | precedent | pending: concurrent-runs (đoạn «Vì sao») | docs/archive/r-rules/R8-chay-song-song.md |
+| R8.12 | bản trước truyền cả môi trường rồi cắt một tên → `GITHUB_TOKEN` chảy sang tiến trình CLI ở mọi lượt | precedent | pending: concurrent-runs (đoạn «Vì sao») · ứng viên kho khuôn (đích b) | docs/archive/r-rules/R8-chay-song-song.md |
 | R9 | Tầng dữ liệu: lớp kho và sổ cái chỉ-ghi-thêm | pending | data-layer | test/dedup-probe.test.ts |
 | R9.1 | Route, tầng dựng giao diện và harness KHÔNG được đọc/ghi đĩa hay gọi SQL trực tiếp | pending | data-layer | — |
 | R9.2 | Lớp kho là nơi DUY NHẤT biết mình đang chạy trên SQLite | pending | data-layer | — |
 | R9.3 | Mở cơ sở dữ liệu phải bật `foreign_keys` và dùng chế độ nhật ký `WAL`, vì nhiều lượt chấm | pending | data-layer | — |
 | R9.4 | Bảng sổ cái chỉ nhận `INSERT`. `UPDATE` và `DELETE` lên bảng đó PHẢI bị cơ sở dữ liệu từ | pending | data-layer | test/kho-socai.test.ts |
 | R9.4b | `PRAGMA recursive_triggers` là thiết lập theo từng kết nối, không lưu trong file cơ sở | pending | data-layer | — |
-| R9.4b | cùng câu REPLACE: qua `moDb()` bị chặn, kết nối riêng lọt → chỉ-ghi-thêm là bất biến ỨNG DỤNG, không của file | precedent | pending: data-layer (đoạn «Vì sao») | docs/archive/r-rules/R9-tang-du-lieu.md |
+| R9.4b | cùng câu REPLACE: qua `moDb()` bị chặn, kết nối riêng lọt → chỉ-ghi-thêm là bất biến ỨNG DỤNG, không của file | precedent | pending: data-layer (đoạn «Vì sao») · ứng viên kho khuôn (đích b) | docs/archive/r-rules/R9-tang-du-lieu.md |
 | R9.5 | Một verdict chỉ vào sổ đúng một lần | pending | data-layer | test/kho-socai.test.ts |
 | R9.6 | Sổ hành động cổng (ai merge, ai trả về dev, chấp nhận cảnh báo nào) là một bảng riêng, cũng | pending | data-layer | test/fixtures/thu-vien-doi-cu.json |
 | R9.7 | Dữ liệu đang nằm trên đĩa (file run JSON, `verdict-ledger.jsonl`, `review-log.jsonl`, | pending | data-layer | test/di-tru.test.ts |
@@ -226,8 +243,9 @@ Bảng chia change backfill (PO chốt 02/09): `merge-gate` · `verdict-contract
 | R10.9 | Mỗi probe thư viện tích luỹ lịch sử kết quả theo từng lượt | pending | probe-library | packages/harness/src/probe-library.ts |
 | R10.10 | Lịch sử hành vi có trần (20 lượt gần nhất) | pending | probe-library | packages/harness/src/probe-library.ts |
 | R10.11 | Lời gọi model phân xử KHÔNG được nằm trong khoá thư viện ([R8.4](R8-chay-song-song.md)): | pending | probe-library | packages/harness/src/probe-library.ts |
+| R10.11 | đọc thư viện NGOÀI khoá, quyết định, rồi nạp trong khoá với kiểm lại — lời gọi model không được nằm trong khoá liên tiến trình | precedent | pending: probe-library (đoạn «Vì sao») · ứng viên kho khuôn (đích b) | docs/archive/r-rules/R10-thu-vien-tung-probe.md |
 | R10.12 | Ghi sổ thư viện (`meta.json`) PHẢI atomic | pending | probe-library | test/thu-vien.test.ts |
-| R10.12 | fallback-rỗng rồi ghi đè biến một sổ rách thành xoá sổ cả thư viện trong im lặng | precedent | pending: probe-library (đoạn «Vì sao») | docs/archive/r-rules/R10-thu-vien-tung-probe.md |
+| R10.12 | fallback-rỗng rồi ghi đè biến một sổ rách thành xoá sổ cả thư viện trong im lặng | precedent | pending: probe-library (đoạn «Vì sao») · ứng viên kho khuôn (đích b) | docs/archive/r-rules/R10-thu-vien-tung-probe.md |
 | R10.13 | Di trú PHẢI ghi sổ mới TRƯỚC rồi mới xoá file bộ cũ, và CHỈ xoá file bộ đã di trú trọn | invariant | CLAUDE.md § Dữ liệu prod là tài sản | test/thu-vien.test.ts |
 | R10.14 | Trần thư viện đọc từ biến môi trường chỉ nhận số nguyên sạch | pending | probe-library | — |
 | R10.15 | Đọc thư viện diễn ra ngoài khoá (R10.11) nên PHẢI chịu được file bị lượt song song dọn | pending | probe-library | — |

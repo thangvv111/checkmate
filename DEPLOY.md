@@ -172,26 +172,30 @@ cp -rp web-runs probes-lib runs $SL/ 2>/dev/null
 du -sh $SL          # ghi lại số này
 ```
 
-**Bước 2 — đóng gói CHỈ SOURCE trên máy dev:**
+**Bước 2 — đóng gói CHỈ SẢN PHẨM trên máy dev** (script tự kiểm ba lớp: bí mật · dữ liệu prod · hồ sơ xây dựng):
 ```
 cd <thư mục cha của checkmate>
-tar --exclude=node_modules --exclude=.git \
-    --exclude=config.json --exclude=.secrets.json --exclude=.ncc-verify.json \
-    --exclude=web-runs --exclude=probes-lib --exclude='probes-lib-*' \
-    --exclude=runs --exclude=repos --exclude='*.log' --exclude='bench/kq' \
-    --exclude=.worktrees --exclude='*.tar.gz' \
-    -czf checkmate-deploy.tar.gz checkmate demo-credit-approval demo-python
-# KIỂM gói trước khi gửi — lệnh dưới phải KHÔNG in ra dòng nào:
-tar -tzf checkmate-deploy.tar.gz | grep -E "secrets|/config\.json|ncc-verify|web-runs/|probes-lib/|checkmate/runs/"
+bash checkmate/scripts/pack-deploy.sh checkmate-deploy.tar.gz   # in "OK: …" — có mục vi phạm thì liệt kê tên, xoá gói, thoát 1
 scp checkmate-deploy.tar.gz ubuntu@47.131.132.95:~
 ```
+Gói KHÔNG mang `openspec/`, `docs/`, `test/`, `bench/`, `_ref/`, `.claude/`, `scripts/`, `checkmate.yml`, luật
+của agent (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`) — đó là hồ sơ xây dựng, không phải sản phẩm (PO chốt
+02/09). Engine đọc hợp đồng và hồ sơ của mọi repo đích từ bản clone `repos/…`, không từ thư mục deploy.
+Lưới `test/deploy-bundle.test.ts` giữ danh sách loại đủ; thêm thư mục xây dựng mới thì thêm vào script,
+kẻo lưới đỏ.
 
 **Bước 3 — giải nén, cài, khởi động lại:**
 ```
 tar -xzf ~/checkmate-deploy.tar.gz -C ~/checkmate-app
+# DỌN MỘT LẦN (lần deploy đầu sau change product-independent-of-openspec): tar không xoá thứ các lần
+# deploy trước đã đẩy lên. Chỉ xoá hồ sơ xây dựng — KHÔNG đụng web-runs, probes-lib, runs, repos, bí mật.
+rm -rf ~/checkmate-app/checkmate/{openspec,docs,test,bench,_ref,.claude,.github,probes-lib-bench,scripts}
+rm -f  ~/checkmate-app/checkmate/{checkmate.yml,AGENTS.md,CLAUDE.md,GEMINI.md,vitest.config.ts,.gitignore}
 cd ~/checkmate-app/checkmate && npm install --no-audit --no-fund
 sudo systemctl restart checkmate
 ```
+Sau lần deploy đầu bằng script: chạy một lượt chấm trên repo demo để xác nhận gói không thiếu thứ sản
+phẩm cần (sai về phía «thiếu» phải lộ ngay ở đây, không phải ở người dùng).
 
 **Bước 4 — xác nhận dữ liệu còn nguyên (đối chiếu với số ở bước 1):**
 ```

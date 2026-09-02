@@ -1,9 +1,8 @@
-# CheckMate tự chấm chính mình. File này là hợp đồng của repo checkmate với engine — hợp đồng runner/review
-# thuộc capability `target-contract` (đang backfill; mã cũ R2 tra ở docs/r-rules-map.md).
+# Hợp đồng repo đích với engine CheckMate: sources · runner · review. Hợp đồng runner/review thuộc
+# capability `target-contract` (đang backfill; mã cũ R2 tra ở docs/r-rules-map.md).
 
 # Nguồn engine đọc để chấm. Không khai thì engine tự dò (specs/ · spec/ · openspec/specs/ …) và ghi ra
-# đã dò ở đâu. Repo này khai tường minh: luật đang hiệu lực CHỈ ở openspec/specs/ — specs/R*.md đã gỡ
-# 02/09/2026 (bản gốc chỉ đọc ở docs/archive/r-rules/, bảng tra docs/r-rules-map.md).
+# đã dò ở đâu.
 sources:
   specs:
     - openspec/specs/**/*.md # luật máy đọc, sinh từ change — archive mới thành luật
