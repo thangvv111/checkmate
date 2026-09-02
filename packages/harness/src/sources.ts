@@ -176,7 +176,9 @@ export function readSources(cfg: SourcesCfg | null, tree: TreeFile[], read: (pat
   };
 }
 
-const TEN: Record<SourceKey, string> = { specs: 'Nguồn spec', api_doc: 'Tài liệu API', test_sample: 'File test mẫu' };
+// `process_docs` chỉ router dùng (định tuyến PR), engine chấm không nạp nó — nhưng vẫn phải có tên ở đây
+// để bảng này phủ ĐỦ `SourceKey`: thiếu một khoá là thiếu một lời khi mẫu của nó bị loại.
+const TEN: Record<SourceKey, string> = { specs: 'Nguồn spec', api_doc: 'Tài liệu API', test_sample: 'File test mẫu', process_docs: 'Thư mục tài liệu quy trình' };
 
 function taSo(p: SourceProbe): string {
   return p.units === undefined ? `${p.files} file` : `${p.files} file · ${p.units} đơn vị`;

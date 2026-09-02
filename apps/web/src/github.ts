@@ -3,7 +3,7 @@ import type { CheckmateConfig } from './config.js';
 import { readRepoToken } from './secret-vault.js';
 // Hợp đồng nguồn spec ở TẦNG NỀN: app không được import engine (lưới kien-truc-tang) — web và engine
 // chỉ nói chuyện qua tiến trình CLI. Một glob, một cửa đọc `sources` cho cả router lẫn engine.
-import { matchPattern, readSourcesCfg, SPEC_CANDIDATES } from '../../../packages/shared/src/spec-source.js';
+import { matchPattern, readSourcesCfg, laThuMucQuyTrinh, PROCESS_DOC_DIRS, PROCESS_DOC_EXTS, SPEC_CANDIDATES } from '../../../packages/shared/src/spec-source.js';
 
 /**
  * Chìa dùng cho một lời gọi API, suy từ CHÍNH path đang gọi (R4.18).
@@ -287,6 +287,7 @@ function nguonFetch(github: string): string {
 export function classifyPr(
   dsVao: readonly string[],
   mauNguonSpec?: readonly unknown[],
+  mauThuMucQuyTrinh?: readonly unknown[],
 ): { loai: 'code' | 'doc'; lyDo: string; fileDocUngVien: string[]; khongDoc: string[] } {
   // R13.8 áp cho CẢ CỤM, không chỉ từng phần tử: gọi với null/undefined/chuỗi/đối tượng đều phải rơi
   // về code, không ném — hàm đứng đầu pipeline mà ném là cả lượt chấm chết (vòng ba của cổng bắt).
@@ -299,10 +300,14 @@ export function classifyPr(
   const nguonMacDinh = mauKhai.length === 0;
   const mauDung: readonly string[] = nguonMacDinh ? SPEC_CANDIDATES : mauKhai;
   const laNguonSpec = (f: string): string | undefined => mauDung.find((p) => matchPattern(p, [{ path: f }]).length > 0);
+  // Thư mục TÀI LIỆU QUY TRÌNH: repo đích khai (`sources.process_docs`), không khai thì mặc định như trước.
+  // Mẫu méo hoặc rỗng sau khi lọc → mặc định, KHÔNG rơi về «mọi thứ là tài liệu» (fail-closed).
+  const mauQt = Array.isArray(mauThuMucQuyTrinh) ? mauThuMucQuyTrinh.filter((x): x is string => typeof x === 'string' && x.trim().length > 0) : [];
+  const thuMucQuyTrinh: readonly string[] = mauQt.length ? mauQt : PROCESS_DOC_DIRS;
   // Đuôi VĂN BẢN THUẦN — áp ở mọi nơi trong repo.
   const DUOI_VAN_BAN = ['.md', '.txt'];
-  // Đuôi CẤU HÌNH QUY TRÌNH — chỉ có nghĩa BÊN TRONG `openspec/`. Engine chấm không đọc thư mục đó.
-  const DUOI_QUY_TRINH = ['.md', '.txt', '.yaml', '.yml', '.json'];
+  // Đuôi CẤU HÌNH QUY TRÌNH — chỉ có nghĩa BÊN TRONG thư mục tài liệu quy trình. Hằng của engine.
+  const DUOI_QUY_TRINH = PROCESS_DOC_EXTS;
 
   const laVanBan = (f: unknown): boolean => {
     // Phần tử không phải chuỗi → KHÔNG phải văn bản (fail-closed R13.8). Ném ở đây là làm sập cả
@@ -316,9 +321,11 @@ export function classifyPr(
     // cố định: bản trước gắn cứng `specs/`, nên sau khi luật của repo này dời sang `openspec/specs/**`,
     // PR chỉ sửa luật đi đường tài liệu — đúng cái lỗ router sinh ra để bịt (change retire-r-rules).
     if (laNguonSpec(f) !== undefined) return false;
-    // Dưới `openspec/`: chỉ các đuôi cấu hình quy trình. Cho cả THƯ MỤC là văn bản thuần thì
-    // `openspec/hack.ts` cũng thành tài liệu — cửa né probe rộng nhất, do chính luật này mở ra.
-    if (f.startsWith('openspec/')) return DUOI_QUY_TRINH.some((d) => t.endsWith(d));
+    // Dưới thư mục TÀI LIỆU QUY TRÌNH (repo khai, mặc định `openspec/`): chỉ các đuôi cấu hình quy trình.
+    // Cho cả THƯ MỤC là văn bản thuần thì `openspec/hack.ts` cũng thành tài liệu — cửa né probe rộng nhất,
+    // do chính luật này mở ra. Đuôi là HẰNG của engine: repo nói tài liệu của nó NẰM ĐÂU, không nói cái gì
+    // là tài liệu.
+    if (laThuMucQuyTrinh(f, thuMucQuyTrinh)) return DUOI_QUY_TRINH.some((d) => t.endsWith(d));
     // KHÔNG chuẩn hoá dấu `\`: `git diff --name-only` luôn trả `/`, nên `\` là TÊN FILE thật do
     // maker đặt. KHÔNG nhận `openspec` trơ: git liệt kê FILE, không liệt kê thư mục.
     return DUOI_VAN_BAN.some((d) => t.endsWith(d));
@@ -418,7 +425,9 @@ export function fetchAndRoute(cfg: CheckmateConfig, so: number): FetchedPr {
   // vào của router bằng nội dung của chính nó, và PR đụng checkmate.yml vốn đã bị kéo về code.
   const nguonSpec = readSourcesCfg(lp);
   if (!nguonSpec?.specs?.length) console.log(`Định tuyến PR #${so}: repo không khai sources.specs (hoặc không đọc được) — dùng danh sách tự dò mặc định, lệch về phía code`);
-  const pl = classifyPr(filesDoi, nguonSpec?.specs);
+  // Mẫu bị loại phải NÓI RA: im lặng bỏ qua khiến người khai tin thư mục của họ đã được nhận.
+  for (const r of nguonSpec?.rejected ?? []) console.log(`Định tuyến PR #${so}: bỏ mẫu sources.${r.key} «${r.pattern}» — ${r.reason}`);
+  const pl = classifyPr(filesDoi, nguonSpec?.specs, nguonSpec?.process_docs);
   // R13.6 — nói ra quyết định: router quyết trong im lặng thì người đọc verdict không biết vì sao PR
   // của mình đi đường nào, và một quyết định không ai thấy là quyết định không ai kiểm được.
   // Đường doc log SAU khi chốt fileDoc, để dòng log nêu đúng tài liệu được đem đi chấm.

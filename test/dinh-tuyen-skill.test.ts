@@ -277,3 +277,62 @@ describe('fetchAndRoute ghép readSourcesCfg → classifyPr — không cần m�
     }
   });
 });
+
+describe('classifyPr — thư mục tài liệu quy trình do repo khai (declarable-process-docs)', () => {
+  const NGUON = ['openspec/specs/**/*.md'];
+
+  it('[T3.1] repo khai thư mục riêng → PR chỉ đổi tài liệu ở đó đi đường doc', () => {
+    expect(classifyPr(['rfcs/0007-cache.md'], undefined, ['rfcs/']).loai).toBe('doc');
+    expect(classifyPr(['adr/012-storage.md'], undefined, ['adr', 'rfcs/']).loai).toBe('doc');
+  });
+
+  it('[T3.2] file mã nguồn TRONG thư mục đã khai vẫn là code — đuôi là hằng của engine', () => {
+    // Repo nói tài liệu của nó NẰM ĐÂU, không nói cái gì LÀ tài liệu. Cho khai đuôi là mở cửa né probe.
+    expect(classifyPr(['rfcs/tool.ts'], undefined, ['rfcs/']).loai).toBe('code');
+    expect(classifyPr(['rfcs/build.sh'], undefined, ['rfcs/']).loai).toBe('code');
+  });
+
+  it('[T3.3] nguồn spec THẮNG thư mục tài liệu — PR sửa luật vẫn đi đường code', () => {
+    expect(classifyPr(['openspec/specs/merge-gate/spec.md'], NGUON, ['openspec/']).loai).toBe('code');
+    // đối chứng: cùng thư mục nhưng KHÔNG thuộc nguồn spec → doc
+    expect(classifyPr(['openspec/changes/x/proposal.md'], NGUON, ['openspec/']).loai).toBe('doc');
+  });
+
+  it('[T1.2] tên thư mục so ĐÚNG HOA THƯỜNG — `OpenSpec/` là thư mục khác trên Linux', () => {
+    // Kèm một .md vì skill doc phải có tài liệu để đọc (luật «đường doc đòi có tài liệu») — ca này
+    // canh THƯ MỤC, nên phần .md giữ cố định ở cả hai vế.
+    expect(classifyPr(['OpenSpec/config.yaml', 'ghi-chu.md'], undefined, ['openspec/']).loai).toBe('code');
+    expect(classifyPr(['openspec/config.yaml', 'ghi-chu.md'], undefined, ['openspec/']).loai).toBe('doc');
+  });
+
+  it('[T1.3] khớp theo CẤU TRÚC: mẫu `rfcs` khớp `rfcs/x.md` nhưng không khớp `rfcs-notes.md`', () => {
+    expect(classifyPr(['rfcs/x.md'], undefined, ['rfcs']).loai).toBe('doc');
+    // `rfcs-notes.md` là .md ở gốc nên vẫn là văn bản thuần theo luật cũ — kiểm bằng file đuôi lạ:
+    expect(classifyPr(['rfcs-notes.yaml'], undefined, ['rfcs']).loai).toBe('code');
+  });
+
+  it('[T3.5] không khai → hành vi y hệt hôm nay (mặc định openspec/)', () => {
+    expect(classifyPr(['openspec/config.yaml', 'CLAUDE.md']).loai).toBe('doc');
+    expect(classifyPr(['.github/workflows/ci.yml']).loai).toBe('code');
+    expect(classifyPr(['openspec/hack.ts']).loai).toBe('code');
+  });
+
+  it('[T4.1] mẫu méo ở mọi tầng → rơi về mặc định, KHÔNG rơi về «mọi thứ là tài liệu»', () => {
+    for (const m of [null, undefined, 'rfcs/', 5, [null, 5, '']] as unknown[]) {
+      expect(() => classifyPr(['rfcs/x.md'], undefined, m as never)).not.toThrow();
+      // mặc định là openspec/ → rfcs/x.md là .md ở ngoài, vẫn văn bản thuần; dùng đuôi lạ để thấy rõ:
+      expect(classifyPr(['rfcs/x.yaml'], undefined, m as never).loai).toBe('code');
+    }
+  });
+
+  it('[T4.2] khai `.github/` LÀ khai được — nhưng chỉ khi tường minh, không bao giờ do mặc định', () => {
+    expect(classifyPr(['.github/workflows/ci.yml', 'ghi-chu.md'], undefined, ['.github/']).loai).toBe('doc');
+    expect(classifyPr(['.github/workflows/ci.yml', 'ghi-chu.md']).loai).toBe('code');
+  });
+
+  it('khai thư mục KHÔNG đủ để đi đường doc: vẫn phải có .md để skill doc đọc (lớp gác thứ hai)', () => {
+    // Một file .yaml đơn độc dưới thư mục đã khai vẫn về code — lớp «đường doc đòi có tài liệu» giữ nguyên.
+    expect(classifyPr(['rfcs/note.yaml'], undefined, ['rfcs/']).loai).toBe('code');
+    expect(classifyPr(['rfcs/note.yaml', 'rfcs/0007.md'], undefined, ['rfcs/']).loai).toBe('doc');
+  });
+});

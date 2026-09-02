@@ -27,7 +27,7 @@ runner:
       ../packages/harness/src/target.js      → buildDiff · readTarget · listTree · extractRuleIds · findNewRules · suggestModulePath
       ../packages/harness/src/runner.js      → parseJUnit · readRunnerCfg · readReviewCfg · readSourcesCfg · diffIgnorePatterns
       ../packages/harness/src/sources.js     → readSources · describeSources · matchPattern · globToRegExp · skipReason · SPEC_CANDIDATES · API_DOC_CANDIDATES · TEST_SAMPLE_CANDIDATES · MAX_SOURCE_BYTES
-      ../packages/shared/src/spec-source.js  → readSourcesCfg · matchPattern · globToRegExp · loiCuPhapAnToan · SPEC_CANDIDATES · API_DOC_CANDIDATES · TEST_SAMPLE_CANDIDATES
+      ../packages/shared/src/spec-source.js  → readSourcesCfg · matchPattern · globToRegExp · loiCuPhapAnToan · laThuMucQuyTrinh · SPEC_CANDIDATES · API_DOC_CANDIDATES · TEST_SAMPLE_CANDIDATES · PROCESS_DOC_DIRS · PROCESS_DOC_EXTS
       ../packages/harness/src/sandbox.js     → fileLoadError · Sandbox
       ../packages/harness/src/probe-library.js    → admitToLibrary · pickEvictionVictim · readProbeLibrary · withLibraryLock · repoSlug · splitOneProbe · cutTestBlock · hasTestBlock · checkBalanced · splitRule · updateHistory · findAndDropBehaviorDuplicates
       ../packages/harness/src/trigger-examples.js   → getCodeExamples · getDocExamples · knowledgeByTrigger · TRIGGER_EXAMPLES · EXAMPLE_CAP · EXAMPLES_PER_TRIGGER
