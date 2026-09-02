@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { SUPPORTED_FORMATS, extractText } from './extract.js';
 import { GOC } from '../../../packages/shared/src/paths.js';
 import { RunManager } from './runs.js';
-import { escHtml, shell, returnedToDevSection, prListSection, homePage, runPage, settingsPage } from './ui.js';
+import { escHtml, shell, returnedToDevSection, prListSection, homePage, runPage, settingsPage, findingHtml, verdictHtml } from './ui.js';
 import {
   SESSION_COOKIE_NAME,
   hasAnyAccount,
@@ -837,7 +837,9 @@ app.get('/api/runs/:id/info', (req, res) => {
 app.get('/runs/:id', (req, res) => {
   const st = rm.lay(req.params.id);
   if (!st) return res.status(404).send(shell('CheckMate', '<h1>Không tìm thấy run</h1><p class="sub"><a href="/">← quay lại</a></p>'));
-  res.send(runPage(st.meta, req.query.replay === '1', Math.min(32, Math.max(1, Number(req.query.speed) || 1)), ai(req)));
+  // Lượt đã xong: đưa cả dòng sự kiện xuống để máy chủ DỰNG SẴN nội dung. Lượt đang chạy: đưa phần
+  // đã có để trang mở ra không trống, rồi luồng nối tiếp từ đúng chỗ đó (`?tu=`).
+  res.send(runPage(st.meta, req.query.trinh_dien === '1', st.events, ai(req)));
 });
 
 // ---- Cổng merge / trả về dev (spec §10) ----
@@ -924,6 +926,27 @@ app.post('/api/runs/:id/reject', async (req, res) => {
   }
 });
 
+/**
+ * Gắn HTML ĐÃ DỰNG vào sự kiện trước khi phát đi.
+ *
+ * Trình duyệt không tự ghép HTML của finding hay verdict — nó nhận chuỗi và chèn. Nhờ vậy chỉ có
+ * MỘT hàm dựng mỗi loại, dùng chung cho đường máy chủ dựng sẵn lẫn đường luồng. Hai bản dựng song
+ * song thì bản ít người nhìn hơn sẽ lệch trước, và lệch im lặng.
+ */
+function kemHtml(ev: { t: number; e: unknown }): { t: number; e: unknown; html?: string } {
+  const e = ev.e as { type?: string; finding?: Parameters<typeof findingHtml>[0]; verdict?: Parameters<typeof verdictHtml>[0] };
+  if (e.type === 'finding' && e.finding) return { ...ev, html: findingHtml(e.finding) };
+  if (e.type === 'verdict' && e.verdict) return { ...ev, html: verdictHtml(e.verdict) };
+  return ev;
+}
+
+/** Dòng sự kiện dạng JSON — bản trình diễn tải một lần rồi tự canh nhịp ở phía trình duyệt. */
+app.get('/api/runs/:id/su-kien', (req, res) => {
+  const st = rm.lay(req.params.id);
+  if (!st) return res.status(404).json({ loi: 'Không tìm thấy lượt chấm.' });
+  res.json(st.events.map(kemHtml));
+});
+
 app.get('/api/runs/:id/events', (req, res) => {
   const st = rm.lay(req.params.id);
   if (!st) return res.status(404).end();
@@ -938,27 +961,21 @@ app.get('/api/runs/:id/events', (req, res) => {
    * Số hiệu là CHỈ SỐ trong dòng sự kiện, nên nó bền qua cả việc máy chủ khởi động lại: sổ trên đĩa
    * giữ đúng thứ tự đó.
    */
+  // `tu` = số sự kiện máy chủ ĐÃ DỰNG SẴN vào trang; `Last-Event-ID` = chỗ đứt khi trình duyệt tự
+  // nối lại. Lấy giá trị LỚN HƠN: cả hai đều nói «đã có tới đây rồi», và lấy nhầm giá trị nhỏ là
+  // đổ lại thứ đã hiện.
   const daCo = Number(req.headers['last-event-id']);
-  const batTu = Number.isFinite(daCo) && daCo >= 0 ? daCo + 1 : 0;
+  const tuHeader = Number.isFinite(daCo) && daCo >= 0 ? daCo + 1 : 0;
+  const tuQuery = Math.max(0, Number(req.query.tu) || 0);
+  const batTu = Math.max(tuHeader, tuQuery);
   let ke = batTu;
   const gui = (ev: { t: number; e: unknown }) => {
-    res.write(`id: ${ke}\ndata: ${JSON.stringify(ev)}\n\n`);
+    res.write(`id: ${ke}\ndata: ${JSON.stringify(kemHtml(ev))}\n\n`);
     ke++;
   };
   // `__END__` là dấu chấm hết, không phải một sự kiện của lượt chấm — phát KHÔNG kèm số hiệu để lần
   // nối lại sau vẫn tiếp đúng từ sự kiện thật cuối cùng.
   const guiHet = () => res.write(`data: ${JSON.stringify({ t: 0, e: { type: 'log', msg: '__END__' } })}\n\n`);
-
-  const timed = req.query.timed === '1' && st.meta.trangThai !== 'dang_chay';
-  if (timed) {
-    // phát lại đúng nhịp thời gian gốc (chế độ sân khấu); ?speed=N để tua nhanh khi tổng duyệt
-    const speed = Math.min(32, Math.max(1, Number(req.query.speed) || 1));
-    const timers = st.events.map((ev) => setTimeout(() => gui(ev), Math.round(ev.t / speed)));
-    const cuoi = Math.round((st.events.length ? st.events[st.events.length - 1].t : 0) / speed);
-    const ket = setTimeout(() => { guiHet(); res.end(); }, cuoi + 300);
-    req.on('close', () => { timers.forEach(clearTimeout); clearTimeout(ket); });
-    return;
-  }
 
   for (const ev of st.events.slice(batTu)) gui(ev);
   if (st.meta.trangThai !== 'dang_chay') {

@@ -41,14 +41,14 @@ Năm commit tách bạch: hợp đồng → bền dòng sự kiện → server-r
 
 ## 3. Commit 3 — SERVER-RENDER LƯỢT ĐÃ XONG
 
-- [ ] 3.1 Tách hàm dựng HTML cho **finding** và cho **thẻ verdict** thành hàm dùng được ở CẢ hai
+- [x] 3.1 Tách hàm dựng HTML cho **finding** và cho **thẻ verdict** thành hàm dùng được ở CẢ hai
       phía. Đây là chỗ dễ đẻ ra hai bản lệch nhau nhất — client phải nhận chuỗi đã dựng, không tự ghép.
-- [ ] 3.2 `runPage` — trạng thái `xong`: server dựng thẳng từ `meta.verdict`. Không mở luồng.
-- [ ] 3.3 Trạng thái `dang_chay`: server dựng phần đã có, luồng nối phần còn lại. Lượt kết thúc thì
+- [x] 3.2 `runPage` — trạng thái `xong`: server dựng thẳng từ `meta.verdict`. Không mở luồng.
+- [x] 3.3 Trạng thái `dang_chay`: server dựng phần đã có, luồng nối phần còn lại. Lượt kết thúc thì
       cổng merge hiện **tại chỗ**.
-- [ ] 3.4 Xoá cái hack `↻ Tải lại trang để mở cổng Merge / Trả về dev`. Nó là triệu chứng của nửa
+- [x] 3.4 Xoá cái hack `↻ Tải lại trang để mở cổng Merge / Trả về dev`. Nó là triệu chứng của nửa
       server nửa client, và người dùng đang gánh chỗ nối.
-- [ ] 3.5 Bỏ nhánh `timed`/`speed` khỏi `server.ts` — máy chủ còn MỘT đường phát sự kiện.
+- [x] 3.5 Bỏ nhánh `timed`/`speed` khỏi `server.ts` — máy chủ còn MỘT đường phát sự kiện.
 
 ## 4. Commit 4 — MÀN RUN
 
@@ -69,7 +69,7 @@ Năm commit tách bạch: hợp đồng → bền dòng sự kiện → server-r
       động (lockfile, kết quả build) vẫn ghi log nhưng KHÔNG dựng banner: nó không đổi cách đọc verdict.
 - [ ] 4.8 Banner **không có đối chứng** đặt ở ĐẦU bước 4, không phải chú thích cuối — nó đổi cách đọc
       toàn bộ phần sau.
-- [ ] 4.9 Banner **verdict stale** + nút «Chấm lại commit mới», cổng khoá. Vá chỗ NÓI; đường ghi đã
+- [x] 4.9 Banner **verdict stale** + nút «Chấm lại commit mới», cổng khoá. Vá chỗ NÓI; đường ghi đã
       chặn sẵn ba lớp và không đụng tới.
 - [ ] 4.9b **Theo dõi head TRONG lúc chấm** (PO chốt): trong khi lượt chạy trên một pull request, hỏi
       lại head theo nhịp (~30s); head đổi thì đánh dấu hết-hiệu-lực NGAY — phát sự kiện để người đang
@@ -95,7 +95,7 @@ Năm commit tách bạch: hợp đồng → bền dòng sự kiện → server-r
 - [ ] 5.4 **Ghi chú trả về dev thành BẮT BUỘC** — nút vô hiệu khi ô trống, và nói rõ vì sao. Trả về
       mà không nói lý do thì dev không biết vá gì, mà hành động đó đã vào sổ chỉ-ghi-thêm.
 - [ ] 5.5 Lượt không gắn PR → nói thẳng «không có cổng merge», KHÔNG để khối biến mất im lặng.
-- [ ] 5.6 Đang trình diễn → cổng chỉ-đọc, nói rõ đây là bản phát lại. Điều kiện đọc thẳng từ trạng
+- [x] 5.6 Đang trình diễn → cổng chỉ-đọc, nói rõ đây là bản phát lại. Điều kiện đọc thẳng từ trạng
       thái màn, KHÔNG phải tham số truyền qua nhiều lớp hàm.
 - [ ] 5.7 Receipt sau merge / trả về dev theo gói, kèm hướng dẫn reopen.
 - [ ] 5.8 **Người chạy** vào bảng meta; lượt do chế độ trực khởi động khai là lượt máy chạy, không
@@ -104,13 +104,13 @@ Năm commit tách bạch: hợp đồng → bền dòng sự kiện → server-r
 ## 6. Lưới
 
 - [ ] 6.1 Bản ghi verdict đời cũ (thiếu mọi trường mới) vẫn parse và vẫn dựng được màn.
-- [ ] 6.2 Lượt đã xong: phản hồi ĐẦU TIÊN đã chứa verdict và finding — không cần lượt gọi thứ hai.
-- [ ] 6.3 Trình diễn: cổng chỉ-đọc; và không đường nào từ chế độ đó gọi được hành động cổng.
+- [x] 6.2 Lượt đã xong: phản hồi ĐẦU TIÊN đã chứa verdict và finding — không cần lượt gọi thứ hai.
+- [x] 6.3 Trình diễn: cổng chỉ-đọc; và không đường nào từ chế độ đó gọi được hành động cổng.
 - [ ] 6.4 Nối lại sau khi đứt: không finding hay dòng log nào lặp.
 - [ ] 6.5 Vùng xám probe hiện đủ bốn số kể cả khi bằng không.
 - [ ] 6.6 Vùng mù: file mã nguồn vượt trần → CÓ banner; chỉ lockfile → KHÔNG banner.
 - [ ] 6.7 Ghi chú trống → không trả về dev được.
-- [ ] 6.8 Verdict stale → cổng khoá và trang nói ra trước khi người dùng bấm.
+- [x] 6.8 Verdict stale → cổng khoá và trang nói ra trước khi người dùng bấm.
 - [ ] 6.9b Head đổi giữa lượt chấm → đánh dấu ngay, lượt vẫn chạy tới hết, và cổng khoá ngay ở lần
       mở đầu tiên. Head KHÔNG đổi → không thêm lời gọi GitHub nào sau khi lượt kết thúc.
 - [ ] 6.9 Dựng lại `run_su_kien` từ `events.jsonl` cho ra đúng dòng sự kiện.

@@ -2,8 +2,9 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chuanMuc } from '../../../packages/shared/src/types.js';
+import type { Finding, Verdict } from '../../../packages/shared/src/types.js';
 import { MODE, readConfig } from './config.js';
-import type { RunMeta } from './runs.js';
+import type { RunMeta, StoredEvent } from './runs.js';
 import { JS_PROVIDER } from './ui-provider.js';
 import { JS_REPO } from './ui-repo.js';
 
@@ -833,7 +834,15 @@ ${v.mode === 'org' ? '<button>Lưu cấu hình</button>' : '<p class="goiy">Bả
   );
 }
 
-function khoiCong(meta: RunMeta): string {
+function khoiCong(meta: RunMeta, trinhDien = false): string {
+  // Trình diễn là một CHẾ ĐỘ XEM. Điều kiện chỉ-đọc đọc thẳng từ đây, không phải từ một tham số ai
+  // đó phải nhớ truyền qua bốn lớp hàm — bản trước hỏng đúng vì lý do đó: hàm này không hề biết
+  // mình đang nằm trong một bản phát lại, nên nó bày một nút Merge THẬT.
+  if (trinhDien) {
+    return `<div class="cong" style="border-style:dashed"><h3>Cổng merge — chỉ đọc</h3>
+<p class="goiy" style="margin:0">Đang xem bản trình diễn của lượt chấm này. Mọi hành động cổng đều
+khoá ở đây; thoát trình diễn để thao tác thật.</p></div>`;
+  }
   if (!meta.pr || meta.trangThai !== 'xong' || !meta.verdict) return '';
   const so = meta.pr.so;
   if (meta.ketQuaCong) {
@@ -862,68 +871,256 @@ ${nutMerge}
 <p class="goiy" style="margin-top:8px">Trả về dev = post phán quyết đầy đủ lên PR <b>và đóng PR</b> để nó rời hàng đợi chờ duyệt (khỏi bị chạy kiểm lại vô ích). Dev vá xong push lên nhánh cũ rồi <b>Reopen</b> chính PR này — lịch sử review giữ nguyên.</p></div>`;
 }
 
-export function runPage(meta: RunMeta, replay: boolean, speed = 1, nguoi = ''): string {
-  const stages = ['Nhận artifact', 'Nạp spec / rubric', 'Sinh phép thử đối kháng', 'Chạy & đối chiếu bằng chứng', 'Kết luận'];
+/**
+ * Áp MỘT sự kiện lên DOM. Dùng chung cho luồng trực tiếp và cho bản trình diễn.
+ *
+ * `html` là chuỗi ĐÃ DỰNG SẴN từ máy chủ — trình duyệt không tự ghép HTML của finding hay verdict.
+ * Đó là điều kiện để chỉ có MỘT hàm dựng: bản nào ít người nhìn hơn sẽ lệch trước, và lệch im lặng.
+ */
+const JS_VE = `
+function ve(e, html){
+  if(e.type==='stage'){
+    for(var i=1;i<e.stage;i++){var t=document.querySelector('[data-s="'+i+'"]');if(t)t.className='done';}
+    var c=document.querySelector('[data-s="'+e.stage+'"]');if(c)c.className='on';
+    window.__buoc=e.stage;
+  } else if(e.type==='log'){
+    if(e.msg==='__END__')return;
+    var b=document.getElementById('logs-'+(window.__buoc||1));
+    if(b){var d=document.createElement('div');d.className='logline';d.textContent=e.msg;b.appendChild(d);}
+  } else if(e.type==='finding'){
+    if(html) document.getElementById('findings').insertAdjacentHTML('beforeend', html);
+  } else if(e.type==='verdict'){
+    document.querySelectorAll('.stages li').forEach(function(li){li.className='done';});
+    if(html) document.getElementById('verdict-o').innerHTML = html;
+  } else if(e.type==='head_moved'){
+    // Head đổi GIỮA lượt chấm: nói ra ngay, đừng đợi ai tải lại trang. Verdict sắp ra đời đã hết
+    // hiệu lực ở cổng — người đang xem phải biết trước khi họ bấm.
+    if(!document.getElementById('stale-bn')){
+      var w=document.createElement('div');w.id='stale-bn';w.className='cong';
+      w.style.borderColor='var(--medium)';w.style.background='var(--medium-tint)';
+      w.innerHTML='<b>Verdict sẽ hết hiệu lực.</b> PR đã nhận commit mới ('+String(e.new_sha||'').slice(0,7)+
+        ') trong lúc đang chấm — lượt này vẫn chạy tới hết để đọc, nhưng cổng merge sẽ khoá.';
+      var s=document.getElementById('stages');s.parentNode.insertBefore(w,s);
+    }
+  } else if(e.type==='error'){
+    var er=document.getElementById('err');er.style.display='block';
+    var x=document.createElement('div');x.style.marginBottom='6px';
+    x.innerHTML='<b>LỖI:</b> '+String(e.msg).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});
+    er.appendChild(x);
+  }
+}`;
+
+/** Cổng merge: mở nút Merge khi đã tick đủ cảnh báo medium, và ép ghi chú trả-về-dev. */
+const JS_CONG = `
+(function(){
+  var tick=document.querySelectorAll('.tick-med');
+  if(tick.length||document.getElementById('nut-merge')){
+    var capNhat=function(){
+      var n=0;tick.forEach(function(x){if(x.checked)n++;});
+      var o=document.getElementById('tick_ids');
+      if(o)o.value=[].filter.call(tick,function(x){return x.checked;}).map(function(x){return x.dataset.fid;}).join(',');
+      var nut=document.getElementById('nut-merge');
+      if(nut)nut.disabled = n!==tick.length;
+      var g=document.getElementById('goiy-merge');
+      if(g)g.textContent = n===tick.length?'':'còn '+(tick.length-n)+' cảnh báo chưa tick';
+    };
+    tick.forEach(function(c){c.addEventListener('change',capNhat);});
+    capNhat();
+  }
+  // Ghi chú trả về dev là BẮT BUỘC: trả về mà không nói vì sao thì dev không biết vá gì, mà hành
+  // động đó đã đi vào sổ chỉ-ghi-thêm.
+  var oGhi=document.getElementById('ghi-chu-tra-ve'), nutTra=document.getElementById('nut-tra-ve');
+  if(oGhi&&nutTra){
+    var doi=function(){nutTra.disabled = oGhi.value.trim().length===0;};
+    oGhi.addEventListener('input',doi);doi();
+  }
+})();`;
+
+/** Nối luồng cho lượt ĐANG CHẠY. `tu` = số sự kiện máy chủ đã dựng sẵn, để không nhận lại. */
+function jsLuong(id: string, tu: number): string {
+  return `
+var es=new EventSource('/api/runs/${id}/events?tu=${tu}');
+es.onmessage=function(m){
+  var g=JSON.parse(m.data);
+  if(g.e.type==='log'&&g.e.msg==='__END__'){es.close();location.reload();return;}
+  ve(g.e,g.html);
+};
+es.onerror=function(){};`;
+}
+
+/**
+ * Trình diễn: nhịp canh Ở PHÍA NÀY, từ mốc `t` sẵn có trên mỗi sự kiện.
+ *
+ * Trước đợt này nhịp do máy chủ xếp `setTimeout` cho từng sự kiện, tốc độ nằm trong URL, và đổi tốc
+ * độ nghĩa là tải lại trang. Chuyển sang đây thì máy chủ còn MỘT đường phát sự kiện, đổi tốc độ và
+ * tạm dừng thành tức thì — và quan trọng hơn: «đang trình diễn» thành TRẠNG THÁI CỦA MÀN chứ không
+ * còn là một địa chỉ, nên cổng chỉ-đọc đọc thẳng từ đó.
+ */
+function jsTrinhDien(id: string): string {
+  return `
+(function(){
+  var SU=[],i=0,tocDo=8,hen=null,moc=0,dung=false;
+  var oTocDo=document.getElementById('td-toc'), oDung=document.getElementById('td-dung');
+  function chay(){
+    if(dung||i>=SU.length)return;
+    var ev=SU[i];
+    hen=setTimeout(function(){moc=ev.t;ve(ev.e,ev.html);i++;chay();},Math.max(0,(ev.t-moc)/tocDo));
+  }
+  function ngat(){if(hen){clearTimeout(hen);hen=null;}}
+  if(oTocDo)oTocDo.addEventListener('click',function(e){
+    var b=e.target.closest('[data-toc]');if(!b)return;
+    tocDo=Number(b.dataset.toc);
+    oTocDo.querySelectorAll('[data-toc]').forEach(function(x){x.classList.toggle('on',x===b);});
+    ngat();chay();               // đổi tốc độ GIỮA CHỪNG: chỉ đổi nhịp chờ kế tiếp, không mất chỗ
+  });
+  if(oDung)oDung.addEventListener('click',function(){
+    dung=!dung;oDung.textContent=dung?'▶ Tiếp':'❚❚ Tạm dừng';
+    if(dung)ngat();else chay();
+  });
+  fetch('/api/runs/${id}/su-kien').then(function(r){return r.json();}).then(function(d){SU=d;chay();});
+})();`;
+}
+
+function JS_RUN(meta: RunMeta, trinhDien: boolean, daDung: number): string {
+  if (trinhDien) return JS_VE + JS_CONG + jsTrinhDien(meta.id);
+  if (meta.trangThai !== 'dang_chay') return JS_CONG; // tĩnh hoàn toàn — không mở luồng nào
+  return JS_VE + JS_CONG + jsLuong(meta.id, daDung);
+}
+
+/** Năm bước của một lượt chấm — dùng chung cho cả đường server dựng lẫn đường luồng. */
+const BUOC = ['Nhận artifact', 'Nạp spec / rubric', 'Sinh phép thử đối kháng', 'Chạy & đối chiếu bằng chứng', 'Kết luận'];
+
+/** Khối bằng chứng của một finding. */
+function bangChungHtml(ev: Finding['evidence']): string {
+  if (ev.type === 'quote_pair') {
+    return `<div class="ev"><div class="loc">${escHtml(ev.loc_a)}</div><div class="q">«${escHtml(ev.quote_a)}»</div>
+<div class="loc" style="margin-top:6px">đối lại — ${escHtml(ev.loc_b)}</div><div class="q">«${escHtml(ev.quote_b)}»</div></div>`;
+  }
+  if (ev.type === 'quote') {
+    return `<div class="ev"><div class="loc">${escHtml(ev.rule)} — ${escHtml(ev.loc)}</div><div class="q">«${escHtml(ev.quote)}»</div></div>`;
+  }
+  return `<div class="ev"><div class="loc">${escHtml(ev.probe_name)}</div><pre>kỳ vọng:  ${escHtml(ev.expected)}
+thực tế:  ${escHtml((ev.actual || '').split('\n')[0])}</pre></div>`;
+}
+
+/**
+ * HTML của MỘT finding — hàm DUY NHẤT dựng nó.
+ *
+ * Trước đây có hai bản: một bản ghép chuỗi trong JS phía trình duyệt (đường duy nhất, vì lượt đã
+ * xong cũng phải phát lại dòng sự kiện mới có nội dung). Nay lượt đã xong do máy chủ dựng, còn lượt
+ * đang chạy nhận HTML ĐÃ DỰNG SẴN qua luồng. Một hàm, một cách hiện — nếu để hai bản thì chúng sẽ
+ * lệch nhau, và bản ít người nhìn hơn sẽ lệch trước.
+ */
+export function findingHtml(f: Finding): string {
+  const muc = chuanMuc(f.severity);
+  const nhan = { high: '✗ HIGH — chặn merge', medium: '⚠ MEDIUM — cảnh báo', low: '△ LOW' }[muc] ?? muc;
+  // Phân loại ODC — telemetry, chỉ hiện khi CÓ. Giá trị 'unknown' VẪN hiện: model trả một mã không
+  // đọc được khác hẳn model im lặng, và gộp hai cái là mất một tín hiệu về chính model.
+  const pl = [f.odc_type && `type: ${f.odc_type}`, f.qualifier && `qualifier: ${f.qualifier}`].filter(Boolean).join(' · ');
+  return `<div class="finding sev-${muc}">
+<div class="sev">${nhan}${pl ? ` <span style="opacity:.72;font-weight:400">· ${escHtml(pl)}</span>` : ''}</div>
+<h3>${escHtml(f.title_vi)}</h3>
+<div class="row"><b>Điều gì sai:</b> ${escHtml(f.what_vi)}</div>
+<div class="row"><b>Hậu quả:</b> ${escHtml(f.consequence_vi)}</div>
+${f.minimal_fix ? `<div class="row"><b>Bản vá tối thiểu:</b> ${escHtml(f.minimal_fix)}</div>` : ''}
+${bangChungHtml(f.evidence)}</div>`;
+}
+
+/** HTML của thẻ verdict + khối quan sát ngoài phạm vi. Hàm DUY NHẤT dựng chúng. */
+export function verdictHtml(v: Verdict): string {
+  const dem = (m: string): number => v.findings.filter((f) => chuanMuc(f.severity) === m).length;
+  const cp = v.chi_phi;
+  const kk = (n: number): string => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
+  const sCp = cp
+    ? ` · ${cp.uoc_tinh ? '~' : ''}${kk(cp.token_vao)} token vào / ${cp.uoc_tinh ? '~' : ''}${kk(cp.token_ra)} ra (${cp.calls} call${cp.uoc_tinh ? ', ước tính' : ''})`
+    : '';
+  const qs = v.quan_sat_ngoai_pr ?? [];
+  const khoiQs = qs.length
+    ? `<div class="ev" style="margin-top:10px"><div class="loc">Quan sát NGOÀI phạm vi PR — không tính vào verdict (lỗi tồn tại trên cả nhánh gốc, nên mở việc riêng)</div>${qs
+        .map(
+          (q) =>
+            `<div class="logline" style="padding-left:0">${q.loai === 'nghi_loi_co_san' ? '⚠ nghi LỖI CÓ SẴN' : '· ngoài phạm vi'} — ${escHtml(q.probe_id)} (${escHtml(q.spec_rule)}): ${escHtml(q.ten)}</div>`,
+        )
+        .join('')}</div>`
+    : '';
+  return `<div class="verdict ${v.result}"><div class="kq">${v.result === 'FAIL' ? '✗ FAIL — bị bác' : '✓ PASS — qua cổng'}</div>
+<div class="chitiet">${escHtml(v.artifact_ref.name)} @ ${escHtml(v.artifact_ref.sha_or_hash.slice(0, 10))} · ${v.findings.length} finding (${dem('high')} high · ${dem('medium')} medium · ${dem('low')} low) · ${escHtml(v.model)}${escHtml(sCp)}</div></div>${khoiQs}`;
+}
+
+export function runPage(meta: RunMeta, trinhDien: boolean, suKien: StoredEvent[] = [], nguoi = ''): string {
+  const xong = meta.trangThai !== 'dang_chay';
+
+  // Lượt ĐÃ KẾT THÚC là dữ liệu tĩnh: verdict, finding, số liệu đều đã nằm trên máy chủ. Dựng thẳng
+  // ở đây thay vì bắt trình duyệt phát lại toàn bộ dòng sự kiện để có nội dung — trước đợt này, mở
+  // một lượt của tuần trước cũng phải chạy lại cả dòng sự kiện, và không có kịch bản là trang trắng.
+  // Máy chủ dựng sẵn ở MỌI trạng thái trừ trình diễn — lượt đang chạy cũng không nên mở ra trống rồi
+  // đợi luồng đổ lại từ đầu. Luồng nối tiếp từ đúng chỗ đã dựng (`?tu=`), nên không có gì hiện hai lần.
+  const dungSan = !trinhDien;
+  const daDung = dungSan ? suKien.length : 0;
+
+  // Bước cuối cùng đã bắt đầu — để đánh dấu đúng khi lượt còn đang chạy dở.
+  const buocCuoi = suKien.reduce((n, x) => (x.e.type === 'stage' ? x.e.stage : n), 0);
+
+  const buocHtml = BUOC.map((s, i) => {
+    const so = i + 1;
+    const lop = !dungSan ? '' : xong ? ' class="done"' : so < buocCuoi ? ' class="done"' : so === buocCuoi ? ' class="on"' : '';
+    return `<li data-s="${so}"${lop}>${s}<div id="logs-${so}">${
+      dungSan
+        ? suKien
+            .filter((x) => x.e.type === 'log' && (x.e as { msg: string }).msg !== '__END__' && thuocBuoc(suKien, x, so))
+            .map((x) => `<div class="logline">${escHtml((x.e as { msg: string }).msg)}</div>`)
+            .join('')
+        : ''
+    }</div></li>`;
+  }).join('');
+
+  // Lượt đã xong thì verdict là bản chuẩn; lượt đang chạy thì lấy finding đã phát ra tới giờ.
+  const dsFinding = xong && meta.verdict
+    ? meta.verdict.findings
+    : suKien.filter((x) => x.e.type === 'finding').map((x) => (x.e as { finding: Finding }).finding);
+
+  // Head đổi giữa chừng — dựng sẵn để lượt mở lại vẫn thấy, không chỉ người đang xem trực tiếp.
+  const headDoi = meta.verdict?.head_moved ?? (suKien.find((x) => x.e.type === 'head_moved')?.e as { new_sha: string } | undefined);
+  const banStale = dungSan && headDoi
+    ? `<div class="cong" id="stale-bn" style="border-color:var(--medium);background:var(--medium-tint)">
+<b>Verdict hết hiệu lực.</b> PR đã nhận commit mới (<span class="mono">${escHtml(headDoi.new_sha.slice(0, 7))}</span>)
+kể từ lúc lượt chấm này bắt đầu — cổng merge khoá. Chấm lại commit mới rồi mới merge được.</div>`
+    : '';
+
   return shell(
     `${escHtml(meta.tieuDe)} — CheckMate`,
     `<h1>${escHtml(meta.tieuDe)}</h1>
-<p class="sub">Run <code>${meta.id}</code> · skill ${meta.skill} · ${replay ? 'PHÁT LẠI từ cache (nhịp thời gian thật)' : 'chạy trực tiếp'}
-&nbsp;·&nbsp;<a href="/">← về trang chọn</a>${meta.trangThai === 'xong' && !replay ? ` &nbsp;·&nbsp; <a class="btn phu" href="/runs/${meta.id}?replay=1">▶ Phát lại</a> <a class="btn phu" href="/runs/${meta.id}?replay=1&speed=8" title="tua nhanh cho tổng duyệt">⏩ ×8</a>` : ''}</p>
-<ul class="stages" id="stages">${stages.map((s, i) => `<li data-s="${i + 1}">${s}<div id="logs-${i + 1}"></div></li>`).join('')}</ul>
-<div id="findings"></div>
-<div class="verdict" id="verdict"><div class="kq"></div><div class="chitiet"></div></div>
-${khoiCong(meta)}
-<div class="err" id="err"></div>`,
-    `const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let cur=0;
-function evHtml(ev){
- if(ev.type==='quote_pair')return '<div class="ev"><div class="loc">'+esc(ev.loc_a)+'</div><div class="q">«'+esc(ev.quote_a)+'»</div>'+
-  '<div class="loc" style="margin-top:6px">đối lại — '+esc(ev.loc_b)+'</div><div class="q">«'+esc(ev.quote_b)+'»</div></div>';
- if(ev.type==='quote')return '<div class="ev"><div class="loc">'+esc(ev.rule)+' — '+esc(ev.loc)+'</div><div class="q">«'+esc(ev.quote)+'»</div></div>';
- return '<div class="ev"><div class="loc">'+esc(ev.probe_name)+'</div><pre>kỳ vọng:  '+esc(ev.expected)+'\\nthực tế:  '+esc((ev.actual||'').split('\\n')[0])+'</pre></div>';
-}
-function ve(e){
- if(e.type==='stage'){for(let i=1;i<e.stage;i++)document.querySelector('[data-s="'+i+'"]').className='done';
-  document.querySelector('[data-s="'+e.stage+'"]').className='on';cur=e.stage;}
- else if(e.type==='log'&&e.msg!=='__END__'){const b=document.getElementById('logs-'+(cur||1));
-  if(b){const d=document.createElement('div');d.className='logline';d.textContent=e.msg;b.appendChild(d);}}
- else if(e.type==='finding'){const f=e.finding,d=document.createElement('div');
-  const muc=f.severity==='blocking'?'high':(f.severity==='non_blocking'?'medium':f.severity);
-  d.className='finding sev-'+muc;
-  const nhan={high:'✗ HIGH — chặn merge',medium:'⚠ MEDIUM — cảnh báo',low:'△ LOW'}[muc]||muc;
-  /* Phân loại ODC — telemetry, chỉ hiện khi CÓ; vắng thì không chiếm chỗ, và "unknown" vẫn hiện
-     để người đọc biết model đã trả một giá trị không đọc được (khác hẳn với model im lặng). */
-  const pl=[f.odc_type&&('type: '+f.odc_type),f.qualifier&&('qualifier: '+f.qualifier)].filter(Boolean).join(' · ');
-  d.innerHTML='<div class="sev">'+nhan+(pl?' <span style="opacity:.72;font-weight:400">· '+esc(pl)+'</span>':'')+'</div><h3>'+esc(f.title_vi)+'</h3>'+
-   '<div class="row"><b>Điều gì sai:</b> '+esc(f.what_vi)+'</div><div class="row"><b>Hậu quả:</b> '+esc(f.consequence_vi)+'</div>'+
-   (f.minimal_fix?'<div class="row"><b>Bản vá tối thiểu:</b> '+esc(f.minimal_fix)+'</div>':'')+evHtml(f.evidence);
-  document.getElementById('findings').appendChild(d);}
- else if(e.type==='verdict'){const v=e.verdict;document.querySelectorAll('.stages li').forEach(li=>li.className='done');
-  const kv=document.getElementById('verdict');kv.className='verdict '+v.result;
-  kv.querySelector('.kq').textContent=v.result==='FAIL'?'✗ FAIL — bị bác':'✓ PASS — qua cổng';
-  const dm=m=>v.findings.filter(f=>(f.severity==='blocking'?'high':(f.severity==='non_blocking'?'medium':f.severity))===m).length;
-  var cp=v.chi_phi, sCp='';
-  if(cp){ var kk=function(n){return n>=1000?(n/1000).toFixed(1)+'k':String(n);};
-    sCp=' · '+(cp.uoc_tinh?'~':'')+kk(cp.token_vao)+' token vào / '+(cp.uoc_tinh?'~':'')+kk(cp.token_ra)+' ra ('+cp.calls+' call'+(cp.uoc_tinh?', ước tính':'')+')'; }
-  kv.querySelector('.chitiet').textContent=v.artifact_ref.name+' @ '+v.artifact_ref.sha_or_hash.slice(0,10)+
-   ' · '+v.findings.length+' finding ('+dm('high')+' high · '+dm('medium')+' medium · '+dm('low')+' low) · '+v.model+sCp;
-  const qs=v.quan_sat_ngoai_pr||[];
-  if(qs.length){const box=document.createElement('div');box.className='ev';box.style.marginTop='10px';
-   box.innerHTML='<div class="loc">Quan sát NGOÀI phạm vi PR — không tính vào verdict (lỗi tồn tại trên cả nhánh gốc, nên mở việc riêng)</div>'+
-   qs.map(q=>'<div class="logline" style="padding-left:0">'+(q.loai==='nghi_loi_co_san'?'⚠ nghi LỖI CÓ SẴN':'· ngoài phạm vi')+' — '+esc(q.probe_id)+' ('+esc(q.spec_rule)+'): '+esc(q.ten)+'</div>').join('');
-   kv.after(box);}
-  if(!document.querySelector('.cong')&&${meta.pr ? 'true' : 'false'}){const a=document.createElement('p');
-   a.innerHTML='<a class="btn" href="">↻ Tải lại trang để mở cổng Merge / Trả về dev</a>';kv.after(a);}}
- else if(e.type==='error'){const er=document.getElementById('err');er.style.display='block';const d=document.createElement('div');d.style.marginBottom='6px';d.innerHTML='<b>LỖI:</b> '+esc(e.msg);er.appendChild(d);}
-}
-document.querySelectorAll('.tick-med').forEach(c=>c.addEventListener('change',()=>{
-  const t=document.querySelectorAll('.tick-med');const n=[...t].filter(x=>x.checked).length;
-  document.getElementById('tick_ids').value=[...t].filter(x=>x.checked).map(x=>x.dataset.fid).join(',');
-  document.getElementById('nut-merge').disabled = n!==t.length;
-}));
-const es=new EventSource('/api/runs/${meta.id}/events${replay ? (speed > 1 ? `?timed=1&speed=${speed}` : '?timed=1') : ''}');
-es.onmessage=m=>{const{e}=JSON.parse(m.data);if(e.type==='log'&&e.msg==='__END__'){es.close();return;}ve(e);};
-es.onerror=()=>{};`,
+<p class="sub">Run <code>${escHtml(meta.id)}</code> · skill ${escHtml(meta.skill)} · ${
+      trinhDien ? 'TRÌNH DIỄN — cổng chỉ đọc' : xong ? 'đã kết thúc' : 'đang chạy'
+    }
+&nbsp;·&nbsp;<a href="/">← về trang chọn</a>${
+      xong && !trinhDien
+        ? ` &nbsp;·&nbsp; <a class="btn phu" href="/runs/${escHtml(meta.id)}?trinh_dien=1" title="phát lại theo nhịp gốc — cổng khoá trong chế độ này">▶ Trình diễn</a>`
+        : ''
+    }${trinhDien ? ` &nbsp;·&nbsp; <a class="btn phu" href="/runs/${escHtml(meta.id)}">✕ Thoát trình diễn</a>` : ''}</p>
+${banStale}<ul class="stages" id="stages">${buocHtml}</ul>
+<div id="findings">${dungSan ? dsFinding.map(findingHtml).join('') : ''}</div>
+<div id="verdict-o">${dungSan && meta.verdict ? verdictHtml(meta.verdict) : ''}</div>
+${khoiCong(meta, trinhDien)}
+<div class="err" id="err"${dungSan && meta.trangThai === 'loi' ? ' style="display:block"' : ''}>${
+      dungSan && meta.trangThai === 'loi'
+        ? suKien
+            .filter((x) => x.e.type === 'error')
+            .map((x) => `<div style="margin-bottom:6px"><b>LỖI:</b> ${escHtml((x.e as { msg: string }).msg)}</div>`)
+            .join('')
+        : ''
+    }</div>`,
+    JS_RUN(meta, trinhDien, daDung),
     { nguoi },
   );
+}
+
+/** Dòng log thuộc bước nào — suy từ mốc `stage` gần nhất trước nó. */
+function thuocBuoc(suKien: StoredEvent[], x: StoredEvent, buoc: number): boolean {
+  let hienTai = 1;
+  for (const s of suKien) {
+    if (s.e.type === 'stage') hienTai = s.e.stage;
+    if (s === x) return hienTai === buoc;
+  }
+  return false;
 }
