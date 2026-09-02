@@ -13,7 +13,7 @@ import { parse as parseYaml } from 'yaml';
  * `packages/harness/src/sources.ts`.
  */
 
-export type SourceKey = 'specs' | 'api_doc' | 'test_sample';
+export type SourceKey = 'specs' | 'api_doc' | 'test_sample' | 'process_docs';
 
 /** Một file trong cây nguồn của nhánh đang chấm — đường repo-relative, dấu `/`. */
 export interface TreeFile {
@@ -27,8 +27,44 @@ export interface SourcesCfg {
   specs?: string[];
   api_doc?: string[];
   test_sample?: string[];
-  /** Đường bị loại ngay ở cửa đọc (tuyệt đối, hoặc có `..`) — mang theo để báo ra, không im lặng. */
+  /**
+   * Thư mục chứa TÀI LIỆU QUY TRÌNH của repo đích (`openspec/`, `rfcs/`, `adr/`…). Router định tuyến coi
+   * file dưới đây — với các đuôi cố định của engine — là văn bản thuần, tức PR chỉ đổi chúng đi đường doc.
+   * Không khai → mặc định `PROCESS_DOC_DIRS`.
+   */
+  process_docs?: string[];
+  /** Đường bị loại ngay ở cửa đọc (tuyệt đối, có `..`, hoặc mẫu chạm gốc repo) — mang theo để báo ra, không im lặng. */
   rejected?: Array<{ key: SourceKey; pattern: string; reason: string }>;
+}
+
+/**
+ * Thư mục tài liệu quy trình MẶC ĐỊNH khi repo đích không khai. Giữ đúng hành vi đã có từ trước khi có
+ * khoá `process_docs`.
+ */
+export const PROCESS_DOC_DIRS = ['openspec/'];
+
+/**
+ * Đuôi được coi là tài liệu quy trình — HẰNG CỦA ENGINE, repo đích KHÔNG khai đè được.
+ *
+ * Cho repo khai đuôi thì `rfcs/tool.ts` thành «tài liệu» và PR có mã thực thi đi đường doc: cửa né probe
+ * rộng nhất. Repo được quyền nói tài liệu quy trình của nó NẰM ĐÂU, không được quyền nói cái gì là tài liệu.
+ */
+export const PROCESS_DOC_EXTS = ['.md', '.txt', '.yaml', '.yml', '.json'];
+
+/**
+ * File có nằm dưới một thư mục tài liệu quy trình đã khai không.
+ *
+ * So TIỀN TỐ THƯ MỤC, không dùng glob, và giữ đúng ba tính chất đã chốt của luật định tuyến:
+ *  - tên thư mục so ĐÚNG HOA THƯỜNG (engine chạy trên Linux, `OpenSpec/` là thư mục KHÁC `openspec/`);
+ *    dùng `matchPattern` ở đây sẽ so không phân biệt hoa thường và phá đúng tính chất này;
+ *  - KHÔNG chuẩn hoá `\` thành `/`: `git diff --name-only` luôn trả `/`, nên `\` là TÊN FILE thật;
+ *  - khớp theo CẤU TRÚC: mẫu `rfcs` khớp `rfcs/x.md` nhưng KHÔNG khớp `rfcs-notes.md`.
+ */
+export function laThuMucQuyTrinh(file: string, mau: readonly string[]): boolean {
+  return mau.some((m) => {
+    const d = m.endsWith('/') ? m : `${m}/`;
+    return file.startsWith(d);
+  });
 }
 
 /**
@@ -154,6 +190,21 @@ function lyDoNgoaiRepo(duong: string): string | null {
 }
 
 /**
+ * `process_docs` NỚI phía tài liệu (ngược với `specs` — khai đè đó chỉ SIẾT), nên nó có gác riêng: mẫu
+ * phải nêu ÍT NHẤT MỘT TẦNG THƯ MỤC.
+ *
+ * `**`, `*`, `.`, `/` hay chuỗi rỗng biến mọi `.md`/`.yaml` của repo thành tài liệu quy trình — kể cả
+ * file CI. Gác này không chặn được người CỐ Ý khai `.github/` (đó là quyền của repo đích, và `checkmate.yml`
+ * vốn đi đường code nên PR mở cửa ấy vẫn bị chấm bằng probe), nhưng chặn ca VÔ TÌNH rộng tay — ca thường gặp.
+ */
+function lyDoKhongPhaiThuMuc(duong: string): string | null {
+  const t = duong.replace(/\\/g, '/').replace(/\/+$/, '').trim();
+  if (t === '' || t === '.' || t === '*' || t === '**') return 'phải nêu ít nhất một tầng thư mục — mẫu chạm gốc repo biến mọi tài liệu của repo thành tài liệu quy trình';
+  if (/[*?[\]{}]/.test(t)) return 'thư mục tài liệu quy trình nhận đường thư mục, không nhận mẫu glob';
+  return null;
+}
+
+/**
  * Mục `sources` — repo khai spec, tài liệu API, file test mẫu của nó nằm đâu. Mỗi khoá nhận một
  * chuỗi hay một danh sách; không khai (hoặc file hỏng) thì null và engine tự dò rồi báo cáo.
  * Cửa song sinh thứ ba của `readRunnerCfg`/`readReviewCfg` (harness): cùng luật fail-safe, cùng lời báo an toàn.
@@ -175,14 +226,16 @@ export function readSourcesCfg(repoPath: string): SourcesCfg | null {
     const x = s[key];
     if (x == null) return undefined;
     const ok: string[] = [];
+    // Mọi khoá đi qua ĐÚNG MỘT cửa đọc: luật loại đường ngoài repo và cơ chế `rejected` áp y nguyên.
+    // Khoá `process_docs` có thêm một gác riêng vì nó nới chứ không siết (xem `lyDoKhongPhaiThuMuc`).
     for (const d of (Array.isArray(x) ? x : [x]).map((v) => String(v).trim()).filter(Boolean)) {
-      const ly = lyDoNgoaiRepo(d);
+      const ly = lyDoNgoaiRepo(d) ?? (key === 'process_docs' ? lyDoKhongPhaiThuMuc(d) : null);
       if (ly) rejected.push({ key, pattern: d, reason: ly });
       else ok.push(d);
     }
     return ok;
   };
-  const cfg: SourcesCfg = { specs: doc('specs'), api_doc: doc('api_doc'), test_sample: doc('test_sample') };
+  const cfg: SourcesCfg = { specs: doc('specs'), api_doc: doc('api_doc'), test_sample: doc('test_sample'), process_docs: doc('process_docs') };
   if (rejected.length) cfg.rejected = rejected;
-  return cfg.specs || cfg.api_doc || cfg.test_sample ? cfg : null;
+  return cfg.specs || cfg.api_doc || cfg.test_sample || cfg.process_docs ? cfg : null;
 }

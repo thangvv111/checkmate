@@ -14,6 +14,7 @@ import {
   type TreeFile,
 } from '../packages/harness/src/sources.js';
 import { readSourcesCfg } from '../packages/harness/src/runner.js';
+import { laThuMucQuyTrinh, PROCESS_DOC_DIRS } from '../packages/shared/src/spec-source.js';
 import { readTarget, listTree } from '../packages/harness/src/target.js';
 
 /**
@@ -301,4 +302,74 @@ describe('readTarget trên repo git thật — đọc từ cây nhánh, không �
     expect(t.luatMoi).toEqual([]);
     expect(describeSources(t.sources)[0]).toContain('KHÔNG thấy spec nào');
   }, GIT_TIMEOUT);
+});
+
+describe('readSourcesCfg — khoá process_docs (thư mục tài liệu quy trình)', () => {
+  const thuMuc = mkdtempSync(join(tmpdir(), 'cm-pd-'));
+  afterAll(() => rmSync(thuMuc, { recursive: true, force: true }));
+  let dem = 0;
+  const viet = (yml: string): string => {
+    const d = join(thuMuc, `r${dem++}`);
+    mkdirSync(d);
+    writeFileSync(join(d, 'checkmate.yml'), yml);
+    return d;
+  };
+
+  it('[T2.1] chuỗi hay danh sách đều nhận', () => {
+    expect(readSourcesCfg(viet('sources:\n  process_docs: rfcs/\n'))?.process_docs).toEqual(['rfcs/']);
+    expect(readSourcesCfg(viet('sources:\n  process_docs:\n    - rfcs/\n    - adr\n'))?.process_docs).toEqual(['rfcs/', 'adr']);
+  });
+
+  it('[T2.2] đường ngoài repo bị loại kèm lý do, phần hợp lệ giữ lại — cùng luật với sources.specs', () => {
+    const c = readSourcesCfg(viet('sources:\n  process_docs:\n    - /etc/\n    - ../x/\n    - rfcs/\n'))!;
+    expect(c.process_docs).toEqual(['rfcs/']);
+    expect(c.rejected?.map((r) => r.pattern)).toEqual(['/etc/', '../x/']);
+    expect(c.rejected?.every((r) => r.key === 'process_docs')).toBe(true);
+  });
+
+  it('[T2.3] mẫu chạm gốc repo bị TỪ CHỐI — khai báo này NỚI nên phải gác', () => {
+    // `**` biến mọi .md/.yaml của repo thành tài liệu quy trình, kể cả file CI.
+    for (const m of ['**', '*', '.']) {
+      const c = readSourcesCfg(viet(`sources:\n  process_docs: '${m}'\n`))!;
+      expect(c.process_docs, `mẫu «${m}» phải bị loại`).toEqual([]);
+      expect(c.rejected?.[0]!.reason).toMatch(/ít nhất một tầng thư mục|không nhận mẫu glob/);
+    }
+    // `/` cũng bị loại, nhưng bởi gác ĐƯỜNG TUYỆT ĐỐI (chạy trước) — lý do khác, kết quả cùng chiều.
+    const goc = readSourcesCfg(viet("sources:\n  process_docs: '/'\n"))!;
+    expect(goc.process_docs).toEqual([]);
+    expect(goc.rejected?.[0]!.reason).toContain('đường tuyệt đối');
+  });
+
+  it('[T2.3b] mẫu glob cũng bị từ chối — khoá này nhận ĐƯỜNG THƯ MỤC, không nhận glob', () => {
+    const c = readSourcesCfg(viet('sources:\n  process_docs: docs/*/notes\n'))!;
+    expect(c.process_docs).toEqual([]);
+    expect(c.rejected?.[0]!.reason).toContain('không nhận mẫu glob');
+  });
+
+  it('[T2.4] không khai → trường vắng; khai mỗi process_docs vẫn ra cấu hình (không cần specs)', () => {
+    expect(readSourcesCfg(viet('sources:\n  specs: specs/**/*.md\n'))?.process_docs).toBeUndefined();
+    expect(readSourcesCfg(viet('sources:\n  process_docs: rfcs/\n'))).not.toBeNull();
+  });
+});
+
+describe('laThuMucQuyTrinh — so tiền tố thư mục, giữ ba tính chất của luật định tuyến', () => {
+  it('khớp theo CẤU TRÚC, không theo tiền tố chuỗi', () => {
+    expect(laThuMucQuyTrinh('rfcs/x.md', ['rfcs'])).toBe(true);
+    expect(laThuMucQuyTrinh('rfcs/x.md', ['rfcs/'])).toBe(true);
+    expect(laThuMucQuyTrinh('rfcs-notes.md', ['rfcs'])).toBe(false);
+  });
+
+  it('so ĐÚNG HOA THƯỜNG cho tên thư mục (Linux: OpenSpec/ ≠ openspec/)', () => {
+    expect(laThuMucQuyTrinh('OpenSpec/a.md', ['openspec/'])).toBe(false);
+    expect(laThuMucQuyTrinh('openspec/a.md', ['openspec/'])).toBe(true);
+  });
+
+  it('KHÔNG chuẩn hoá dấu chéo ngược — `openspec\hack.ts` là tên file thật ở gốc repo', () => {
+    expect(laThuMucQuyTrinh(String.raw`openspec\hack.ts`, ['openspec/'])).toBe(false);
+  });
+
+  it('mặc định của engine là openspec/, và danh sách rỗng thì không khớp gì', () => {
+    expect(PROCESS_DOC_DIRS).toEqual(['openspec/']);
+    expect(laThuMucQuyTrinh('openspec/a.md', [])).toBe(false);
+  });
 });
