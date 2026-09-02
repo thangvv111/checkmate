@@ -43,8 +43,8 @@ Không đổi code sản phẩm. Một PR.
 
 - [x] 5.1 `npx tsc --noEmit` sạch · `npm test` xanh TOÀN BỘ (kể cả lưới mới).
 - [x] 5.2 Phép thử cắt-folder lặp lại trên bản làm việc: dời tạm `openspec` `docs` `test` `bench` `.claude`
-      ra ngoài → `tsc` sạch, server khởi động được (`npm run web` lên cổng, tắt ngay); trả lại; ghi kết quả
-      vào thân PR. Đây là kiểm tay của requirement 2.
+      ra ngoài → `tsc` sạch, hai CLI (harness, web) nạp được; trả lại; ghi kết quả vào thân PR. Đây là kiểm
+      tay của requirement 2. (Không dùng `npm run web`: cổng 4000 đang bị server dev cũ giữ.)
 - [x] 5.3 Mutation cho 3.1: thêm tạm một thư mục cấp một (`zz-tmp/` có file) → lưới đỏ nêu tên; xoá.
 
 ## 6. Kiểm cơ học

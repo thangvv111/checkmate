@@ -24,13 +24,15 @@ Requirement sinh ra: `kien-truc-tang › Gói deploy chỉ mang sản phẩm, kh
 ### chạy script thật (6.2 — kiểm tay lúc apply, không phải lưới)
 - [x] T2.1 [Happy]: `bash scripts/pack-deploy.sh` trên máy dev → gói tạo được; `tar -tzf` không có
       `checkmate/openspec/`, có `demo-credit-approval/test/`; tự kiểm im lặng.
-- [x] T2.3 [Hỏng]: cố tình để một file bí mật trong cây → tự kiểm in dòng, thoát mã khác 0 — khuôn tự kiểm
-      cũ (DEPLOY.md:185) giữ nguyên tác dụng.
+- [x] T2.3 [Hỏng]: lớp tự kiểm bí mật (grep cũ của DEPLOY.md) giữ nguyên nhưng KHÔNG kích hoạt được bằng
+      file bí mật thật — exclude chặn trước khi tới grep. Đã kiểm lớp 4 thay thế: file lạ `zz-la.txt` ở gốc →
+      GÓI HỎNG nêu tên, xoá gói, thoát 1 (02/09).
 
 ## Ca đối kháng & hồi quy
 
-- [x] T3.1 [R-B, cắt-folder]: dời `openspec` `docs` `test` `bench` `.claude` → `tsc` sạch, `npm run web`
-      lên cổng; trả lại (5.2).
+- [x] T3.1 [R-B, cắt-folder]: dời `openspec` `docs` `test` `bench` `.claude` `scripts` → `tsc` sạch; CLI
+      harness nạp được (in usage, exit 2), CLI web nạp được (exit 0); trả lại đủ (5.2, 02/09). Không dùng
+      `npm run web` vì cổng 4000 đang bị server dev cũ giữ.
 - [x] T3.2 [Mutation lưới]: thêm `zz-tmp/x.txt` cấp một → lưới đỏ nêu `zz-tmp`; xoá (5.3).
 - [x] T3.3 [Lịch sử]: ca đã đo 02/09 — gói cũ mang `openspec/` lên máy chủ mà không ai thấy; lưới mới đỏ
       nếu ai đó bỏ dòng `--exclude=checkmate/openspec`.
