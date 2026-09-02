@@ -1,3 +1,6 @@
+<!-- ĐÃ GỠ KHỎI VAI TRÒ LUẬT ngày 2026-09-02 (change retire-r-rules). File này CHỈ ĐỌC và KHÔNG còn được cập nhật.
+     Nhà mới của từng điều: docs/r-rules-map.md. Luật đang hiệu lực: openspec/specs/<capability>/. -->
+
 # R2 — Hợp đồng với repo đích: `checkmate.yml`
 
 CheckMate không biết gì về stack (ngăn xếp công nghệ) hay nghiệp vụ của repo mà nó chấm. Repo đích tự

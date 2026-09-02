@@ -15,18 +15,18 @@ artifacts:
       - **Capabilities**: capability nào được tạo/đổi:
         - **New Capabilities**: mỗi cái thành `specs/<name>/spec.md` mới, tên kebab-case (vd `ngan-probe-theo-pr`).
         - **Modified Capabilities**: capability đã có mà YÊU CẦU đổi (không phải chỉ đổi cách hiện thực). Tra tên có thật ở `openspec/specs/`. Không đổi yêu cầu thì để trống.
-      - **Luật R chạm tới**: ô BẮT BUỘC — xem dưới.
+      - **Luật chạm tới**: ô BẮT BUỘC — xem dưới.
       - **Impact**: code/API/phụ thuộc bị ảnh hưởng, trỏ file thật (`apps/web/src/...`, `packages/harness/src/...`).
 
-      ⛔ Ô «Luật R chạm tới» — BẮT BUỘC, nhưng luật đã đổi (PO chốt 01/09, THAY phương án A 31/08):
-      `specs/R*.md` nay là TÀI LIỆU THAM KHẢO và change mới KHÔNG đẻ thêm điều R*. Vì vậy câu trả
-      lời đúng THƯỜNG là «KHÔNG — cố ý», kèm nơi luật của change này thật sự sống: hằng + validate
-      trong engine (có test khoá) · cấu hình `checkmate.yml` · hành vi trong
-      `openspec/specs/<capability>/`.
+      ⛔ Ô «Luật chạm tới» — BẮT BUỘC. Luật sống ở `openspec/specs/<capability>/` (delta spec của change),
+      hằng + validate trong engine (có test khoá), `checkmate.yml`, và sáu ⛔C của CLAUDE.md. Trả lời bằng
+      một hoặc nhiều: `capability › requirement` (change ADDED/MODIFIED/REMOVED requirement nào — phải
+      khớp specs/ của change) · `⛔C<n>` (change chạm bất biến nào; chỉ nêu, không đổi được ở đây) · hàng
+      `docs/r-rules-map.md` (change backfill trả nhà cho điều `pending` nào) · «KHÔNG — cố ý» kèm một
+      câu vì sao change không đổi luật nào.
       Vẫn phải điền ô này: bỏ trống là done-gate chưa ✓. Nó tồn tại để không ai lặng lẽ đổi luật ở
-      một chỗ mà quên chỗ kia — chỉ là «chỗ kia» nay không còn mặc định là `specs/R*.md`.
-      Ngoại lệ duy nhất còn phải ghi «CÓ»: change cố ý sửa văn bản `specs/R*.md` (ví dụ change tái
-      cấu trúc chính nó) — khi đó liệt kê file sẽ sửa.
+      một chỗ mà quên chỗ kia. Luật cũ `specs/R*.md` đã gỡ 02/09/2026 — KHÔNG viết luật vào
+      `docs/archive/r-rules/`.
 
       Giữ 1–2 trang. Tập trung «vì sao», không phải «làm thế nào» — chuyện đó ở design.md.
     requires: []
@@ -56,11 +56,12 @@ artifacts:
       - Mỗi yêu cầu ít nhất một scenario.
 
       CheckMate — hai luật riêng:
-      1. **ĐÂY LÀ CHỖ LUẬT SỐNG** (PO chốt 01/09, THAY phương án A 31/08): `openspec/specs/<capability>/`
-         mô tả hành vi mà change cam kết — cho cả người lẫn máy đọc. `specs/R*.md` nay là TÀI LIỆU
-         THAM KHẢO, change mới KHÔNG đẻ thêm điều R*. Luật máy-cưỡng-chế của tính năng mới nằm ở:
-         hằng + validate trong engine (có test khoá) · cấu hình `checkmate.yml` · capability spec ở
-         đây. Ba chỗ phải nói cùng một điều; lệch nhau thì lưới test là chỗ bắt.
+      1. **ĐÂY LÀ CHỖ LUẬT SỐNG** (PO chốt 01/09; `specs/R*.md` đã gỡ 02/09): `openspec/specs/<capability>/`
+         mô tả hành vi mà change cam kết — cho cả người lẫn máy đọc (engine tự chấm nạp đúng thư mục này
+         qua `sources.specs`). Luật máy-cưỡng-chế nằm ở: hằng + validate trong engine (có test khoá) ·
+         cấu hình `checkmate.yml` · capability spec ở đây. Ba chỗ phải nói cùng một điều; lệch nhau thì
+         lưới test là chỗ bắt. Điều R cũ đang `pending` trong `docs/r-rules-map.md` được backfill vào
+         đây bằng change riêng — viết từ code và test, văn bản R chỉ là gợi ý.
       2. **Scenario «actor sai / đầu vào sai → bị chặn»**: yêu cầu chạm bí mật, danh tính, vai,
          cổng merge, hay verdict PHẢI có scenario tiêu cực, không chỉ happy-path. CheckMate là
          cổng kiểm soát chất lượng — chỗ nguy hiểm nhất của nó là XANH GIẢ, và xanh giả sinh ra
@@ -125,8 +126,8 @@ artifacts:
 
       Nhóm gợi ý cho CheckMate:
       ```
-      ## 1. Luật (specs/R*.md)
-      - [ ] 1.1 Viết R<mã> ... vào specs/R<n>-<ten>.md
+      ## 1. Luật (capability)
+      - [ ] 1.1 Requirement ADDED/MODIFIED ở specs/<capability>/spec.md của change + test khoá nó
 
       ## 2. Kiểu & hợp đồng
       - [ ] 2.1 Thêm kiểu vào packages/shared/src/types.ts
@@ -139,13 +140,14 @@ artifacts:
       - [ ] 4.1 ...
 
       ## 5. Test
-      - [ ] 5.1 Ca khoá hành vi cho từng luật R mới
+      - [ ] 5.1 Ca khoá hành vi cho từng requirement mới hoặc đổi
       ```
 
       ⛔ HAI TASK GẦN NHƯ LUÔN BẮT BUỘC, đừng quên:
-      - **Task khai CHỖ SỐNG CỦA LUẬT** (PO 01/09): luật của change sống ở engine (hằng + validate
-        có test khoá), `checkmate.yml`, và capability spec — KHÔNG đẻ thêm điều `specs/R*.md`. Chỉ
-        change cố ý sửa văn bản `specs/R*.md` mới cần task viết vào đó.
+      - **Task khai CHỖ SỐNG CỦA LUẬT** (PO 01/09; `specs/R*.md` đã gỡ 02/09): luật của change sống
+        ở engine (hằng + validate có test khoá), `checkmate.yml`, và capability spec — KHÔNG viết luật
+        vào `docs/archive/r-rules/`. Change backfill thì cập nhật hàng `pending` tương ứng ở
+        `docs/r-rules-map.md`.
       - **Khai vào bảng module của `checkmate.yml`** khi thêm/đổi export: lưới hợp đồng
         (`test/hop-dong-repo.test.ts`) đã bắt hụt 5 lần vì quên; khai thiếu thì probe của lượt chấm
         chết với «... is not a function» và biến thành finding sai hẳn bản chất.

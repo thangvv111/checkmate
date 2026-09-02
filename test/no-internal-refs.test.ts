@@ -44,9 +44,36 @@ describe('mã engine không trỏ tới tài liệu nội bộ của CheckMate t
     expect(src).not.toMatch(/ngoài \d+ loại/);
   });
 
+  for (const f of files.filter((x) => x !== 'sources.ts')) {
+    it(`${f}: không gắn cứng thư mục 'specs/' — nguồn spec do repo khai, chỉ sources.ts giữ danh sách tự dò`, () => {
+      const dong = stripComments(readFileSync(join(SRC, f), 'utf8')).split('\n');
+      const pham = dong
+        .map((d, i) => [i + 1, d] as const)
+        .filter(([, d]) => /['"`]specs\//.test(d))
+        .map(([n, d]) => `${f}:${n} ${d.trim()}`);
+      expect(pham).toEqual([]);
+    });
+  }
+
   it('skill-code: đường mặc định khi repo không khai runner không mang stack của repo demo', () => {
     const src = stripComments(readFileSync(join(SRC, 'skill-code.ts'), 'utf8'));
     for (const dau of ['app.inject', "openDb(':memory:')", 'HM-2026']) expect(src, `còn dấu vết demo: ${dau}`).not.toContain(dau);
     expect(src).not.toContain('"spec_rule": "R?"');
   });
+});
+
+describe('apps/web không trỏ tài liệu nội bộ và không gắn cứng thư mục spec', () => {
+  // Án lệ: router github.ts từng gắn cứng `specs/` làm «luật engine đọc thật»; sau khi luật của repo
+  // dời sang openspec/specs/**, PR chỉ sửa luật đi đường tài liệu — change retire-r-rules bịt.
+  const WEB = join(process.cwd(), 'apps', 'web', 'src');
+  for (const f of readdirSync(WEB).filter((x) => x.endsWith('.ts'))) {
+    it(`${f}: không có 'specs/R…' và không gắn cứng 'specs/' trong chuỗi`, () => {
+      const dong = stripComments(readFileSync(join(WEB, f), 'utf8')).split('\n');
+      const pham = dong
+        .map((d, i) => [i + 1, d] as const)
+        .filter(([, d]) => /specs\/R|['"`]specs\/|<code>specs\//.test(d))
+        .map(([n, d]) => `${f}:${n} ${d.trim()}`);
+      expect(pham).toEqual([]);
+    });
+  }
 });

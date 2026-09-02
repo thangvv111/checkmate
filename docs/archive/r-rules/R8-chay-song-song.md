@@ -1,3 +1,6 @@
+<!-- ĐÃ GỠ KHỎI VAI TRÒ LUẬT ngày 2026-09-02 (change retire-r-rules). File này CHỈ ĐỌC và KHÔNG còn được cập nhật.
+     Nhà mới của từng điều: docs/r-rules-map.md. Luật đang hiệu lực: openspec/specs/<capability>/. -->
+
 # R8 — Nhiều lượt chấm chạy song song
 
 CheckMate chấm được nhiều PR cùng lúc. Mỗi lượt là một **tiến trình riêng** với **sandbox riêng**

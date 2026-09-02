@@ -1,4 +1,18 @@
 import { splitAllSpecUnits } from './spec-units.js';
+import {
+  API_DOC_CANDIDATES,
+  SPEC_CANDIDATES,
+  TEST_SAMPLE_CANDIDATES,
+  matchPattern,
+  type SourceKey,
+  type SourcesCfg,
+  type TreeFile,
+} from '../../shared/src/spec-source.js';
+
+// Phần DÙNG CHUNG với router của app (kiểu, danh sách ứng viên, glob, cửa đọc `sources`) sống ở tầng
+// nền `packages/shared/src/spec-source.ts`; re-export ở đây để bảng module và chỗ gọi cũ không đổi.
+export { API_DOC_CANDIDATES, SPEC_CANDIDATES, TEST_SAMPLE_CANDIDATES, globToRegExp, matchPattern } from '../../shared/src/spec-source.js';
+export type { SourceKey, SourcesCfg, TreeFile } from '../../shared/src/spec-source.js';
 
 /**
  * Nguồn engine đọc từ repo đích — spec, tài liệu API, file test mẫu — và CÁCH tìm ra chúng.
@@ -14,24 +28,6 @@ import { splitAllSpecUnits } from './spec-units.js';
  * đĩa: đường khai không thể trỏ ra ngoài repo vì danh sách không có file nào ngoài repo, và symlink
  * bị loại ngay từ danh sách. Biên repo giữ bằng cấu trúc, không bằng một phép kiểm dễ quên.
  */
-
-export type SourceKey = 'specs' | 'api_doc' | 'test_sample';
-
-/** Một file trong cây nguồn của nhánh đang chấm — đường repo-relative, dấu `/`. */
-export interface TreeFile {
-  path: string;
-  size?: number;
-  symlink?: boolean;
-}
-
-/** Mục `sources` của `checkmate.yml`, đã chuẩn hoá: mỗi khoá là danh sách mẫu đường. */
-export interface SourcesCfg {
-  specs?: string[];
-  api_doc?: string[];
-  test_sample?: string[];
-  /** Đường bị loại ngay ở cửa đọc (tuyệt đối, hoặc có `..`) — mang theo để báo ra, không im lặng. */
-  rejected?: Array<{ key: SourceKey; pattern: string; reason: string }>;
-}
 
 /** Một chỗ đã tìm: mẫu, thấy bao nhiêu file, có dùng không, và vì sao không. */
 export interface SourceProbe {
@@ -66,36 +62,6 @@ export interface LoadedSources {
   report: SourcesReport;
 }
 
-/**
- * Thứ tự dò khi repo không khai. HẸP có chủ ý: `docs/` của nhiều repo là tài liệu marketing, nạp
- * nhầm rồi chấm theo nó tệ hơn báo «không thấy». Muốn rộng hơn thì repo khai — đó là việc của nó.
- * Ứng viên ĐẦU TIÊN có ít nhất một đơn vị luật thắng; chỗ khác có file thì báo «có, không dùng».
- */
-export const SPEC_CANDIDATES = [
-  'specs/**/*.md',
-  'spec/**/*.md',
-  'openspec/specs/**/*.md',
-  'docs/specs/**/*.md',
-  'docs/spec/**/*.md',
-  'requirements/**/*.md',
-  'docs/requirements/**/*.md',
-];
-export const API_DOC_CANDIDATES = ['README.md', 'docs/README.md', 'API.md', 'docs/api.md', 'openapi.{yaml,yml,json}'];
-/** Thứ tự = thứ tự ưu tiên; trong một mẫu lấy file đầu theo tên. */
-export const TEST_SAMPLE_CANDIDATES = [
-  'test/**/*.test.*',
-  'tests/**/*.test.*',
-  'test/**/*.spec.*',
-  'tests/**/*.spec.*',
-  'src/**/*.test.*',
-  'src/**/*.spec.*',
-  'test/**/*_test.*',
-  'tests/**/test_*.*',
-  'src/test/**/*Test.*',
-  'test/**/*test*',
-  'tests/**/*test*',
-];
-
 /** File to hơn mức này không vào prompt: một spec 5 MB làm lượt chấm chết vì ngân sách, không vì nội dung. */
 export const MAX_SOURCE_BYTES = 512 * 1024;
 const RE_BINARY = /\.(png|jpe?g|gif|webp|ico|pdf|zip|gz|tgz|7z|rar|woff2?|ttf|otf|eot|mp4|mov|mp3|wav|exe|dll|so|dylib|class|jar|pyc|wasm|db|sqlite)$/i;
@@ -108,70 +74,6 @@ export function skipReason(f: TreeFile): string | null {
   if (RE_BINARY.test(f.path)) return 'nhị phân';
   if (f.size !== undefined && f.size > MAX_SOURCE_BYTES) return `quá lớn (${Math.round(f.size / 1024)} KB)`;
   return null;
-}
-
-const GLOB_META = /[*?{[]/;
-
-function normalizePattern(p: string): string {
-  return p.trim().replace(/\\/g, '/').replace(/\/{2,}/g, '/').replace(/^\.\//, '').replace(/\/+$/, '');
-}
-
-function escapeRe(c: string): string {
-  return /[.+^$()|[\]\\{}]/.test(c) ? `\\${c}` : c;
-}
-
-/**
- * Glob tối thiểu đủ dùng: `**` mọi tầng · `*` trong một tầng · `?` một ký tự · `{a,b}` một trong hai
- * (không lồng). Không phân biệt hoa thường: `README.md` khai trên Windows phải vẫn khớp `readme.md`
- * trên máy chủ Linux — sai lệch này không đáng để một repo mất tài liệu API.
- */
-export function globToRegExp(pattern: string): RegExp {
-  const p = normalizePattern(pattern);
-  let re = '';
-  for (let i = 0; i < p.length; i++) {
-    const c = p[i]!;
-    if (c === '*') {
-      if (p[i + 1] === '*') {
-        if (p[i + 2] === '/') {
-          re += '(?:.*/)?';
-          i += 2;
-        } else {
-          re += '.*';
-          i += 1;
-        }
-      } else re += '[^/]*';
-    } else if (c === '?') re += '[^/]';
-    else if (c === '{') {
-      const end = p.indexOf('}', i);
-      if (end < 0) {
-        re += '\\{';
-        continue;
-      }
-      re += `(?:${p.slice(i + 1, end).split(',').map((x) => [...x.trim()].map(escapeRe).join('')).join('|')})`;
-      i = end;
-    } else re += escapeRe(c);
-  }
-  return new RegExp(`^${re}$`, 'i');
-}
-
-/**
- * Khớp một mẫu với cây file. Không có ký tự glob thì mẫu là MỘT file, hoặc một THƯ MỤC (mọi file bên
- * dưới) — người khai `specs/` mong thư mục, không mong một regex. Kết quả xếp theo tên để chọn «file
- * đầu» là chọn có thể lặp lại.
- */
-export function matchPattern(pattern: string, tree: TreeFile[]): TreeFile[] {
-  const p = normalizePattern(pattern);
-  if (!p) return [];
-  let hit: TreeFile[];
-  if (!GLOB_META.test(p)) {
-    const lower = p.toLowerCase();
-    hit = tree.filter((f) => f.path.toLowerCase() === lower);
-    if (!hit.length) hit = tree.filter((f) => f.path.toLowerCase().startsWith(`${lower}/`));
-  } else {
-    const re = globToRegExp(p);
-    hit = tree.filter((f) => re.test(f.path));
-  }
-  return [...hit].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 }
 
 /**
@@ -187,7 +89,7 @@ interface Resolved {
 }
 
 function resolve(
-  patterns: string[],
+  patterns: readonly string[],
   tree: TreeFile[],
   declared: boolean,
   pick: Pick,

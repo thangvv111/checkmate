@@ -1,3 +1,6 @@
+<!-- ĐÃ GỠ KHỎI VAI TRÒ LUẬT ngày 2026-09-02 (change retire-r-rules). File này CHỈ ĐỌC và KHÔNG còn được cập nhật.
+     Nhà mới của từng điều: docs/r-rules-map.md. Luật đang hiệu lực: openspec/specs/<capability>/. -->
+
 # R7 — Tầm nhìn diff: cắt được, nhưng không cắt âm thầm
 
 Diff của một pull request thật thường lẫn thứ không nói lên điều gì về hành vi phần mềm — lockfile, file

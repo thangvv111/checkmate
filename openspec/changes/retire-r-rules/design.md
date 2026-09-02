@@ -123,7 +123,13 @@ Mọi việc khác đảo ngược được và máy kiểm được → không 
 
 `classifyPr` (`apps/web/src/github.ts`) hiện có hai chỗ gắn cứng `specs/` (dòng ~303 và ~353). Thay bằng:
 - đọc `readSourcesCfg(repoPath)`; nếu khai `sources.specs` → mẫu khai; nếu không → `SPEC_CANDIDATES`
-  của `sources.ts` (rộng hơn tập «đang dùng» một chút — cố ý, vì lệch về phía code là lệch an toàn);
+  (rộng hơn tập «đang dùng» một chút — cố ý, vì lệch về phía code là lệch an toàn);
+- **Phát hiện lúc apply (sửa D6):** lưới `kien-truc-tang` cấm app import engine — web và engine chỉ nói
+  chuyện qua tiến trình CLI, web KHÔNG có import tĩnh nào từ harness (giả định «đã có sẵn» của bản đầu
+  sai). Phần dùng chung của hợp đồng nguồn spec — kiểu · danh sách ứng viên · glob/`matchPattern` ·
+  `readSourcesCfg` · `loiCuPhapAnToan` — dời xuống tầng nền `packages/shared/src/spec-source.ts`;
+  `sources.ts`/`runner.ts` re-export để bảng module và chỗ gọi cũ không đổi. Một định nghĩa cho cả router
+  lẫn engine — không nới lưới, không nhân đôi glob (khuôn «cửa song sinh»);
 - file khớp bất kỳ mẫu nào (`matchPattern`) là **luật engine đọc** → không phải văn bản thuần → PR về
   code; log nêu file và mẫu khớp;
 - `checkmate.yml` hỏng/không đọc được → giữ hành vi cũ (allowlist hẹp) VÀ coi mọi file khớp
@@ -157,11 +163,12 @@ nội dung dưới đây KHÔNG còn được cập nhật». Không sửa gì k
 
 ## Architecture
 
-- `apps/web/src/github.ts` — router `classifyPr`/`laVanBan` (D6); import `readSourcesCfg` (runner.js) và
-  `matchPattern`, `SPEC_CANDIDATES` (sources.js) từ `packages/harness/src` — chiều web → harness sẵn có.
-- `apps/web/src/ui-docs.ts` — một câu mô tả sản phẩm.
-- `packages/harness/src` — không đổi code; chỉ được import thêm.
-- `packages/shared/src` — không đổi.
+- `apps/web/src/github.ts` — router `classifyPr`/`laVanBan` (D6); import `readSourcesCfg`, `matchPattern`,
+  `SPEC_CANDIDATES` từ **`packages/shared/src/spec-source.ts`** (tầng nền — app không được import engine).
+- `apps/web/src/ui-docs.ts` — một câu mô tả sản phẩm; `apps/web/src/cli-tai-khoan.ts` — một chuỗi trợ giúp
+  trỏ `specs/R11.19` (bề mặt người vận hành, không phải chú thích).
+- `packages/harness/src` — `sources.ts`/`runner.ts` re-export phần đã dời xuống tầng nền; hành vi không đổi.
+- `packages/shared/src/spec-source.ts` — MỚI: hợp đồng nguồn spec dùng chung (kiểu, ứng viên, glob, cửa đọc).
 - Tài liệu/cấu hình: `docs/`, `AGENTS.md`=`CLAUDE.md`, `openspec/config.yaml`, schema + template,
   `README.md`, `checkmate.yml`.
 - Lưới: `test/r-rules-map.test.ts` (mới), test router (thêm ca), `test/huong-dan-harness.test.ts` (bắt

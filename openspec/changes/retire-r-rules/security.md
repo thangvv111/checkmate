@@ -7,8 +7,8 @@ router (`classifyPr` hỏi nguồn spec). Rủi ro thật nằm ở router — m
 
 - ✅ S1.1 Giá trị mới duy nhất đi qua bề mặt log là **mẫu glob** và **tên file** từ `checkmate.yml` của
   repo đích — không phải bí mật. Lỗi cú pháp `checkmate.yml` chỉ in dòng đầu thông điệp parser qua
-  `loiCuPhapAnToan` (`packages/harness/src/runner.ts:54-57`), dùng bởi `readSourcesCfg`
-  (`packages/harness/src/runner.ts:103-131`); router nhận `SourcesCfg` đã chuẩn hoá, không nhận nội dung file.
+  `loiCuPhapAnToan` (`packages/shared/src/spec-source.ts:138-141`), dùng bởi `readSourcesCfg`
+  (`packages/shared/src/spec-source.ts:161-186`); router nhận `SourcesCfg` đã chuẩn hoá, không nhận nội dung file.
 - N/A S1.2 Change không ghi gì lên comment PR hay thân commit merge; `lyDo` của router vào log lượt chấm
   (bề mặt nội bộ) và chỉ chứa tên file + mẫu.
 - N/A S1.3 Không có bản che nào mới.
@@ -29,11 +29,11 @@ router (`classifyPr` hỏi nguồn spec). Rủi ro thật nằm ở router — m
 ## S4. Dữ liệu không tin cậy & prompt injection (R7)
 
 - ✅ S4.1 Mẫu nguồn từ `checkmate.yml` của repo đích là DỮ LIỆU và chỉ được đem **so tên file**:
-  `matchPattern` (`packages/harness/src/sources.ts:162-176`) → `globToRegExp`
-  (`packages/harness/src/sources.ts:128-154`) escape mọi ký tự regex (`escapeRe`, `:119-121`) và chỉ
-  phát `[^/]*` · `.*` · `(?:.*/)?` · `[^/]` — không lồng định lượng nên không có ReDoS; đầu vào so là
-  đường file ngắn. Mẫu độc nhất có thể (`**`) chỉ làm router CHẶT hơn (mọi PR về code) — chiều an toàn
-  (T3.2). Mẫu không vào prompt.
+  `matchPattern` (`packages/shared/src/spec-source.ts:116-128`) → `globToRegExp`
+  (`packages/shared/src/spec-source.ts:82-108`) escape mọi ký tự regex (`escapeRe`, `:70-72`) và chỉ
+  phát bốn mảnh regex cố định — không lồng định lượng nên không có ReDoS; đầu vào so là đường file
+  ngắn. Mẫu độc nhất có thể (`**`) chỉ làm router CHẶT hơn (mọi PR về code) — chiều an toàn (T3.2,
+  `test/dinh-tuyen-skill.test.ts`). Mẫu không vào prompt.
 - N/A S4.2 Không gọi model.
 
 ## S5. Sandbox & thực thi (R8)
@@ -51,9 +51,10 @@ router (`classifyPr` hỏi nguồn spec). Rủi ro thật nằm ở router — m
 ## S7. Fail-closed & bất biến verdict (R1, R6)
 
 - ✅ S7.1 Mọi nhánh không chắc của router dẫn về **code**: phần tử không phải chuỗi → không phải văn bản
-  (`apps/web/src/github.ts:297`); cụm vào không phải mảng → code (`:289-291`); mẫu nguồn vắng/không phải
-  mảng → danh sách mặc định `SPEC_CANDIDATES` (task 3.1, ca T1.4/T1.6/T3.1); `checkmate.yml` hỏng →
-  mặc định + log (T2.3). Không nhánh nào biến «không đọc được cấu hình» thành «mọi thứ là tài liệu».
+  (`apps/web/src/github.ts:310`); cụm vào không phải mảng → code (`:293`); mẫu nguồn vắng/không phải
+  mảng → danh sách mặc định `SPEC_CANDIDATES` (`:298-301`, ca T1.4/T1.6/T3.1); `checkmate.yml` hỏng →
+  `readSourcesCfg` trả null → mặc định + log (`:419-421`, T2.3). Không nhánh nào biến «không đọc được cấu
+  hình» thành «mọi thứ là tài liệu».
 - N/A S7.2 Không chạm phân loại probe hay verdict.
 
 ## S8. Leo quyền & cô lập (per-vector — theo change này)
@@ -62,18 +63,19 @@ Mục tiêu duy nhất kẻ xấu có được từ change này: **làm một PR
 nào chạy** (xanh giả). Mọi đường tới đó:
 
 - ✅ S8.1 (a) PR sửa `checkmate.yml` để thu hẹp `sources.specs` → PR đụng `checkmate.yml` đã bị kéo về
-  code trước khi mẫu được dùng (`apps/web/src/github.ts:301-303`, scenario «file cấu hình mà ENGINE đọc»);
-  (b) mẫu router đọc từ `checkmate.yml` **trên đĩa của bản clone** (`fetchAndRoute`, đọc tại `lp` —
-  `apps/web/src/github.ts:393`), KHÔNG từ nhánh PR — PR không đổi được đầu vào của router bằng nội dung
-  của chính nó; (c) PR giấu code trong `.md` ngoài nguồn spec → đi doc: rủi ro **có sẵn** của allowlist
-  R13, change này không mở rộng nó (vẫn chỉ `.md`/`.txt`/`openspec/` không thuộc nguồn) — ghi nhận,
-  không dismiss; (d) `openspec/specs/**` của repo này: TRƯỚC change đi doc (lỗ đang mở), SAU change về
-  code (T3.3).
-- ⚠️ S8.2 Test load-bearing hai chiều cho (d): T3.3 phải đỏ trên router hôm nay và xanh sau fix; kèm biến
-  thể no-op phép khớp nguồn → đỏ lại. Task 5.2 — chưa có cho tới khi apply.
-- ✅ S8.3 Đối xứng: đường doc (`md` lọc ở `apps/web/src/github.ts:353`) và đường phân loại (`laVanBan`,
-  `:303`) cùng gắn cứng `specs/` — task 3.1 gỡ CẢ HAI cùng một mẫu nguồn; T1.3 và T1.7 canh hai phía
-  (file ngoài nguồn vẫn doc; file trong nguồn dù đuôi lạ vẫn code).
+  code trước khi mẫu được dùng (`laVanBan`, `apps/web/src/github.ts:308-322`, scenario «file cấu hình mà
+  ENGINE đọc»); (b) mẫu router đọc từ `checkmate.yml` **trên đĩa của bản clone** (`fetchAndRoute`, đọc tại
+  `lp` — `apps/web/src/github.ts:419`), KHÔNG từ nhánh PR — PR không đổi được đầu vào của router bằng nội
+  dung của chính nó; (c) PR giấu code trong `.md` ngoài nguồn spec → đi doc: rủi ro **có sẵn** của
+  allowlist R13, change này không mở rộng nó (vẫn chỉ `.md`/`.txt`/`openspec/` không thuộc nguồn) — ghi
+  nhận, không dismiss; (d) `openspec/specs/**` của repo này: TRƯỚC change đi doc (lỗ đang mở), SAU change
+  về code (T3.3).
+- ✅ S8.2 Test load-bearing hai chiều cho (d) — `test/dinh-tuyen-skill.test.ts` › «tái lập ca đã gãy sau
+  PR #32»: cùng file `openspec/specs/spec-source/spec.md`, nguồn khai chứa nó → **code**, nguồn khai không
+  chứa nó → **doc**. Quyết định đi theo MẪU, không theo tên thư mục: vô hiệu phép khớp nguồn thì vế đầu đỏ.
+- ✅ S8.3 Đối xứng: đường doc (bộ lọc `md`, `apps/web/src/github.ts:368`) và đường phân loại (`laVanBan`,
+  `:318`) từng cùng gắn cứng `specs/` — task 3.1 gỡ CẢ HAI bằng cùng một `laNguonSpec` (`:301`); T1.3 và
+  T1.7 canh hai phía (file ngoài nguồn vẫn doc; file trong nguồn dù đuôi lạ vẫn code).
 
 ## Notes
 

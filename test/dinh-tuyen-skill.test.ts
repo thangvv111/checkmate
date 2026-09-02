@@ -195,3 +195,85 @@ describe('ca đối kháng — tên file là dữ liệu do maker viết (R13.5,
     expect(classifyPr([]).loai).toBe('code');
   });
 });
+
+describe('classifyPr — nguồn spec do repo khai, không gắn cứng thư mục (retire-r-rules)', () => {
+  const NGUON = ['openspec/specs/**/*.md'];
+
+  it('PR chỉ sửa luật ở nguồn spec repo đã khai → code, lý do nêu file và mẫu khớp', () => {
+    const kq = classifyPr(['openspec/specs/merge-gate/spec.md'], NGUON);
+    expect(kq.loai).toBe('code');
+    expect(kq.lyDo).toContain('openspec/specs/merge-gate/spec.md');
+    expect(kq.lyDo).toContain('openspec/specs/**/*.md');
+  });
+
+  it('nguồn spec ở thư mục không tên specs/ → vẫn code — nguồn quyết, thư mục không quyết', () => {
+    expect(classifyPr(['docs/spec/rules.md'], ['docs/spec/**/*.md']).loai).toBe('code');
+    // đuôi lạ trong nguồn cũng là luật
+    expect(classifyPr(['docs/spec/rules.yaml'], ['docs/spec/**']).loai).toBe('code');
+  });
+
+  it('tài liệu quy trình không thuộc nguồn vẫn đi đường doc', () => {
+    const kq = classifyPr(['openspec/changes/x/proposal.md'], NGUON);
+    expect(kq.loai).toBe('doc');
+    expect(kq.fileDocUngVien).toEqual(['openspec/changes/x/proposal.md']);
+  });
+
+  it('tái lập ca đã gãy sau PR #32: PR chỉ sửa openspec/specs/** — trước đây đi doc, nay phải là code', () => {
+    // Load-bearing hai chiều: không truyền nguồn (hành vi cũ, mặc định) thì file này vẫn về code nhờ
+    // danh sách tự dò có openspec/specs; nhưng nếu nguồn KHAI không chứa nó thì đúng là doc → chứng
+    // minh quyết định đi theo nguồn chứ không phải theo tên thư mục.
+    expect(classifyPr(['openspec/specs/spec-source/spec.md'], NGUON).loai).toBe('code');
+    expect(classifyPr(['openspec/specs/spec-source/spec.md'], ['docs/spec/**/*.md']).loai).toBe('doc');
+  });
+
+  it('không đọc được cấu hình nguồn → danh sách mặc định, lệch về phía code; lý do nói dùng mặc định', () => {
+    const kq = classifyPr(['specs/rules.md']);
+    expect(kq.loai).toBe('code');
+    expect(kq.lyDo).toContain('mặc định');
+    expect(classifyPr(['specs/rules.md'], []).loai).toBe('code');
+  });
+
+  it('bốn ca cũ giữ nguyên hành vi với nguồn khai', () => {
+    expect(classifyPr(['CLAUDE.md', 'openspec/config.yaml', 'openspec/schemas/checkmate/schema.yaml'], NGUON).loai).toBe('doc');
+    expect(classifyPr(['AGENTS.md', 'GEMINI.md', 'test/huong-dan-harness.test.ts'], NGUON).loai).toBe('code');
+    expect(classifyPr(['checkmate.yml'], NGUON).loai).toBe('code');
+    expect(classifyPr(['.github/workflows/ci.yml'], NGUON).loai).toBe('code');
+  });
+
+  it('mẫu méo ở mọi tầng không ném — rơi về mặc định (cùng khuôn fail-closed của danh sách file)', () => {
+    for (const mau of [null, undefined, 'specs/**', 5, [null, 5, '']] as unknown[]) {
+      expect(() => classifyPr(['specs/rules.md'], mau as never)).not.toThrow();
+      expect(classifyPr(['specs/rules.md'], mau as never).loai).toBe('code');
+    }
+  });
+
+  it('mẫu độc «**» chỉ làm router CHẶT hơn: mọi PR về code, lý do nêu mẫu', () => {
+    const kq = classifyPr(['README.md'], ['**']);
+    expect(kq.loai).toBe('code');
+    expect(kq.lyDo).toContain('**');
+  });
+});
+
+describe('fetchAndRoute ghép readSourcesCfg → classifyPr — không cần mạng, đúng hai nửa đường thật', () => {
+  it('repo khai sources.specs trong checkmate.yml → mẫu khai quyết định; file hỏng → null → mặc định', async () => {
+    const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { readSourcesCfg } = await import('../packages/shared/src/spec-source.js');
+    const d = mkdtempSync(join(tmpdir(), 'cm-route-'));
+    try {
+      writeFileSync(join(d, 'checkmate.yml'), 'sources:\n  specs: docs/spec/**/*.md\n');
+      const cfg = readSourcesCfg(d);
+      expect(classifyPr(['docs/spec/a.md'], cfg?.specs).loai).toBe('code');
+      expect(classifyPr(['specs/a.md'], cfg?.specs).loai).toBe('doc'); // nguồn khai không chứa specs/ → tài liệu
+      writeFileSync(join(d, 'checkmate.yml'), 'sources:\n  specs: [\n'); // hỏng cú pháp
+      const hong = readSourcesCfg(d);
+      expect(hong).toBeNull();
+      const kq = classifyPr(['specs/a.md'], hong?.specs);
+      expect(kq.loai).toBe('code');
+      expect(kq.lyDo).toContain('mặc định');
+    } finally {
+      rmSync(d, { recursive: true, force: true });
+    }
+  });
+});

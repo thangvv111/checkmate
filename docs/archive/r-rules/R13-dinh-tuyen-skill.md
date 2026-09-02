@@ -1,3 +1,6 @@
+<!-- ĐÃ GỠ KHỎI VAI TRÒ LUẬT ngày 2026-09-02 (change retire-r-rules). File này CHỈ ĐỌC và KHÔNG còn được cập nhật.
+     Nhà mới của từng điều: docs/r-rules-map.md. Luật đang hiệu lực: openspec/specs/<capability>/. -->
+
 # R13 — Định tuyến skill: chọn đường chấm theo loại file đã đổi
 
 Một pull request đi vào CheckMate phải được chấm bằng **skill code** (sinh probe, chạy thật trên hai

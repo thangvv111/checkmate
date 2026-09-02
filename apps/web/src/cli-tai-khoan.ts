@@ -64,7 +64,7 @@ function epVai(x: string | undefined): Role {
 }
 
 function huongDan(): void {
-  console.log(`Quản lý tài khoản CheckMate (specs/R11.19)
+  console.log(`Quản lý tài khoản CheckMate (luật identity-session — mã cũ R11.19, tra docs/r-rules-map.md)
 
   npm run tai-khoan -- ds                              liệt kê tài khoản
   npm run tai-khoan -- them <tên> --vai <vai>           thêm tài khoản, hỏi mật khẩu hai lần

@@ -82,8 +82,10 @@ Không có ở change này. Các capability mới sinh ở từng change backfil
   `checkmate-fix-bug` nếu có ô tương tự.
 - `README.md:48`, `checkmate.yml` (dòng 1, mục `sources`, chú thích `review`), `apps/web/src/ui-docs.ts:295`
   (câu «vài file markdown trong `specs/`» — sản phẩm nay không đòi thư mục đó).
-- `apps/web/src/github.ts` (`classifyPr`, `laVanBan`): đọc `sources` qua `readSourcesCfg` +
-  `matchPattern` của `packages/harness/src/sources.ts` — chiều phụ thuộc web → harness đã có sẵn.
+- `apps/web/src/github.ts` (`classifyPr`, `laVanBan`): đọc `sources` qua `readSourcesCfg` + `matchPattern`.
+  Phát hiện lúc apply: app KHÔNG được import engine (lưới `kien-truc-tang`), nên phần dùng chung của hợp
+  đồng nguồn spec dời xuống tầng nền `packages/shared/src/spec-source.ts` (mới); `sources.ts`/`runner.ts`
+  re-export, bảng module `checkmate.yml` thêm một dòng.
 - `test/r-rules-map.test.ts` (mới) · `test/no-internal-refs.test.ts` (mở rộng sang `apps/web/src` nếu
   rẻ) · test router hiện có (`test/dinh-tuyen*.test.ts` hoặc tương đương) thêm ca nguồn spec.
 - Tự chấm: mẫu số độ phủ luật giảm từ 109 xuống ~42 đơn vị cho tới khi các change backfill land — cố ý
