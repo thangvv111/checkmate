@@ -171,6 +171,33 @@ export interface Verdict {
   library_changes?: Array<{ probe_id: string; action: 'not_admitted' | 'evicted'; reason: string }>;
   /** Nhánh gốc không chạy được probe nào — probe đỏ khi đó chỉ là nghi vấn, không thành hồi quy. */
   no_baseline?: boolean;
+  /**
+   * Đối chiếu hai nhánh, dạng ĐỌC ĐƯỢC.
+   *
+   * Trước đây log đổ ra hai dòng thô kiểu `P1·8213=p P2·bc87=p …` cho từng nhánh — bắt người đọc so
+   * 39 cặp bằng mắt, trong khi MÁY ĐÃ SO RỒI (`trangThai` của từng probe). Đó là nguyên tắc của cả
+   * sản phẩm bị vi phạm ngay trong log của nó: máy phân loại, người đọc kết luận.
+   *
+   * Chỉ mang probe KHÔNG pass-cả-hai; số còn lại nằm ở `pass_both`. Một probe xanh ở cả hai nhánh
+   * không nói gì về PR này, và 35 dòng như thế chôn mất 4 dòng có nghĩa.
+   */
+  probe_compare?: {
+    pass_both: number;
+    rows: Array<{
+      /** Nhãn đã nối được mã probe + vân tay title, ví dụ `P2·bc87`. */
+      label: string;
+      /** Luật mà probe neo vào — nói probe này tồn tại để làm gì. */
+      rule?: string;
+      /** Tên probe, đã cắt. Do model viết → dữ liệu ngoài, phải escape trước khi vào HTML. */
+      name?: string;
+      /** Mục đích đầy đủ hơn — dài, nên chỉ hiện khi người dùng hỏi tới (tooltip). */
+      purpose?: string;
+      pr: 'pass' | 'fail' | 'skip' | 'missing';
+      base: 'pass' | 'fail' | 'skip' | 'missing' | 'no_baseline';
+      /** Nhãn MÁY đã phong — không tính lại ở chỗ hiển thị, kẻo hai nơi lệch nhau. */
+      state: string;
+    }>;
+  };
   /** Tên người bấm chạy. VẮNG = lượt do máy chạy (chế độ trực) — hai thứ chịu trách nhiệm khác nhau. */
   run_by?: string;
   /**

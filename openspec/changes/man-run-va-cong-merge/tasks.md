@@ -84,6 +84,12 @@ Năm commit tách bạch: hợp đồng → bền dòng sự kiện → server-r
 - [x] 4.11 Card **KHÔNG RA VERDICT** nền `--color-neutral-800` chữ sáng, khác hẳn PASS/FAIL, kèm lý
       do và đủ số probe. Chỉ phần nhìn thấy được — xem `design.md` mục ranh giới.
 - [x] 4.12 Khối quan sát ngoài phạm vi PR: viền dash, nền surface.
+- [x] 4.13 **ĐỐI CHIẾU HAI NHÁNH thay hai bãi dữ liệu** (PO chốt, thêm giữa change). Log cũ in
+      `P1·8213=p P2·bc87=p …` hai dòng 39 mã cho hai nhánh, bắt người đọc so từng cặp bằng mắt —
+      trong khi MÁY ĐÃ SO RỒI. Thay bằng: hai dòng ĐẾM · một dòng kết luận · và chỉ liệt kê probe
+      KHÔNG pass-cả-hai, kèm LUẬT mà probe neo vào.
+- [x] 4.14 Bảng đối chiếu trên màn Run, cột **Luật** + tooltip `muc_dich` khi trỏ vào mã probe hoặc
+      luật. Nhãn trạng thái đọc từ máy (`state`), KHÔNG tính lại ở chỗ hiển thị.
 
 ## 5. Commit 5 — CỔNG MERGE
 

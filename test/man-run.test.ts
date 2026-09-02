@@ -332,3 +332,65 @@ describe('cổng merge', () => {
     expect(html, 'receipt là trạng thái cuối — không được còn nút hành động').not.toContain('id="nut-merge"');
   });
 });
+
+describe('đối chiếu hai nhánh — máy đã so, đừng bắt người so lại', () => {
+  const dc = {
+    pass_both: 35,
+    rows: [
+      { label: 'P2·bc87', rule: 'R9.6', name: 'ghiSo: xac_nhan_medium rỗng không sinh chữ phantom',
+        purpose: 'moTaXacNhan dùng ternary — biên đúng ngay ds.length === 0', pr: 'pass', base: 'fail', state: 'cai_thien' },
+      { label: 'P1·afd4', rule: 'R1.17,R1.18', name: 'Điều kiện kép laLuatMoi && brFail',
+        purpose: 'Vào phanLoaiMay có cổng gộp hai vế', pr: 'fail', base: 'fail', state: 'ngoai_pham_vi' },
+    ],
+  } as unknown as NonNullable<Verdict['probe_compare']>;
+
+  const html = verdictHtml(verdict({ probe_compare: dc }));
+
+  it('bày ĐỔI TRẠNG THÁI, không bày bãi mã probe', () => {
+    // Bản cũ in `P1·8213=p P2·bc87=p …` hai dòng 39 mã và bỏ mặc người đọc so từng cặp. Cái người
+    // ta cần là phần ĐÃ ĐỔI — và máy vốn đã tính nó rồi.
+    expect(html).toContain('✗→✓');
+    expect(html).toContain('✗→✗');
+    expect(html).toContain('PR sửa được');
+    expect(html).toContain('không quy tội PR');
+  });
+
+  it('cột LUẬT có mặt — probe là phép thử của một luật', () => {
+    expect(html).toContain('R9.6');
+    expect(html).toContain('R1.17,R1.18');
+  });
+
+  it('chi tiết dài nằm ở tooltip, không chiếm dòng', () => {
+    expect(html).toMatch(/title="[^"]*ternary[^"]*"/);
+    expect(html, 'mục đích dài không được đổ thẳng ra dòng').not.toContain('>moTaXacNhan dùng ternary');
+  });
+
+  it('probe pass cả hai chỉ còn là một SỐ, không phải 35 dòng', () => {
+    expect(html).toContain('35 probe pass cả hai nhánh');
+    expect(html, 'không được liệt kê từng probe pass').not.toContain('=p ');
+  });
+
+  it('không có dữ liệu đối chiếu → khối không hiện', () => {
+    expect(verdictHtml(verdict())).not.toContain('Đối chiếu hai nhánh');
+  });
+
+  it('tên probe do model viết vẫn phải qua escape', () => {
+    const doc = verdictHtml(
+      verdict({
+        probe_compare: {
+          pass_both: 0,
+          rows: [{ label: 'P1·aaaa', rule: 'R1', name: '"><img onerror=1>', purpose: '<script>x</script>', pr: 'fail', base: 'pass', state: 'hoi_quy' }],
+        } as unknown as NonNullable<Verdict['probe_compare']>,
+      }),
+    );
+    expect(doc).not.toContain('<img onerror=1>');
+    expect(doc).not.toContain('<script>x</script>');
+    expect(doc).toContain('&lt;script&gt;');
+  });
+
+  it('engine KHÔNG còn đổ hai bãi dữ liệu ra log', () => {
+    const nguon = readFileSync('packages/harness/src/skill-code.ts', 'utf8');
+    expect(nguon, 'còn dòng dump Nhánh PR thô').not.toMatch(/Nhánh PR:\s+\$\{tomTatKq/);
+    expect(nguon, 'phải có dòng kết luận đối chiếu').toContain('Đối chiếu ${ungVienTatCa.length} probe');
+  });
+});

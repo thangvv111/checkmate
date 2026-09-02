@@ -65,6 +65,37 @@ giống hệt một verdict PASS dày, và người đọc mất đúng thông t
 - **WHEN** không probe nào rơi vào bốn nhóm trên
 - **THEN** bảng vẫn khai các mục đó ở giá trị không — im lặng và số không là hai điều khác nhau
 
+### Requirement: Kết quả hai nhánh phải bày dạng ĐỐI CHIẾU, không phải hai bãi dữ liệu
+
+Khi một lượt chấm chạy probe trên cả hai nhánh, hệ thống SHALL bày kết quả dưới dạng **đối chiếu đã
+phân loại**: mỗi probe đổi trạng thái nói rõ nó đổi theo chiều nào và điều đó nghĩa là gì. Probe pass
+ở CẢ HAI nhánh SHALL chỉ hiện dưới dạng một con số đếm, không liệt kê từng cái.
+
+Mỗi dòng đối chiếu SHALL nói probe đó neo vào **luật nào** — một probe là phép thử của một luật, nên
+luật là câu trả lời cho «probe này tồn tại để làm gì». Mô tả dài hơn SHALL để ở lớp xem-thêm, không
+chiếm chỗ trên dòng.
+
+Nhãn trạng thái trên mỗi dòng MUST là nhãn máy đã phong khi phân loại, KHÔNG được tính lại ở chỗ hiển
+thị: hai nơi cùng tính một thứ là hai nơi sẽ lệch nhau, và bên hiển thị lệch thì người đọc tin nhầm.
+
+Vì sao thành yêu cầu: bản trước đổ ra hai dòng, mỗi dòng liệt kê mọi probe của một nhánh dạng
+`P1·8213=p P2·bc87=p …`. Người đọc phải tự so từng cặp trong hàng chục mã để tìm ra thứ đã đổi —
+trong khi máy đã so xong và đã phong nhãn cho từng probe. Đó là nguyên tắc của chính sản phẩm này bị
+vi phạm ngay trong log của nó: **máy phân loại, người đọc kết luận**.
+
+#### Scenario: probe đổi trạng thái giữa hai nhánh
+- **WHEN** một probe cho kết quả khác nhau trên nhánh PR và nhánh gốc
+- **THEN** đối chiếu bày nó thành một dòng riêng, nói chiều đổi, luật nó neo vào, và kết luận máy đã
+  phong cho nó
+
+#### Scenario: probe pass ở cả hai nhánh
+- **WHEN** một probe pass trên cả nhánh PR lẫn nhánh gốc
+- **THEN** nó KHÔNG được liệt kê thành dòng riêng; nó chỉ vào con số đếm — nó không nói gì về PR này
+
+#### Scenario: hỏi chi tiết một probe
+- **WHEN** người dùng hỏi tới một dòng đối chiếu (trỏ vào mã probe hoặc luật)
+- **THEN** mô tả đầy đủ hơn của probe hiện ra, mà không làm dòng đó dài thêm khi không hỏi
+
 ### Requirement: Chỗ checker không nhìn tới phải nói ra, không cắt âm thầm
 
 Khi có file mã nguồn bị loại khỏi diff vì vượt trần kích thước, trang SHALL hiện cảnh báo **vùng mù

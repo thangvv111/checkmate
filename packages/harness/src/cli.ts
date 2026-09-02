@@ -129,6 +129,7 @@ async function main(): Promise<void> {
     let diffBlindSpots: Verdict['diff_blind_spots'];
     let libraryChanges: Verdict['library_changes'];
     let noBaseline: Verdict['no_baseline'];
+    let probeCompare: Verdict['probe_compare'];
     if (skill === 'code') {
       const kq = await runCodeSkill(model, repo!, branch!, base, ghiPhat);
       findings = kq.findings;
@@ -139,6 +140,7 @@ async function main(): Promise<void> {
       diffBlindSpots = kq.diffBlindSpots.length > 0 ? kq.diffBlindSpots : undefined;
       libraryChanges = kq.libraryChanges.length > 0 ? kq.libraryChanges : undefined;
       noBaseline = kq.noBaseline ? true : undefined;
+      probeCompare = kq.probeCompare.rows.length || kq.probeCompare.pass_both ? kq.probeCompare : undefined;
       artifactRef = { type: 'pr', name: branch!, sha_or_hash: kq.target.branchSha };
     } else if (repo && branch) {
       // docs-as-code: đọc file ở đúng bản của nhánh/PR qua worktree
@@ -170,6 +172,7 @@ async function main(): Promise<void> {
       diff_blind_spots: diffBlindSpots,
       library_changes: libraryChanges,
       no_baseline: noBaseline,
+      probe_compare: probeCompare,
       // Ai bấm chạy — tầng web truyền xuống. Vắng = lượt do máy chạy (chế độ trực), và đó là một
       // khẳng định có nghĩa chứ không phải thiếu dữ liệu.
       run_by: layArg('run-by') || undefined,

@@ -538,6 +538,27 @@ table.runs td { padding:9px 13px; border-bottom:1px solid var(--color-divider); 
 .cong-hd { display:flex; gap:16px; align-items:flex-start; margin-top:14px; flex-wrap:wrap; }
 .cong-tra { flex:1; min-width:300px; display:flex; gap:8px; }
 .cong-goiy { font-size:11px; color:var(--color-neutral-600); margin-top:4px; }
+
+/* — Bảng đối chiếu hai nhánh: chỉ probe KHÔNG pass-cả-hai — */
+.dc { border:2px solid var(--color-divider); border-top:none; background:var(--color-bg); padding:16px 20px; }
+.dc-dau { display:flex; gap:10px; align-items:baseline; }
+.dc-tom { font-family:var(--font-mono); font-size:12.5px; font-weight:600; }
+.dc-hang { display:grid; grid-template-columns:46px 96px 116px 1fr 150px; gap:10px; align-items:baseline;
+  padding:7px 0; border-bottom:1px solid var(--color-divider); font-size:12.5px; }
+.dc-hang.dau { border-bottom:2px solid var(--color-divider); font-family:var(--font-mono);
+  font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); }
+.dc-mui { font-family:var(--font-mono); font-weight:600; }
+.dc-hang.hoi_quy .dc-mui, .dc-hang.vi_pham_luat_moi .dc-mui { color:var(--fail-ink); }
+.dc-hang.cai_thien .dc-mui { color:var(--pass-ink); }
+.dc-hang.ngoai_pham_vi .dc-mui, .dc-hang.nghi_loi_co_san .dc-mui, .dc-hang.nghi_van .dc-mui { color:var(--medium-ink); }
+.dc-ma { font-family:var(--font-mono); }
+/* Có tooltip thì phải TRÔNG như có — gạch chân chấm là dấu hiệu rẻ nhất và quen nhất. */
+.dc-luat, .dc-ten { border-bottom:1px dotted var(--color-neutral-500); cursor:help; }
+.dc-ten { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dc-kl { color:color-mix(in srgb, var(--color-text) 60%, transparent); }
+.dc-con { font-family:var(--font-mono); font-size:12px; color:var(--color-neutral-600); padding-top:8px; }
+@media (max-width: 1080px) { .dc-hang { grid-template-columns:44px 92px 1fr; }
+  .dc-hang > .dc-ten, .dc-hang > .dc-kl { grid-column:1 / -1; } }
 `;
 
 // W8: mọi chuỗi ngoại lai (PR title từ GitHub, tên file upload, finding do model viết) phải qua đây trước khi vào DOM
@@ -1272,7 +1293,69 @@ export function verdictHtml(v: Verdict): string {
 <div class="vd-phu">${escHtml(v.artifact_ref.name)} @ ${escHtml(v.artifact_ref.sha_or_hash.slice(0, 10))}</div></div>
 <div class="vd-meta">${hang}</div></div>`;
 
-  return the + thuVienHtml(v) + quanSatHtml(v);
+  return the + doiChieuHtml(v) + thuVienHtml(v) + quanSatHtml(v);
+}
+
+/**
+ * Bảng đối chiếu hai nhánh — thay chỗ của hai dòng dump `P1·8213=p P2·bc87=p …`.
+ *
+ * Bản cũ in từng probe của từng nhánh rồi bỏ mặc người đọc so 39 cặp bằng mắt. Máy đã so rồi: nhãn
+ * `state` ở đây là nhãn MÁY phong, không tính lại — hai nơi cùng tính là hai nơi sẽ lệch.
+ *
+ * Chỉ bày probe KHÔNG pass-cả-hai. Một probe xanh ở cả hai nhánh không nói gì về PR này, và 35 dòng
+ * như thế chôn mất 4 dòng có nghĩa; số của chúng nằm ở dòng cuối.
+ *
+ * Cột LUẬT là thứ bản cũ vứt đi hoàn toàn: một probe là PHÉP THỬ CỦA MỘT LUẬT, nên nói nó thử luật
+ * nào là nói nó tồn tại để làm gì. Chi tiết dài (`purpose`) nằm ở tooltip — hover mới hiện, để dòng
+ * vẫn đọc lướt được.
+ */
+function doiChieuHtml(v: Verdict): string {
+  const dc = v.probe_compare;
+  if (!dc || (!dc.rows.length && !dc.pass_both)) return '';
+
+  const MUI: Record<string, string> = {
+    hoi_quy: '✓→✗', vi_pham_luat_moi: '✓→✗', cai_thien: '✗→✓',
+    ngoai_pham_vi: '✗→✗', nghi_loi_co_san: '✗→✗', nghi_van: '?→✗',
+    bo_qua: 'skip', khong_chay: '—',
+  };
+  const KET_LUAN: Record<string, string> = {
+    hoi_quy: 'PR làm hỏng',
+    vi_pham_luat_moi: 'vi phạm luật PR vừa khai',
+    cai_thien: 'PR sửa được',
+    ngoai_pham_vi: 'đỏ cả hai — không quy tội PR',
+    nghi_loi_co_san: 'nghi lỗi có sẵn',
+    nghi_van: 'nghi vấn — không có đối chứng',
+    bo_qua: 'bị skip — không tính là pass',
+    khong_chay: 'không chạy tới nơi',
+  };
+  const NHAN_KQ: Record<string, string> = {
+    pass: 'pass', fail: 'fail', skip: 'skip', missing: 'thất lạc', no_baseline: 'không có',
+  };
+
+  const hang = dc.rows
+    .map(
+      (r) => `<div class="dc-hang ${escHtml(r.state)}">
+<span class="dc-mui">${MUI[r.state] ?? '?'}</span>
+<span class="dc-ma"${r.purpose ? ` title="${escHtml(r.purpose)}"` : ''}>${escHtml(r.label)}</span>
+<span class="${r.purpose ? 'dc-luat' : ''}"${r.purpose ? ` title="${escHtml(r.purpose)}"` : ''}>${escHtml(r.rule ?? '(không rõ luật)')}</span>
+<span class="dc-ten"${r.name ? ` title="${escHtml(r.name)}"` : ''}>${escHtml(r.name ?? '')}</span>
+<span class="dc-kl">${escHtml(KET_LUAN[r.state] ?? r.state)} <span class="mono" style="font-size:11px">${escHtml(
+        NHAN_KQ[r.pr] ?? r.pr,
+      )}/${escHtml(NHAN_KQ[r.base] ?? r.base)}</span></span>
+</div>`,
+    )
+    .join('');
+
+  const dem = (t: string[]): number => dc.rows.filter((r) => t.includes(r.state)).length;
+  return `<div class="dc"><div class="dc-dau"><h6 style="margin:0">Đối chiếu hai nhánh</h6>
+<span class="dc-tom">${dem(['hoi_quy', 'vi_pham_luat_moi'])} hồi quy · ${dem(['cai_thien'])} cải thiện · ${dem(
+    ['ngoai_pham_vi', 'nghi_loi_co_san'],
+  )} đỏ cả hai · ${dem(['nghi_van'])} nghi vấn</span></div>
+<div class="text-muted" style="font-size:12.5px;margin-top:2px">Chỉ probe KHÔNG pass cả hai nhánh — probe xanh ở cả hai không nói gì về PR này. Trỏ chuột vào mã probe hoặc luật để xem probe đó thử gì.</div>
+<div style="margin-top:10px">
+<div class="dc-hang dau"><span></span><span>Probe</span><span>Luật</span><span>Tên</span><span>Kết luận · PR/gốc</span></div>
+${hang}</div>
+<div class="dc-con">+ ${dc.pass_both} probe pass cả hai nhánh</div></div>`;
 }
 
 /**

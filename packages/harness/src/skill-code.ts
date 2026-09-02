@@ -35,6 +35,8 @@ interface KetQuaSkillCode {
   libraryChanges: NonNullable<Verdict['library_changes']>;
   /** Nhánh gốc không chạy được probe nào ở vòng cuối — mọi fail chỉ là nghi vấn. */
   noBaseline: boolean;
+  /** Đối chiếu hai nhánh, chỉ probe KHÔNG pass-cả-hai. */
+  probeCompare: NonNullable<Verdict['probe_compare']>;
 }
 
 type PhatEvent = (e: RunEvent) => void;
@@ -540,6 +542,9 @@ export async function runCodeSkill(
         soProbe: 0,
         probeStats: { ...thongKe, that_lac: keHoach.map((p) => p.id) },
         quanSat: [],
+        // Nhánh PR treo nên chưa tới bước so hai nhánh — đối chiếu RỖNG là đúng sự thật, không phải
+        // «đã so và không thấy gì khác».
+        probeCompare: { pass_both: 0, rows: [] },
         diffBlindSpots: t.ngoaiTamNhin
           .filter((x) => x.lyDo === 'vượt trần kích thước diff')
           .map((x) => ({ file: x.file, reason: x.lyDo })),
@@ -558,24 +563,20 @@ export async function runCodeSkill(
     // Mã probe mà lượt này BIẾT: kế hoạch mới + plan của từng probe thư viện. Truyền vào nhãn để nó
     // hỏi đúng cửa nối id thay vì đoán từ chuỗi.
     const idBiet = [...keHoach.map((p) => p.id), ...library.map((f) => f.plan.id)].filter(Boolean);
-    const tomTatKq = (kq: ProbeResult[] | undefined) => {
-      const daDung = new Map<string, number>();
-      return (
-        (kq ?? [])
-          .map((p) => {
-            let nhan = probeLabel(p.title, idBiet);
-            // Hai probe trùng tên thật vẫn phải phân biệt được — nếu không, người đọc log lại rơi
-            // đúng vào chỗ «năm dòng giống hệt» mà bản vá này sinh ra để sửa.
-            const lan = (daDung.get(nhan) ?? 0) + 1;
-            daDung.set(nhan, lan);
-            if (lan > 1) nhan = `${nhan}#${lan}`;
-            return `${nhan}=${p.status[0]}`;
-          })
-          .join(' ') || '(rỗng)'
-      );
+    /**
+     * ĐẾM, không đổ bãi. Bản trước in ra từng probe của từng nhánh dạng `P1·8213=p P2·bc87=p …`,
+     * hai dòng 39 mã — bắt người đọc so từng cặp bằng mắt để tìm ra thứ đã đổi. Máy so được, và
+     * ngay bên dưới nó SẼ so; hai dòng này chỉ cần nói mỗi nhánh đứng ở đâu.
+     */
+    const demKq = (kq: ProbeResult[] | undefined): string => {
+      if (kq === undefined) return 'không chạy được (không có đối chứng)';
+      if (!kq.length) return '(rỗng)';
+      const pass = kq.filter((x) => x.status === 'passed').length;
+      const skip = kq.filter((x) => x.status === 'skipped').length;
+      return `${pass}/${kq.length} pass · ${kq.length - pass - skip} fail${skip ? ` · ${skip} skip` : ''}`;
     };
-    phat({ type: 'log', msg: `Nhánh PR:  ${tomTatKq(branchKq)}` });
-    phat({ type: 'log', msg: `Nhánh gốc: ${tomTatKq(baseKq)}` });
+    phat({ type: 'log', msg: `Nhánh PR:  ${demKq(branchKq)}` });
+    phat({ type: 'log', msg: `Nhánh gốc: ${demKq(baseKq)}` });
     // Không có đối chứng ĐỔI CÁCH ĐỌC toàn bộ phần sau: probe đỏ khi đó chỉ là nghi vấn, không
     // thành hồi quy. Nên nó là dữ liệu trên verdict, không phải một dòng log trôi qua.
     noBaseline = baseKq === undefined;
@@ -928,6 +929,56 @@ export async function runCodeSkill(
   }
 
   // Quan sát ngoài phạm vi PR — lỗi-có-sẵn/probe fail-2-nhánh không im lặng: vào verdict, không đổi PASS/FAIL
+  /**
+   * ĐỐI CHIẾU HAI NHÁNH — thay chỗ của hai dòng dump.
+   *
+   * Máy đã phong nhãn cho từng probe (`u.trangThai`); chỗ này chỉ bày cái nhãn đó ra kèm probe nói
+   * về LUẬT nào. Không tính lại phân loại ở đây — hai nơi cùng tính là hai nơi sẽ lệch.
+   *
+   * Chỉ giữ probe KHÔNG pass-cả-hai. Một probe xanh ở cả hai nhánh không nói gì về PR này, và 35
+   * dòng như thế chôn mất 4 dòng có nghĩa.
+   */
+  const cat = (x: unknown, n: number): string | undefined => {
+    const s = typeof x === 'string' ? x.replace(/\s+/g, ' ').trim() : '';
+    return s ? (s.length > n ? `${s.slice(0, n - 1)}…` : s) : undefined;
+  };
+  const trangThaiKq = (r: ProbeResult | undefined): 'pass' | 'fail' | 'skip' | 'missing' =>
+    r === undefined ? 'missing' : r.status === 'passed' ? 'pass' : r.status === 'skipped' ? 'skip' : 'fail';
+
+  const hangDoiChieu = ungVienTatCa
+    .filter((u) => u.trangThai !== 'pass')
+    .map((u) => ({
+      label: probeLabel(u.br.title, ungVienTatCa.map((x) => x.probe.id).filter(Boolean)),
+      rule: cat(u.probe.spec_rule, 40),
+      name: cat(u.probe.ten, 120),
+      purpose: cat(u.probe.muc_dich, 400),
+      pr: trangThaiKq(u.br),
+      base: noBaseline ? ('no_baseline' as const) : trangThaiKq(u.bs),
+      state: u.trangThai,
+    }));
+  const passCaHai = ungVienTatCa.length - hangDoiChieu.length;
+  const probeCompare = { pass_both: passCaHai, rows: hangDoiChieu };
+
+  // Một dòng KẾT LUẬN thay cho việc bắt người đọc tự trừ hai bãi dữ liệu cho nhau.
+  const demTheo = (t: ProbeState): number => ungVienTatCa.filter((u) => u.trangThai === t).length;
+  phat({
+    type: 'log',
+    msg:
+      `Đối chiếu ${ungVienTatCa.length} probe: ${demTheo('hoi_quy') + demTheo('vi_pham_luat_moi')} hồi quy · ` +
+      `${demTheo('cai_thien')} cải thiện · ${demTheo('ngoai_pham_vi') + demTheo('nghi_loi_co_san')} đỏ cả hai nhánh · ` +
+      `${demTheo('nghi_van')} nghi vấn · ${passCaHai} pass cả hai`,
+  });
+  const MUI: Record<string, string> = {
+    hoi_quy: '✓→✗', vi_pham_luat_moi: '✓→✗', cai_thien: '✗→✓',
+    ngoai_pham_vi: '✗→✗', nghi_loi_co_san: '✗→✗', nghi_van: ' ?→✗', bo_qua: ' skip', khong_chay: ' —',
+  };
+  for (const h of hangDoiChieu) {
+    phat({
+      type: 'log',
+      msg: `  ${MUI[h.state] ?? '  ?'}  ${h.label}  ${h.rule ?? '(không rõ luật)'}  ${h.name ?? ''}`,
+    });
+  }
+
   const quanSat = ungVienTatCa
     .filter((u) => u.trangThai === 'ngoai_pham_vi' || u.trangThai === 'nghi_loi_co_san')
     .map((u) => ({
@@ -948,6 +999,7 @@ export async function runCodeSkill(
     soProbe: ungVienTatCa.length,
     probeStats: thongKe,
     quanSat,
+    probeCompare,
     // CHỈ file mã nguồn bị loại vì vượt trần. File sinh tự động (lockfile, kết quả build) vẫn nằm
     // trong log nhưng KHÔNG vào đây: chúng không đổi cách đọc verdict, và một cảnh báo nổi lên ở
     // mọi PR có lockfile là một cảnh báo người ta học cách bỏ qua.
