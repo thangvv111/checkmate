@@ -41,8 +41,8 @@ Tri thức về **quy ước của repo đích** — ví dụ «repo dùng OpenS
 liệu quy trình dưới `openspec/`» — KHÔNG phải phụ thuộc: nó cùng loại với việc biết `package-lock.json` là
 file sinh. Tri thức đó được phép làm **mặc định**, và repo đích SHALL được khai đè (nợ có tên).
 
-Tự chấm (CheckMate là repo đích của chính nó) đọc hồ sơ từ **bản clone của repo**, như với mọi repo đích
-— không đọc từ thư mục của bản deploy.
+Engine đọc hợp đồng và hồ sơ của mọi repo đích từ **bản clone của repo đó** — không đọc từ thư mục của
+bản deploy.
 
 #### Scenario: cắt hồ sơ xây dựng, sản phẩm vẫn chạy
 - **WHEN** `openspec/`, `docs/`, `test/`, `bench/`, `.claude/` không tồn tại bên cạnh `apps/` và `packages/`

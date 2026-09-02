@@ -73,8 +73,8 @@ deploy trước vẫn nằm đó. Thêm bước dọn một lần vào `DEPLOY.m
 
 «Luật vận hành của CheckMate = **code + test** (hành vi) + **kho khuôn / prompt / danh mục** (tri thức chấm,
 shipped trong sản phẩm). `openspec/specs/` là **hồ sơ xây dựng**: requirement + scenario mô tả hành vi mà
-change cam kết, tự chấm đọc nó từ bản clone như với mọi repo đích. `docs/archive/r-rules/` là hồ sơ cũ.
-Gói deploy không mang hồ sơ nào.» — thay cho câu «luật hiệu lực ở openspec/specs» ở bốn chỗ.
+change cam kết. `docs/archive/r-rules/` là hồ sơ cũ. Gói deploy không mang hồ sơ nào.» — thay cho câu
+«luật hiệu lực ở openspec/specs» ở bốn chỗ. Không câu nào nhắc tới việc CheckMate chấm chính nó (D8).
 
 ### D6 — Ba đích của backfill, ghi ở đầu `docs/r-rules-map.md`
 
@@ -89,6 +89,16 @@ R5.19→KL11, R5.18→KL17, R13.8→KL8/16): R9.4b (bất biến của ứng d�
 cho phép) · R6.13 (trạng thái hút → PASS rỗng) · R10.12 (fallback rỗng rồi ghi đè) · R10.11 (đọc ngoài
 khoá) · R2.14 (`P1` nuốt `P10`) · R1.2 (skip ≠ pass) — cột `home` thêm «ứng viên kho khuôn (đích b)».
 Không nạp ở đây: kho có trần và luật đào thải (`truc-phan-loai-code`), nạp là quyết định của change backfill.
+
+### D8 — Không nhắc đến việc CheckMate chấm chính nó ở bất kỳ đâu (PO chốt 02/09, lúc apply)
+
+«Coi CheckMate như sản phẩm thường» nghĩa là **không lưu bất kỳ thông tin nào về việc nó có chấm chính nó
+hay không** — còn nhắc là đã thành ngoại lệ. Bản đầu của change này viết câu «CheckMate tự chấm là repo
+đích thông thường, không ngoại lệ» vào CLAUDE.md, README, `checkmate.yml`, `config.yaml`, DEPLOY.md và cả
+delta spec — sai đúng theo nghĩa đó, đã gỡ hết. Câu được phép: «engine đọc hợp đồng và hồ sơ của mọi repo
+đích từ bản clone của repo đó». `checkmate.yml` ở gốc chỉ là hợp đồng repo đích như của mọi repo. Mục
+«Cổng — CheckMate tự chấm chính nó» trong CLAUDE.md là chính sách PR của repo do PO viết (đang tạm dừng)
+— để PO quyết, change này không đụng.
 
 ### D7 — Giữ hai chỗ `openspec` trong code sản phẩm (PO chốt)
 
