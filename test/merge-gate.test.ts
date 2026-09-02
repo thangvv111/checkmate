@@ -4,6 +4,7 @@ import {
   evaluateMergeAgainstPr,
   evaluateRejectLocal,
   decideAutomation,
+  decideRerun,
   type GateRun,
   type IdentityCheck,
 } from '../apps/web/src/gate.js';
@@ -226,5 +227,33 @@ describe('fail-closed: đầu vào khuyết hay méo ở mọi tầng đều KH�
     expect(reject({ ghiChu: 42 })).toMatchObject({ ok: true, ghiChu: '42' }); // số vẫn là chữ người gõ
     expect(reject({ ghiChu: null })).toMatchObject({ status: 422 });
     expect(reject({ ghiChu: {} })).toMatchObject({ ok: true }); // "[object Object]" — không rỗng, người đọc sổ thấy ngay là rác
+  });
+});
+
+describe('decideRerun — «một verdict một commit»: chạy lại phải xác nhận (nợ #9)', () => {
+  const daCham = { id: 'w-cu', verdict: { result: 'PASS', findings: [1, 2] } };
+
+  it('[T1.1] đã có verdict cho đúng commit, chưa xác nhận → KHÔNG chạy, trả id run cũ và kết quả', () => {
+    // Trước fix KHÔNG viết được ca này: điều kiện nằm trong handler /api/runs, không bề mặt nào gọi tới.
+    expect(decideRerun({ daCham, ep: undefined })).toEqual({ chay: false, runDaCo: 'w-cu', verdict: 'PASS', soFinding: 2 });
+  });
+
+  it('[T1.2] xác nhận «vẫn chạy lại» → CHẠY', () => {
+    expect(decideRerun({ daCham, ep: '1' })).toEqual({ chay: true });
+  });
+
+  it('[T1.3] chưa chấm commit này → CHẠY, bất kể ep', () => {
+    for (const ep of [undefined, '', '1'] as unknown[]) expect(decideRerun({ daCham: null, ep })).toEqual({ chay: true });
+  });
+
+  it('[T2.2] chỉ ĐÚNG chuỗi «1» là xác nhận — lệch về phía CẢNH BÁO vì chạy lại tốn tiền và thời gian', () => {
+    for (const ep of ['', '0', '1 ', ' 1', 1, true, null, undefined, ['1']] as unknown[]) {
+      expect(decideRerun({ daCham, ep }), `ep=${JSON.stringify(ep)} không được tính là xác nhận`).toMatchObject({ chay: false });
+    }
+  });
+
+  it('[T2.3] bản ghi cũ không có verdict → vẫn KHÔNG chạy, trường verdict để trống, không ném', () => {
+    expect(decideRerun({ daCham: { id: 'w2' }, ep: undefined })).toEqual({ chay: false, runDaCo: 'w2', verdict: undefined, soFinding: 0 });
+    expect(decideRerun({ daCham: { id: 'w3', verdict: null }, ep: undefined })).toMatchObject({ chay: false, runDaCo: 'w3' });
   });
 });

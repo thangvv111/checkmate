@@ -31,7 +31,7 @@ import { repoSection } from './ui-repo.js';
 import { cloneRepo, listBranches, listPrs, prState, listReposForToken, closePr, fetchAndRoute, setCommitStatus, checkRepo, getCurrentPr, mergePr, commentPr, splitOwnerRepo, returnToDev } from './github.js';
 import { hasToken, readRepoToken, readOwnToken, writeRepoToken, deleteRepoToken } from './secret-vault.js';
 import { hasGithubAccess, hasGhCli } from './github.js';
-import { renderRuling, renderReceipt, renderAutoVerdict, countBySeverity, reconcileGate, appendGateLedgerEntry, MACHINE_ACTOR_NAME, evaluateMergeLocal, evaluateMergeAgainstPr, evaluateRejectLocal, decideAutomation, type IdentityCheck } from './gate.js';
+import { renderRuling, renderReceipt, renderAutoVerdict, countBySeverity, reconcileGate, appendGateLedgerEntry, MACHINE_ACTOR_NAME, evaluateMergeLocal, evaluateMergeAgainstPr, evaluateRejectLocal, decideAutomation, decideRerun, type IdentityCheck } from './gate.js';
 import { backfillVerdictLedger, readVerdictLedger } from './ledger.js';
 import { readVerdictLedger as docSoCaiKho, countVerdictLedger as demSoCaiKho } from './store/ledger-store.js';
 import { migrateAll, migrationSummary } from './store/migrate.js';
@@ -707,17 +707,20 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
         if (muonJson) return res.status(409).json({ loi: `PR #${pr.so} đang được chấm — chờ run hiện tại xong` });
         return res.status(409).send(shell('CheckMate — đang chấm', `<h1>PR #${pr.so} đang được chấm</h1><p class="sub">Một run khác đang chạy trên PR này — hai run song song sẽ ra hai verdict trùng. <a href="/">← quay lại</a></p>`));
       }
+      // Quyết định «chạy lại hay cảnh báo» ở hàm thuần (gate.ts) — hai đường JSON và HTML phải quyết
+      // giống hệt nhau; điều kiện viết tay ở hai chỗ là hai chỗ sẽ lệch nhau.
       const daCham = rm.findByPr(pr.so, pr.headSha);
-      if (daCham && muonJson && (req.body as Record<string, string>).ep !== '1') {
-        return res.status(409).json({ da_cham_run_id: daCham.id, verdict: daCham.verdict?.result });
+      const lai = decideRerun({ daCham, ep: (req.body as Record<string, string>).ep });
+      if (!lai.chay && muonJson) {
+        return res.status(409).json({ da_cham_run_id: lai.runDaCo, verdict: lai.verdict });
       }
-      if (daCham && (req.body as Record<string, string>).ep !== '1') {
+      if (!lai.chay) {
         return res.status(409).send(
           shell(
             'CheckMate — đã có verdict',
             `<h1>Commit này đã được chấm rồi</h1>
-<p class="sub">PR #${pr.so} @ <code>${pr.headSha.slice(0, 7)}</code> đã có verdict <b>${daCham.verdict?.result}</b> (${daCham.verdict?.findings.length} finding). Chạy lại trên cùng commit gần như chắc chắn ra kết quả cũ mà vẫn tốn vài phút.</p>
-<p><a class="btn" href="/runs/${daCham.id}">Xem verdict đã có →</a></p>
+<p class="sub">PR #${pr.so} @ <code>${pr.headSha.slice(0, 7)}</code> đã có verdict <b>${lai.verdict}</b> (${lai.soFinding} finding). Chạy lại trên cùng commit gần như chắc chắn ra kết quả cũ mà vẫn tốn vài phút.</p>
+<p><a class="btn" href="/runs/${lai.runDaCo}">Xem verdict đã có →</a></p>
 <form method="post" action="/api/runs" style="margin-top:14px"><input type="hidden" name="kieu" value="pr"><input type="hidden" name="so" value="${pr.so}"><input type="hidden" name="ep" value="1">
 <button class="phu-nho">Vẫn chạy lại</button></form>
 <p class="goiy" style="margin-top:14px"><a href="/">← về trang chính</a></p>`,
