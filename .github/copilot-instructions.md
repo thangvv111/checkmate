@@ -1,6 +1,6 @@
 # CheckMate ♞ — hướng dẫn cho GitHub Copilot
 
-Luật repo (luật cứng C1–C6, quy trình SDD bằng OpenSpec, cổng tự chấm) nằm ở [AGENTS.md](../AGENTS.md)
+Luật repo (luật cứng C1–C6, quy trình SDD bằng OpenSpec, điều kiện merge) nằm ở [AGENTS.md](../AGENTS.md)
 — Copilot tự nạp `AGENTS.md` từ 08/2025 nên nội dung đó đã có sẵn trong context; file này chỉ để
 đánh dấu cho các bề mặt Copilot cũ chưa hỗ trợ.
 
