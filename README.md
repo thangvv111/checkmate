@@ -43,20 +43,13 @@ Pipeline 5 bước: nhận diff PR → đọc `specs/` của repo đích → mod
 nhánh PR **lẫn nhánh gốc làm đối chứng** → phân loại finding (chỉ nhận finding trỏ vào probe fail
 thật; PR fail + gốc pass = hồi quy). FAIL ⟺ có ≥1 finding mức chặn. Exit code: 0 = PASS, 1 = FAIL.
 
-## CheckMate tự chấm chính mình
+## Hợp đồng repo đích — `checkmate.yml`
 
-Repo này khai nguồn spec của chính nó trong `checkmate.yml` (`sources.specs: openspec/specs/**/*.md` — luật
-đang hiệu lực, sinh từ change) cùng hợp đồng runner + khuôn lỗi và thang severity riêng, nên nó là một repo
-đích hợp lệ của chính nó. Luật cũ `specs/R*.md` đã gỡ 02/09/2026 — bảng tra `docs/r-rules-map.md`:
-
-```bash
-npm test
-npm run checker -- run --skill code --repo . --branch <nhánh> --base main
-```
-
-Bộ test trong `test/` vừa là lưới an toàn cho refactor, vừa là **file mẫu** mà model đọc để biết cách
-viết probe cho repo này. Hai lỗi thật đã lộ ra nhờ vòng tự chấm: nối id probe với testcase bỏ sót dạng
-tên JUnit có tiền tố `describe`, và diff không có trần kích thước nên model treo trên PR lớn.
+Repo đích khai cách nó được chấm trong `checkmate.yml` ở gốc: `sources` (spec, tài liệu API, file test mẫu
+nằm đâu — không khai thì engine tự dò và ghi ra đã dò ở đâu), `runner` (lệnh chạy test, thư mục/đuôi probe,
+hướng dẫn viết probe), `review` (file bỏ khỏi diff, khuôn lỗi ưu tiên, thang severity riêng). Engine đọc
+file này từ bản clone của repo đích. Gói deploy của CheckMate không mang hồ sơ xây dựng (`openspec/`,
+`docs/`, `test/`…) — xem `scripts/pack-deploy.sh` và `DEPLOY.md`.
 
 ## Model provider
 

@@ -1,8 +1,10 @@
 # CheckMate ♞ — luật làm việc trong repo này
 
-> Bản nén luôn-được-nạp. **Luật hành vi đầy đủ nằm ở `openspec/specs/<capability>/`** — sinh từ change,
-> archive mới thành luật; đọc capability liên quan TRƯỚC khi sửa vùng nào. Lệch nhau thì `openspec/specs/`
-> là bản đúng, sửa file này cho khớp. Mã luật cũ `R<n>.<m>` gặp trong code/test tra ở `docs/r-rules-map.md`.
+> Bản nén luôn-được-nạp. **Luật vận hành của sản phẩm = code + test + kho khuôn** (`trigger-examples.ts`,
+> prompt, danh mục trigger, rubric). **`openspec/specs/<capability>/` là hồ sơ xây dựng** — requirement +
+> scenario mà change cam kết; đọc capability liên quan TRƯỚC khi sửa vùng nào, hồ sơ lệch code là lỗi phải
+> sửa qua change. Gói deploy không mang hồ sơ (`scripts/pack-deploy.sh`). Mã luật cũ `R<n>.<m>` tra ở
+> `docs/r-rules-map.md`.
 
 ## Repo là gì
 
@@ -62,15 +64,19 @@ cái mất). Agent KHÔNG tự chọn, và KHÔNG tự tick cho đủ.
 và người sau đọc spec sẽ tin vào một thứ không tồn tại. Đó đúng là kiểu nói dối mà cả sản phẩm này
 tồn tại để chống.
 
-### ⛔ Chỗ sống của luật (PO chốt 01/09; gỡ `specs/R*.md` 02/09 — change `retire-r-rules`)
+### ⛔ Chỗ sống của luật (PO chốt 01/09 · 02/09)
 
-- **Luật máy đọc** sống ở ba chỗ: hằng + validate trong engine (có test khoá) · cấu hình trong
-  `checkmate.yml` · hành vi trong **`openspec/specs/<capability>/`** (sinh từ change, archive mới thành luật).
-- **`specs/R*.md` (R1–R13) đã gỡ khỏi vai trò luật.** Bản gốc chỉ đọc ở `docs/archive/r-rules/`; mỗi điều
-  có hàng trong **`docs/r-rules-map.md`** (rổ `invariant` · `housed` · `pending` · `precedent` · `obsolete`).
-  Điều `pending` được backfill thành capability theo bảng chia của change `retire-r-rules`, mỗi capability
-  một change. Lưới `test/r-rules-map.test.ts` bắt mọi mã trích không có hàng — KHÔNG sửa hàng loạt chú
-  thích trích mã R, và KHÔNG viết luật mới vào `docs/archive/`.
+- **Luật vận hành của sản phẩm** = **code + test** (hành vi) + **kho khuôn / prompt / danh mục trigger /
+  rubric** (tri thức chấm, shipped trong sản phẩm). Sản phẩm không đọc hồ sơ xây dựng của chính nó lúc
+  chạy; gói deploy không mang hồ sơ — `scripts/pack-deploy.sh`, lưới `test/deploy-bundle.test.ts`.
+- **Hồ sơ xây dựng** = `openspec/` (requirement + scenario mà change cam kết; archive mới thành hồ sơ hiện
+  hành) · `docs/` · file này. Luật máy đọc của tính năng mới vẫn ở ba chỗ: hằng + validate trong engine
+  (có test khoá) · `checkmate.yml` của repo đích · hồ sơ capability.
+- **`specs/R*.md` (R1–R13) đã gỡ** 02/09: bản gốc chỉ đọc ở `docs/archive/r-rules/`; mỗi điều có hàng trong
+  **`docs/r-rules-map.md`**. Điều `pending` backfill theo **ba đích** ghi ở đầu bảng — hành vi → code + test ·
+  tri thức vận hành → nạp vào sản phẩm · nguyên tắc xây dựng → file này — mỗi capability một change. Lưới
+  `test/r-rules-map.test.ts` bắt mã trích không có hàng; KHÔNG sửa hàng loạt chú thích, KHÔNG viết luật vào
+  `docs/archive/`.
 
 Proposal có ô «Luật chạm tới»: trả lời bằng `capability › requirement`, ⛔C, hoặc hàng bảng tra; bỏ trống
 vẫn là done-gate chưa ✓.
