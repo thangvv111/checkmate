@@ -45,6 +45,16 @@ function phat(e: RunEvent): void {
       const ps = v.probe_stats;
       console.log(` Độ phủ: ${ps.ghi_nhan} probe ghi nhận / ${ps.ke_hoach} kế hoạch · ${ps.pass} pass · ${ps.hoi_quy} hồi quy · ${ps.ngoai_pham_vi} ngoài phạm vi · ${ps.nghi_van} nghi vấn${ps.bo_qua ? ` · ${ps.bo_qua} skip` : ''}${ps.that_lac.length ? ` · thất lạc: ${ps.that_lac.join(',')}` : ''}`);
     }
+    if (v.spec_source) {
+      const ss = v.spec_source;
+      console.log(
+        ss.units === 0
+          ? ' ⚠ KHÔNG có luật đối chiếu — verdict yếu hơn lượt có luật; độ phủ luật không đo được'
+          : ` Luật đối chiếu: ${ss.units} đơn vị từ ${ss.files.length} file (${ss.declared ? 'khai trong checkmate.yml' : 'tự dò'})${
+              v.probe_stats?.luat_tong !== undefined ? ` · độ phủ ${v.probe_stats.luat_da_phu?.length ?? 0}/${v.probe_stats.luat_tong}` : ''
+            }`,
+      );
+    }
     for (const q of v.quan_sat_ngoai_pr ?? []) {
       console.log(` ⚠ Ngoài phạm vi PR${q.loai === 'nghi_loi_co_san' ? ' (NGHI LỖI CÓ SẴN — probe thư viện đã chứng minh contract)' : ''}: ${q.probe_id} (${q.spec_rule}) — ${q.ten}`);
     }
@@ -130,6 +140,7 @@ async function main(): Promise<void> {
     let libraryChanges: Verdict['library_changes'];
     let noBaseline: Verdict['no_baseline'];
     let probeCompare: Verdict['probe_compare'];
+    let specSource: Verdict['spec_source'];
     if (skill === 'code') {
       const kq = await runCodeSkill(model, repo!, branch!, base, ghiPhat);
       findings = kq.findings;
@@ -141,6 +152,8 @@ async function main(): Promise<void> {
       libraryChanges = kq.libraryChanges.length > 0 ? kq.libraryChanges : undefined;
       noBaseline = kq.noBaseline ? true : undefined;
       probeCompare = kq.probeCompare.rows.length || kq.probeCompare.pass_both ? kq.probeCompare : undefined;
+      // Luôn ghi, kể cả 0 đơn vị: «không có luật» là một khẳng định phải bày ra, không phải thiếu dữ liệu.
+      specSource = kq.specSource;
       artifactRef = { type: 'pr', name: branch!, sha_or_hash: kq.target.branchSha };
     } else if (repo && branch) {
       // docs-as-code: đọc file ở đúng bản của nhánh/PR qua worktree
@@ -173,6 +186,7 @@ async function main(): Promise<void> {
       library_changes: libraryChanges,
       no_baseline: noBaseline,
       probe_compare: probeCompare,
+      spec_source: specSource,
       // Ai bấm chạy — tầng web truyền xuống. Vắng = lượt do máy chạy (chế độ trực), và đó là một
       // khẳng định có nghĩa chứ không phải thiếu dữ liệu.
       run_by: layArg('run-by') || undefined,

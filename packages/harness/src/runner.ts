@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { XMLParser } from 'fast-xml-parser';
 import type { ProbeResult } from './sandbox.js';
+import type { SourceKey, SourcesCfg } from './sources.js';
 
 // Runner cấu hình được (spec §12 · B4.5): repo đích khai cách chạy test của CHÍNH NÓ qua checkmate.yml.
 // Không có file → đường vitest mặc định (đường demo) giữ nguyên. Hợp đồng kết quả: JUnit XML.
@@ -79,6 +80,53 @@ export function readReviewCfg(repoPath: string): ReviewCfg | null {
     console.error(`checkmate.yml của repo đích sai cú pháp — bỏ qua cấu hình review, rơi về mặc định (R2.12): ${loiCuPhapAnToan(e)}`);
     return null; // yml hỏng: đường runner sẽ tự báo; review cfg thì fail-safe về default
   }
+}
+
+/**
+ * Đường khai phải nằm TRONG repo. Đường tuyệt đối hay có `..` bị loại ngay ở cửa đọc và MANG THEO lý
+ * do để lượt chấm ghi ra — không `console.error` rồi thôi, vì stderr của tiến trình con không phải
+ * chỗ người vận hành đọc. (Biên repo còn được giữ bằng cấu trúc ở `sources.ts`: mẫu chỉ khớp với
+ * danh sách file của cây git; đây là lời BÁO cho người khai, không phải hàng rào thứ hai.)
+ */
+function lyDoNgoaiRepo(duong: string): string | null {
+  const t = duong.replace(/\\/g, '/');
+  if (/^([a-zA-Z]:)?\//.test(t) || t.startsWith('//')) return 'đường tuyệt đối — nguồn phải nằm trong repo';
+  if (t.split('/').some((seg) => seg === '..')) return 'có `..` — không được trỏ ra ngoài repo';
+  return null;
+}
+
+/**
+ * Mục `sources` — repo khai spec, tài liệu API, file test mẫu của nó nằm đâu. Mỗi khoá nhận một
+ * chuỗi hay một danh sách; không khai (hoặc file hỏng) thì null và engine tự dò rồi báo cáo.
+ * Cửa song sinh thứ ba của `readRunnerCfg`/`readReviewCfg`: cùng luật fail-safe, cùng lời báo an toàn.
+ */
+export function readSourcesCfg(repoPath: string): SourcesCfg | null {
+  const f = join(repoPath, 'checkmate.yml');
+  if (!existsSync(f)) return null;
+  let raw: { sources?: Record<string, unknown> } | undefined;
+  try {
+    raw = parseYaml(readFileSync(f, 'utf8')) as { sources?: Record<string, unknown> };
+  } catch (e) {
+    console.error(`checkmate.yml của repo đích sai cú pháp — bỏ qua cấu hình sources, rơi về tự dò: ${loiCuPhapAnToan(e)}`);
+    return null;
+  }
+  const s = raw?.sources;
+  if (!s || typeof s !== 'object') return null;
+  const rejected: NonNullable<SourcesCfg['rejected']> = [];
+  const doc = (key: SourceKey): string[] | undefined => {
+    const x = s[key];
+    if (x == null) return undefined;
+    const ok: string[] = [];
+    for (const d of (Array.isArray(x) ? x : [x]).map((v) => String(v).trim()).filter(Boolean)) {
+      const ly = lyDoNgoaiRepo(d);
+      if (ly) rejected.push({ key, pattern: d, reason: ly });
+      else ok.push(d);
+    }
+    return ok;
+  };
+  const cfg: SourcesCfg = { specs: doc('specs'), api_doc: doc('api_doc'), test_sample: doc('test_sample') };
+  if (rejected.length) cfg.rejected = rejected;
+  return cfg.specs || cfg.api_doc || cfg.test_sample ? cfg : null;
 }
 
 // Mẫu repo khai có thể sai cú pháp regex — mẫu hỏng bị bỏ qua chứ không được làm sập lượt chấm.
