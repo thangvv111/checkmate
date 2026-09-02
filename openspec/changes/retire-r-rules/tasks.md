@@ -9,8 +9,10 @@ KHÔNG viết spec cho capability nào và KHÔNG quyết bỏ/đổi điều R 
       evidence`): mọi mã trong 13 file có hàng; rổ theo D3; điều mang cả luật lẫn án lệ có HAI hàng;
       `pending` trỏ đúng tên change trong bảng chia của proposal; `housed` trỏ requirement có thật;
       `evidence` trỏ test/code/capability. Umbrella KHÔNG ghi `dropped`.
-- [ ] 1.2 Trình PO **danh sách điều không chắc rổ** (< 10 dòng, không phải cả bảng); PO xếp; cập nhật
-      bảng. Đây là cổng duyệt duy nhất của umbrella (D5).
+- [x] 1.2 Trình PO **danh sách điều không chắc rổ** (< 10 dòng, không phải cả bảng); PO xếp; cập nhật
+      bảng. Đây là cổng duyệt duy nhất của umbrella (D5). — PO chốt 02/09: giữ nguyên cả 9 đề xuất
+      (R12.1 · R13.5 · R13.7 · R1.21 · R1.22 housed như ghi; R8.4–R8.9 và R9.15 → `probe-library`;
+      R3.12–R3.14 → `provider-gate`; R1.12–R1.13 → `verdict-contract`).
 - [x] 1.3 `git mv specs/R*.md docs/archive/r-rules/` (13 file, giữ nguyên tên) + banner đầu file theo D8;
       không sửa dòng nào khác — kiểm bằng máy: bỏ banner thì khớp byte với bản cũ.
 - [x] 1.4 `checkmate.yml`: `sources.specs` bỏ `specs/*.md`; chú thích dòng 1 («xem specs/R2») và mục

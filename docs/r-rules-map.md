@@ -296,7 +296,7 @@ Không có hàng vì không có mã để trích; ghi ở đây để không ai 
 | R13 › mở đầu (đo PR #17) | precedent | hàng R13 (precedent) |
 | R1 › Khi luật spec chỉ có ở nhánh PR (đoạn nghiêng) | precedent | hàng R1.17 (precedent) |
 
-## Điều agent không chắc rổ — PO xếp (task 1.2)
+## Điều agent không chắc rổ — PO đã xếp (task 1.2, chốt 02/09/2026: giữ nguyên như dưới)
 
 - R12.1 → housed · truc-phan-loai-code › Danh mục trigger và tập kích hoạt per-repo
 - R13.5 → housed · dinh-tuyen-skill-cham › Định tuyến theo file thực thi được, fail-closed
