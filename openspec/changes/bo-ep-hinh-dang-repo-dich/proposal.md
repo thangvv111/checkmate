@@ -50,11 +50,25 @@ vệ tắt mà không ai biết. Đó là verdict trông giống hệt nhau ở 
 
 ## Luật R chạm tới
 
-- **Luật R chạm tới:** **KHÔNG — cố ý.** Luật của change này sống ở `openspec/specs/nguon-spec/`,
-  ở hằng + validate trong engine kèm test khoá (`packages/harness/src/target.ts`), và ở khoá cấu hình
-  trong `checkmate.yml`. Không sửa văn bản `specs/R*.md` nào.
-  *(Nghịch lý đáng ghi: change này chính là change gỡ sự phụ thuộc vào lối viết `R**` — nên nó càng
-  không được đẻ thêm một điều R nào.)*
+- **Luật R chạm tới:** **KHÔNG.** Change này không sửa, không thêm, không xoá điều nào trong
+  `specs/R*.md`.
+
+Ô này hay bị đọc nhầm ở đúng change này, nên nói tách bạch — có **hai** thứ mang chữ `R`, và chúng
+không liên quan nhau:
+
+| | Là gì | Change này làm gì với nó |
+|---|---|---|
+| `specs/R*.md` | Tài liệu luật cũ **của chính CheckMate**. PO đã hạ xuống tài liệu tham khảo (01/09). | **Không đụng.** |
+| Lối đánh mã `R4.21` | Khuôn mà engine đang **ép repo đích** phải viết spec theo. | **Gỡ bỏ** — đây là nội dung chính của change. |
+
+Chúng chỉ tình cờ chung một chữ cái. Cái thứ nhất là tài liệu nội bộ; cái thứ hai là một giả định
+nằm trong code (`extractRuleIds`) áp lên repo của người khác.
+
+Luật của change này sống ở ba chỗ, không chỗ nào là `specs/R*.md`:
+
+- **hành vi** → `openspec/specs/nguon-spec/`
+- **hằng + validate** → `packages/harness/src/target.ts`, có test khoá
+- **khoá cấu hình** → `checkmate.yml`
 
 ## Impact
 
