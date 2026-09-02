@@ -57,20 +57,28 @@ export function splitSpecUnits(file: string, text: string, maxDepth = MAX_UNIT_D
   const lines = text.split(/\r?\n/);
   const units: SpecUnit[] = [];
   const path: string[] = []; // đường tiêu đề hiện tại theo cấp
-  let cur: { address: string; code?: string; lines: string[] } | null = null;
+  let cur: { address: string; code?: string; heading: boolean; lines: string[] } | null = null;
   const dung = new Map<string, number>(); // chống trùng địa chỉ giữa hai mục cùng tên
 
   const dong = (): void => {
     if (!cur) return;
     const body = cur.lines.join('\n').trim();
-    units.push({
-      address: cur.address,
-      code: cur.code,
-      codes: [...extractCodes(body)],
-      file,
-      body,
-      hash: createHash('sha256').update(body).digest('hex').slice(0, 12),
-    });
+    // Chữ RIÊNG của khối = ngoài dòng tiêu đề của chính nó. Tiêu đề chỉ chứa mục con («## Yêu cầu»
+    // rồi thẳng vào ###) là VỎ, không phải luật — đếm nó vào mẫu số là thổi phồng độ phủ; đo trên repo
+    // demo thấy ngay: 8 luật thành 10 «đơn vị». Mã ở tiêu đề thì vẫn là đơn vị: mã là một địa chỉ.
+    // Khối KHÔNG ĐỊA CHỈ (không tên file, không tiêu đề) cũng không phải đơn vị — để nó lọt là để một
+    // mẩu văn bản vô danh trở thành «luật mới» chặn merge.
+    const own = (cur.heading ? cur.lines.slice(1) : cur.lines).some((l) => l.trim().length > 0);
+    if (cur.address.length > 0 && (own || cur.code !== undefined)) {
+      units.push({
+        address: cur.address,
+        code: cur.code,
+        codes: [...extractCodes(body)],
+        file,
+        body,
+        hash: createHash('sha256').update(body).digest('hex').slice(0, 12),
+      });
+    }
     cur = null;
   };
 
@@ -89,20 +97,17 @@ export function splitSpecUnits(file: string, text: string, maxDepth = MAX_UNIT_D
       dung.set(address, lan);
       if (lan > 1) address = `${address}#${lan}`;
       const code = RE_CODE_AT_START.exec(title)?.[1];
-      cur = { address, code, lines: [line] };
+      cur = { address, code, heading: true, lines: [line] };
       continue;
     }
     if (!cur) {
       // Văn bản trước tiêu đề đầu tiên (hoặc file không có tiêu đề): dồn vào đơn vị lấy tên file
-      cur = { address: file.replace(/^.*[\\/]/, ''), lines: [] };
+      cur = { address: file.replace(/^.*[\\/]/, ''), heading: false, lines: [] };
     }
     cur.lines.push(line);
   }
   dong();
-  // Bỏ hai loại không phải luật: khối "mở đầu" rỗng (chỉ dòng trắng trước tiêu đề đầu), và khối
-  // KHÔNG CÓ ĐỊA CHỈ (không tên file, không tiêu đề) — một đơn vị không trỏ tới được thì không phải
-  // đơn vị, và để nó lọt là để một mẩu văn bản vô danh trở thành "luật mới" chặn merge.
-  return units.filter((u) => u.address.length > 0 && (u.body.length > 0 || u.code !== undefined));
+  return units;
 }
 
 /** Chia cả tập spec, giữ thứ tự file. */

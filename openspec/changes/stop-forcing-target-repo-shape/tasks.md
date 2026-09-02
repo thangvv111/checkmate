@@ -71,13 +71,15 @@ Bốn commit: đơn vị luật → nguồn spec cấu hình được → khai r
 ## 5. Kiểm cơ học
 
 - [x] 5.1 `npx tsc --noEmit` sạch · `npm test` xanh TOÀN BỘ.
-- [ ] 5.2 `demo-credit-approval` (spec có mã) vẫn đọc được, đơn vị và độ phủ ra đúng như trước —
-      **hệ quả**, không phải mục tiêu thiết kế.
-- [ ] 5.3 Dựng một repo thử có spec **không mã nào**, thư mục **không tên `specs/`**, có **thư mục con**
-      → engine vẫn đọc ra đơn vị và probe vẫn neo được.
-- [ ] 5.4 Repo **không có spec** → vẫn chấm, và cả ba chỗ (prompt · verdict · màn Run) đều khai rõ.
-- [ ] 5.5 Đọc lại thư viện probe hiện có → không probe nào mất neo.
-
+- [x] 5.2 `demo-credit-approval` — tự dò `specs/**/*.md`: 2 file · 9 đơn vị, trong đó **8 mã R1..R8 đúng như
+      trước** (+1 khối mở đầu có chữ riêng). Thư viện 36 probe / 41 vế `spec_rule`: 40 neo, 1 mất — `R9`, luật
+      KHÔNG có trong spec demo, trước đây cũng không neo được (không phải hồi quy). Đo 02/09.
+- [x] 5.3 Lưới `test/sources.test.ts` (readTarget trên repo git thật: `requirements/auth/*.md`, không mã, tầng
+      con, khai lẫn tự dò) + repo thật `demo-python` (tự dò `specs/`, 3 đơn vị, thư viện 6/6 neo).
+- [x] 5.4 Lưới `test/no-spec.test.ts` (prompt · verdict · màn Run, mỗi nhóm có vế đối chứng) + ca repo git không
+      spec trong `sources.test.ts`.
+- [x] 5.5 Đo trên thư viện thật 02/09: checkmate 16 probe / 25 vế → 25 neo · demo-python 6/6 · demo-credit 40/41
+      (`R9` như 5.2). Cách đo: `resolveRule` từng vế với đơn vị đọc từ cây HEAD của repo tương ứng.
 ## 6. Sau-merge — nợ có tên, KHÔNG thuộc change này
 
 - [ ] 6.1 Đọc spec **không phải văn bản có tiêu đề**: OpenAPI, JSON Schema, Gherkin `.feature`. Đường

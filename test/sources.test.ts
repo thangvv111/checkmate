@@ -88,7 +88,7 @@ describe('repo KHAI nguồn trong checkmate.yml', () => {
   it('đọc đúng chỗ khai: thư mục không tên specs/, có tầng con, spec KHÔNG mã nào', () => {
     expect(kq.specs.map((s) => s.file)).toEqual(['requirements/auth/lockout.md', 'requirements/auth/login.md']);
     expect(kq.report.specs.declared).toBe(true);
-    expect(kq.report.specs.probes[0]).toMatchObject({ pattern: 'requirements/**/*.md', files: 2, units: 4, used: true });
+    expect(kq.report.specs.probes[0]).toMatchObject({ pattern: 'requirements/**/*.md', files: 2, units: 3, used: true });
   });
 
   it('đường khai không khớp file nào → nói rõ đường đó, không im lặng bỏ qua', () => {
@@ -96,7 +96,7 @@ describe('repo KHAI nguồn trong checkmate.yml', () => {
     expect(kq.report.specs.probes[1]!.note).toContain('không khớp file nào');
     const dong = describeSources(kq.report);
     expect(dong.some((d) => d.includes('⚠ docs/nope/*.md'))).toBe(true);
-    expect(dong[0]).toContain('khai trong checkmate.yml: 2 file · 4 đơn vị');
+    expect(dong[0]).toContain('khai trong checkmate.yml: 2 file · 3 đơn vị');
   });
 
   it('tài liệu API nhiều file → nối có đề tên file; file test mẫu là MỘT file', () => {
@@ -122,7 +122,7 @@ describe('repo KHÔNG khai — tự dò và báo cáo', () => {
     expect(kq.report.specs.probes.find((p) => p.pattern === 'specs/**/*.md')).toMatchObject({ files: 0, used: false });
     expect(kq.report.specs.probes).toHaveLength(SPEC_CANDIDATES.length);
     const dong = describeSources(kq.report);
-    expect(dong[0]).toContain(`đã dò ${SPEC_CANDIDATES.length} chỗ: dùng docs/spec/**/*.md (1 file · 3 đơn vị)`);
+    expect(dong[0]).toContain(`đã dò ${SPEC_CANDIDATES.length} chỗ: dùng docs/spec/**/*.md (1 file · 2 đơn vị)`);
     expect(dong.some((d) => d.includes('không có: specs/**/*.md'))).toBe(true);
   });
 
@@ -138,9 +138,9 @@ describe('repo KHÔNG khai — tự dò và báo cáo', () => {
     const kq = readSources(null, tree('specs/a.md', 'openspec/specs/x/spec.md'), read);
     expect(kq.report.specs.files).toEqual(['specs/a.md']);
     const os = kq.report.specs.probes.find((p) => p.pattern === 'openspec/specs/**/*.md')!;
-    expect(os).toMatchObject({ files: 1, units: 3, used: false });
+    expect(os).toMatchObject({ files: 1, units: 2, used: false });
     expect(os.note).toContain('có, không dùng');
-    expect(describeSources(kq.report).some((d) => d.includes('openspec/specs/**/*.md — 1 file · 3 đơn vị — có, không dùng'))).toBe(true);
+    expect(describeSources(kq.report).some((d) => d.includes('openspec/specs/**/*.md — 1 file · 2 đơn vị — có, không dùng'))).toBe(true);
   });
 
   it('specs/ chỉ có file trống → KHÔNG phải spec, dò tiếp; báo lý do', () => {
@@ -265,7 +265,7 @@ describe('readTarget trên repo git thật — đọc từ cây nhánh, không �
     ghi(d, { 'requirements/auth/lockout.md': SPEC_B }, 'them luat');
     const t = readTarget(d, 'pr', 'main');
     expect(t.specs.map((s) => s.file)).toEqual(['requirements/auth/lockout.md', 'requirements/auth/login.md']);
-    expect(t.units.map((u) => u.address)).toEqual(['Khoá sau 5 lần sai', 'Duyệt', 'Duyệt › Ngưỡng theo vai', 'Duyệt › Người duyệt khác người tạo']);
+    expect(t.units.map((u) => u.address)).toEqual(['Khoá sau 5 lần sai', 'Duyệt › Ngưỡng theo vai', 'Duyệt › Người duyệt khác người tạo']);
     expect(t.luatMoi).toEqual(['Khoá sau 5 lần sai']);
     expect(t.sources.specs.declared).toBe(true);
     expect(t.sources.specs.probes[1]!.note).toContain('không khớp file nào');
@@ -283,7 +283,7 @@ describe('readTarget trên repo git thật — đọc từ cây nhánh, không �
     const t = readTarget(d, 'pr', 'main');
     expect(t.sources.specs.declared).toBe(false);
     expect(t.specs.map((s) => s.file)).toEqual(['docs/spec/rules.md']);
-    expect(t.units).toHaveLength(3);
+    expect(t.units).toHaveLength(2);
     expect(t.luatMoi).toEqual([]);
     expect(t.apiDoc).toBe('# API v2\nGET /x');
     expect(t.testMau).toBe('def test_a(): pass');

@@ -38,8 +38,8 @@ Số tiền bằng đúng trần PHẢI hợp lệ.
 describe('chia spec thành đơn vị có địa chỉ', () => {
   it('spec KHÔNG mã nào vẫn ra đơn vị, địa chỉ là đường tiêu đề', () => {
     const u = splitSpecUnits('specs/duyet.md', KHONG_MA);
+    // Tiêu đề cấp 1 «Phê duyệt đề xuất» không có chữ riêng — nó là vỏ, không phải đơn vị.
     expect(u.map((x) => x.address)).toEqual([
-      'Phê duyệt đề xuất',
       'Phê duyệt đề xuất › Ngưỡng theo vai',
       'Phê duyệt đề xuất › Người duyệt khác người tạo',
       'Phê duyệt đề xuất › Người duyệt khác người tạo › Ngoại lệ khẩn',
@@ -66,6 +66,13 @@ describe('chia spec thành đơn vị có địa chỉ', () => {
     const u = splitSpecUnits('docs/ghi-chu.txt', 'Chỉ một đoạn văn thuần.\nKhông tiêu đề.');
     expect(u).toHaveLength(1);
     expect(u[0]!.address).toBe('ghi-chu.txt');
+  });
+
+  it('tiêu đề chỉ chứa mục con, không chữ riêng → là VỎ, không phải đơn vị; có mã thì vẫn là đơn vị', () => {
+    // Đo trên repo demo: 8 luật ra 10 «đơn vị» vì hai tiêu đề cấp 1 chỉ bọc mục con — mẫu số độ phủ
+    // bị thổi phồng. Vế đối chứng: tiêu đề có chữ riêng, hay mang mã, vẫn là đơn vị.
+    const u = splitSpecUnits('a.md', '## Yêu cầu\n### A\nchữ a\n### B\nchữ b\n## R7\n### C\nchữ c\n## Có chữ\nriêng\n### D\nchữ d');
+    expect(u.map((x) => x.address)).toEqual(['Yêu cầu › A', 'Yêu cầu › B', 'R7', 'R7 › C', 'Có chữ', 'Có chữ › D']);
   });
 
   it('hai mục cùng tên không đè nhau — địa chỉ được đánh số', () => {

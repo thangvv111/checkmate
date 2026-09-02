@@ -76,8 +76,8 @@ describe('độ phủ luật — không đo được ≠ 0', () => {
 
   it('vế đối chứng: có đơn vị → đếm bình thường, kể cả khi KHÔNG probe nào neo được (đó mới là 0)', () => {
     const units = splitSpecUnits('a.md', SPEC);
-    expect(ruleCoverage(units, ['Ngưỡng theo vai', 'Ngưỡng theo vai', undefined])).toEqual({ luat_da_phu: ['Duyệt › Ngưỡng theo vai'], luat_tong: 3 });
-    expect(ruleCoverage(units, ['không khớp gì'])).toEqual({ luat_da_phu: [], luat_tong: 3 });
+    expect(ruleCoverage(units, ['Ngưỡng theo vai', 'Ngưỡng theo vai', undefined])).toEqual({ luat_da_phu: ['Duyệt › Ngưỡng theo vai'], luat_tong: 2 });
+    expect(ruleCoverage(units, ['không khớp gì'])).toEqual({ luat_da_phu: [], luat_tong: 2 });
   });
 });
 
