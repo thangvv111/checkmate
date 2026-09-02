@@ -413,6 +413,116 @@ table.runs td { padding:9px 13px; border-bottom:1px solid var(--color-divider); 
 .rc-gio { font-family:var(--font-mono); font-size:11px; color:var(--color-neutral-600); }
 @media (max-width: 1080px) { .dash-the { grid-template-columns:1fr; }
   .q-grid { grid-template-columns:44px minmax(160px,1.4fr) 1fr 80px 150px 200px; } }
+
+/* — Màn Run: đầu trang, năm bước, finding, verdict, cổng — theo gói CCS — */
+.run-hd { display:flex; align-items:flex-end; gap:16px; margin-top:6px; flex-wrap:wrap; }
+.run-hd-trai { flex:1; min-width:320px; }
+.run-meta { font-family:var(--font-mono); font-size:12px; color:var(--color-neutral-600); margin-top:4px; }
+.run-dk { display:flex; gap:8px; align-items:center; }
+.run-tt { font-family:var(--font-mono); font-size:11px; color:var(--color-neutral-600); }
+
+/* Thanh điều khiển trình diễn — nhịp canh ở phía trình duyệt, đổi tốc độ không tải lại trang */
+.td-bar { display:flex; gap:8px; align-items:center; margin:14px 0 0; padding:8px 12px;
+  border:1px solid var(--color-divider); background:var(--color-surface); }
+.td-nhan { font-family:var(--font-mono); font-size:11px; letter-spacing:0.08em;
+  text-transform:uppercase; color:var(--color-neutral-600); }
+.td-toc { display:inline-flex; border:1px solid var(--color-divider); }
+.td-toc button { background:none; border:0; border-radius:0; padding:5px 11px; cursor:pointer;
+  font-family:var(--font-mono); font-size:12px; color:var(--color-text); }
+.td-toc button + button { border-left:1px solid var(--color-divider); }
+.td-toc button.on { background:var(--color-accent); color:var(--color-bg); }
+
+/* Năm bước */
+.buoc { display:grid; grid-template-columns:40px 1fr; gap:8px; padding:12px 0;
+  border-bottom:1px solid var(--color-divider); }
+.buoc-mark { font-family:var(--font-mono); font-size:13px; color:var(--color-neutral-500); }
+.buoc.on   > .buoc-mark { color:var(--color-accent); animation:cmblink 1.4s infinite; }
+.buoc.done > .buoc-mark { color:var(--pass); }
+.buoc.loi  > .buoc-mark { color:var(--fail); }
+.buoc-dau { display:flex; gap:10px; align-items:baseline; }
+.buoc-ten { font-weight:600; font-size:14.5px; }
+.buoc-lau { font-family:var(--font-mono); font-size:11px; color:var(--color-neutral-500); }
+.buoc-log { margin-top:8px; background:var(--color-neutral-900); padding:10px 14px; }
+.buoc-log:empty { display:none; }
+.buoc-log .d { display:flex; gap:12px; font-family:var(--font-mono); font-size:12px; line-height:1.75;
+  color:var(--color-neutral-200); }
+.buoc-log .d > .ts { color:var(--color-neutral-500); flex:none; }
+.buoc-log .d > .tx { white-space:pre-wrap; min-width:0; }
+
+/* Cảnh báo đổi CÁCH ĐỌC verdict — phải đứng trước verdict, không phải chú thích cuối */
+.ban-canh { margin-top:16px; padding:12px 16px; border:2px solid var(--medium);
+  background:var(--medium-tint); color:var(--medium-ink); }
+.ban-canh h6 { margin:0 0 4px; color:var(--medium-ink); }
+.ban-canh .n { font-size:13px; }
+.ban-canh.tra-lai { display:flex; gap:14px; align-items:center; }
+.ban-canh.tra-lai .n { flex:1; }
+
+/* Finding */
+.fnd { display:flex; margin-top:12px; background:var(--color-bg); border:1px solid var(--color-divider); }
+.fnd-vach { width:6px; flex:none; background:var(--fail); }
+.fnd.sev-medium > .fnd-vach { background:var(--medium); }
+.fnd.sev-low    > .fnd-vach { background:var(--color-neutral-400); }
+.fnd-than { flex:1; padding:14px 18px; min-width:0; }
+.fnd-dau { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.fnd-ten { font-weight:700; font-size:15px; }
+.fnd-gi { font-size:13.5px; margin-top:8px; }
+.fnd-hq { font-size:13px; margin-top:6px; }
+.fnd-nhan { font-family:var(--font-mono); font-size:10px; letter-spacing:0.08em;
+  text-transform:uppercase; color:var(--color-neutral-600); }
+.fnd-lenh { font-family:var(--font-mono); font-size:11.5px; color:var(--color-neutral-600); margin-top:8px; }
+.fnd-bc { display:grid; grid-template-columns:1fr 1fr; border:1px solid var(--color-divider); margin-top:10px; }
+.fnd-bc > div { min-width:0; }
+.fnd-bc > div + div { border-left:1px solid var(--color-divider); }
+.fnd-bc .dau { font-family:var(--font-mono); font-size:10px; letter-spacing:0.08em;
+  text-transform:uppercase; padding:5px 10px; }
+.fnd-bc .dau-a { background:var(--pass-tint); color:var(--pass-ink); }
+.fnd-bc .dau-b { background:var(--fail-tint); color:var(--fail-ink); }
+.fnd-bc .than { padding:10px; font-family:var(--font-mono); font-size:12px; line-height:1.6;
+  white-space:pre-wrap; overflow-wrap:anywhere; }
+
+/* Verdict */
+.vd { margin-top:24px; display:grid; grid-template-columns:2fr 3fr; border:2px solid var(--color-divider); }
+.vd-khoi { padding:24px 22px; display:flex; flex-direction:column; justify-content:center; }
+.vd-khoi.PASS { background:var(--pass); color:var(--color-bg); }
+.vd-khoi.FAIL { background:var(--fail); color:var(--color-bg); }
+.vd-khoi.trong { background:var(--color-neutral-800); color:var(--color-neutral-100); }
+.vd-kq { font-family:var(--font-heading); font-weight:var(--font-heading-weight); font-size:54px;
+  line-height:1; letter-spacing:-0.02em; }
+.vd-khoi.trong .vd-kq { font-size:30px; line-height:1.1; letter-spacing:-0.01em; }
+.vd-phu { font-family:var(--font-mono); font-size:12px; margin-top:10px; opacity:0.92; }
+.vd-meta { background:var(--color-bg); padding:14px 20px; display:grid;
+  grid-template-columns:1fr 1fr; gap:2px 24px; align-content:start; }
+.vd-hang { display:flex; justify-content:space-between; gap:10px; padding:6px 0;
+  border-bottom:1px solid var(--color-divider); font-size:12.5px; }
+.vd-hang > .k { color:color-mix(in srgb, var(--color-text) 55%, transparent); }
+.vd-hang > .v { font-family:var(--font-mono); font-size:12px; text-align:right; }
+.vd-hang.xam > .v { color:var(--medium-ink); }
+
+/* Thư viện — nối liền dưới verdict */
+.thu-vien { border:2px solid var(--color-divider); border-top:none; background:var(--color-bg);
+  padding:16px 20px; }
+.thu-vien-dau { display:flex; gap:10px; align-items:baseline; }
+.thu-vien-dem { font-family:var(--font-mono); font-size:12.5px; font-weight:600; }
+.tv-dong { display:flex; gap:8px; align-items:center; padding:6px 0;
+  border-bottom:1px solid var(--color-divider); }
+.tv-nhanh { font-family:var(--font-mono); font-size:12px; color:var(--color-neutral-500); flex:none; }
+.tv-icon { flex:none; font-family:var(--font-mono); }
+.tv-dong.khong-nap .tv-icon { color:var(--medium-ink); }
+.tv-dong.go-khoi  .tv-icon { color:var(--fail-ink); }
+.tv-tx { flex:1; font-family:var(--font-mono); font-size:12.5px; min-width:0; overflow-wrap:anywhere; }
+
+/* Quan sát ngoài phạm vi PR */
+.oos { margin-top:16px; padding:12px 16px; border:1px dashed var(--color-neutral-500);
+  background:var(--color-surface); }
+.oos h6 { margin:0 0 4px; }
+.oos .d { font-family:var(--font-mono); font-size:12.5px; line-height:1.7; }
+
+@media (max-width: 1080px) {
+  .vd { grid-template-columns:1fr; }
+  .vd-meta { grid-template-columns:1fr; }
+  .fnd-bc { grid-template-columns:1fr; }
+  .fnd-bc > div + div { border-left:0; border-top:1px solid var(--color-divider); }
+}
 `;
 
 // W8: mọi chuỗi ngoại lai (PR title từ GitHub, tên file upload, finding do model viết) phải qua đây trước khi vào DOM
@@ -878,35 +988,51 @@ ${nutMerge}
  * Đó là điều kiện để chỉ có MỘT hàm dựng: bản nào ít người nhìn hơn sẽ lệch trước, và lệch im lặng.
  */
 const JS_VE = `
-function ve(e, html){
+function mmss(ms){var g=Math.max(0,Math.round(ms/1000));
+  return String(Math.floor(g/60)).padStart(2,'0')+':'+String(g%60).padStart(2,'0');}
+function danhDauXong(u){
+  u.classList.remove('on');u.classList.add('done');
+  var m=u.querySelector('.buoc-mark');if(m)m.textContent='✓';
+}
+function ve(e, html, t){
   if(e.type==='stage'){
-    for(var i=1;i<e.stage;i++){var t=document.querySelector('[data-s="'+i+'"]');if(t)t.className='done';}
-    var c=document.querySelector('[data-s="'+e.stage+'"]');if(c)c.className='on';
+    for(var i=1;i<e.stage;i++){var u=document.querySelector('.buoc[data-s="'+i+'"]');if(u)danhDauXong(u);}
+    var c=document.querySelector('.buoc[data-s="'+e.stage+'"]');
+    if(c){c.classList.add('on');var m2=c.querySelector('.buoc-mark');if(m2)m2.textContent='●';}
     window.__buoc=e.stage;
   } else if(e.type==='log'){
     if(e.msg==='__END__')return;
     var b=document.getElementById('logs-'+(window.__buoc||1));
-    if(b){var d=document.createElement('div');d.className='logline';d.textContent=e.msg;b.appendChild(d);}
+    if(b){
+      var d=document.createElement('div');d.className='d';
+      var s1=document.createElement('span');s1.className='ts';s1.textContent=mmss(t||0);
+      var s2=document.createElement('span');s2.className='tx';s2.textContent=e.msg;
+      d.appendChild(s1);d.appendChild(s2);b.appendChild(d);
+    }
   } else if(e.type==='finding'){
     if(html) document.getElementById('findings').insertAdjacentHTML('beforeend', html);
   } else if(e.type==='verdict'){
-    document.querySelectorAll('.stages li').forEach(function(li){li.className='done';});
+    document.querySelectorAll('.buoc').forEach(danhDauXong);
     if(html) document.getElementById('verdict-o').innerHTML = html;
   } else if(e.type==='head_moved'){
-    // Head đổi GIỮA lượt chấm: nói ra ngay, đừng đợi ai tải lại trang. Verdict sắp ra đời đã hết
-    // hiệu lực ở cổng — người đang xem phải biết trước khi họ bấm.
     if(!document.getElementById('stale-bn')){
-      var w=document.createElement('div');w.id='stale-bn';w.className='cong';
-      w.style.borderColor='var(--medium)';w.style.background='var(--medium-tint)';
-      w.innerHTML='<b>Verdict sẽ hết hiệu lực.</b> PR đã nhận commit mới ('+String(e.new_sha||'').slice(0,7)+
-        ') trong lúc đang chấm — lượt này vẫn chạy tới hết để đọc, nhưng cổng merge sẽ khoá.';
-      var s=document.getElementById('stages');s.parentNode.insertBefore(w,s);
+      var w=document.createElement('div');w.id='stale-bn';w.className='ban-canh';
+      var n=document.createElement('div');n.className='n';
+      var bb=document.createElement('b');bb.textContent='Verdict sẽ hết hiệu lực.';
+      n.appendChild(bb);
+      n.appendChild(document.createTextNode(' PR đã nhận commit mới ('+String(e.new_sha||'').slice(0,7)+
+        ') trong lúc đang chấm — lượt này vẫn chạy tới hết để đọc, nhưng cổng merge sẽ khoá.'));
+      w.appendChild(n);
+      var k=document.getElementById('cac-buoc');k.parentNode.insertBefore(w,k);
     }
   } else if(e.type==='error'){
     var er=document.getElementById('err');er.style.display='block';
     var x=document.createElement('div');x.style.marginBottom='6px';
-    x.innerHTML='<b>LỖI:</b> '+String(e.msg).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});
+    var eb=document.createElement('b');eb.textContent='LỖI: ';
+    x.appendChild(eb);x.appendChild(document.createTextNode(String(e.msg)));
     er.appendChild(x);
+    var c2=document.querySelector('.buoc.on');
+    if(c2){c2.classList.add('loi');var m3=c2.querySelector('.buoc-mark');if(m3)m3.textContent='✗';}
   }
 }`;
 
@@ -943,7 +1069,7 @@ var es=new EventSource('/api/runs/${id}/events?tu=${tu}');
 es.onmessage=function(m){
   var g=JSON.parse(m.data);
   if(g.e.type==='log'&&g.e.msg==='__END__'){es.close();location.reload();return;}
-  ve(g.e,g.html);
+  ve(g.e,g.html,g.t);
 };
 es.onerror=function(){};`;
 }
@@ -964,7 +1090,7 @@ function jsTrinhDien(id: string): string {
   function chay(){
     if(dung||i>=SU.length)return;
     var ev=SU[i];
-    hen=setTimeout(function(){moc=ev.t;ve(ev.e,ev.html);i++;chay();},Math.max(0,(ev.t-moc)/tocDo));
+    hen=setTimeout(function(){moc=ev.t;ve(ev.e,ev.html,ev.t);i++;chay();},Math.max(0,(ev.t-moc)/tocDo));
   }
   function ngat(){if(hen){clearTimeout(hen);hen=null;}}
   if(oTocDo)oTocDo.addEventListener('click',function(e){
@@ -988,131 +1114,271 @@ function JS_RUN(meta: RunMeta, trinhDien: boolean, daDung: number): string {
 }
 
 /** Năm bước của một lượt chấm — dùng chung cho cả đường server dựng lẫn đường luồng. */
+/** Năm bước của một lượt chấm — dùng chung cho cả đường server dựng lẫn đường luồng. */
 const BUOC = ['Nhận artifact', 'Nạp spec / rubric', 'Sinh phép thử đối kháng', 'Chạy & đối chiếu bằng chứng', 'Kết luận'];
 
-/** Khối bằng chứng của một finding. */
+/**
+ * Khối bằng chứng HAI CỘT — kỳ vọng bên trái (tint jade), thực tế bên phải (tint crimson).
+ *
+ * Hai cột cạnh nhau là cách bày duy nhất cho phép đọc SO SÁNH bằng mắt; xếp trên dưới thì người đọc
+ * phải tự nhớ vế trên trong lúc đọc vế dưới. Với finding tài liệu, hai cột là hai đoạn trích đối
+ * nhau — cùng hình dạng, khác nội dung.
+ */
 function bangChungHtml(ev: Finding['evidence']): string {
-  if (ev.type === 'quote_pair') {
-    return `<div class="ev"><div class="loc">${escHtml(ev.loc_a)}</div><div class="q">«${escHtml(ev.quote_a)}»</div>
-<div class="loc" style="margin-top:6px">đối lại — ${escHtml(ev.loc_b)}</div><div class="q">«${escHtml(ev.quote_b)}»</div></div>`;
-  }
-  if (ev.type === 'quote') {
-    return `<div class="ev"><div class="loc">${escHtml(ev.rule)} — ${escHtml(ev.loc)}</div><div class="q">«${escHtml(ev.quote)}»</div></div>`;
-  }
-  return `<div class="ev"><div class="loc">${escHtml(ev.probe_name)}</div><pre>kỳ vọng:  ${escHtml(ev.expected)}
-thực tế:  ${escHtml((ev.actual || '').split('\n')[0])}</pre></div>`;
+  const o = (
+    dauA: string,
+    thanA: string,
+    dauB: string,
+    thanB: string,
+  ): string => `<div class="fnd-bc">
+<div><div class="dau dau-a">${escHtml(dauA)}</div><div class="than">${escHtml(thanA)}</div></div>
+<div><div class="dau dau-b">${escHtml(dauB)}</div><div class="than">${escHtml(thanB)}</div></div>
+</div>`;
+  if (ev.type === 'quote_pair') return o(ev.loc_a, `«${ev.quote_a}»`, ev.loc_b, `«${ev.quote_b}»`);
+  if (ev.type === 'quote') return o(ev.rule, ev.loc, 'trích dẫn', `«${ev.quote}»`);
+  return o('KỲ VỌNG', ev.expected, 'THỰC TẾ', (ev.actual || '').split('\n').slice(0, 6).join('\n'));
 }
 
 /**
  * HTML của MỘT finding — hàm DUY NHẤT dựng nó.
  *
- * Trước đây có hai bản: một bản ghép chuỗi trong JS phía trình duyệt (đường duy nhất, vì lượt đã
- * xong cũng phải phát lại dòng sự kiện mới có nội dung). Nay lượt đã xong do máy chủ dựng, còn lượt
- * đang chạy nhận HTML ĐÃ DỰNG SẴN qua luồng. Một hàm, một cách hiện — nếu để hai bản thì chúng sẽ
- * lệch nhau, và bản ít người nhìn hơn sẽ lệch trước.
+ * Trước đây có một bản ghép chuỗi trong JS phía trình duyệt (đường duy nhất, vì lượt đã xong cũng
+ * phải phát lại dòng sự kiện mới có nội dung). Nay lượt đã xong do máy chủ dựng, còn lượt đang chạy
+ * nhận HTML ĐÃ DỰNG SẴN qua luồng. Một hàm, một cách hiện — để hai bản thì bản ít người nhìn hơn sẽ
+ * lệch trước, và lệch im lặng.
  */
 export function findingHtml(f: Finding): string {
   const muc = chuanMuc(f.severity);
-  const nhan = { high: '✗ HIGH — chặn merge', medium: '⚠ MEDIUM — cảnh báo', low: '△ LOW' }[muc] ?? muc;
+  const nhan = { high: 'HIGH — chặn merge', medium: 'MEDIUM — cảnh báo', low: 'LOW' }[muc] ?? muc;
+  const pill = { high: 'pill-fail', medium: 'pill-stale', low: 'pill-chua' }[muc] ?? 'pill-chua';
   // Phân loại ODC — telemetry, chỉ hiện khi CÓ. Giá trị 'unknown' VẪN hiện: model trả một mã không
   // đọc được khác hẳn model im lặng, và gộp hai cái là mất một tín hiệu về chính model.
   const pl = [f.odc_type && `type: ${f.odc_type}`, f.qualifier && `qualifier: ${f.qualifier}`].filter(Boolean).join(' · ');
-  return `<div class="finding sev-${muc}">
-<div class="sev">${nhan}${pl ? ` <span style="opacity:.72;font-weight:400">· ${escHtml(pl)}</span>` : ''}</div>
-<h3>${escHtml(f.title_vi)}</h3>
-<div class="row"><b>Điều gì sai:</b> ${escHtml(f.what_vi)}</div>
-<div class="row"><b>Hậu quả:</b> ${escHtml(f.consequence_vi)}</div>
-${f.minimal_fix ? `<div class="row"><b>Bản vá tối thiểu:</b> ${escHtml(f.minimal_fix)}</div>` : ''}
-${bangChungHtml(f.evidence)}</div>`;
+  const lenh = f.evidence.type === 'test_run' ? f.evidence.probe_name : '';
+  return `<div class="fnd sev-${muc}"><div class="fnd-vach"></div><div class="fnd-than">
+<div class="fnd-dau"><span class="tag ${pill}">${escHtml(nhan)}</span><span class="fnd-ten">${escHtml(f.title_vi)}</span>${
+    pl ? `<span class="fnd-nhan">${escHtml(pl)}</span>` : ''
+  }</div>
+<div class="fnd-gi">${escHtml(f.what_vi)}</div>
+<div class="fnd-hq"><span class="fnd-nhan">hậu quả — </span>${escHtml(f.consequence_vi)}</div>
+${f.minimal_fix ? `<div class="fnd-hq"><span class="fnd-nhan">vá tối thiểu — </span>${escHtml(f.minimal_fix)}</div>` : ''}
+${lenh ? `<div class="fnd-lenh">$ ${escHtml(lenh)}</div>` : ''}
+${bangChungHtml(f.evidence)}</div></div>`;
 }
 
-/** HTML của thẻ verdict + khối quan sát ngoài phạm vi. Hàm DUY NHẤT dựng chúng. */
+/** Một hàng của bảng số liệu verdict. */
+function hangMeta(k: string, v: string, xam = false): string {
+  return `<div class="vd-hang${xam ? ' xam' : ''}"><span class="k">${escHtml(k)}</span><span class="v">${escHtml(v)}</span></div>`;
+}
+
+/**
+ * HTML của thẻ verdict + khối Thư viện + khối quan sát ngoài phạm vi.
+ *
+ * Bảng số liệu BẮT BUỘC hiện **vùng xám probe** — nghi vấn · bỏ qua · thất lạc · nghi lỗi có sẵn —
+ * kể cả khi bằng không. Bốn số đó nói lượt chấm này KHÔNG nhìn thấy gì. Giấu chúng đi thì một
+ * verdict PASS mỏng trông giống hệt một verdict PASS dày, và người đọc mất đúng thứ cần để biết nên
+ * tin đến đâu.
+ */
 export function verdictHtml(v: Verdict): string {
   const dem = (m: string): number => v.findings.filter((f) => chuanMuc(f.severity) === m).length;
+  const ps = v.probe_stats;
   const cp = v.chi_phi;
   const kk = (n: number): string => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
-  const sCp = cp
-    ? ` · ${cp.uoc_tinh ? '~' : ''}${kk(cp.token_vao)} token vào / ${cp.uoc_tinh ? '~' : ''}${kk(cp.token_ra)} ra (${cp.calls} call${cp.uoc_tinh ? ', ước tính' : ''})`
-    : '';
+  const giay = Math.max(0, Math.round((Date.parse(v.finished_at) - Date.parse(v.started_at)) / 1000));
+  const ng = splitSource(v.model);
+
+  const hang = [
+    hangMeta('Finding', `${v.findings.length} · ${dem('high')} high · ${dem('medium')} med · ${dem('low')} low`),
+    ps ? hangMeta('Probe', `${ps.ghi_nhan}/${ps.ke_hoach} ghi nhận · ${ps.pass} pass · ${ps.hoi_quy} hồi quy`) : '',
+    ps ? hangMeta('Ngoài phạm vi', String(ps.ngoai_pham_vi)) : '',
+    // Vùng xám — bốn số PHẢI hiện, kể cả bằng không. Im lặng và số không là hai điều khác nhau.
+    ps ? hangMeta('◍ nghi vấn', String(ps.nghi_van), true) : '',
+    ps ? hangMeta('◍ bỏ qua', String(ps.bo_qua), true) : '',
+    ps ? hangMeta('◍ thất lạc', String(ps.that_lac.length), true) : '',
+    ps ? hangMeta('◍ nghi lỗi có sẵn', String(ps.nghi_loi_co_san), true) : '',
+    hangMeta('Nguồn model', ng.nguon),
+    hangMeta('Model', ng.ten),
+    cp ? hangMeta('Token vào/ra', `${cp.uoc_tinh ? '~' : ''}${kk(cp.token_vao)} / ${cp.uoc_tinh ? '~' : ''}${kk(cp.token_ra)}`) : '',
+    hangMeta('Thời gian chạy', `${giay}s`),
+    // Vắng người chạy là một KHẲNG ĐỊNH — lượt do máy chạy — chứ không phải thiếu dữ liệu.
+    hangMeta('Người chạy', v.run_by || 'máy chạy (chế độ trực)'),
+    hangMeta('Bắt đầu', v.started_at.slice(0, 16).replace('T', ' ')),
+    hangMeta('Chế độ', v.mode),
+  ]
+    .filter(Boolean)
+    .join('');
+
+  const the = `<div class="vd"><div class="vd-khoi ${v.result}">
+<div class="vd-kq">${v.result}</div>
+<div class="vd-phu">${escHtml(v.artifact_ref.name)} @ ${escHtml(v.artifact_ref.sha_or_hash.slice(0, 10))}</div></div>
+<div class="vd-meta">${hang}</div></div>`;
+
+  return the + thuVienHtml(v) + quanSatHtml(v);
+}
+
+/**
+ * Khối Thư viện — quyết định làm THAY ĐỔI TÀI SẢN regression của lượt này.
+ *
+ * Hai loại việc phải phân biệt được ở mức DẤU HIỆU, không chỉ ở lời văn: `⊘ không nạp vào` là không
+ * thêm tài sản; `✕ gỡ khỏi thư viện` là MẤT một tài sản đã tự chứng minh được mình ở lượt trước.
+ * Dùng chung một ký hiệu là để người đọc lướt qua cái đắt hơn.
+ */
+function thuVienHtml(v: Verdict): string {
+  const ds = v.library_changes ?? [];
+  if (!ds.length) return '';
+  const dong = ds
+    .map((x, i) => {
+      const cuoi = i === ds.length - 1;
+      const go = x.action === 'evicted';
+      return `<div class="tv-dong ${go ? 'go-khoi' : 'khong-nap'}">
+<span class="tv-nhanh">${cuoi ? '└' : '├'}</span>
+<span class="tv-icon">${go ? '✕' : '⊘'}</span>
+<span class="tv-tx">${escHtml(x.probe_id)} — ${escHtml(x.reason)}</span>
+<span class="tag ${go ? 'pill-fail' : 'pill-stale'}">${go ? 'gỡ khỏi thư viện' : 'không nạp vào'}</span></div>`;
+    })
+    .join('');
+  const go = ds.filter((x) => x.action === 'evicted').length;
+  return `<div class="thu-vien"><div class="thu-vien-dau"><h6 style="margin:0">Thư viện</h6>
+<span class="thu-vien-dem">${ds.length} quyết định${go ? ` · ${go} gỡ` : ''}</span></div>
+<div class="text-muted" style="font-size:12.5px;margin-top:2px">Quyết định làm thay đổi tài sản regression — ⊘ không nạp vào, ✕ gỡ cái đã có.</div>
+<div style="margin-top:10px">${dong}</div></div>`;
+}
+
+/** Quan sát ngoài phạm vi PR — không đổi verdict, nhưng không được im lặng. */
+function quanSatHtml(v: Verdict): string {
   const qs = v.quan_sat_ngoai_pr ?? [];
-  const khoiQs = qs.length
-    ? `<div class="ev" style="margin-top:10px"><div class="loc">Quan sát NGOÀI phạm vi PR — không tính vào verdict (lỗi tồn tại trên cả nhánh gốc, nên mở việc riêng)</div>${qs
-        .map(
-          (q) =>
-            `<div class="logline" style="padding-left:0">${q.loai === 'nghi_loi_co_san' ? '⚠ nghi LỖI CÓ SẴN' : '· ngoài phạm vi'} — ${escHtml(q.probe_id)} (${escHtml(q.spec_rule)}): ${escHtml(q.ten)}</div>`,
-        )
-        .join('')}</div>`
-    : '';
-  return `<div class="verdict ${v.result}"><div class="kq">${v.result === 'FAIL' ? '✗ FAIL — bị bác' : '✓ PASS — qua cổng'}</div>
-<div class="chitiet">${escHtml(v.artifact_ref.name)} @ ${escHtml(v.artifact_ref.sha_or_hash.slice(0, 10))} · ${v.findings.length} finding (${dem('high')} high · ${dem('medium')} medium · ${dem('low')} low) · ${escHtml(v.model)}${escHtml(sCp)}</div></div>${khoiQs}`;
+  if (!qs.length) return '';
+  return `<div class="oos"><h6>Quan sát ngoài phạm vi PR — không đổi verdict</h6>
+<div class="d">${qs
+    .map(
+      (q) =>
+        `${q.loai === 'nghi_loi_co_san' ? '⚠ nghi LỖI CÓ SẴN' : '· ngoài phạm vi'} — ${escHtml(q.probe_id)} (${escHtml(q.spec_rule)}): ${escHtml(q.ten)}<br>`,
+    )
+    .join('')}</div>
+<div class="goiy" style="margin:6px 0 0">Lỗi tồn tại trên CẢ nhánh gốc, nên cổng không quy tội PR này — nhưng nó có thật, và đáng mở một việc riêng.</div></div>`;
+}
+
+/**
+ * Card KHÔNG RA VERDICT — lượt chấm THẤT BẠI, không phải trạng thái thứ ba.
+ *
+ * Lượt kết thúc mà không probe nào pass, hồi quy hay cải thiện thì nó không chứng minh được gì. Bày
+ * nó như một lỗi chung («Run dừng giữa chừng») là báo sai bản chất: người đọc cần biết lượt chấm ĐÃ
+ * CHẠY nhưng KHÔNG CÓ CƠ SỞ, chứ không phải hệ thống hỏng.
+ */
+function khongRaVerdictHtml(loi: string): string {
+  return `<div class="vd"><div class="vd-khoi trong">
+<div class="vd-kq">KHÔNG RA VERDICT</div>
+<div class="vd-phu">không đủ cơ sở kết luận — lượt chấm thất bại, KHÔNG phải PASS hay FAIL</div></div>
+<div class="vd-meta" style="grid-template-columns:1fr"><div style="font-size:13px">${escHtml(loi)}</div>
+<div class="goiy" style="margin:10px 0 0">Không ghi vào sổ cái, và cổng merge giữ nguyên trạng thái trước đó. Chạy lại sau khi sửa nguyên nhân bên trên.</div></div></div>`;
 }
 
 export function runPage(meta: RunMeta, trinhDien: boolean, suKien: StoredEvent[] = [], nguoi = ''): string {
   const xong = meta.trangThai !== 'dang_chay';
-
-  // Lượt ĐÃ KẾT THÚC là dữ liệu tĩnh: verdict, finding, số liệu đều đã nằm trên máy chủ. Dựng thẳng
-  // ở đây thay vì bắt trình duyệt phát lại toàn bộ dòng sự kiện để có nội dung — trước đợt này, mở
-  // một lượt của tuần trước cũng phải chạy lại cả dòng sự kiện, và không có kịch bản là trang trắng.
   // Máy chủ dựng sẵn ở MỌI trạng thái trừ trình diễn — lượt đang chạy cũng không nên mở ra trống rồi
-  // đợi luồng đổ lại từ đầu. Luồng nối tiếp từ đúng chỗ đã dựng (`?tu=`), nên không có gì hiện hai lần.
+  // đợi luồng đổ lại từ đầu. Luồng nối tiếp từ đúng chỗ đã dựng (`?tu=`), nên không gì hiện hai lần.
   const dungSan = !trinhDien;
   const daDung = dungSan ? suKien.length : 0;
+  const v = meta.verdict;
 
-  // Bước cuối cùng đã bắt đầu — để đánh dấu đúng khi lượt còn đang chạy dở.
   const buocCuoi = suKien.reduce((n, x) => (x.e.type === 'stage' ? x.e.stage : n), 0);
+  const coLoi = suKien.some((x) => x.e.type === 'error');
+  const mocBuoc = new Map<number, number>();
+  for (const x of suKien) if (x.e.type === 'stage') mocBuoc.set(x.e.stage, x.t);
+  const ketThuc = suKien.length ? suKien[suKien.length - 1]!.t : 0;
+
+  const banKhongDoiChung = v?.no_baseline
+    ? `<div class="ban-canh"><div class="n"><b>Không có đối chứng.</b> Nhánh gốc không chạy được probe nào —
+thường vì PR này thêm module mới. Probe đỏ khi đó chỉ là <b>nghi vấn</b>, không thành hồi quy.</div></div>`
+    : '';
 
   const buocHtml = BUOC.map((s, i) => {
     const so = i + 1;
-    const lop = !dungSan ? '' : xong ? ' class="done"' : so < buocCuoi ? ' class="done"' : so === buocCuoi ? ' class="on"' : '';
-    return `<li data-s="${so}"${lop}>${s}<div id="logs-${so}">${
+    const daXong = xong || so < buocCuoi;
+    const dangChay = !xong && so === buocCuoi;
+    const lop = !dungSan ? '' : daXong ? ' done' : dangChay ? ' on' : '';
+    const mark = !dungSan || (!daXong && !dangChay) ? String(so).padStart(2, '0') : dangChay ? '●' : coLoi && so === buocCuoi ? '✗' : '✓';
+    const batDau = mocBuoc.get(so);
+    const ke = mocBuoc.get(so + 1) ?? (daXong ? ketThuc : undefined);
+    const lau = dungSan && batDau !== undefined && ke !== undefined ? `${Math.max(0, Math.round((ke - batDau) / 1000))}s` : '';
+    return `<div class="buoc${lop}" data-s="${so}"><div class="buoc-mark">${mark}</div><div>
+<div class="buoc-dau"><span class="buoc-ten">${escHtml(s)}</span><span class="buoc-lau">${lau}</span></div>
+${so === 4 ? banKhongDoiChung : ''}
+<div class="buoc-log" id="logs-${so}">${
       dungSan
         ? suKien
             .filter((x) => x.e.type === 'log' && (x.e as { msg: string }).msg !== '__END__' && thuocBuoc(suKien, x, so))
-            .map((x) => `<div class="logline">${escHtml((x.e as { msg: string }).msg)}</div>`)
+            .map(
+              (x) =>
+                `<div class="d"><span class="ts">${mmss(x.t)}</span><span class="tx">${escHtml((x.e as { msg: string }).msg)}</span></div>`,
+            )
             .join('')
         : ''
-    }</div></li>`;
+    }</div></div></div>`;
   }).join('');
 
-  // Lượt đã xong thì verdict là bản chuẩn; lượt đang chạy thì lấy finding đã phát ra tới giờ.
-  const dsFinding = xong && meta.verdict
-    ? meta.verdict.findings
-    : suKien.filter((x) => x.e.type === 'finding').map((x) => (x.e as { finding: Finding }).finding);
+  // Cảnh báo này ĐỔI CÁCH ĐỌC verdict, nên nó đứng trước verdict chứ không thành chú thích cuối.
+  const vungMu = v?.diff_blind_spots ?? [];
+  const banVungMu = vungMu.length
+    ? `<div class="ban-canh"><h6>Vùng mù của diff — ${vungMu.length} file mã nguồn bị loại vì vượt trần</h6>
+<div class="n">Verdict lượt này <b>KHÔNG nói gì</b> về những file đó: <span class="mono">${escHtml(
+        vungMu.map((x) => x.file).join(' · '),
+      )}</span></div></div>`
+    : '';
 
-  // Head đổi giữa chừng — dựng sẵn để lượt mở lại vẫn thấy, không chỉ người đang xem trực tiếp.
-  const headDoi = meta.verdict?.head_moved ?? (suKien.find((x) => x.e.type === 'head_moved')?.e as { new_sha: string } | undefined);
+  const dsFinding = xong && v ? v.findings : suKien.filter((x) => x.e.type === 'finding').map((x) => (x.e as { finding: Finding }).finding);
+
+  const headDoi = v?.head_moved ?? (suKien.find((x) => x.e.type === 'head_moved')?.e as { new_sha: string } | undefined);
   const banStale = dungSan && headDoi
-    ? `<div class="cong" id="stale-bn" style="border-color:var(--medium);background:var(--medium-tint)">
-<b>Verdict hết hiệu lực.</b> PR đã nhận commit mới (<span class="mono">${escHtml(headDoi.new_sha.slice(0, 7))}</span>)
-kể từ lúc lượt chấm này bắt đầu — cổng merge khoá. Chấm lại commit mới rồi mới merge được.</div>`
+    ? `<div class="ban-canh tra-lai" id="stale-bn"><div class="n"><b>Verdict hết hiệu lực.</b>
+PR đã nhận commit mới (<span class="mono">${escHtml(headDoi.new_sha.slice(0, 7))}</span>) kể từ lúc lượt chấm này
+bắt đầu — cổng merge khoá. Chấm lại commit mới rồi mới merge được.</div>
+${meta.pr ? `<form method="post" action="/api/runs" style="margin:0;flex:none"><input type="hidden" name="kieu" value="pr"><input type="hidden" name="so" value="${meta.pr.so}"><button class="btn btn-secondary" type="submit">Chấm lại commit mới</button></form>` : ''}</div>`
+    : '';
+
+  // Lượt kết thúc KHÔNG ra verdict là lượt THẤT BẠI, không phải trạng thái thứ ba. Bày nó như một lỗi
+  // chung là báo sai bản chất: nó ĐÃ CHẠY nhưng không chứng minh được gì.
+  const loiCuoi = suKien.filter((x) => x.e.type === 'error').map((x) => (x.e as { msg: string }).msg);
+  const khongCoSo = !v && loiCuoi.some((m) => /không đủ cơ sở/i.test(m));
+
+  const dieuKhien = trinhDien
+    ? `<div class="td-bar"><span class="td-nhan">Trình diễn</span>
+<span class="td-toc" id="td-toc"><button data-toc="1">×1</button><button data-toc="2">×2</button><button data-toc="8" class="on">×8</button><button data-toc="16">×16</button></span>
+<button class="btn btn-secondary" id="td-dung" type="button">❚❚ Tạm dừng</button>
+<a class="btn btn-ghost" href="/runs/${escHtml(meta.id)}">✕ Thoát</a>
+<span class="td-nhan" style="margin-left:auto">cổng merge chỉ đọc trong chế độ này</span></div>`
     : '';
 
   return shell(
     `${escHtml(meta.tieuDe)} — CheckMate`,
-    `<h1>${escHtml(meta.tieuDe)}</h1>
-<p class="sub">Run <code>${escHtml(meta.id)}</code> · skill ${escHtml(meta.skill)} · ${
-      trinhDien ? 'TRÌNH DIỄN — cổng chỉ đọc' : xong ? 'đã kết thúc' : 'đang chạy'
-    }
-&nbsp;·&nbsp;<a href="/">← về trang chọn</a>${
-      xong && !trinhDien
-        ? ` &nbsp;·&nbsp; <a class="btn phu" href="/runs/${escHtml(meta.id)}?trinh_dien=1" title="phát lại theo nhịp gốc — cổng khoá trong chế độ này">▶ Trình diễn</a>`
-        : ''
-    }${trinhDien ? ` &nbsp;·&nbsp; <a class="btn phu" href="/runs/${escHtml(meta.id)}">✕ Thoát trình diễn</a>` : ''}</p>
-${banStale}<ul class="stages" id="stages">${buocHtml}</ul>
-<div id="findings">${dungSan ? dsFinding.map(findingHtml).join('') : ''}</div>
-<div id="verdict-o">${dungSan && meta.verdict ? verdictHtml(meta.verdict) : ''}</div>
+    `<a class="btn btn-ghost" href="/" style="padding-inline:0">← Dashboard</a>
+<div class="run-hd"><div class="run-hd-trai">
+<h6 class="dash-kicker">Lượt chấm · skill ${escHtml(meta.skill)}</h6>
+<h3 style="margin:0">${escHtml(meta.tieuDe)}</h3>
+<div class="run-meta">${escHtml(meta.repo ?? '')}${meta.pr ? ` · #${meta.pr.so} @ ${escHtml(meta.pr.headSha.slice(0, 7))}` : ''}${
+      meta.pr?.tacGia ? ` · ${escHtml(meta.pr.tacGia)}` : ''
+    } · run ${escHtml(meta.id)}</div></div>
+<div class="run-dk"><span class="run-tt">${trinhDien ? 'đang trình diễn' : xong ? (meta.trangThai === 'loi' ? 'kết thúc — lỗi' : 'đã kết thúc') : '● đang chạy'}</span>
+${xong && !trinhDien ? `<a class="btn btn-secondary" href="/runs/${escHtml(meta.id)}?trinh_dien=1">▶ Trình diễn</a>` : ''}</div></div>
+${dieuKhien}${banStale}
+<div class="hr"></div>
+<div id="cac-buoc">${buocHtml}</div>
+${banVungMu}
+<section id="findings">${dungSan ? dsFinding.map(findingHtml).join('') : ''}</section>
+<div id="verdict-o">${dungSan ? (v ? verdictHtml(v) : khongCoSo ? khongRaVerdictHtml(loiCuoi[0]!) : '') : ''}</div>
 ${khoiCong(meta, trinhDien)}
-<div class="err" id="err"${dungSan && meta.trangThai === 'loi' ? ' style="display:block"' : ''}>${
-      dungSan && meta.trangThai === 'loi'
-        ? suKien
-            .filter((x) => x.e.type === 'error')
-            .map((x) => `<div style="margin-bottom:6px"><b>LỖI:</b> ${escHtml((x.e as { msg: string }).msg)}</div>`)
-            .join('')
-        : ''
+<div class="err" id="err"${dungSan && loiCuoi.length && !khongCoSo ? ' style="display:block"' : ''}>${
+      dungSan && !khongCoSo ? loiCuoi.map((m) => `<div style="margin-bottom:6px"><b>LỖI:</b> ${escHtml(m)}</div>`).join('') : ''
     }</div>`,
     JS_RUN(meta, trinhDien, daDung),
     { nguoi },
   );
+}
+
+/** mm:ss từ mốc ms — timestamp bên trái mỗi dòng log, đúng như gói khai. */
+function mmss(ms: number): string {
+  const g = Math.max(0, Math.round(ms / 1000));
+  return `${String(Math.floor(g / 60)).padStart(2, '0')}:${String(g % 60).padStart(2, '0')}`;
 }
 
 /** Dòng log thuộc bước nào — suy từ mốc `stage` gần nhất trước nó. */

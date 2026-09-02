@@ -52,26 +52,26 @@ Năm commit tách bạch: hợp đồng → bền dòng sự kiện → server-r
 
 ## 4. Commit 4 — MÀN RUN
 
-- [ ] 4.1 Header theo gói: kicker «Lượt chấm · skill x» · tiêu đề · metaline mono (repo · nhánh @ SHA
+- [x] 4.1 Header theo gói: kicker «Lượt chấm · skill x» · tiêu đề · metaline mono (repo · nhánh @ SHA
       ← base · tác giả) · trạng thái · điều khiển trình diễn.
-- [ ] 4.2 Năm bước: lưới `40px 1fr`, mark (`0n` muted / `●` accent nháy / `✓` jade / `✗` crimson) +
+- [x] 4.2 Năm bước: lưới `40px 1fr`, mark (`0n` muted / `●` accent nháy / `✓` jade / `✗` crimson) +
       nhãn + thời lượng mono; log mono trong khối nền `--color-neutral-900`, timestamp mm:ss bên trái.
-- [ ] 4.3 **Thanh điều khiển trình diễn** — nhịp canh ở client từ mốc `t` sẵn có: ×1 ×2 ×8 ×16 · tạm
+- [x] 4.3 **Thanh điều khiển trình diễn** — nhịp canh ở client từ mốc `t` sẵn có: ×1 ×2 ×8 ×16 · tạm
       dừng · thoát. Đổi tốc độ giữa chừng không tải lại trang.
-- [ ] 4.4 Finding card theo gói: vạch severity 6px trái · tag · tiêu đề · điều-gì-sai · «hậu quả —» ·
+- [x] 4.4 Finding card theo gói: vạch severity 6px trái · tag · tiêu đề · điều-gì-sai · «hậu quả —» ·
       dòng lệnh `$` · khối bằng chứng 2 cột **KỲ VỌNG** (tint jade) / **THỰC TẾ** (tint crimson).
-- [ ] 4.5 Thẻ verdict grid `2fr 3fr` viền 2px: khối đặc PASS/FAIL chữ 54px + artifact @ SHA mono;
+- [x] 4.5 Thẻ verdict grid `2fr 3fr` viền 2px: khối đặc PASS/FAIL chữ 54px + artifact @ SHA mono;
       bảng meta 2 cột.
-- [ ] 4.6 Bảng meta phải có **vùng xám probe** — nghi vấn · bỏ qua · thất lạc · nghi lỗi có sẵn — kể
+- [x] 4.6 Bảng meta phải có **vùng xám probe** — nghi vấn · bỏ qua · thất lạc · nghi lỗi có sẵn — kể
       cả khi bằng không. Bốn số này nói lượt chấm KHÔNG nhìn thấy gì; giấu đi thì PASS mỏng trông
       giống PASS dày.
-- [ ] 4.7 Banner **vùng mù của diff** — chỉ khi có file MÃ NGUỒN bị loại vì vượt trần. File sinh tự
+- [x] 4.7 Banner **vùng mù của diff** — chỉ khi có file MÃ NGUỒN bị loại vì vượt trần. File sinh tự
       động (lockfile, kết quả build) vẫn ghi log nhưng KHÔNG dựng banner: nó không đổi cách đọc verdict.
-- [ ] 4.8 Banner **không có đối chứng** đặt ở ĐẦU bước 4, không phải chú thích cuối — nó đổi cách đọc
+- [x] 4.8 Banner **không có đối chứng** đặt ở ĐẦU bước 4, không phải chú thích cuối — nó đổi cách đọc
       toàn bộ phần sau.
 - [x] 4.9 Banner **verdict stale** + nút «Chấm lại commit mới», cổng khoá. Vá chỗ NÓI; đường ghi đã
       chặn sẵn ba lớp và không đụng tới.
-- [ ] 4.9b **Theo dõi head TRONG lúc chấm** (PO chốt): trong khi lượt chạy trên một pull request, hỏi
+- [x] 4.9b **Theo dõi head TRONG lúc chấm** (PO chốt): trong khi lượt chạy trên một pull request, hỏi
       lại head theo nhịp (~30s); head đổi thì đánh dấu hết-hiệu-lực NGAY — phát sự kiện để người đang
       xem thấy mà không phải tải lại, và ghi vào bản ghi lượt chấm.
       Lượt chấm **vẫn chạy tới hết**: dừng giữa chừng là vứt phần việc gần xong, mà verdict trên commit
@@ -79,11 +79,11 @@ Năm commit tách bạch: hợp đồng → bền dòng sự kiện → server-r
       Huỷ lượt chấm KHÔNG thuộc change này (PO hoãn tới khi thực tế cần).
       ~30s là đủ: một lượt trung vị 3,6 phút thì chậm nhất nửa phút. Webhook rút xuống ~1s, tức lợi
       thêm ≤29 giây — không đáng đổi lấy một cửa vào không-xác-thực. Xem nợ 8.4.
-- [ ] 4.10 Khối **Thư viện** — phân biệt `⊘ không nạp vào` (amber) với `✕ gỡ khỏi thư viện` (crimson).
+- [x] 4.10 Khối **Thư viện** — phân biệt `⊘ không nạp vào` (amber) với `✕ gỡ khỏi thư viện` (crimson).
       Hai việc hậu quả khác hẳn: một cái không thêm tài sản, cái kia MẤT tài sản đã có.
-- [ ] 4.11 Card **KHÔNG RA VERDICT** nền `--color-neutral-800` chữ sáng, khác hẳn PASS/FAIL, kèm lý
+- [x] 4.11 Card **KHÔNG RA VERDICT** nền `--color-neutral-800` chữ sáng, khác hẳn PASS/FAIL, kèm lý
       do và đủ số probe. Chỉ phần nhìn thấy được — xem `design.md` mục ranh giới.
-- [ ] 4.12 Khối quan sát ngoài phạm vi PR: viền dash, nền surface.
+- [x] 4.12 Khối quan sát ngoài phạm vi PR: viền dash, nền surface.
 
 ## 5. Commit 5 — CỔNG MERGE
 
@@ -98,7 +98,7 @@ Năm commit tách bạch: hợp đồng → bền dòng sự kiện → server-r
 - [x] 5.6 Đang trình diễn → cổng chỉ-đọc, nói rõ đây là bản phát lại. Điều kiện đọc thẳng từ trạng
       thái màn, KHÔNG phải tham số truyền qua nhiều lớp hàm.
 - [ ] 5.7 Receipt sau merge / trả về dev theo gói, kèm hướng dẫn reopen.
-- [ ] 5.8 **Người chạy** vào bảng meta; lượt do chế độ trực khởi động khai là lượt máy chạy, không
+- [x] 5.8 **Người chạy** vào bảng meta; lượt do chế độ trực khởi động khai là lượt máy chạy, không
       gán cho ai.
 
 ## 6. Lưới
@@ -107,11 +107,11 @@ Năm commit tách bạch: hợp đồng → bền dòng sự kiện → server-r
 - [x] 6.2 Lượt đã xong: phản hồi ĐẦU TIÊN đã chứa verdict và finding — không cần lượt gọi thứ hai.
 - [x] 6.3 Trình diễn: cổng chỉ-đọc; và không đường nào từ chế độ đó gọi được hành động cổng.
 - [ ] 6.4 Nối lại sau khi đứt: không finding hay dòng log nào lặp.
-- [ ] 6.5 Vùng xám probe hiện đủ bốn số kể cả khi bằng không.
-- [ ] 6.6 Vùng mù: file mã nguồn vượt trần → CÓ banner; chỉ lockfile → KHÔNG banner.
+- [x] 6.5 Vùng xám probe hiện đủ bốn số kể cả khi bằng không.
+- [x] 6.6 Vùng mù: file mã nguồn vượt trần → CÓ banner; chỉ lockfile → KHÔNG banner.
 - [ ] 6.7 Ghi chú trống → không trả về dev được.
 - [x] 6.8 Verdict stale → cổng khoá và trang nói ra trước khi người dùng bấm.
-- [ ] 6.9b Head đổi giữa lượt chấm → đánh dấu ngay, lượt vẫn chạy tới hết, và cổng khoá ngay ở lần
+- [x] 6.9b Head đổi giữa lượt chấm → đánh dấu ngay, lượt vẫn chạy tới hết, và cổng khoá ngay ở lần
       mở đầu tiên. Head KHÔNG đổi → không thêm lời gọi GitHub nào sau khi lượt kết thúc.
 - [ ] 6.9 Dựng lại `run_su_kien` từ `events.jsonl` cho ra đúng dòng sự kiện.
 - [ ] 6.10 Chứng minh các lưới trên **load-bearing**: tạm bỏ banner stale và tạm cho ghi chú rỗng đi

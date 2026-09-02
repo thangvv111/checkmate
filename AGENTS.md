@@ -42,6 +42,22 @@ schema `checkmate`. Fix chỉ kéo hiện thực khớp lại luật đã khai t
 
 Lệnh: `/opsx:propose`, `/opsx:apply`, `/opsx:verify`, `/opsx:archive` (skill trong `.claude/`).
 
+### ⛔ Cổng archive — chưa tick hết thì chưa được archive
+
+**Không archive một change còn ô chưa tick.** Đủ điều kiện archive = **6/6 artifact done** VÀ **mọi ô
+trong `tasks.md` + `test-cases.md` đã `[x]`**, trừ những mục nằm dưới một đề mục khai rõ là **KHÔNG
+thuộc change này** (ví dụ «§ Sau-merge — nợ có tên»). Mục nào muốn được miễn thì phải nằm dưới đề mục
+đó **trước khi** xin archive, chứ không phải chuyển xuống lúc bị chặn.
+
+Còn ô chưa tick mà vẫn muốn đóng change → **trình PO và chờ PO chốt hướng**, nêu đúng ba lựa chọn cho
+từng mục: **làm nốt** · **hạ thành nợ có tên** (dời xuống mục sau-merge, kèm lý do) · **bỏ hẳn** (kèm
+cái mất). Agent KHÔNG tự chọn, và KHÔNG tự tick cho đủ.
+
+**Vì sao thành luật:** archive đẩy spec của change vào `openspec/specs/` — tức biến nó thành **luật
+đang có hiệu lực**. Archive khi còn việc dở nghĩa là khai một hành vi là đã có trong khi nó chưa có,
+và người sau đọc spec sẽ tin vào một thứ không tồn tại. Đó đúng là kiểu nói dối mà cả sản phẩm này
+tồn tại để chống.
+
 ### ⛔ Chỗ sống của luật (PO chốt 01/09 — THAY phương án A 31/08)
 
 - **`specs/R*.md`** (gốc repo) = **TÀI LIỆU THAM KHẢO** — nó đang trộn lẫn luật, án lệ và biên bản

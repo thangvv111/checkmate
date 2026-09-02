@@ -137,6 +137,41 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 *
   if (them > 0) console.log(`Sổ cái verdict: backfill ${them} lượt chấm cũ vào sổ`);
 }
 
+/**
+ * Hỏi lại head pull request trong lúc lượt chấm chạy.
+ *
+ * Head đổi giữa chừng thì verdict sắp ra đời đã hết hiệu lực ở cổng. Trước đây người dùng chỉ biết
+ * điều đó SAU KHI đã bấm Merge và nhận 409 — hệ an toàn nhưng không trung thực sớm. Nay nói ra ngay.
+ *
+ * Lượt chấm VẪN CHẠY TỚI HẾT (PO chốt): dừng giữa chừng là vứt phần việc gần xong, mà verdict trên
+ * commit cũ vẫn còn giá trị đọc — phần lớn finding vẫn đúng với mã nguồn.
+ *
+ * 30 giây là đủ: lượt trung vị 3,6 phút thì chậm nhất nửa phút. Webhook rút xuống ~1s, tức lợi thêm
+ * dưới 29 giây — không đáng đổi lấy một cửa vào không-xác-thực (nợ 8.4 của change).
+ */
+const NHIP_HOI_HEAD_MS = 30_000;
+
+function theoDoiHead(id: string, soPr: number): void {
+  const ghim = rm.headDangGhim(id);
+  if (!ghim) return;
+  const h = setInterval(() => {
+    if (!rm.dangChay(id)) return clearInterval(h);
+    void (async () => {
+      try {
+        const nay = await getCurrentPr(readConfig(), soPr);
+        if (nay.headSha && nay.headSha !== ghim && rm.ghiHeadDoi(id, nay.headSha)) {
+          console.log(`PR #${soPr}: head đổi giữa lượt chấm ${id} (${ghim.slice(0, 7)} → ${nay.headSha.slice(0, 7)})`);
+          clearInterval(h);
+        }
+      } catch {
+        // GitHub hỏng thì THÔI, đừng làm sập lượt chấm: đây là lớp NÓI, không phải lớp chặn — ba lớp
+        // ghim SHA ở đường ghi vẫn nguyên và vẫn từ chối merge nếu head đã đổi.
+      }
+    })();
+  }, NHIP_HOI_HEAD_MS);
+  h.unref?.();
+}
+
 // ---- Chế độ trực (B4.3): hook run-xong + poller ----
 rm.onXong = (meta) => {
   const cfg = readConfig();
@@ -695,7 +730,9 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
           agentEnv(cfg),
           { so: pr.so, headSha: pr.headSha, tacGia },
           cfg.repo.github,
+          ai(req),
         );
+        theoDoiHead(id, pr.so);
       } else {
         id = rm.batDau(
           `PR #${pr.so} · code (${pr.filesDoi.length} file đổi)`,
@@ -704,7 +741,9 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
           agentEnv(cfg),
           { so: pr.so, headSha: pr.headSha, tacGia },
           cfg.repo.github,
+          ai(req),
         );
+        theoDoiHead(id, pr.so);
       }
     } catch (e) {
       return res.status(500).send(shell('CheckMate', `<h1>Không chạy được PR #${so}</h1><p class="sub">${(e as Error).message.slice(0, 300)} · <a href="/">← quay lại</a></p>`));
@@ -714,7 +753,7 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
     if (nd.length < 200) return res.status(422).send(shell('CheckMate', '<h1>Tài liệu quá ngắn</h1><p class="sub">Cần tối thiểu 200 ký tự để kiểm có nghĩa. <a href="/">← quay lại</a></p>'));
     const f = join(TMP_DOC, `doc-${Date.now()}.md`);
     writeFileSync(f, nd, 'utf8');
-    id = rm.batDau('Tài liệu dán tay', 'doc', ['--skill', 'doc', '--file', f], agentEnv(cfg), undefined, cfg.repo.github);
+    id = rm.batDau('Tài liệu dán tay', 'doc', ['--skill', 'doc', '--file', f], agentEnv(cfg), undefined, cfg.repo.github, ai(req));
   } else if (kieu === 'upload') {
     if (!req.file) return res.status(422).send(shell('CheckMate', '<h1>Chưa chọn file</h1><p class="sub"><a href="/">← quay lại</a></p>'));
     let text: string;
@@ -728,7 +767,7 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
     }
     const f = join(TMP_DOC, `up-${Date.now()}.md`);
     writeFileSync(f, text, 'utf8');
-    id = rm.batDau(`Tài liệu tải lên · ${req.file.originalname}`, 'doc', ['--skill', 'doc', '--file', f], agentEnv(cfg), undefined, cfg.repo.github);
+    id = rm.batDau(`Tài liệu tải lên · ${req.file.originalname}`, 'doc', ['--skill', 'doc', '--file', f], agentEnv(cfg), undefined, cfg.repo.github, ai(req));
   } else {
     return res.status(422).send('Thiếu loại artifact');
   }

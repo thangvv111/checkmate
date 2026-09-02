@@ -48,6 +48,10 @@ interface RunState {
   du?: Buffer;
   /** Dừng vòng theo dõi sổ. */
   thoiTheoDoi?: () => void;
+  /** Head pull request đã đổi giữa chừng — ghi vào verdict lúc lượt chấm kết thúc. */
+  headMoi?: { new_sha: string; at: string };
+  /** Dừng vòng hỏi lại head. */
+  thoiTheoHead?: () => void;
 }
 
 /** Sổ sự kiện của một lượt chấm. Nằm trong `runs/` nên KHÔNG được đè khi deploy. */
@@ -148,6 +152,9 @@ export class RunManager {
       // ra ở mili giây chót bị coi như không có, và lượt chấm thành «lỗi» một cách oan uổng.
       this.docSo(state);
       state.thoiTheoDoi?.();
+      // Dấu vết head-đổi phải đi vào verdict TRƯỚC khi lưu và trước khi vào sổ cái: lượt mở lại sau
+      // này chỉ có verdict để đọc, không có bộ nhớ của tiến trình đã chết.
+      if (state.headMoi && meta.verdict) meta.verdict.head_moved = state.headMoi;
       meta.ketThuc = new Date().toISOString();
       const daCoLoi = state.events.some((x) => x.e.type === 'error');
       if (meta.verdict) {
@@ -173,6 +180,7 @@ export class RunManager {
           ghi({ type: 'error', msg: `Run dừng giữa chừng, không có verdict (mã thoát ${code}). ${goiY}${duoi}` });
         }
       }
+      state.thoiTheoHead?.();
       this.luu(state);
       for (const s of state.subs) s({ t: Date.now() - t0, e: { type: 'log', msg: '__END__' } });
     });
@@ -260,6 +268,38 @@ export class RunManager {
       noi.push(m.id);
     }
     return noi;
+  }
+
+  /**
+   * Ghi nhận head pull request đã đổi TRONG LÚC lượt chấm chạy.
+   *
+   * Lượt chấm VẪN CHẠY TỚI HẾT — cố ý. Dừng giữa chừng là vứt phần việc gần xong, mà verdict trên
+   * commit cũ vẫn còn giá trị ĐỌC: nó không dùng được ở cổng, nhưng phần lớn finding vẫn đúng với
+   * mã nguồn và dev vẫn biết chỗ nào sai.
+   *
+   * Điều KHÔNG được phép là im lặng cho tới lúc ai đó bấm — nên sự kiện phát ra NGAY cho người đang
+   * xem, và dấu vết đi vào verdict để lượt mở lại sau vẫn thấy.
+   */
+  ghiHeadDoi(id: string, shaMoi: string): boolean {
+    const st = this.runs.get(id);
+    if (!st || st.headMoi) return false; // đã ghi rồi thì thôi — một lần là đủ, đừng phát lặp
+    const at = new Date().toISOString();
+    st.headMoi = { new_sha: shaMoi, at };
+    const ev: StoredEvent = { t: Date.now() - Date.parse(st.meta.batDau), e: { type: 'head_moved', new_sha: shaMoi, at } };
+    st.events.push(ev);
+    for (const sub of st.subs) sub(ev);
+    if (st.meta.verdict) st.meta.verdict.head_moved = st.headMoi;
+    return true;
+  }
+
+  /** Head lượt chấm đang ghim — để chỗ theo dõi biết phải so với cái gì. */
+  headDangGhim(id: string): string | undefined {
+    return this.runs.get(id)?.meta.pr?.headSha;
+  }
+
+  /** Lượt còn đang chạy không — vòng theo dõi head tự dừng khi lượt kết thúc. */
+  dangChay(id: string): boolean {
+    return this.runs.get(id)?.meta.trangThai === 'dang_chay';
   }
 
   lay(id: string): RunState | undefined {

@@ -62,7 +62,7 @@ describe('lượt đã kết thúc — máy chủ dựng sẵn, không cần lu�
   const html = runPage(meta(), false, suKien);
 
   it('phản hồi ĐẦU TIÊN đã có verdict, finding và log — không cần lượt gọi thứ hai', () => {
-    expect(html, 'thiếu verdict').toContain('✗ FAIL — bị bác');
+    expect(html, 'thiếu verdict').toContain('class="vd-kq">FAIL<');
     expect(html, 'thiếu finding').toContain('Cổng bỏ qua nhánh gốc');
     expect(html, 'thiếu log đã chạy').toContain('Nhánh gốc: 4 pass');
   });
@@ -102,8 +102,8 @@ describe('lượt đang chạy — dựng phần đã có, luồng nối phần 
   });
 
   it('bước đang chạy được đánh dấu khác bước đã xong', () => {
-    expect(html).toMatch(/data-s="1" class="done"/);
-    expect(html).toMatch(/data-s="4" class="on"/);
+    expect(html, 'bước đã xong').toContain('class="buoc done" data-s="1"');
+    expect(html, 'bước đang chạy').toContain('class="buoc on" data-s="4"');
   });
 });
 
@@ -118,7 +118,7 @@ describe('trình diễn — chế độ xem lại, cổng phải chỉ-đọc', 
 
   it('nói rõ đây là bản phát lại, không chỉ vô hiệu hoá nút trong im lặng', () => {
     expect(html).toMatch(/trình diễn/i);
-    expect(html).toContain('Thoát trình diễn');
+    expect(html, 'phải có lối thoát về bản thật').toContain('href="/runs/w1"');
   });
 
   it('vế đối chứng: KHÔNG trình diễn thì cổng hoạt động thật', () => {
@@ -179,5 +179,92 @@ describe('một hàm dựng, dùng chung hai đường', () => {
     expect(doc).not.toContain('<script>x</script>');
     expect(doc).not.toContain('<img onerror=1>');
     expect(doc).toContain('&lt;script&gt;');
+  });
+});
+
+describe('màn Run nói thật về chính lượt chấm', () => {
+  const ps = {
+    ke_hoach: 10, ghi_nhan: 8, pass: 5, hoi_quy: 1, vi_pham_luat_moi: 0,
+    ngoai_pham_vi: 1, nghi_loi_co_san: 0, nghi_van: 0, cai_thien: 0, bo_qua: 0,
+    that_lac: [] as string[], luat_da_phu: [] as string[], luat_tong: 0, trigger_distribution: {},
+  };
+
+  it('vùng xám probe hiện đủ BỐN số, kể cả khi bằng không', () => {
+    // Bốn số này nói lượt chấm KHÔNG nhìn thấy gì. Giấu chúng đi thì một verdict PASS mỏng trông
+    // giống hệt một verdict PASS dày — và người đọc mất đúng thứ cần để biết nên tin đến đâu.
+    const html = verdictHtml(verdict({ probe_stats: ps }));
+    for (const k of ['nghi vấn', 'bỏ qua', 'thất lạc', 'nghi lỗi có sẵn']) {
+      expect(html, `vùng xám thiếu «${k}»`).toContain(k);
+    }
+    expect(html, 'giá trị không vẫn phải hiện').toContain('class="v">0<');
+  });
+
+  it('vùng mù của diff: file MÃ NGUỒN vượt trần → CÓ banner', () => {
+    const html = runPage(
+      meta({ verdict: verdict({ diff_blind_spots: [{ file: 'src/gate.ts', reason: 'vượt trần kích thước diff' }] }) }),
+      false,
+      suKien,
+    );
+    expect(html).toContain('Vùng mù của diff');
+    expect(html).toContain('src/gate.ts');
+  });
+
+  it('vế đối chứng: KHÔNG có file mã nguồn bị loại → KHÔNG banner', () => {
+    // Thiếu ca này thì banner nổi lên ở mọi PR có lockfile, và người ta học cách bỏ qua nó — một
+    // cảnh báo bị bỏ qua thì tệ hơn không có cảnh báo, vì nó tạo cảm giác đã được canh.
+    expect(runPage(meta(), false, suKien)).not.toContain('Vùng mù của diff');
+  });
+
+  it('không có đối chứng → banner đứng TRONG bước 4, trước phần log của nó', () => {
+    const html = runPage(meta({ verdict: verdict({ no_baseline: true }) }), false, suKien);
+    const b4 = html.indexOf('data-s="4"');
+    const ban = html.indexOf('Không có đối chứng');
+    const log4 = html.indexOf('id="logs-4"');
+    expect(ban, 'thiếu banner không-đối-chứng').toBeGreaterThan(-1);
+    expect(ban, 'banner phải nằm sau đầu bước 4').toBeGreaterThan(b4);
+    expect(ban, 'banner phải đứng TRƯỚC log — nó đổi cách đọc toàn bộ phần sau').toBeLessThan(log4);
+  });
+
+  it('thư viện: không-nạp và gỡ-khỏi phân biệt được ở mức DẤU HIỆU', () => {
+    // Hai việc hậu quả khác hẳn: một cái không thêm tài sản, cái kia MẤT một tài sản đã tự chứng
+    // minh được mình. Dùng chung ký hiệu là để người đọc lướt qua cái đắt hơn.
+    const html = verdictHtml(
+      verdict({
+        library_changes: [
+          { probe_id: 'p-1', action: 'not_admitted', reason: 'trùng nội dung' },
+          { probe_id: 'p-2', action: 'evicted', reason: 'hành vi trùng đo được' },
+        ],
+      }),
+    );
+    expect(html).toContain('⊘');
+    expect(html).toContain('✕');
+    expect(html).toContain('khong-nap');
+    expect(html).toContain('go-khoi');
+  });
+
+  it('thư viện không đổi → khối không hiện', () => {
+    expect(verdictHtml(verdict())).not.toContain('Thư viện');
+  });
+
+  it('người chạy: vắng là KHẲNG ĐỊNH lượt máy chạy, không phải thiếu dữ liệu', () => {
+    expect(verdictHtml(verdict())).toContain('máy chạy (chế độ trực)');
+    expect(verdictHtml(verdict({ run_by: 'thang.vv' }))).toContain('thang.vv');
+  });
+
+  it('KHÔNG RA VERDICT khác hẳn PASS/FAIL, và không lẫn vào hộp lỗi chung', () => {
+    const html = runPage(meta({ trangThai: 'loi', verdict: undefined }), false, [
+      { t: 10, e: { type: 'error', msg: 'Không đủ cơ sở kết luận: 6 probe đều KHÔNG chứng minh được gì' } },
+    ]);
+    expect(html).toContain('KHÔNG RA VERDICT');
+    expect(html).toContain('vd-khoi trong');
+    expect(html, 'không được lặp lại trong hộp lỗi chung').not.toContain('<b>LỖI:</b>');
+  });
+
+  it('vế đối chứng: lỗi hệ thống thật vẫn vào hộp lỗi chung, không đội lốt «không đủ cơ sở»', () => {
+    const html = runPage(meta({ trangThai: 'loi', verdict: undefined }), false, [
+      { t: 10, e: { type: 'error', msg: 'Run dừng giữa chừng, không có verdict (mã thoát 4)' } },
+    ]);
+    expect(html).not.toContain('KHÔNG RA VERDICT');
+    expect(html).toContain('<b>LỖI:</b>');
   });
 });
