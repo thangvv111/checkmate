@@ -268,3 +268,67 @@ describe('màn Run nói thật về chính lượt chấm', () => {
     expect(html).toContain('<b>LỖI:</b>');
   });
 });
+
+describe('cổng merge', () => {
+  it('lượt KHÔNG gắn PR nói thẳng là không có cổng, không để trống chỗ đó', () => {
+    // Một chỗ trống trông giống hệt một chỗ hỏng, và người dùng sẽ đi tìm cái nút không tồn tại.
+    const html = runPage(meta({ pr: undefined }), false, suKien);
+    expect(html).toContain('Không có cổng merge');
+    expect(html).not.toContain('/merge');
+  });
+
+  it('FAIL → Merge khoá cứng, nhưng Trả về dev VẪN dùng được', () => {
+    const html = runPage(meta(), false, suKien);
+    expect(html).toContain('Merge khoá cứng');
+    expect(html, 'khoá merge không được khoá luôn đường trả về dev').toContain('/reject');
+    expect(html, 'không được còn nút merge khi đã khoá cứng').not.toContain('id="nut-merge"');
+  });
+
+  it('verdict stale → khoá cứng kèm lý do riêng, khác lý do finding HIGH', () => {
+    const html = runPage(
+      meta({ verdict: verdict({ result: 'PASS', findings: [], head_moved: { new_sha: 'fedcba9', at: 'x' } }) }),
+      false,
+      suKien,
+    );
+    expect(html).toContain('Merge khoá cứng');
+    expect(html).toMatch(/không còn nói về thứ sắp được merge/);
+  });
+
+  it('PASS + medium → có checklist, nút Merge khoá tới khi tick đủ', () => {
+    const med = finding({ id: 'm1', severity: 'non_blocking', title_vi: 'Thiếu test ca biên' });
+    const html = runPage(meta({ verdict: verdict({ result: 'PASS', findings: [med] }) }), false, suKien);
+    expect(html).toContain('tick-med');
+    expect(html).toContain('data-fid="m1"');
+    expect(html, 'nút merge phải khoá khi chưa tick').toMatch(/id="nut-merge"[^>]*disabled/);
+  });
+
+  it('PASS không cảnh báo nào → nút Merge mở sẵn', () => {
+    // Vế đối chứng: thiếu ca này thì một bản «khoá nút merge mãi mãi» cũng xanh ở ca trên.
+    const html = runPage(meta({ verdict: verdict({ result: 'PASS', findings: [] }) }), false, suKien);
+    expect(html).toContain('id="nut-merge"');
+    expect(html).not.toMatch(/id="nut-merge"[^>]*disabled/);
+  });
+
+  it('ô ghi chú trả về dev khai BẮT BUỘC, và nút khoá sẵn', () => {
+    const html = runPage(meta(), false, suKien);
+    expect(html).toContain('bắt buộc');
+    expect(html).toMatch(/id="ghi-chu-tra-ve"[^>]*required/);
+    expect(html, 'nút trả về phải khoá tới khi có ghi chú').toMatch(/id="nut-tra-ve"[^>]*disabled/);
+  });
+
+  it('MÁY CHỦ cũng ép ghi chú — `required` phía trình duyệt không chặn được POST thẳng', () => {
+    const nguon = readFileSync('apps/web/src/server.ts', 'utf8');
+    expect(nguon, 'thiếu chặn phía máy chủ cho ghi chú rỗng').toMatch(/Trả về dev phải có ghi chú/);
+  });
+
+  it('receipt sau khi trả về dev có hướng dẫn reopen', () => {
+    const html = runPage(
+      meta({ ketQuaCong: { hanhDong: 'reject', luc: '2026-09-02T10:00:00.000Z', nguoi: 'thang.vv', chiTiet: 'thiếu test' } }),
+      false,
+      suKien,
+    );
+    expect(html).toContain('ĐÃ TRẢ VỀ DEV');
+    expect(html).toContain('Reopen pull request');
+    expect(html, 'receipt là trạng thái cuối — không được còn nút hành động').not.toContain('id="nut-merge"');
+  });
+});

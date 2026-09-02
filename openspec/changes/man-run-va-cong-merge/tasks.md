@@ -87,29 +87,29 @@ Năm commit tách bạch: hợp đồng → bền dòng sự kiện → server-r
 
 ## 5. Commit 5 — CỔNG MERGE
 
-- [ ] 5.1 Cổng **nối liền** dưới thẻ verdict (`border-top:none`), không phải khối rời — bố cục nói
+- [x] 5.1 Cổng **nối liền** dưới thẻ verdict (`border-top:none`), không phải khối rời — bố cục nói
       điều mà luật nói: cổng đọc từ verdict, không đứng độc lập.
-- [ ] 5.2 FAIL → banner «⛔ Merge khoá cứng» + lý do; Merge vô hiệu; **Trả về dev vẫn hoạt động**.
-- [ ] 5.3 PASS + medium → checklist tick từng cảnh báo, Merge chỉ sáng khi tick đủ, hint mono «còn n
+- [x] 5.2 FAIL → banner «⛔ Merge khoá cứng» + lý do; Merge vô hiệu; **Trả về dev vẫn hoạt động**.
+- [x] 5.3 PASS + medium → checklist tick từng cảnh báo, Merge chỉ sáng khi tick đủ, hint mono «còn n
       cảnh báo chưa tick».
-- [ ] 5.4 **Ghi chú trả về dev thành BẮT BUỘC** — nút vô hiệu khi ô trống, và nói rõ vì sao. Trả về
+- [x] 5.4 **Ghi chú trả về dev thành BẮT BUỘC** — nút vô hiệu khi ô trống, và nói rõ vì sao. Trả về
       mà không nói lý do thì dev không biết vá gì, mà hành động đó đã vào sổ chỉ-ghi-thêm.
-- [ ] 5.5 Lượt không gắn PR → nói thẳng «không có cổng merge», KHÔNG để khối biến mất im lặng.
+- [x] 5.5 Lượt không gắn PR → nói thẳng «không có cổng merge», KHÔNG để khối biến mất im lặng.
 - [x] 5.6 Đang trình diễn → cổng chỉ-đọc, nói rõ đây là bản phát lại. Điều kiện đọc thẳng từ trạng
       thái màn, KHÔNG phải tham số truyền qua nhiều lớp hàm.
-- [ ] 5.7 Receipt sau merge / trả về dev theo gói, kèm hướng dẫn reopen.
+- [x] 5.7 Receipt sau merge / trả về dev theo gói, kèm hướng dẫn reopen.
 - [x] 5.8 **Người chạy** vào bảng meta; lượt do chế độ trực khởi động khai là lượt máy chạy, không
       gán cho ai.
 
 ## 6. Lưới
 
-- [ ] 6.1 Bản ghi verdict đời cũ (thiếu mọi trường mới) vẫn parse và vẫn dựng được màn.
+- [x] 6.1 Bản ghi verdict đời cũ (thiếu mọi trường mới) vẫn parse và vẫn dựng được màn.
 - [x] 6.2 Lượt đã xong: phản hồi ĐẦU TIÊN đã chứa verdict và finding — không cần lượt gọi thứ hai.
 - [x] 6.3 Trình diễn: cổng chỉ-đọc; và không đường nào từ chế độ đó gọi được hành động cổng.
-- [ ] 6.4 Nối lại sau khi đứt: không finding hay dòng log nào lặp.
+- [x] 6.4 Nối lại sau khi đứt: không finding hay dòng log nào lặp.
 - [x] 6.5 Vùng xám probe hiện đủ bốn số kể cả khi bằng không.
 - [x] 6.6 Vùng mù: file mã nguồn vượt trần → CÓ banner; chỉ lockfile → KHÔNG banner.
-- [ ] 6.7 Ghi chú trống → không trả về dev được.
+- [x] 6.7 Ghi chú trống → không trả về dev được.
 - [x] 6.8 Verdict stale → cổng khoá và trang nói ra trước khi người dùng bấm.
 - [x] 6.9b Head đổi giữa lượt chấm → đánh dấu ngay, lượt vẫn chạy tới hết, và cổng khoá ngay ở lần
       mở đầu tiên. Head KHÔNG đổi → không thêm lời gọi GitHub nào sau khi lượt kết thúc.

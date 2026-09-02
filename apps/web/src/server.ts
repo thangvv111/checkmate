@@ -945,6 +945,13 @@ app.post('/api/runs/:id/reject', async (req, res) => {
     return loiCong(res, e instanceof IdentityError && e.ma === 'khong_du_quyen' ? 403 : 401, (e as Error).message);
   }
   const b = req.body as Record<string, string>;
+  // Ghi chú BẮT BUỘC, và ép ở MÁY CHỦ chứ không chỉ ở nút. `required` phía trình duyệt chỉ chặn được
+  // người bấm nút; một POST thẳng đi qua nó như không có. Mà trả về dev là hành động ĐÓNG PR — một
+  // chiều — và nó đi vào sổ chỉ-ghi-thêm: một dòng sổ không nói được vì sao là một dòng sổ vô dụng
+  // đúng lúc người ta cần nó nhất.
+  if (!(b.ghi_chu ?? '').trim()) {
+    return loiCong(res, 422, 'Trả về dev phải có ghi chú — dev cần biết vá gì. <a href="javascript:history.back()">← quay lại</a>');
+  }
   try {
     const nguoi = dtReject.ten;
     // W4: đóng PR (không-hoàn-tác) TRƯỚC — comment nói "PR đã đóng" chỉ được đăng khi điều đó đã đúng

@@ -523,6 +523,21 @@ table.runs td { padding:9px 13px; border-bottom:1px solid var(--color-divider); 
   .fnd-bc { grid-template-columns:1fr; }
   .fnd-bc > div + div { border-left:0; border-top:1px solid var(--color-divider); }
 }
+
+/* — Cổng merge: NỐI LIỀN dưới thẻ verdict, không phải khối rời — */
+.cong-o { border:2px solid var(--color-divider); border-top:none; background:var(--color-bg);
+  padding:18px 20px; }
+.cong-o.chi-doc { border-top:2px solid var(--color-divider); border-style:dashed; margin-top:18px; }
+.cong-o.receipt-merge { border-color:var(--pass); background:var(--pass-tint); }
+.cong-o.receipt-tra { border-color:var(--medium); background:var(--medium-tint); }
+.cong-khoa { display:flex; gap:10px; align-items:flex-start; padding:10px 12px; margin-bottom:12px;
+  background:var(--fail-tint); color:var(--fail-ink); font-size:13.5px; }
+.cong-tick { display:flex; gap:10px; align-items:flex-start; padding:8px 10px; margin-top:6px;
+  border:1px solid var(--color-divider); background:var(--color-surface); cursor:pointer; font-size:13.5px; }
+.cong-tick input { margin-top:3px; accent-color:var(--medium); }
+.cong-hd { display:flex; gap:16px; align-items:flex-start; margin-top:14px; flex-wrap:wrap; }
+.cong-tra { flex:1; min-width:300px; display:flex; gap:8px; }
+.cong-goiy { font-size:11px; color:var(--color-neutral-600); margin-top:4px; }
 `;
 
 // W8: mọi chuỗi ngoại lai (PR title từ GitHub, tên file upload, finding do model viết) phải qua đây trước khi vào DOM
@@ -949,36 +964,80 @@ function khoiCong(meta: RunMeta, trinhDien = false): string {
   // đó phải nhớ truyền qua bốn lớp hàm — bản trước hỏng đúng vì lý do đó: hàm này không hề biết
   // mình đang nằm trong một bản phát lại, nên nó bày một nút Merge THẬT.
   if (trinhDien) {
-    return `<div class="cong" style="border-style:dashed"><h3>Cổng merge — chỉ đọc</h3>
+    return `<div class="cong-o chi-doc"><h6 style="margin:0 0 6px">Cổng merge — chỉ đọc</h6>
 <p class="goiy" style="margin:0">Đang xem bản trình diễn của lượt chấm này. Mọi hành động cổng đều
 khoá ở đây; thoát trình diễn để thao tác thật.</p></div>`;
   }
-  if (!meta.pr || meta.trangThai !== 'xong' || !meta.verdict) return '';
+
+  // Lượt không gắn pull request thì NÓI RA, đừng để khối cổng biến mất im lặng: một chỗ trống trông
+  // giống hệt một chỗ hỏng, và người dùng sẽ đi tìm cái nút không tồn tại.
+  if (!meta.pr) {
+    return `<div class="cong-o chi-doc"><h6 style="margin:0 0 6px">Không có cổng merge</h6>
+<p class="goiy" style="margin:0">Lượt chấm này không gắn pull request nào — nó chấm một tài liệu rời,
+nên không có gì để merge. Verdict ở trên vẫn đầy đủ và vẫn vào sổ cái.</p></div>`;
+  }
+  if (meta.trangThai !== 'xong' || !meta.verdict) return '';
+
   const so = meta.pr.so;
   if (meta.ketQuaCong) {
     const k = meta.ketQuaCong;
-    return `<div class="cong" style="border-color:var(--teal)"><h3>Cổng merge — PR #${so}</h3>
-<p style="font-size:13.5px;margin:0">${k.hanhDong === 'merge' ? '✓ <b>ĐÃ MERGE</b>' : '↩ <b>ĐÃ TRẢ VỀ DEV</b>'} · ${k.chiTiet} · bởi <b>${k.nguoi}</b> lúc ${k.luc.slice(0, 16).replace('T', ' ')} · đã ghi receipt lên PR + sổ review-log</p></div>`;
+    const merge = k.hanhDong === 'merge';
+    return `<div class="cong-o ${merge ? 'receipt-merge' : 'receipt-tra'}">
+<div style="font-weight:700">${merge ? '✓ ĐÃ MERGE' : '↩ ĐÃ TRẢ VỀ DEV'} — PR #${so}</div>
+<div class="mono" style="font-size:12px;margin-top:6px">${escHtml(k.chiTiet)} · bởi ${escHtml(k.nguoi)} lúc ${escHtml(k.luc.slice(0, 16).replace('T', ' '))}${
+      k.ngoaiCong ? ' · ghi bởi ĐỐI SOÁT (hành động xảy ra ngoài cổng)' : ''
+    }</div>
+${
+  merge
+    ? ''
+    : `<div style="font-size:13px;margin-top:8px">Hướng dẫn reopen: dev vá trên <b>chính nhánh cũ</b> → push → bấm
+<b>Reopen pull request</b> trên GitHub. PR quay lại hàng đợi; verdict cũ vẫn nằm nguyên trong sổ cái.</div>`
+}</div>`;
   }
+
   const v = meta.verdict;
   const cao = v.findings.filter((f) => chuanMuc(f.severity) === 'high').length;
   const vua = v.findings.filter((f) => chuanMuc(f.severity) === 'medium');
-  const nutMerge =
-    cao > 0
-      ? `<p class="khoa">✗ Có ${cao} finding HIGH — nút Merge khoá theo luật cổng. Vá xong push lên nhánh, chạy kiểm lại.</p>`
-      : `${vua.length ? `<p style="font-size:13px;margin:8px 0 4px">Xác nhận TỪNG cảnh báo MEDIUM trước khi merge (được ghi vào receipt):</p>` : ''}
-${vua.map((f) => `<label class="canhbao"><input type="checkbox" class="tick-med" data-fid="${escHtml(f.id)}"> <span><b>${escHtml(f.title_vi)}</b><br><span style="color:var(--muted)">${escHtml(f.what_vi)}</span></span></label>`).join('')}
-<form class="inline" method="post" action="/api/runs/${meta.id}/merge" id="form-merge">
-  <input type="hidden" name="tick_ids" id="tick_ids" value="">
-  <button id="nut-merge" ${vua.length ? 'disabled' : ''}>✓ Merge PR #${so}</button>
-</form>`;
-  return `<div class="cong"><h3>Cổng merge — PR #${so} <span style="font-weight:400;color:var(--muted);font-size:12.5px">verdict ghim ${meta.pr.headSha.slice(0, 7)} · push mới là verdict hết hiệu lực</span></h3>
+  const stale = Boolean(v.head_moved);
+
+  const khoa = stale
+    ? `<div class="cong-khoa">⛔ <b>Merge khoá cứng.</b> Verdict này ghim commit <span class="mono">${escHtml(meta.pr.headSha.slice(0, 7))}</span>,
+mà PR đã có commit mới hơn — verdict không còn nói về thứ sắp được merge. Chấm lại rồi mới merge được.</div>`
+    : cao > 0
+      ? `<div class="cong-khoa">⛔ <b>Merge khoá cứng.</b> ${cao} finding HIGH — vá xong push lên nhánh rồi chạy kiểm lại.
+Trả về dev vẫn dùng được ở đây.</div>`
+      : '';
+
+  const checklist = vua.length
+    ? `<div style="font-size:13.5px;margin-bottom:2px">PASS kèm ${vua.length} cảnh báo medium — tick từng cảnh báo để mở nút Merge.
+Người tick được ghi danh vào receipt.</div>
+${vua
+  .map(
+    (f) => `<label class="cong-tick"><input type="checkbox" class="tick-med" data-fid="${escHtml(f.id)}">
+<span><b>${escHtml(f.title_vi)}</b><br><span class="text-muted">${escHtml(f.what_vi)}</span></span></label>`,
+  )
+  .join('')}`
+    : '';
+
+  const nutMerge = khoa
+    ? ''
+    : `<div><form method="post" action="/api/runs/${escHtml(meta.id)}/merge" id="form-merge" style="margin:0">
+<input type="hidden" name="tick_ids" id="tick_ids" value="">
+<button class="btn btn-primary" id="nut-merge" type="submit"${vua.length ? ' disabled' : ''}>Merge PR #${so}</button>
+</form><div class="cong-goiy mono" id="goiy-merge"></div></div>`;
+
+  return `<div class="cong-o"><h6 style="margin:0 0 10px">Cổng merge — PR #${so}
+<span class="text-muted" style="font-weight:400">verdict ghim <span class="mono">${escHtml(meta.pr.headSha.slice(0, 7))}</span> · push mới là verdict hết hiệu lực</span></h6>
+${khoa}${checklist}
+<div class="cong-hd">
 ${nutMerge}
-<form class="inline" method="post" action="/api/runs/${meta.id}/reject">
-  <input type="text" name="ghi_chu" placeholder="Ghi chú thêm cho dev (tuỳ chọn)">
-  <button class="phu" style="background:var(--fail)">↩ Trả về dev &amp; đóng PR</button>
-</form>
-<p class="goiy" style="margin-top:8px">Trả về dev = post phán quyết đầy đủ lên PR <b>và đóng PR</b> để nó rời hàng đợi chờ duyệt (khỏi bị chạy kiểm lại vô ích). Dev vá xong push lên nhánh cũ rồi <b>Reopen</b> chính PR này — lịch sử review giữ nguyên.</p></div>`;
+<form method="post" action="/api/runs/${escHtml(meta.id)}/reject" class="cong-tra" style="margin:0">
+<input class="input" id="ghi-chu-tra-ve" name="ghi_chu" placeholder="Ghi chú trả về dev (bắt buộc)" required>
+<button class="btn" id="nut-tra-ve" type="submit" style="background:var(--fail);color:var(--color-bg);flex:none" disabled>Trả về dev</button>
+</form></div>
+<p class="goiy" style="margin-top:10px">Trả về dev = đăng phán quyết đầy đủ lên PR <b>và đóng PR</b> để nó rời hàng đợi.
+Ghi chú là <b>bắt buộc</b>: trả về mà không nói vì sao thì dev không biết vá gì, mà hành động này đã vào sổ chỉ-ghi-thêm.
+Dev vá xong push lên nhánh cũ rồi <b>Reopen</b> chính PR này — lịch sử review giữ nguyên.</p></div>`;
 }
 
 /**
