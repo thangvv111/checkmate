@@ -111,12 +111,12 @@ function promptTim(docCoSoDong: string, rao: Fence, loiNeoLanTruoc?: string): st
 # CHÚ Ý ĐẶC BIỆT: VÍ DỤ MINH HOẠ LÀ NƠI HAY GIẤU LỖI NHẤT
 Ví dụ/kịch bản minh hoạ trong tài liệu cũng là một "chỗ khẳng định" — hãy đối chiếu TỪNG SỐ LIỆU và TỪNG HÀNH VI trong ví dụ với các bảng quy tắc/ngưỡng/tiêu chí đã khai ở mục khác: người trong ví dụ làm việc đó có đúng thẩm quyền không, số tiền có nằm trong ngưỡng của vai không, hành vi có vi phạm tiêu chí nghiệm thu nào không, luồng có đúng sơ đồ trạng thái không. Ví dụ mâu thuẫn với quy tắc = \`mau_thuan\` hoặc \`lech_cheo\`, mức blocking.
 
-# NƠI HAY GIẤU LỖI KHÁC (khuôn đúc từ án lệ các lượt chấm trước — specs/R12; vẫn chỉ 7 loại rubric trên)
+# NƠI HAY GIẤU LỖI KHÁC (khuôn đúc từ án lệ các lượt chấm trước; vẫn chỉ ${Object.keys(NHAN_RUBRIC).length} loại rubric trên)
 ${getDocExamples(docCoSoDong).map((k) => `- ${k}`).join('\n')}
 
 # CẤM TUYỆT ĐỐI (finding sẽ bị loại)
 - Nhận xét văn phong, chính tả, format, cấu trúc, độ dài.
-- Đề xuất "nên bổ sung thêm" nội dung ngoài 4 loại trên.
+- Đề xuất "nên bổ sung thêm" nội dung ngoài ${Object.keys(NHAN_RUBRIC).length} loại trên.
 - Finding không kèm trích dẫn nguyên văn.
 
 # MỨC FINDING (severity)
@@ -165,7 +165,9 @@ export async function runDocSkill(model: ModelProvider, file: string, phat: Phat
   const soDong = docGoc.split(/\r?\n/).length;
   phat({ type: 'log', msg: `${tenFile} · ${soDong} dòng · sha256 ${hash.slice(0, 12)}` });
 
-  phat({ type: 'stage', stage: 2, ten: 'Nạp rubric — 4 loại lỗi khách quan, cấm chê văn' });
+  // Số loại SUY từ bảng rubric, không gõ tay: nhãn «4 loại» sót từ đời rubric cũ đã khai sai về chính
+  // mình suốt một đời rubric 7 loại — với công cụ mà giá trị là nói đúng, đó không phải lỗi nhỏ.
+  phat({ type: 'stage', stage: 2, ten: `Nạp rubric — ${Object.keys(NHAN_RUBRIC).length} loại lỗi khách quan, cấm chê văn` });
   phat({ type: 'log', msg: Object.values(NHAN_RUBRIC).join(' · ') });
 
   phat({ type: 'stage', stage: 3, ten: 'Soi tài liệu — model tìm nghi vấn theo rubric' });
@@ -176,11 +178,11 @@ export async function runDocSkill(model: ModelProvider, file: string, phat: Phat
   const rao = makeFence();
   const lan1 = await callJson<{ findings?: UngVien[] }>(model, promptTim(docCoSoDong, rao));
   let ungVien = (Array.isArray(lan1?.findings) ? lan1.findings : []).slice(0, MAX_FINDING);
-  // D3: rubric ngoài 4 loại là finding không hợp lệ — vứt trước khi tốn công neo
+  // D3: rubric ngoài bảng là finding không hợp lệ — vứt trước khi tốn công neo
   const rubricHopLe = new Set(Object.keys(NHAN_RUBRIC));
   const sai = ungVien.filter((u) => !rubricHopLe.has(u.rubric));
   if (sai.length > 0) {
-    phat({ type: 'log', msg: `Loại ${sai.length} ứng viên có rubric ngoài 4 loại: ${sai.map((u) => `${u.id}(${String(u.rubric)})`).join(', ')}` });
+    phat({ type: 'log', msg: `Loại ${sai.length} ứng viên có rubric ngoài ${rubricHopLe.size} loại: ${sai.map((u) => `${u.id}(${String(u.rubric)})`).join(', ')}` });
     ungVien = ungVien.filter((u) => rubricHopLe.has(u.rubric));
   }
   phat({ type: 'log', msg: `${ungVien.length} ứng viên: ${ungVien.map((u) => `${u.id} (${NHAN_RUBRIC[u.rubric]})`).join(' · ')}` });

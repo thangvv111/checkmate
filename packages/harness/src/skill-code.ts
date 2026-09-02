@@ -360,8 +360,10 @@ function promptSinhCode(t: TargetInfo, keHoach: ProbePlan[], rao: Fence, loiLanT
     ? `- Viết cho framework: ${runner.framework} — đúng cú pháp chạy được bằng lệnh test của repo.
 - Chỉ dùng API công khai ĐÚNG NHƯ file test mẫu (cách import, cách dựng đối tượng); không import hàm/module nội bộ ngoài những gì file mẫu dùng.
 ${runner.huong_dan_probe ? `- Hướng dẫn riêng của repo:\n${runner.huong_dan_probe}` : ''}`
-    : `- Chỉ dùng HTTP qua app.inject; không import từ src/services; mỗi it tự dựng app với openDb(':memory:') hoặc dùng beforeEach như file mẫu.
-- Dữ liệu tự tạo trong từng it (mã hồ sơ dùng dải HM-2026-8xxx để không đụng dữ liệu khác).`;
+    : // Không khai runner → hướng dẫn TỔNG QUÁT. Bản trước ghi «app.inject · openDb(':memory:') ·
+      // mã hồ sơ HM-2026-8xxx» — stack của repo demo, tức đường mặc định được viết cho đúng một repo.
+      `- Bắt chước file test mẫu về cách dựng app/đối tượng và cách gọi (inject, request, gọi hàm thẳng); không import module nội bộ ngoài những gì file mẫu dùng.
+- Dữ liệu tự tạo trong từng it, đặt ngoài dải dữ liệu có sẵn của repo để không đụng nhau; không phụ thuộc thứ tự chạy.`;
   return `Bạn là CHECKER ĐỐI KHÁNG. Hãy viết MỘT file test ${runner ? runner.framework : 'vitest (TypeScript)'} hiện thực đúng các probe sau, chạy trên repo có sẵn.
 
 # KẾ HOẠCH PROBE

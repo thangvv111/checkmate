@@ -48,17 +48,29 @@ Bốn commit: đơn vị luật → nguồn spec cấu hình được → khai r
 
 ## 4. Commit 4 — DỌN NỐT HARD-CODE
 
-- [ ] 4.1 `skill-doc.ts:114` — gỡ tham chiếu `specs/R12`. Giữ tri thức, bỏ con trỏ: repo đích không có
+- [x] 4.1 `skill-doc.ts:114` — gỡ tham chiếu `specs/R12`. Giữ tri thức, bỏ con trỏ: repo đích không có
       file đó, và sản phẩm nói về tài liệu nội bộ của mình giữa lượt phục vụ khách là rò ranh giới.
-- [ ] 4.2 Sửa nhãn bước 2 skill doc: «4 loại lỗi khách quan» → đúng **bảy** loại rubric đang dùng.
-- [ ] 4.3 Rà lại toàn engine một lượt cuối, tìm chỗ hard-code cùng loại còn sót — và **ghi ra** cái
-      tìm được kể cả khi không sửa trong đợt này.
-- [ ] 4.4 Lưới chống tái phát: không file nào trong `packages/harness/src/` được nhắc tới đường dẫn
+- [x] 4.2 Sửa nhãn bước 2 skill doc: «4 loại lỗi khách quan» → đúng **bảy** loại rubric đang dùng.
+- [x] 4.3 Rà lại toàn engine — kết quả (grep `specs/R` · `Rd+` · «4 loại» · stack demo, trong CHUỖI):
+      SỬA trong change này: `skill-doc.ts:114` prompt trỏ `specs/R12` (gỡ) · `skill-doc.ts:119` prompt
+      «ngoài 4 loại» (suy từ bảng rubric) · `skill-doc.ts:168,183` nhãn bước + log «4 loại» (suy từ bảng) ·
+      `ui.ts:905` gợi ý router «rubric 4 loại» (→ 7) · `skill-code.ts` schema `"spec_rule": "R?"` (→ địa
+      chỉ luật, commit 3) · `skill-code.ts:363` đường mặc định khi không khai runner dạy `app.inject` /
+      `openDb(':memory:')` / `HM-2026-8xxx` — stack của repo demo (→ hướng dẫn tổng quát).
+      GHI RA, KHÔNG SỬA ở đây: chú thích trỏ R* ở `dedup-probe.ts:6` · `probe-library.ts:6` ·
+      `skill-code.ts:274,848` · `trigger-examples.ts` (nhiều) · `apps/web/src/{cli-tai-khoan,config,gate}.ts`
+      — chú thích, không vào prompt, thuộc change gỡ R (`retire-r-rules`); `trigger-examples.ts` trường
+      `an_le` nhắc `specs/R…` — mốc định vị cho người duyệt kho, không phát vào prompt (lưới khuon-loi
+      canh, lưới mới miễn trường này); `target.ts suggestModulePath` chỉ tra `*.ts` và nói «tính từ thư mục
+      test/» — giả định stack Node + probe_dir mặc định, chỉ chạy khi gặp lỗi `Cannot find module` (lỗi
+      Node), để sau; `checkmate.yml` dòng 1 và mục review «xem specs/R2 / R7» — chú thích cấu hình, thuộc
+      change gỡ R.
+- [x] 4.4 Lưới chống tái phát: không file nào trong `packages/harness/src/` được nhắc tới đường dẫn
       nội bộ của CheckMate (`specs/R…`) trong chuỗi đi vào prompt.
 
 ## 5. Kiểm cơ học
 
-- [ ] 5.1 `npx tsc --noEmit` sạch · `npm test` xanh TOÀN BỘ.
+- [x] 5.1 `npx tsc --noEmit` sạch · `npm test` xanh TOÀN BỘ.
 - [ ] 5.2 `demo-credit-approval` (spec có mã) vẫn đọc được, đơn vị và độ phủ ra đúng như trước —
       **hệ quả**, không phải mục tiêu thiết kế.
 - [ ] 5.3 Dựng một repo thử có spec **không mã nào**, thư mục **không tên `specs/`**, có **thư mục con**

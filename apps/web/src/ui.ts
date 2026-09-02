@@ -902,7 +902,7 @@ ${gan || '<div class="q-trong" style="padding:18px 0">Chưa có lượt chấm n
     `const ta=document.getElementById('noidung'),gy=document.getElementById('goiy');
 ta.addEventListener('input',()=>{const v=ta.value;
 if(/^diff --git|^@@|^index [0-9a-f]+\\.\\./m.test(v)) gy.textContent='Router: nội dung giống DIFF CODE — code chỉ kiểm qua PR trong hàng đợi bên trên.';
-else if(v.trim()) gy.textContent='Router: nhận diện TÀI LIỆU YÊU CẦU → skill doc (rubric 4 loại lỗi khách quan).';
+else if(v.trim()) gy.textContent='Router: nhận diện TÀI LIỆU YÊU CẦU → skill doc (rubric 7 loại lỗi khách quan).';
 else gy.textContent='Router: dán vào để nhận diện loại artifact.';});`,
     { muc: 'dashboard', nguoi },
   );
