@@ -1,3 +1,6 @@
+<!-- ĐÃ GỠ KHỎI VAI TRÒ LUẬT ngày 2026-09-02 (change retire-r-rules). File này CHỈ ĐỌC và KHÔNG còn được cập nhật.
+     Nhà mới của từng điều: docs/r-rules-map.md. Luật đang hiệu lực: openspec/specs/<capability>/. -->
+
 # R12 — Kho khuôn lỗi common: tri thức tái dùng giữa các repo
 
 Probe là code import hàm thật của repo đích — không chạy được cross-repo. Thứ tái dùng được giữa các

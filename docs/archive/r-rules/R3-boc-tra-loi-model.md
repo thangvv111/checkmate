@@ -1,3 +1,6 @@
+<!-- ĐÃ GỠ KHỎI VAI TRÒ LUẬT ngày 2026-09-02 (change retire-r-rules). File này CHỈ ĐỌC và KHÔNG còn được cập nhật.
+     Nhà mới của từng điều: docs/r-rules-map.md. Luật đang hiệu lực: openspec/specs/<capability>/. -->
+
 # R3 — Bóc trả lời model và rào chống prompt injection
 
 Model trả lời bằng văn bản tự do; CheckMate cần lấy ra JSON (kế hoạch probe, finding) hoặc code (nội dung

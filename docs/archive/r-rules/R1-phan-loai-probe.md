@@ -1,3 +1,6 @@
+<!-- ĐÃ GỠ KHỎI VAI TRÒ LUẬT ngày 2026-09-02 (change retire-r-rules). File này CHỈ ĐỌC và KHÔNG còn được cập nhật.
+     Nhà mới của từng điều: docs/r-rules-map.md. Luật đang hiệu lực: openspec/specs/<capability>/. -->
+
 # R1 — Phân loại probe bằng MÁY, đối chứng hai nhánh
 
 Probe (phép thử đối kháng) do model đề xuất được chạy thật trên **hai nhánh**: nhánh của pull request
