@@ -133,3 +133,25 @@ describe('lượt mồ côi — nối lại được thì KHÔNG phải mồ cô
     expect(lyDo, 'chuyển sang lỗi mà không nói vì sao cũng là báo thiếu bản chất').toMatch(/bỏ dở|dừng giữa chừng/);
   });
 });
+
+describe('mở lại một lượt — bảng trống thì ĐỌC SỔ, không hiện trống rỗng', () => {
+  it('bảng chưa có sự kiện mà sổ trên đĩa có → vẫn dựng lại đủ', () => {
+    // Án lệ: bắt được khi mở thật màn Run. Bảng `run_su_kien` chỉ được ghi lúc lượt chấm ĐÓNG, nên
+    // một lượt bị giết giữa chừng có đủ dấu vết trên đĩa mà bảng thì trống. Đọc mỗi bảng ở đây
+    // nghĩa là mở lại một lượt đã chết và thấy TRỐNG RỖNG — đúng thứ ⛔C2 cấm: «không đọc được»
+    // hiện thành «không có gì».
+    kho.saveMeta(meta({ id: 'chi-co-so', trangThai: 'loi' }));
+    ghiSo('chi-co-so', [
+      JSON.stringify({ t: 0, e: { type: 'stage', stage: 1, ten: 'Nhận artifact' } }),
+      JSON.stringify({ t: 700, e: { type: 'log', msg: 'đã đi tới đây rồi chết' } }),
+    ]);
+    expect(kho.readEvents('chi-co-so'), 'bảng phải trống ở đầu ca').toEqual([]);
+
+    const rm = new RunManager();
+    const st = rm.lay('chi-co-so');
+    expect(st?.events.map((x) => x.e.type)).toEqual(['stage', 'log']);
+
+    // Bảng là BẢN ĐỌC — đọc xong thì dựng lại luôn, lần sau khỏi đụng đĩa.
+    expect(kho.readEvents('chi-co-so').length).toBe(2);
+  });
+});

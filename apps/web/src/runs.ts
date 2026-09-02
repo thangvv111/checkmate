@@ -304,10 +304,20 @@ export class RunManager {
 
   lay(id: string): RunState | undefined {
     if (this.runs.has(id)) return this.runs.get(id);
-    // Lượt đã kết thúc (hoặc do tiến trình khác chạy): dựng lại từ kho để phát lại
+    // Lượt đã kết thúc (hoặc do tiến trình khác chạy): dựng lại từ kho.
     const meta = kho.readMeta(id);
     if (!meta) return undefined;
-    const state: RunState = { meta, events: kho.readEvents(id), subs: new Set() };
+    // Bảng trống mà sổ trên đĩa có → ĐỌC SỔ. Đây là chỗ câu «file là nguồn, bảng là bản đọc» phải
+    // có hiệu lực thật: bảng chỉ được ghi lúc lượt chấm đóng, nên một lượt bị giết giữa chừng có
+    // đủ dấu vết trên đĩa mà bảng thì trống. Đọc mỗi bảng ở đây nghĩa là mở lại một lượt đã chết
+    // và thấy TRỐNG RỖNG — đúng thứ ⛔C2 cấm: «không đọc được» hiện thành «không có gì».
+    let events = kho.readEvents(id);
+    if (!events.length) {
+      events = docSoSuKienTuDia(id);
+      // Bảng là bản đọc, nên dựng lại nó ngay — lần sau khỏi phải đọc đĩa.
+      if (events.length) kho.saveEvents(id, events);
+    }
+    const state: RunState = { meta, events, subs: new Set() };
     this.runs.set(id, state);
     return state;
   }

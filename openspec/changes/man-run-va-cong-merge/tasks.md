@@ -113,18 +113,23 @@ Năm commit tách bạch: hợp đồng → bền dòng sự kiện → server-r
 - [x] 6.8 Verdict stale → cổng khoá và trang nói ra trước khi người dùng bấm.
 - [x] 6.9b Head đổi giữa lượt chấm → đánh dấu ngay, lượt vẫn chạy tới hết, và cổng khoá ngay ở lần
       mở đầu tiên. Head KHÔNG đổi → không thêm lời gọi GitHub nào sau khi lượt kết thúc.
-- [ ] 6.9 Dựng lại `run_su_kien` từ `events.jsonl` cho ra đúng dòng sự kiện.
-- [ ] 6.10 Chứng minh các lưới trên **load-bearing**: tạm bỏ banner stale và tạm cho ghi chú rỗng đi
+- [x] 6.9 Dựng lại `run_su_kien` từ `events.jsonl` cho ra đúng dòng sự kiện.
+- [x] 6.10 Chứng minh các lưới trên **load-bearing**: tạm bỏ banner stale và tạm cho ghi chú rỗng đi
       qua, thấy chúng ĐỎ đúng chỗ, rồi khôi phục.
 
 ## 7. Kiểm cơ học
 
-- [ ] 7.1 `npx tsc --noEmit` sạch · `npm test` xanh TOÀN BỘ.
+- [x] 7.1 `npx tsc --noEmit` sạch · `npm test` xanh TOÀN BỘ.
 - [ ] 7.2 Chạy thật một lượt trên gốc dữ liệu riêng: mở màn Run **đang chạy**, rồi **đã xong**.
-- [ ] 7.3 **Giết tiến trình web giữa lượt chấm rồi khởi động lại** — dòng sự kiện phải còn, và lượt
+      ĐÃ LÀM một nửa, trên gốc dữ liệu riêng với lượt chấm DỰNG TAY (dữ liệu thật hình dạng thật,
+      nhưng KHÔNG gọi model): mở màn đang-chạy ✓ · mở màn đã-xong ✓ · trình diễn không có đường tới
+      hành động cổng ✓ · giết web giữa chừng rồi khởi động lại, nối lại đủ ✓ (7.3).
+      CÒN THIẾU: một lượt gọi model THẬT. Nó đốt token của PO và cần repo đích cấu hình trong gốc
+      riêng — **chờ PO chốt** có chạy hay không. Cơ chế đã được kiểm; thứ chưa kiểm là engine đầu-cuối.
+- [x] 7.3 **Giết tiến trình web giữa lượt chấm rồi khởi động lại** — dòng sự kiện phải còn, và lượt
       dựng lại đúng tới thời điểm đó. Đây là ca không test đơn vị nào thay được.
-- [ ] 7.4 Tắt kịch bản trình duyệt → màn Run của lượt đã xong vẫn đọc đủ.
-- [ ] 7.5 Mở màn Run ở chế độ trình diễn, thử mọi đường tới hành động cổng → không đường nào đi được.
+- [x] 7.4 Tắt kịch bản trình duyệt → màn Run của lượt đã xong vẫn đọc đủ.
+- [x] 7.5 Mở màn Run ở chế độ trình diễn, thử mọi đường tới hành động cổng → không đường nào đi được.
 
 ## 8. Sau-merge — nợ có tên, KHÔNG thuộc change này
 
