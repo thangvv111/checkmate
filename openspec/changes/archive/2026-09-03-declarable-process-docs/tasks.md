@@ -40,7 +40,7 @@
 
 ## 6. Nợ có tên (ghi vào `named-debts` khi archive)
 
-- [ ] 6.1 Mục 10 (mới, PO 03/09): `isPrRunning` ở `/api/runs` mang cùng lỗi với nợ #9 — nửa dữ liệu có
+- [x] 6.1 Mục 10 (mới, PO 03/09): `isPrRunning` ở `/api/runs` mang cùng lỗi với nợ #9 — nửa dữ liệu có
       test, nửa route không gọi được. Làm ngay sau khi đóng `verdict-contract` và change này.
-- [ ] 6.2 Mục 6 đánh dấu ĐÃ RỜI: nửa «khai đè danh sách tự dò nguồn spec» xong từ `retire-r-rules`, nửa
+- [x] 6.2 Mục 6 đánh dấu ĐÃ RỜI: nửa «khai đè danh sách tự dò nguồn spec» xong từ `retire-r-rules`, nửa
       «thư mục tài liệu quy trình» xong ở change này.

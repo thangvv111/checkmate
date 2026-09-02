@@ -17,8 +17,10 @@ mục con. Engine MUST NOT giả định một tên thư mục, một đuôi fil
 Không khai thì engine SHALL **tự dò** theo một thứ tự thông dụng, và SHALL nói ra **đã tìm ở đâu và
 thấy được gì** — việc dò tìm là một phán đoán, mà phán đoán không nói ra thì người dùng không sửa được.
 
-Cùng cách đó cho **tài liệu API** và **file test mẫu**: hai thứ này cũng đi vào prompt, nên chúng cũng
-là đầu vào, và đầu vào thì repo đích được quyền khai.
+Cùng cách đó cho **tài liệu API**, **file test mẫu**, và **thư mục tài liệu quy trình**: chúng cũng là đầu
+vào của lượt chấm — ba thứ đầu đi vào prompt, thứ tư quyết định PR đi đường code hay đường doc — nên repo
+đích được quyền khai. Mọi khoá của mục `sources` MUST đi qua cùng một cửa đọc và cùng luật loại đường
+không hợp lệ: đường tuyệt đối hay có `..` bị loại NGAY tại cửa và MANG THEO lý do để lượt chấm ghi ra.
 
 Vì sao thành yêu cầu: bản trước đọc cứng `specs/*.md` phẳng, `README.md`, `test/`. Repo demo của
 chính dự án này được viết vừa khớp bộ ba đó — tức sản phẩm chỉ chạy trên repo được dựng cho nó.
@@ -34,6 +36,10 @@ chính dự án này được viết vừa khớp bộ ba đó — tức sản p
 #### Scenario: đường khai trỏ vào chỗ không có gì
 - **WHEN** repo khai một đường spec nhưng không file nào khớp
 - **THEN** engine nói rõ đường nào không khớp — im lặng ở đây khiến người dùng tin spec đã được nạp
+
+#### Scenario: khoá tài liệu quy trình cũng qua cùng cửa đọc
+- **WHEN** repo khai `sources.process_docs` với một đường tuyệt đối hoặc có `..`
+- **THEN** đường đó bị loại ở cửa đọc kèm lý do, như với `sources.specs`, và phần khai hợp lệ vẫn dùng được
 
 ### Requirement: Luật là ĐƠN VỊ CÓ ĐỊA CHỈ, không phải một mã có khuôn
 
