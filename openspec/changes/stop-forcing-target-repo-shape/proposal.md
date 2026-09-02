@@ -41,7 +41,7 @@ vệ tắt mà không ai biết. Đó là verdict trông giống hệt nhau ở 
 ## Capabilities
 
 ### New Capabilities
-- `nguon-spec`: engine lấy luật từ repo đích ra sao — nguồn ở đâu, đơn vị là gì, và nói gì khi không
+- `spec-source`: engine lấy luật từ repo đích ra sao — nguồn ở đâu, đơn vị là gì, và nói gì khi không
   tìm được.
 
 ### Modified Capabilities
@@ -66,7 +66,7 @@ nằm trong code (`extractRuleIds`) áp lên repo của người khác.
 
 Luật của change này sống ở ba chỗ, không chỗ nào là `specs/R*.md`:
 
-- **hành vi** → `openspec/specs/nguon-spec/`
+- **hành vi** → `openspec/specs/spec-source/`
 - **hằng + validate** → `packages/harness/src/target.ts`, có test khoá
 - **khoá cấu hình** → `checkmate.yml`
 

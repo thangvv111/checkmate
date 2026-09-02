@@ -74,8 +74,14 @@ sống; bỏ trống ô vẫn là done-gate chưa ✓.
 
 ## Ngôn ngữ định danh — tiếng Anh (PO chốt 01/09)
 
-- **Mọi định danh MỚI SINH** — tên hàm, biến, kiểu, khoá cấu hình, mã enum, tên file code — viết
-  **tiếng Anh**. Thuật ngữ trong tài liệu giữ tiếng Anh, chỉ chú thích tiếng Việt khi cần giải thích.
+- **Mọi định danh MỚI SINH viết tiếng Anh.** Định danh = thứ máy trỏ tới hoặc dùng làm khoá — KHÔNG
+  chỉ trong code. Danh sách đóng, để không ai lách bằng «cái này đâu phải code»:
+  tên hàm · biến · kiểu · khoá cấu hình · mã enum · **tên file (code LẪN tài liệu)** · **tên thư mục** ·
+  **nhãn/mã luật** (`gate-surface-derives-from-ledger`, không `R6.26`) · **tên capability và tên
+  change OpenSpec mới** · tên nhánh git.
+  Thuật ngữ trong tài liệu giữ tiếng Anh, chỉ chú thích tiếng Việt khi cần giải thích.
+  *Án lệ 02/09:* agent đề xuất file `LUAT.md` và đặt `man-run.test.ts`, `so-su-kien.test.ts` chỉ
+  một ngày sau khi đặt đúng `design-tokens.test.ts` — luật nằm ở memory thì trôi; nằm ở đây thì không.
 - Văn TRÌNH BÀY cho PO (proposal, báo cáo, commit message, comment giải thích) vẫn tiếng Việt.
 - Code cũ mang tên tiếng Việt (`luuMeta`, `docSoCong`, `chuanMuc`…) **giữ nguyên** — đổi hàng loạt là
   một change refactor riêng đã xếp lịch; đừng đổi lắt nhắt từng chỗ khi tiện tay, nó tạo trạng thái
