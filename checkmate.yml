@@ -24,6 +24,7 @@ runner:
       ../packages/harness/src/dedup-probe.js → splitRule · findRerunDuplicate · findSuspectedDuplicate · applyRuling · promptDuplicateRuling
       ../packages/harness/src/jsonx.js       → unwrapJson · unwrapCode · ModelUsedToolError · callJson · callCode
       ../packages/harness/src/fence.js         → makeFence · FENCE_NOTICE
+      ../packages/harness/src/spec-units.js    → splitSpecUnits · splitAllSpecUnits · extractCodes · splitRuleRefs · resolveRule · findNewUnits · refHitsNew · MAX_UNIT_DEPTH
       ../apps/web/src/ui.js                  → escHtml · splitSource · CSS · shell · findingHtml · verdictHtml
       ../apps/web/src/ui-history.js          → filterRuns
       ../apps/web/src/provider.js                 → maskKey · projectValue · providerDefinition · PROVIDER_CATALOG · checkStillValid · readKey · writeKey · readProviderCheck · writeProviderCheck · validModel

@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { extractCodes, findNewUnits, splitAllSpecUnits, type SpecUnit } from './spec-units.js';
 
 export interface FileOutOfView {
   file: string;
@@ -19,7 +20,12 @@ export interface TargetInfo {
   ngoaiTamNhin: FileOutOfView[];
   specs: Array<{ file: string; noiDung: string }>;
   /**
-   * Mã luật CHỈ có ở nhánh PR (R1.19). Probe neo vào những mã này KHÔNG được lấy nhánh gốc làm đối
+   * Spec chia thành ĐƠN VỊ CÓ ĐỊA CHỈ — thứ probe neo vào, thứ đếm độ phủ, thứ so hai nhánh.
+   * Rỗng nghĩa là lượt này chấm KHÔNG có luật đối chiếu, và điều đó phải được nói ra, không im lặng.
+   */
+  units: SpecUnit[];
+  /**
+   * Dấu hiệu luật CHỈ có ở nhánh PR (R1.19) — địa chỉ đơn vị mới, hoặc mã mới trong khối đã đổi. Probe neo vào những mã này KHÔNG được lấy nhánh gốc làm đối
    * chứng: luật chưa tồn tại ở đó thì «cũng đỏ ở gốc» không nói lên điều gì về phạm vi của PR.
    */
   luatMoi: string[];
@@ -89,9 +95,8 @@ function lyDoSinhTuDong(file: string, boQuaThem: RegExp[]): string | null {
  * đánh số theo mục con hoặc chỉ theo file.
  */
 export function extractRuleIds(vanBan: string): Set<string> {
-  const ra = new Set<string>();
-  for (const m of vanBan.matchAll(/\b([A-Z]{1,3}\d{1,3}(?:\.\d{1,3})?)\b/g)) ra.add(m[1]);
-  return ra;
+  // Giữ tên cũ cho chỗ gọi cũ; luật nhận mã nay sống ở spec-units.ts để chỉ có MỘT định nghĩa.
+  return extractCodes(vanBan);
 }
 
 /**
@@ -112,21 +117,24 @@ export function findNewRules(repo: string, base: string, specsPr: Array<{ file: 
   // ÉP KIỂU, không NUỐT: bản vá trước biến mọi thứ không-phải-string thành rỗng, nên nội dung spec ở
   // dạng Buffer/String-object bị mất sạch và mã luật biến mất cùng nhãn chặn merge — vá «không ném»
   // bằng cách đánh rơi dữ liệu thật (vòng bảy của cổng bắt). Nhánh gốc dùng join() nên vẫn ép được.
-  const maPr = extractRuleIds(ds.map((x) => (x?.noiDung == null ? '' : String(x.noiDung))).join('\n'));
-  if (maPr.size === 0) return [];
-  let vanBanGoc = '';
+  const unitsPr = splitAllSpecUnits(
+    ds.map((x) => ({ file: String(x?.file ?? ''), noiDung: x?.noiDung == null ? '' : String(x.noiDung) })),
+  );
+  if (unitsPr.length === 0) return [];
+  // Fail-closed: không so được thì MỌI dấu hiệu của nhánh PR đều là mới — địa chỉ lẫn mã.
+  const tatCaMoi = (): string[] => [...new Set(unitsPr.flatMap((u) => [u.address, ...(u.code ? [u.code] : []), ...u.codes]))];
+  let unitsGoc: SpecUnit[];
   try {
-    const ds = git(repo, ['ls-tree', '-r', '--name-only', base, 'specs/'])
-      .split('\n')
-      .map((x) => x.trim())
-      .filter((x) => x.endsWith('.md'));
-    if (ds.length === 0) return [...maPr]; // nhánh gốc chưa có spec — mọi luật đều mới
-    vanBanGoc = ds.map((f) => git(repo, ['show', `${base}:${f}`])).join('\n');
+    // Đọc ĐÚNG những file spec nhánh PR đang dùng, ở bản của nhánh gốc — không đoán thư mục.
+    const fileGoc = ds.map((x) => String(x?.file ?? '')).filter(Boolean);
+    const coTrongGoc = new Set(git(repo, ['ls-tree', '-r', '--name-only', base]).split('\n').map((x) => x.trim()));
+    const docDuoc = fileGoc.filter((f) => coTrongGoc.has(f));
+    if (docDuoc.length === 0) return tatCaMoi(); // nhánh gốc chưa có spec nào — mọi luật đều mới
+    unitsGoc = splitAllSpecUnits(docDuoc.map((f) => ({ file: f, noiDung: git(repo, ['show', `${base}:${f}`]) })));
   } catch {
-    return [...maPr]; // không so được thì fail-closed
+    return tatCaMoi(); // không so được thì fail-closed
   }
-  const maGoc = extractRuleIds(vanBanGoc);
-  return [...maPr].filter((m) => !maGoc.has(m));
+  return findNewUnits(unitsPr, unitsGoc);
 }
 
 
@@ -186,6 +194,7 @@ export function readTarget(repo: string, branch: string, base = 'main', boQuaThe
     : [];
 
   // R1.19 — luật nào CHỈ có ở nhánh PR. Xác định bằng cách so `specs/` giữa hai nhánh, không hỏi model.
+  const units = splitAllSpecUnits(specs);
   const luatMoi = findNewRules(repo, base, specs);
 
   const apiDoc = existsSync(join(repo, 'README.md')) ? readFileSync(join(repo, 'README.md'), 'utf8') : '';
@@ -200,5 +209,5 @@ export function readTarget(repo: string, branch: string, base = 'main', boQuaThe
     if (f) testMau = readFileSync(join(testDir, f), 'utf8');
   }
 
-  return { repo, branch, base, branchSha, baseSha, diff, ngoaiTamNhin, specs, luatMoi, apiDoc, testMau };
+  return { repo, branch, base, branchSha, baseSha, diff, ngoaiTamNhin, specs, units, luatMoi, apiDoc, testMau };
 }

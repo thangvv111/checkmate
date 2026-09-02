@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto';
 import { chuanMuc, normalizeOdcQualifier, normalizeOdcType, type Finding, type OdcQualifier, type OdcType, type RunEvent, type Severity } from '../../shared/src/types.js';
 import type { ModelProvider } from './model.js';
 import { callCode, callJson } from './jsonx.js';
-import { readTarget, suggestModulePath, extractRuleIds, type TargetInfo } from './target.js';
+import { readTarget, suggestModulePath, type TargetInfo } from './target.js';
+import { refHitsNew, resolveRule } from './spec-units.js';
 import { Sandbox, type ProbeResult } from './sandbox.js';
 import { updateHistory, readProbeLibrary, admitToLibrary, repoSlug, splitOneProbe, findAndDropBehaviorDuplicates } from './probe-library.js';
 import { getCodeExamples, knowledgeByTrigger } from './trigger-examples.js';
@@ -178,9 +179,9 @@ export function looksLikeBrokenProbe(loi: string): boolean {
 }
 
 export function isNewRule(specRule: string | undefined, dsLuatMoi: string[]): boolean {
-  if (!specRule || dsLuatMoi.length === 0) return false;
-  const cua = [...extractRuleIds(specRule)];
-  return cua.some((m) => dsLuatMoi.some((n) => m === n || m.startsWith(n + '.')));
+  // Dấu hiệu luật-mới nay là địa chỉ đơn vị HOẶC mã; luật khớp một chiều (mã cha mới phủ mã con)
+  // giữ nguyên như bản trước — chỉ đổi nơi sống của nó sang spec-units.ts để có MỘT định nghĩa.
+  return refHitsNew(specRule, dsLuatMoi);
 }
 
 export function classifyByMachine(
@@ -614,8 +615,10 @@ export async function runCodeSkill(
     // R1.21–R1.22 — mã luật sống suốt đường sinh probe rồi chết ở đầu ra: không ghi thì sau lượt chấm
     // không ai kiểm được BẰNG MÁY đã phủ những luật nào. Một cổng không tự đo được độ phủ của mình thì
     // không nói được câu «đã kiểm xong».
-    thongKe.luat_da_phu = [...new Set(ungVienTatCa.flatMap((u) => [...extractRuleIds(u.probe.spec_rule ?? '')]))].sort();
-    thongKe.luat_tong = extractRuleIds(t.specs.map((x) => x.noiDung).join('\n')).size;
+    // Độ phủ đo trên ĐƠN VỊ có địa chỉ, không đo trên mã: repo không đánh mã vẫn có mẫu số thật.
+    // Không có đơn vị nào thì mẫu số bằng 0 — chỗ ghi verdict phải khai đó là KHÔNG ĐO ĐƯỢC.
+    thongKe.luat_da_phu = [...new Set(ungVienTatCa.flatMap((u) => resolveRule(u.probe.spec_rule, t.units).map((x) => x.address)))].sort();
+    thongKe.luat_tong = t.units.length;
     phat({
       type: 'log',
       msg: `Độ phủ luật: ${thongKe.luat_da_phu.length}/${thongKe.luat_tong} mã luật đọc được từ specs/ có probe neo vào${

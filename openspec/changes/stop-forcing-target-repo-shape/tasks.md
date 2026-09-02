@@ -4,16 +4,18 @@ Bốn commit: đơn vị luật → nguồn spec cấu hình được → khai r
 
 ## 1. Commit 1 — ĐƠN VỊ LUẬT TỔNG QUÁT
 
-- [ ] 1.1 `target.ts` — hàm chia spec thành **đơn vị có địa chỉ**: đơn vị = khối dưới một tiêu đề,
+- [x] 1.1 `target.ts` — hàm chia spec thành **đơn vị có địa chỉ**: đơn vị = khối dưới một tiêu đề,
       địa chỉ = đường tiêu đề. Có **trần độ sâu** để tài liệu chia nhỏ không vỡ thành hàng trăm đơn vị.
-- [ ] 1.2 Mã ngắn (`R4.21`, `US-12`, `AC3`) nhận làm địa chỉ **trường hợp riêng**: tiêu đề mở đầu bằng
+- [x] 1.2 Mã ngắn (`R4.21`, `US-12`, `AC3`) nhận làm địa chỉ **trường hợp riêng**: tiêu đề mở đầu bằng
       mã thì mã đó cũng trỏ được vào đơn vị ấy. KHÔNG dựng một đường mã chạy song song.
-- [ ] 1.3 `isNewRule` / `luat_da_phu` / `luat_tong` đọc theo đơn vị thay vì theo tập mã.
-- [ ] 1.4 `findNewRules` so **đơn vị** giữa hai nhánh thay vì so mã. GIỮ NGUYÊN fail-closed: không đọc
+- [x] 1.3 `isNewRule` / `luat_da_phu` / `luat_tong` đọc theo đơn vị thay vì theo tập mã.
+- [x] 1.4 `findNewRules` so **đơn vị** giữa hai nhánh thay vì so mã. GIỮ NGUYÊN fail-closed: không đọc
       được spec nhánh gốc thì KHÔNG phong luật-mới cho ai — change này không được nới chỗ đó.
-- [ ] 1.5 `probe-library.chuanRule` so địa chỉ đơn vị. Probe cũ trong thư viện (neo theo mã) phải đọc
+- [x] 1.5 `probe-library.chuanRule` GIỮ NGUYÊN — nó so chuỗi `spec_rule` model khai để khử trùng, không
+      so với spec, nên không cần đổi. Probe cũ neo theo mã vẫn tra được qua `resolveRule` (mã ở đầu tiêu
+      đề hoặc trong list item đều nhận) — T5.2 kiểm ở commit cuối. Bản đầu của task này ghi sai chỗ. Probe cũ trong thư viện (neo theo mã) phải đọc
       lại được — thư viện regression là tài sản đắt nhất của sản phẩm.
-- [ ] 1.6 Lưới: spec KHÔNG mã nào → vẫn ra đơn vị, probe vẫn neo được. Vế đối chứng: spec CÓ mã → mã
+- [x] 1.6 Lưới: spec KHÔNG mã nào → vẫn ra đơn vị, probe vẫn neo được. Vế đối chứng: spec CÓ mã → mã
       vẫn neo đúng đơn vị mang nó.
 
 ## 2. Commit 2 — NGUỒN SPEC CẤU HÌNH ĐƯỢC
