@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { runPage, findingHtml, verdictHtml } from '../apps/web/src/ui.js';
+import { evaluateRejectLocal } from '../apps/web/src/gate.js';
 import type { RunMeta, StoredEvent } from '../apps/web/src/runs.js';
 import type { Finding, Verdict } from '../packages/shared/src/types.js';
 
@@ -317,8 +318,18 @@ describe('cổng merge', () => {
   });
 
   it('MÁY CHỦ cũng ép ghi chú — `required` phía trình duyệt không chặn được POST thẳng', () => {
-    const nguon = readFileSync('apps/web/src/server.ts', 'utf8');
-    expect(nguon, 'thiếu chặn phía máy chủ cho ghi chú rỗng').toMatch(/Trả về dev phải có ghi chú/);
+    // Trước đây ca này grep chuỗi trong `server.ts`; quyết định cổng nay là hàm THUẦN nên gọi thẳng —
+    // mạnh hơn hẳn: grep chỉ chứng minh chuỗi CÓ MẶT, gọi hàm chứng minh nó THỰC SỰ chặn.
+    // Bộ ca đầy đủ của cổng ở `test/merge-gate.test.ts`; giữ ca này để màn Run và cổng không lệch nhau.
+    const kq = evaluateRejectLocal({
+      mode: 'org',
+      run: { id: 'w1', verdict: verdict(), pr: { so: 7, headSha: 'abcdef1234567890' } },
+      gateDone: null,
+      identity: { ok: true, ten: 'thang.vv' },
+      ghiChu: '   ',
+    });
+    expect(kq, 'thiếu chặn phía máy chủ cho ghi chú rỗng').toMatchObject({ ok: false, status: 422 });
+    expect((kq as { message: string }).message).toContain('Trả về dev phải có ghi chú');
   });
 
   it('receipt sau khi trả về dev có hướng dẫn reopen', () => {

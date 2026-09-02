@@ -31,7 +31,7 @@ import { repoSection } from './ui-repo.js';
 import { cloneRepo, listBranches, listPrs, prState, listReposForToken, closePr, fetchAndRoute, setCommitStatus, checkRepo, getCurrentPr, mergePr, commentPr, splitOwnerRepo, returnToDev } from './github.js';
 import { hasToken, readRepoToken, readOwnToken, writeRepoToken, deleteRepoToken } from './secret-vault.js';
 import { hasGithubAccess, hasGhCli } from './github.js';
-import { renderRuling, renderReceipt, renderAutoVerdict, countBySeverity, reconcileGate, appendGateLedgerEntry, MACHINE_ACTOR_NAME } from './gate.js';
+import { renderRuling, renderReceipt, renderAutoVerdict, countBySeverity, reconcileGate, appendGateLedgerEntry, MACHINE_ACTOR_NAME, evaluateMergeLocal, evaluateMergeAgainstPr, evaluateRejectLocal, decideAutomation, type IdentityCheck } from './gate.js';
 import { backfillVerdictLedger, readVerdictLedger } from './ledger.js';
 import { readVerdictLedger as docSoCaiKho, countVerdictLedger as demSoCaiKho } from './store/ledger-store.js';
 import { migrateAll, migrationSummary } from './store/migrate.js';
@@ -179,12 +179,14 @@ rm.onXong = (meta) => {
   const v = meta.verdict;
   const pr = meta.pr;
   const d = countBySeverity(v.findings);
-  // R6.17 — chỉ đóng khi có probe CHẠY THẬT và đỏ. Đóng dựa trên suy đoán là thứ làm người ta tắt cổng.
-  const dangDongPr = cfg.truc.tu_dong_tra_ve && v.result === 'FAIL' && d.high > 0;
+  // Ba việc tự động quyết ở hàm thuần `decideAutomation` (gate.ts): ba công tắc riêng (R6.15), đóng PR chỉ
+  // khi FAIL có high (R6.17), và kiểu trả về KHÔNG có nhánh merge (R6.19, ⛔C1).
+  const tuDong = decideAutomation(cfg.truc, v);
+  const dangDongPr = tuDong.closePr;
   void (async () => {
     // R6.16 — đăng verdict KHÔNG giới hạn ở chế độ trực: lượt bấm tay cũng sinh verdict, và người viết
     // code cũng cần đọc finding ở đúng chỗ họ làm việc.
-    if (cfg.truc.tu_dong_comment) {
+    if (tuDong.comment) {
       try {
         await commentPr(cfg, pr.so, renderAutoVerdict(v));
         console.log(`Tự động: đã đăng verdict ${v.result} lên PR #${pr.so}`);
@@ -194,7 +196,7 @@ rm.onXong = (meta) => {
     }
     // Ba việc là ba công tắc riêng (R6.15) nên cũng là ba khối try riêng: đăng comment hỏng không được
     // kéo theo việc gắn trạng thái, và cả hai hỏng cũng không được che mất việc trả về dev.
-    if (cfg.truc.tu_dong_trang_thai) {
+    if (tuDong.commitStatus) {
       try {
         await setCommitStatus(cfg, pr.headSha, v.result === 'PASS' ? 'success' : 'failure',
           v.result === 'PASS' ? 'CheckMate: PASS' : `CheckMate: FAIL — ${v.findings.length} finding`);
@@ -886,87 +888,86 @@ function loiCong(res: import('express').Response, ma: number, thongBao: string):
   res.status(ma).send(shell('CheckMate — cổng merge', `<h1>Không thực hiện được</h1><p class="sub">${thongBao}</p>`));
 }
 
+/**
+ * Đọc danh tính + ép vai cổng, gói thành DỮ LIỆU cho hàm quyết định thuần (R11.1, R11.4 — vẫn đúng một
+ * cửa `getIdentity`). Gọi sớm hơn một bước so với bản trước, nhưng thứ tự THÔNG ĐIỆP không đổi: hàm thuần
+ * xếp verdict FAIL trước thiếu quyền. `getIdentity` không có tác dụng phụ nên gọi sớm là vô hại.
+ */
+function docDanhTinhCong(req: import('express').Request): IdentityCheck {
+  try {
+    const dt = getIdentity(req);
+    requireGateRole(dt);
+    return { ok: true, ten: dt.ten };
+  } catch (e) {
+    return {
+      ok: false,
+      status: e instanceof IdentityError && e.ma === 'khong_du_quyen' ? 403 : 401,
+      message: (e as Error).message,
+    };
+  }
+}
+
 app.post('/api/runs/:id/merge', async (req, res) => {
-  if (MODE === 'demo') return loiCong(res, 403, 'Chế độ demo không cho thao tác cổng merge (chỉ xem).');
   const st = rm.lay(req.params.id);
   const cfg = readConfig();
-  if (!st || !st.meta.verdict || !st.meta.pr) return loiCong(res, 404, 'Run không tồn tại hoặc không gắn PR. <a href="/">← về trang chính</a>');
-  const daCong = rm.congHienTai(st.meta.id); // đọc TƯƠI từ sổ — bản trong bộ nhớ có thể cũ (R6.26)
-  if (daCong) return loiCong(res, 409, `Run này đã ${daCong.hanhDong} lúc ${daCong.luc}.`);
-  const v = st.meta.verdict;
-  const d = countBySeverity(v.findings);
-  if (d.high > 0 || v.result === 'FAIL') return loiCong(res, 403, 'Verdict FAIL (có finding HIGH) — nút merge khoá theo luật cổng.');
-  // W5: client gửi DANH SÁCH id finding đã tick — server so khớp tập với các finding medium thật của verdict
-  // R11.1 + R11.18 — đọc danh tính và ép quyền TRƯỚC khối try bắt lỗi GitHub: người thiếu quyền mà
-  // nhận thông báo «GitHub từ chối» là báo sai hẳn bản chất, và họ sẽ đi hỏi nhầm người.
-  let dtMerge;
+  const v = st?.meta.verdict;
+  // Quyết định cổng nằm ở hàm THUẦN (gate.ts) để mỗi nhánh từ chối là một ca test chạy được; route chỉ
+  // gom đầu vào rồi làm I/O. Thứ tự kiểm và từng chữ thông điệp thuộc về hàm đó, không phải chỗ này.
+  const cb = evaluateMergeLocal({
+    mode: MODE,
+    run: st?.meta,
+    gateDone: rm.congHienTai(req.params.id), // đọc TƯƠI từ sổ — bản trong bộ nhớ có thể cũ (R6.26)
+    identity: docDanhTinhCong(req),
+    tickIds: (req.body as Record<string, string>).tick_ids,
+  });
+  if (!cb.ok) return loiCong(res, cb.status, cb.message);
   try {
-    dtMerge = getIdentity(req);
-    requireGateRole(dtMerge);
-  } catch (e) {
-    return loiCong(res, e instanceof IdentityError && e.ma === 'khong_du_quyen' ? 403 : 401, (e as Error).message);
-  }
-  const tickIds = String((req.body as Record<string, string>).tick_ids ?? '').split(',').filter(Boolean);
-  const mediumIds = v.findings.filter((f) => chuanMuc(f.severity) === 'medium').map((f) => f.id);
-  const thieu = mediumIds.filter((id) => !tickIds.includes(id));
-  if (thieu.length > 0) return loiCong(res, 422, `Phải xác nhận đủ ${d.medium} cảnh báo MEDIUM — còn thiếu: ${thieu.join(', ')}.`);
-  try {
-    const hienTai = await getCurrentPr(cfg, st.meta.pr.so);
-    if (hienTai.state !== 'open') return loiCong(res, 409, `PR #${st.meta.pr.so} không còn mở (${hienTai.merged ? 'đã merge' : hienTai.state}).`);
-    if (hienTai.headSha !== st.meta.pr.headSha) {
-      return loiCong(res, 409, `PR đã có commit mới (${hienTai.headSha.slice(0, 7)} ≠ ${st.meta.pr.headSha.slice(0, 7)}) — verdict cũ hết hiệu lực, chạy kiểm lại rồi mới merge. <a href="/">← về trang chính</a>`);
-    }
-    const nguoi = dtMerge.ten;
-    const xacNhan = v.findings.filter((f) => chuanMuc(f.severity) === 'medium').map((f) => f.title_vi);
-    await commentPr(cfg, st.meta.pr.so, renderReceipt(v, nguoi, xacNhan));
-    await mergePr(cfg, st.meta.pr.so, `${st.meta.tieuDe} (#${st.meta.pr.so})`,
-      `CheckMate: PASS @ ${v.artifact_ref.sha_or_hash.slice(0, 10)} · run ${v.run_id}${xacNhan.length ? ` · ${xacNhan.length} cảnh báo medium được ${nguoi} chấp nhận` : ''}`,
-      st.meta.pr.headSha); // W1: GitHub tự 409 nếu head đã đổi — đóng nốt cửa sổ race sau lần getCurrentPr ở trên
-    appendGateLedgerEntry({ hanhDong: 'merge', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.id, verdict: v.result, nguoi, tac_gia_pr: st.meta.pr.tacGia, xac_nhan_medium: xacNhan });
-    rm.dongBoCongTuSo(st.meta.id); // bề mặt đọc lại TỪ sổ (R6.26)
-    res.redirect(303, `/runs/${st.meta.id}`);
+    const hienTai = await getCurrentPr(cfg, st!.meta.pr!.so);
+    const doiChieu = evaluateMergeAgainstPr({ run: st!.meta, currentPr: hienTai });
+    if (!doiChieu.ok) return loiCong(res, doiChieu.status, doiChieu.message);
+    const nguoi = cb.nguoi;
+    const xacNhan = v!.findings.filter((f) => chuanMuc(f.severity) === 'medium').map((f) => f.title_vi);
+    const pr = st!.meta.pr!;
+    await commentPr(cfg, pr.so, renderReceipt(v!, nguoi, xacNhan));
+    await mergePr(cfg, pr.so, `${st!.meta.tieuDe} (#${pr.so})`,
+      `CheckMate: PASS @ ${v!.artifact_ref.sha_or_hash.slice(0, 10)} · run ${v!.run_id}${xacNhan.length ? ` · ${xacNhan.length} cảnh báo medium được ${nguoi} chấp nhận` : ''}`,
+      pr.headSha); // W1: GitHub tự 409 nếu head đã đổi — đóng nốt cửa sổ race sau lần getCurrentPr ở trên
+    appendGateLedgerEntry({ hanhDong: 'merge', pr: pr.so, sha: pr.headSha, run_id: st!.meta.id, verdict: v!.result, nguoi, tac_gia_pr: pr.tacGia, xac_nhan_medium: xacNhan });
+    rm.dongBoCongTuSo(st!.meta.id); // bề mặt đọc lại TỪ sổ (R6.26)
+    res.redirect(303, `/runs/${st!.meta.id}`);
   } catch (e) {
     loiCong(res, 500, `GitHub từ chối: ${(e as Error).message.slice(0, 300)}`);
   }
 });
 
 app.post('/api/runs/:id/reject', async (req, res) => {
-  if (MODE === 'demo') return loiCong(res, 403, 'Chế độ demo không cho thao tác cổng merge (chỉ xem).');
   const st = rm.lay(req.params.id);
   const cfg = readConfig();
-  if (!st || !st.meta.verdict || !st.meta.pr) return loiCong(res, 404, 'Run không tồn tại hoặc không gắn PR.');
-  const daCong = rm.congHienTai(st.meta.id); // đọc TƯƠI từ sổ — bản trong bộ nhớ có thể cũ (R6.26)
-  if (daCong) return loiCong(res, 409, `Run này đã ${daCong.hanhDong} lúc ${daCong.luc}.`);
-  let dtReject;
+  // Cùng khuôn với merge: quyết định ở hàm thuần (gate.ts), route chỉ gom đầu vào rồi làm I/O.
+  const cb = evaluateRejectLocal({
+    mode: MODE,
+    run: st?.meta,
+    gateDone: rm.congHienTai(req.params.id), // đọc TƯƠI từ sổ — bản trong bộ nhớ có thể cũ (R6.26)
+    identity: docDanhTinhCong(req),
+    ghiChu: (req.body as Record<string, string>).ghi_chu,
+  });
+  if (!cb.ok) return loiCong(res, cb.status, cb.message);
   try {
-    dtReject = getIdentity(req);
-    requireGateRole(dtReject);
-  } catch (e) {
-    return loiCong(res, e instanceof IdentityError && e.ma === 'khong_du_quyen' ? 403 : 401, (e as Error).message);
-  }
-  const b = req.body as Record<string, string>;
-  // Ghi chú BẮT BUỘC, và ép ở MÁY CHỦ chứ không chỉ ở nút. `required` phía trình duyệt chỉ chặn được
-  // người bấm nút; một POST thẳng đi qua nó như không có. Mà trả về dev là hành động ĐÓNG PR — một
-  // chiều — và nó đi vào sổ chỉ-ghi-thêm: một dòng sổ không nói được vì sao là một dòng sổ vô dụng
-  // đúng lúc người ta cần nó nhất.
-  if (!(b.ghi_chu ?? '').trim()) {
-    return loiCong(res, 422, 'Trả về dev phải có ghi chú — dev cần biết vá gì. <a href="javascript:history.back()">← quay lại</a>');
-  }
-  try {
-    const nguoi = dtReject.ten;
+    const nguoi = cb.nguoi;
+    const pr = st!.meta.pr!;
     // W4: đóng PR (không-hoàn-tác) TRƯỚC — comment nói "PR đã đóng" chỉ được đăng khi điều đó đã đúng
-    await closePr(cfg, st.meta.pr.so);
+    await closePr(cfg, pr.so);
     let kenh: 'review' | 'comment' | 'loi_comment' = 'comment';
     try {
-      kenh = await returnToDev(cfg, st.meta.pr.so, renderRuling(st.meta.verdict, (b.ghi_chu ?? '').trim(), true));
+      kenh = await returnToDev(cfg, pr.so, renderRuling(st!.meta.verdict!, cb.ghiChu, true));
     } catch (e) {
       kenh = 'loi_comment';
       console.error('Reject: PR đã đóng nhưng post phán quyết lỗi:', (e as Error).message.slice(0, 200));
     }
-    appendGateLedgerEntry({ hanhDong: 'reject', pr: st.meta.pr.so, sha: st.meta.pr.headSha, run_id: st.meta.id, verdict: st.meta.verdict.result, nguoi, tac_gia_pr: st.meta.pr.tacGia, kenh, dong_pr: true,
-      ghi_chu: [(b.ghi_chu ?? '').trim(), `đã đóng PR + phán quyết qua ${kenh === 'loi_comment' ? 'LỖI post (đóng vẫn hiệu lực)' : kenh} (chờ dev vá & reopen)`].filter(Boolean).join(' · ') });
-    rm.dongBoCongTuSo(st.meta.id); // bề mặt đọc lại TỪ sổ (R6.26)
-    res.redirect(303, `/runs/${st.meta.id}`);
+    appendGateLedgerEntry({ hanhDong: 'reject', pr: pr.so, sha: pr.headSha, run_id: st!.meta.id, verdict: st!.meta.verdict!.result, nguoi, tac_gia_pr: pr.tacGia, kenh, dong_pr: true,
+      ghi_chu: [cb.ghiChu, `đã đóng PR + phán quyết qua ${kenh === 'loi_comment' ? 'LỖI post (đóng vẫn hiệu lực)' : kenh} (chờ dev vá & reopen)`].filter(Boolean).join(' · ') });
+    rm.dongBoCongTuSo(st!.meta.id); // bề mặt đọc lại TỪ sổ (R6.26)
+    res.redirect(303, `/runs/${st!.meta.id}`);
   } catch (e) {
     loiCong(res, 500, `GitHub từ chối: ${(e as Error).message.slice(0, 300)}`);
   }
