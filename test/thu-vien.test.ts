@@ -8,6 +8,11 @@ import type { ProbePlan } from '../packages/harness/src/skill-code.js';
 // Hai điểm xương sống được kiểm ở đây: di trú đời bộ phải loại được bản chạy-lại (đo được 4 cặp
 // trong thư viện thật), và tầng 4 chỉ gỡ khi có BẰNG CHỨNG hành vi — cùng xanh suốt không phải bằng chứng.
 
+// Hai ca dưới làm I/O THẬT (ghi/xoá file thư viện) nên chậm hơn hẳn test thuần: đo 5.7–6.9 s khi 44
+// file lưới chạy song song, trong khi trần mặc định của vitest là 5 s. Nới trần cho ĐÚNG hai ca đó,
+// không nới toàn cục — trần 5 s vẫn là lưới cho mọi test thuần còn lại.
+const TRAN_IO_MS = 20_000;
+
 const goc = mkdtempSync(join(tmpdir(), 'checkmate-lib-'));
 process.env.CHECKER_LIB_DIR = goc;
 // Ghim trần 40 cho các ca đào thải bên dưới (mặc định sản phẩm nay là 100 — R10.4, PO chốt 31/08)
@@ -66,7 +71,7 @@ describe('nhận theo từng probe', () => {
     expect(con[0].plan.id).toBe('P5'); // 5 probe đầu bị đẩy ra
     const trenDia = readdirSync(join(goc, SLUG)).filter((f) => f.endsWith('.probe.test.ts'));
     expect(trenDia).toHaveLength(40); // không để lại file mồ côi
-  });
+  }, TRAN_IO_MS); // đào thải + xoá file trên đĩa — I/O thật, đo 5.7–6.9s khi 44 file chạy song song
 });
 
 describe('di trú đời bộ sang đời probe', () => {
@@ -275,7 +280,7 @@ describe('đào thải theo điểm GIỮ/LOẠI (R10.22–R10.24) — thay FIFO
     const d = tv.readProbeLibrary(SLUG)[0];
     expect(d.lich_su.length).toBe(20); // hàng hoi_quy đã trôi khỏi lịch sử...
     expect(d.da_bat_hoi_quy).toBe(true); // ...nhưng thành tích thì không
-  });
+  }, TRAN_IO_MS); // lịch sử 20 lượt, ghi/đọc sổ nhiều lượt — I/O thật, đo 5.7–6.9s khi 44 file chạy song song
 
   it('updateHistory: cùng sha đổi trạng thái hành-vi-riêng → flaky_diem tăng; nhãn hoàn cảnh không tính', () => {
     const kq = tv.admitToLibrary(SLUG, codeProbe('PF', `'PF'`), plan('PF'), 'shaF');

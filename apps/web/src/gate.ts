@@ -381,3 +381,162 @@ ${ghiChu ? `\n**Ghi chú của người review:** ${ghiChu}\n` : ''}
 Vá theo từng finding rồi push lên chính nhánh này — CheckMate sẽ chấm lại trên commit mới (verdict cũ tự hết hiệu lực).
 ${closePr ? '\n> ⚠ **PR này đã được đóng.** Nhánh vẫn còn nguyên: vá xong hãy bấm **Reopen** chính PR này (đừng tạo PR mới) để giữ lịch sử review. PR đang đóng sẽ không xuất hiện trong hàng đợi review của CheckMate, và push commit mới KHÔNG tự mở lại PR.\n' : ''}`;
 }
+
+// ---------- Quyết định cổng: hàm THUẦN, tách khỏi I/O ----------
+
+/**
+ * Bốn hàm dưới đây là quyết định cổng merge, tách khỏi route Express.
+ *
+ * Vì sao tách: sáu điều lõi của cổng sống trong hai handler trộn quyết định với I/O GitHub và HTTP, nên
+ * KHÔNG có test nào gọi được chúng — cổng là chỗ ⛔C1/⛔C2 sống thật mà lại là vùng không được khoá. Tách
+ * ra thì mỗi nhánh từ chối là một ca test chạy được, và thông điệp khoá được từng chữ.
+ *
+ * THỨ TỰ KIỂM LÀ MỘT PHẦN CỦA HỢP ĐỒNG, không phải chi tiết hiện thực:
+ *  - mọi kiểm CỤC BỘ đứng trước lời gọi GitHub — không để người thiếu quyền kích được một lời gọi ra
+ *    ngoài, và không tốn một lời gọi cho verdict đã FAIL;
+ *  - verdict FAIL đứng trước thiếu quyền: người bấm cần biết cổng khoá vì kết quả chấm, không phải vì họ;
+ *  - thiếu quyền đứng trước cảnh báo medium: bảo người ta đi tick 3 ô rồi mới nói họ không có quyền là
+ *    đùa với người dùng.
+ * Đổi thứ tự này là đổi hành vi — lưới `test/merge-gate.test.ts` khoá bằng ca «nhiều điều kiện cùng sai».
+ */
+
+/** Kết quả đọc danh tính, đã tính ở route: hàm thuần KHÔNG đọc `req`. */
+export type IdentityCheck = { ok: true; ten: string } | { ok: false; status: 401 | 403; message: string };
+
+/** Từ chối của cổng — mã HTTP và thông điệp đi thẳng ra trang lỗi, nên cả hai là hợp đồng. */
+export interface GateRefusal {
+  ok: false;
+  status: number;
+  message: string;
+}
+
+/** Dữ liệu lượt chấm mà quyết định cổng cần. Nhận hình dạng tối thiểu để test dựng được bằng tay. */
+export interface GateRun {
+  id: string;
+  tieuDe?: string;
+  verdict?: Verdict | null;
+  pr?: { so: number; headSha: string; tacGia?: string } | null;
+}
+
+/** Hàng sổ cổng đã có cho run này (đọc TƯƠI từ sổ, không tin bản trong bộ nhớ). */
+export type GateDone = { hanhDong: 'merge' | 'reject'; luc: string } | null | undefined;
+
+function refuse(status: number, message: string): GateRefusal {
+  return { ok: false, status, message };
+}
+
+/** Danh sách id đã tick từ client — DỮ LIỆU, không phải bằng chứng. Chuỗi lạ/khuyết → danh sách rỗng. */
+function tickList(x: unknown): string[] {
+  if (Array.isArray(x)) return x.filter((v): v is string => typeof v === 'string' && v.length > 0);
+  return String(x ?? '').split(',').filter(Boolean);
+}
+
+/** Finding của verdict, chịu được `findings` méo (không phải mảng) — fail-closed, không ném. */
+function findingsOf(v: Verdict | null | undefined): Finding[] {
+  return Array.isArray(v?.findings) ? (v.findings as Finding[]) : [];
+}
+
+/**
+ * Kiểm CỤC BỘ trước khi merge — không chạm mạng. Thứ tự: chế độ chỉ-đọc → run/verdict/pr → đã qua cổng
+ * → verdict FAIL hoặc còn high → danh tính và vai → cảnh báo medium chưa tick đủ.
+ */
+export function evaluateMergeLocal(input: {
+  mode: string;
+  run: GateRun | null | undefined;
+  gateDone: GateDone;
+  identity: IdentityCheck;
+  tickIds: unknown;
+}): { ok: true; nguoi: string; mediumIds: string[] } | GateRefusal {
+  const { mode, run, gateDone, identity } = input;
+  if (mode === 'demo') return refuse(403, 'Chế độ demo không cho thao tác cổng merge (chỉ xem).');
+  if (!run || !run.verdict || !run.pr) {
+    return refuse(404, 'Run không tồn tại hoặc không gắn PR. <a href="/">← về trang chính</a>');
+  }
+  if (gateDone) return refuse(409, `Run này đã ${gateDone.hanhDong} lúc ${gateDone.luc}.`);
+  const v = run.verdict;
+  const d = countBySeverity(findingsOf(v));
+  if (d.high > 0 || v.result === 'FAIL') {
+    return refuse(403, 'Verdict FAIL (có finding HIGH) — nút merge khoá theo luật cổng.');
+  }
+  if (!identity.ok) return refuse(identity.status, identity.message);
+  // Client gửi DANH SÁCH id đã tick — máy chủ so TẬP với các finding medium THẬT của verdict. Id thừa
+  // vô tác dụng; id thiếu mới chặn. Tin danh sách client gửi là mở đường bỏ qua cảnh báo bằng một POST.
+  const tickIds = tickList(input.tickIds);
+  const mediumIds = findingsOf(v).filter((f) => chuanMuc(f.severity) === 'medium').map((f) => f.id);
+  const thieu = mediumIds.filter((id) => !tickIds.includes(id));
+  if (thieu.length > 0) {
+    return refuse(422, `Phải xác nhận đủ ${d.medium} cảnh báo MEDIUM — còn thiếu: ${thieu.join(', ')}.`);
+  }
+  return { ok: true, nguoi: identity.ten, mediumIds };
+}
+
+/**
+ * Đối chiếu với trạng thái THẬT của pull request — chạy SAU khi mọi kiểm cục bộ đã qua.
+ * Head đổi còn một lớp nữa ở `mergePr(..., sha)`: GitHub tự từ chối nếu head đổi sau lần kiểm này.
+ */
+export function evaluateMergeAgainstPr(input: {
+  run: GateRun;
+  currentPr: { state: string; merged?: boolean; headSha: string };
+}): { ok: true } | GateRefusal {
+  const { run, currentPr } = input;
+  const so = run.pr?.so;
+  if (currentPr.state !== 'open') {
+    return refuse(409, `PR #${so} không còn mở (${currentPr.merged ? 'đã merge' : currentPr.state}).`);
+  }
+  if (currentPr.headSha !== run.pr?.headSha) {
+    return refuse(
+      409,
+      `PR đã có commit mới (${currentPr.headSha.slice(0, 7)} ≠ ${String(run.pr?.headSha).slice(0, 7)}) — verdict cũ hết hiệu lực, chạy kiểm lại rồi mới merge. <a href="/">← về trang chính</a>`,
+    );
+  }
+  return { ok: true };
+}
+
+/**
+ * Kiểm cục bộ trước khi trả về dev. Cùng khuôn thứ tự với merge, thêm gác GHI CHÚ.
+ *
+ * Ghi chú ép ở MÁY CHỦ chứ không chỉ ở nút: `required` phía trình duyệt chỉ chặn được người bấm nút, một
+ * POST thẳng đi qua nó như không có. Mà trả về dev là hành động ĐÓNG PR — một chiều — và nó đi vào sổ
+ * chỉ-ghi-thêm: một dòng sổ không nói được vì sao là một dòng sổ vô dụng đúng lúc người ta cần nó nhất.
+ */
+export function evaluateRejectLocal(input: {
+  mode: string;
+  run: GateRun | null | undefined;
+  gateDone: GateDone;
+  identity: IdentityCheck;
+  ghiChu: unknown;
+}): { ok: true; nguoi: string; ghiChu: string } | GateRefusal {
+  const { mode, run, gateDone, identity } = input;
+  if (mode === 'demo') return refuse(403, 'Chế độ demo không cho thao tác cổng merge (chỉ xem).');
+  if (!run || !run.verdict || !run.pr) return refuse(404, 'Run không tồn tại hoặc không gắn PR.');
+  if (gateDone) return refuse(409, `Run này đã ${gateDone.hanhDong} lúc ${gateDone.luc}.`);
+  if (!identity.ok) return refuse(identity.status, identity.message);
+  const ghiChu = String(input.ghiChu ?? '').trim();
+  if (!ghiChu) {
+    return refuse(422, 'Trả về dev phải có ghi chú — dev cần biết vá gì. <a href="javascript:history.back()">← quay lại</a>');
+  }
+  return { ok: true, nguoi: identity.ten, ghiChu };
+}
+
+/**
+ * Ba việc tự động sau một lượt chấm — BA CÔNG TẮC RIÊNG (R6.15), quyết định thuần trên (cấu hình, verdict).
+ *
+ * KHÔNG có trường `merge` trong kiểu trả về, và đó là điều khoản chứ không phải thiếu sót: tác nhân máy
+ * KHÔNG ĐƯỢC merge trong mọi cấu hình (R6.19, ⛔C1). Tự động hoá được phép nói KHÔNG, không được nói CÓ.
+ *
+ * `closePr` chỉ bật khi verdict FAIL VÀ có ít nhất một finding mức high (R6.17): chỉ đóng khi có probe
+ * chạy thật và đỏ — đóng dựa trên suy đoán là thứ làm người ta tắt cổng.
+ * Hàm KHÔNG nhận «lượt do ai khởi động»: đăng verdict chạy cho MỌI lượt có PR, không riêng chế độ trực
+ * (R6.16) — người viết code cần đọc finding ở đúng chỗ họ làm việc.
+ */
+export function decideAutomation(
+  truc: { tu_dong_comment?: boolean; tu_dong_trang_thai?: boolean; tu_dong_tra_ve?: boolean } | null | undefined,
+  verdict: Verdict | null | undefined,
+): { comment: boolean; commitStatus: boolean; closePr: boolean } {
+  const d = countBySeverity(findingsOf(verdict));
+  return {
+    comment: truc?.tu_dong_comment === true,
+    commitStatus: truc?.tu_dong_trang_thai === true,
+    closePr: truc?.tu_dong_tra_ve === true && verdict?.result === 'FAIL' && d.high > 0,
+  };
+}
