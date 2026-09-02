@@ -540,3 +540,26 @@ export function decideAutomation(
     closePr: truc?.tu_dong_tra_ve === true && verdict?.result === 'FAIL' && d.high > 0,
   };
 }
+
+/**
+ * «Một verdict một commit» — có nên chạy lại lượt chấm trên commit đã có verdict không.
+ *
+ * Chạy lại đúng một commit gần như chắc chắn ra kết quả cũ mà vẫn tốn vài phút và token, nên cửa khởi
+ * động phải CẢNH BÁO trước và đòi người dùng xác nhận. Hàm thuần vì hai đường (JSON và HTML) phải quyết
+ * giống hệt nhau: điều kiện viết tay ở hai chỗ là hai chỗ sẽ lệch nhau, và bên ít người nhìn hơn lệch trước.
+ *
+ * Chỉ ĐÚNG chuỗi `'1'` là xác nhận. Mọi giá trị khác giữ nguyên cảnh báo — lệch về phía cảnh báo là lệch
+ * an toàn ở đây: bỏ sót một cảnh báo chỉ tốn tiền, còn chạy nhầm thì mất thời gian người dùng.
+ */
+export function decideRerun(input: {
+  daCham: { id: string; verdict?: { result?: string; findings?: unknown[] } | null } | null | undefined;
+  ep: unknown;
+}): { chay: true } | { chay: false; runDaCo: string; verdict?: string; soFinding: number } {
+  const { daCham } = input;
+  if (!daCham) return { chay: true };
+  if (input.ep === '1') return { chay: true };
+  // Quyết định mang theo MỌI thứ lời cảnh báo cần (id, kết quả, số finding) — chỗ gọi không đọc lại
+  // bản ghi lần nữa. Đọc lại là mở đường cho hai nguồn: một cái quyết, một cái hiển thị, rồi lệch nhau.
+  const fs = daCham.verdict?.findings;
+  return { chay: false, runDaCo: daCham.id, verdict: daCham.verdict?.result, soFinding: Array.isArray(fs) ? fs.length : 0 };
+}

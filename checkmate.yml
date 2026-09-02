@@ -52,7 +52,7 @@ runner:
       ../packages/harness/src/skill-doc.js   → runDocSkill
       ../packages/harness/src/trigger-catalog.js → TRIGGER_CATALOG · laTriggerHopLe · timTrigger · tapKichHoat
       ../apps/web/src/github.js              → repoFromPath · splitOwnerRepo · checkRepo · maskTokenInText · hasGhCli · hasGithubAccess · getCurrentPr · commentPr · mergePr · returnToDev · setCommitStatus · closePr · clearPrCache · listPrs · fetchAndRoute · classifyPr · prState · listReposForToken · cloneRepo · listBranches
-      ../apps/web/src/gate.js                → appendGateLedgerEntry · countBySeverity · samePerson · outsideGateDetail · safeString · reconcileGate · MACHINE_ACTOR_NAME · renderReceipt · renderAutoVerdict · renderRuling · evaluateMergeLocal · evaluateMergeAgainstPr · evaluateRejectLocal · decideAutomation
+      ../apps/web/src/gate.js                → appendGateLedgerEntry · countBySeverity · samePerson · outsideGateDetail · safeString · reconcileGate · MACHINE_ACTOR_NAME · renderReceipt · renderAutoVerdict · renderRuling · evaluateMergeLocal · evaluateMergeAgainstPr · evaluateRejectLocal · decideAutomation · decideRerun
       ../apps/web/src/store/db.js              → openDb · closeDb
       ../apps/web/src/store/run-store.js         → saveMeta · saveEvents · readMeta · readEvents · listRuns · countRuns · findByPr · isPrRunning · runningCount · cleanupOrphanRuns · returnedToDev
       ../apps/web/src/store/ledger-store.js       → appendVerdictLedger · appendVerdictLedgerIfNew · readVerdictLedger · countVerdictLedger · inVerdictLedger · appendGateLedger · readGateLedger · prsNeedingReconcile · gateActionsOfPr · DuplicateRunError
