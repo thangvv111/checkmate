@@ -1,6 +1,6 @@
 # Tasks — bỏ ép hình dạng repo đích
 
-Bốn commit: đơn vị luật → nguồn spec cấu hình được → khai ra khi không có luật → dọn nốt hard-code.
+Bốn commit: đơn vị luật → nguồn spec cấu hình được → khai ra khi không có luật → dọn nốt hard-code — rồi một commit kiểm cơ học.
 
 ## 1. Commit 1 — ĐƠN VỊ LUẬT TỔNG QUÁT
 
@@ -80,11 +80,6 @@ Bốn commit: đơn vị luật → nguồn spec cấu hình được → khai r
       spec trong `sources.test.ts`.
 - [x] 5.5 Đo trên thư viện thật 02/09: checkmate 16 probe / 25 vế → 25 neo · demo-python 6/6 · demo-credit 40/41
       (`R9` như 5.2). Cách đo: `resolveRule` từng vế với đơn vị đọc từ cây HEAD của repo tương ứng.
-## 6. Sau-merge — nợ có tên, KHÔNG thuộc change này
+## 6. Sau-merge
 
-- [ ] 6.1 Đọc spec **không phải văn bản có tiêu đề**: OpenAPI, JSON Schema, Gherkin `.feature`. Đường
-      đơn vị-có-địa-chỉ đã mở cửa cho chúng, nhưng mỗi loại cần bộ chia riêng.
-- [ ] 6.2 Mức 3 — chạy tiếp lượt dở (từ change trước).
-- [ ] 6.3 Webhook GitHub (từ change trước).
-- [ ] 6.4 Bỏ Basic Auth ở nginx — gói ba việc, rào `/login` đi trước (từ change trước).
-- [ ] 6.5 Dựng lại nội dung 5 màn còn lại theo gói design.
+Nợ có tên đã tách sang change `named-debts` (PO chốt 02/09: mục chưa tick không nằm trong file sẽ archive).
