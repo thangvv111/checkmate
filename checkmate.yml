@@ -1,5 +1,13 @@
 # CheckMate tự chấm chính mình. File này là hợp đồng của repo checkmate với engine — xem specs/R2.
 
+# Nguồn engine đọc để chấm. Không khai thì engine tự dò (specs/ · spec/ · openspec/specs/ …) và ghi ra
+# đã dò ở đâu. Repo này khai vì luật sống ở HAI chỗ — xem CLAUDE.md «Chỗ sống của luật».
+sources:
+  specs:
+    - specs/*.md # tài liệu tham khảo R1..R12 — đang được rút dần, change riêng sẽ dọn
+    - openspec/specs/**/*.md # luật máy đọc của tính năng mới, sinh từ change
+  api_doc: README.md
+
 runner:
   test_cmd: 'npx vitest run {files} --reporter=junit --outputFile={out}'
   framework: vitest
@@ -16,8 +24,9 @@ runner:
     ĐỪNG ĐOÁN module chứa hàm — import sai module là cách hỏng probe thường gặp nhất ở repo này.
     Bảng đường dẫn chính xác (đuôi .js, tính từ thư mục test/):
       ../packages/harness/src/skill-code.js  → classifyByMachine · errorFingerprint · tightFingerprint · probeLabel · matchProbeId · isNewRule · looksLikeBrokenProbe · runCodeSkill
-      ../packages/harness/src/target.js      → buildDiff · readTarget · extractRuleIds · findNewRules · suggestModulePath
-      ../packages/harness/src/runner.js      → parseJUnit · readRunnerCfg · readReviewCfg · diffIgnorePatterns
+      ../packages/harness/src/target.js      → buildDiff · readTarget · listTree · extractRuleIds · findNewRules · suggestModulePath
+      ../packages/harness/src/runner.js      → parseJUnit · readRunnerCfg · readReviewCfg · readSourcesCfg · diffIgnorePatterns
+      ../packages/harness/src/sources.js     → readSources · describeSources · matchPattern · globToRegExp · skipReason · SPEC_CANDIDATES · API_DOC_CANDIDATES · TEST_SAMPLE_CANDIDATES · MAX_SOURCE_BYTES
       ../packages/harness/src/sandbox.js     → fileLoadError · Sandbox
       ../packages/harness/src/probe-library.js    → admitToLibrary · pickEvictionVictim · readProbeLibrary · withLibraryLock · repoSlug · splitOneProbe · cutTestBlock · hasTestBlock · checkBalanced · splitRule · updateHistory · findAndDropBehaviorDuplicates
       ../packages/harness/src/trigger-examples.js   → getCodeExamples · getDocExamples · knowledgeByTrigger · TRIGGER_EXAMPLES · EXAMPLE_CAP · EXAMPLES_PER_TRIGGER

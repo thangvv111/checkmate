@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { readSourcesCfg } from './runner.js';
+import { readSources, type SourcesReport, type TreeFile } from './sources.js';
 import { extractCodes, findNewUnits, splitAllSpecUnits, type SpecUnit } from './spec-units.js';
 
 export interface FileOutOfView {
@@ -31,6 +31,8 @@ export interface TargetInfo {
   luatMoi: string[];
   apiDoc: string;
   testMau: string;
+  /** Ba nguồn trên lấy từ đâu — repo khai hay engine tự dò, đã tìm ở đâu, thấy gì. Dò tìm là phán đoán, phải nói ra. */
+  sources: SourcesReport;
 }
 
 /**
@@ -100,12 +102,13 @@ export function extractRuleIds(vanBan: string): Set<string> {
 }
 
 /**
- * R1.19 — luật chỉ có ở nhánh PR, tìm bằng cách so `specs/` hai nhánh.
+ * R1.19 — luật chỉ có ở nhánh PR, tìm bằng cách so các file spec nhánh PR đang dùng với bản của
+ * chính chúng ở nhánh gốc.
  *
- * Đọc spec của nhánh gốc bằng `git show`, không bằng cách đọc đĩa: cây làm việc đang ở nhánh PR, nên
- * đọc đĩa sẽ ra chính spec của nhánh PR và phép so thành vô nghĩa.
+ * Đọc bằng `git show`, không đọc đĩa: cây làm việc không nói được nó đang ở nhánh nào, và đọc đĩa
+ * ở nhánh PR thì phép so thành vô nghĩa.
  *
- * Fail-closed: không đọc được spec nhánh gốc (nhánh gốc chưa có thư mục `specs/`, hay lệnh git hỏng)
+ * Fail-closed: không đọc được spec nhánh gốc (nhánh gốc chưa có file spec nào, hay lệnh git hỏng)
  * thì coi như MỌI luật đều mới. Thà chặn một PR đáng ra qua được, còn hơn cho qua một PR khai luật rồi
  * vi phạm ngay luật vừa khai.
  */
@@ -127,7 +130,7 @@ export function findNewRules(repo: string, base: string, specsPr: Array<{ file: 
   try {
     // Đọc ĐÚNG những file spec nhánh PR đang dùng, ở bản của nhánh gốc — không đoán thư mục.
     const fileGoc = ds.map((x) => String(x?.file ?? '')).filter(Boolean);
-    const coTrongGoc = new Set(git(repo, ['ls-tree', '-r', '--name-only', base]).split('\n').map((x) => x.trim()));
+    const coTrongGoc = new Set(git(repo, ['-c', 'core.quotePath=false', 'ls-tree', '-r', '--name-only', base]).split('\n').map((x) => x.trim()));
     const docDuoc = fileGoc.filter((f) => coTrongGoc.has(f));
     if (docDuoc.length === 0) return tatCaMoi(); // nhánh gốc chưa có spec nào — mọi luật đều mới
     unitsGoc = splitAllSpecUnits(docDuoc.map((f) => ({ file: f, noiDung: git(repo, ['show', `${base}:${f}`]) })));
@@ -173,6 +176,22 @@ export function buildDiff(
   return { diff: giu.map((f) => f.noiDung).join('\n'), ngoaiTamNhin };
 }
 
+/**
+ * Cây file của một ref, từ `git ls-tree` — KHÔNG đọc đĩa. Hai lý do: cây làm việc không bảo đảm đang
+ * ở nhánh cần đọc; và ls-tree lộ mode, nên symlink (`120000`) và submodule (`commit`) bị loại trước
+ * khi có ai đọc chúng — `readFileSync` theo symlink là một lối ra ngoài repo mà bản trước để ngỏ.
+ * `core.quotePath=false` để tên file có dấu không bị git đổi thành mã bát phân.
+ */
+export function listTree(repo: string, ref: string): TreeFile[] {
+  const tree: TreeFile[] = [];
+  for (const line of git(repo, ['-c', 'core.quotePath=false', 'ls-tree', '-r', '-l', ref]).split('\n')) {
+    const m = /^(\d{6}) (\w+) [0-9a-f]+ +(\S+)\t(.+)$/.exec(line);
+    if (!m || m[2] !== 'blob') continue;
+    tree.push({ path: m[4]!, size: m[3] === '-' ? undefined : Number(m[3]), symlink: m[1] === '120000' });
+  }
+  return tree;
+}
+
 export function readTarget(repo: string, branch: string, base = 'main', boQuaThem: RegExp[] = []): TargetInfo {
   const branchSha = git(repo, ['rev-parse', branch]);
   const baseSha = git(repo, ['rev-parse', base]);
@@ -186,28 +205,14 @@ export function readTarget(repo: string, branch: string, base = 'main', boQuaThe
     );
   }
 
-  const specsDir = join(repo, 'specs');
-  const specs = existsSync(specsDir)
-    ? readdirSync(specsDir)
-        .filter((f) => f.endsWith('.md'))
-        .map((f) => ({ file: `specs/${f}`, noiDung: readFileSync(join(specsDir, f), 'utf8') }))
-    : [];
+  // Spec · tài liệu API · file test mẫu: repo khai trong checkmate.yml, không khai thì tự dò — và
+  // đường nào cũng ghi lại đã tìm ở đâu (`sources`). Đọc từ cây git của nhánh PR, không đọc đĩa.
+  const src = readSources(readSourcesCfg(repo), listTree(repo, branch), (p) => git(repo, ['show', `${branch}:${p}`]));
+  const specs = src.specs;
 
-  // R1.19 — luật nào CHỈ có ở nhánh PR. Xác định bằng cách so `specs/` giữa hai nhánh, không hỏi model.
+  // R1.19 — luật nào CHỈ có ở nhánh PR. Xác định bằng cách so spec giữa hai nhánh, không hỏi model.
   const units = splitAllSpecUnits(specs);
   const luatMoi = findNewRules(repo, base, specs);
 
-  const apiDoc = existsSync(join(repo, 'README.md')) ? readFileSync(join(repo, 'README.md'), 'utf8') : '';
-
-  // File test sẵn có làm khuôn import/inject cho probe sinh ra
-  const testDir = join(repo, 'test');
-  let testMau = '';
-  if (existsSync(testDir)) {
-    // file test mẫu: ưu tiên .test.ts (đường mặc định), rồi mọi file test khác — repo đa stack (B4.5)
-    const ds = readdirSync(testDir).sort();
-    const f = ds.find((x) => x.endsWith('.test.ts')) ?? ds.find((x) => /test/i.test(x) && !x.startsWith('checker.probe'));
-    if (f) testMau = readFileSync(join(testDir, f), 'utf8');
-  }
-
-  return { repo, branch, base, branchSha, baseSha, diff, ngoaiTamNhin, specs, units, luatMoi, apiDoc, testMau };
+  return { repo, branch, base, branchSha, baseSha, diff, ngoaiTamNhin, specs, units, luatMoi, apiDoc: src.apiDoc, testMau: src.testMau, sources: src.report };
 }

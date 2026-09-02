@@ -3,6 +3,7 @@ import { chuanMuc, normalizeOdcQualifier, normalizeOdcType, type Finding, type O
 import type { ModelProvider } from './model.js';
 import { callCode, callJson } from './jsonx.js';
 import { readTarget, suggestModulePath, type TargetInfo } from './target.js';
+import { describeSources } from './sources.js';
 import { refHitsNew, resolveRule } from './spec-units.js';
 import { Sandbox, type ProbeResult } from './sandbox.js';
 import { updateHistory, readProbeLibrary, admitToLibrary, repoSlug, splitOneProbe, findAndDropBehaviorDuplicates } from './probe-library.js';
@@ -443,7 +444,10 @@ export async function runCodeSkill(
   }
 
   phat({ type: 'stage', stage: 2, ten: 'Đọc spec — nạp luật hành vi' });
-  phat({ type: 'log', msg: `${t.specs.length} file spec: ${t.specs.map((s) => s.file).join(', ')}` });
+  // Nguồn lấy ở đâu phải ra log TRƯỚC danh sách file: người đọc cần biết đây là chỗ repo khai hay chỗ
+  // engine đoán, rồi mới biết có nên tin danh sách bên dưới không.
+  for (const msg of describeSources(t.sources)) phat({ type: 'log', msg });
+  phat({ type: 'log', msg: `${t.specs.length} file spec · ${t.units.length} đơn vị luật: ${t.specs.map((s) => s.file).join(', ')}` });
 
   const slug = repoSlug(repo);
   const library = readProbeLibrary(slug);
@@ -621,7 +625,7 @@ export async function runCodeSkill(
     thongKe.luat_tong = t.units.length;
     phat({
       type: 'log',
-      msg: `Độ phủ luật: ${thongKe.luat_da_phu.length}/${thongKe.luat_tong} mã luật đọc được từ specs/ có probe neo vào${
+      msg: `Độ phủ luật: ${thongKe.luat_da_phu.length}/${thongKe.luat_tong} đơn vị luật đọc được từ spec có probe neo vào${
         t.luatMoi.length ? ` · ${t.luatMoi.length} luật CHỈ có ở nhánh PR: ${t.luatMoi.join(', ')}` : ''
       }`,
     });

@@ -20,16 +20,16 @@ Bốn commit: đơn vị luật → nguồn spec cấu hình được → khai r
 
 ## 2. Commit 2 — NGUỒN SPEC CẤU HÌNH ĐƯỢC
 
-- [ ] 2.1 `runner.ts` — `checkmate.yml` thêm mục khai nguồn: đường spec (nhiều đường, glob, đệ quy),
+- [x] 2.1 `runner.ts` — `checkmate.yml` thêm mục khai nguồn: đường spec (nhiều đường, glob, đệ quy),
       tài liệu API, file test mẫu.
-- [ ] 2.2 `readTarget` đọc theo cấu hình đó. Bỏ `join(repo,'specs')` · `.endsWith('.md')` · đọc phẳng ·
+- [x] 2.2 `readTarget` đọc theo cấu hình đó. Bỏ `join(repo,'specs')` · `.endsWith('.md')` · đọc phẳng ·
       `README.md` · `join(repo,'test')` khỏi vị trí quyết định.
-- [ ] 2.3 Không khai → **tự dò** theo thứ tự thông dụng. Dò HẸP còn hơn nạp nhầm: thà báo «không thấy»
+- [x] 2.3 Không khai → **tự dò** theo thứ tự thông dụng. Dò HẸP còn hơn nạp nhầm: thà báo «không thấy»
       còn hơn chấm theo một văn bản không phải spec.
-- [ ] 2.4 **Dò tìm phải BÁO CÁO** — đã tìm ở đâu, mỗi chỗ thấy gì. Dò âm thầm là cách êm nhất để đọc
+- [x] 2.4 **Dò tìm phải BÁO CÁO** — đã tìm ở đâu, mỗi chỗ thấy gì. Dò âm thầm là cách êm nhất để đọc
       nhầm chỗ mà không ai biết; cùng nguyên tắc với `ngoaiTamNhin` của diff.
-- [ ] 2.5 Đường khai trỏ vào chỗ không khớp file nào → nói rõ đường đó, đừng im lặng bỏ qua.
-- [ ] 2.6 `checkmate.yml` của CHÍNH repo này khai nguồn spec — ca dùng thật đầu tiên, và là cách bắt
+- [x] 2.5 Đường khai trỏ vào chỗ không khớp file nào → nói rõ đường đó, đừng im lặng bỏ qua.
+- [x] 2.6 `checkmate.yml` của CHÍNH repo này khai nguồn spec — ca dùng thật đầu tiên, và là cách bắt
       lỗi thiết kế sớm nhất.
 
 ## 3. Commit 3 — KHÔNG CÓ LUẬT THÌ KHAI RA (PO chốt vế hai)
