@@ -118,17 +118,11 @@ Tài khoản cho tác nhân máy dùng vai `tu_dong` (chạy chấm + trả về
 npm run tai-khoan -- them ci-bot --vai tu_dong
 ```
 
-## Chấm độc lập repo checkmate từ prod
+## Chế độ trực
 
-Từ 31/08: CheckMate trên máy chủ giữ một **bản clone riêng** của repo `thangvv111/checkmate` tại
-`~/checkmate-app/checkmate/repos/thangvv111-checkmate` và trực nó (`repo_dang_chon` trỏ vào đó,
-`truc.bat: true`). Mỗi PR mở trên repo này được prod tự chấm rồi đăng verdict + gắn commit status —
-một lượt chấm **độc lập với máy dev**: engine prod, clone riêng, hợp đồng đọc từ clone.
-
-⛔ **Quy trình merge — TẠM DỪNG bước chờ verdict (PO chốt 01/09):** đủ điều kiện đi tiếp là code +
-test xanh + PO duyệt; đừng poll prod. Nguyên văn cũ, dùng lại khi PO bật cổng: «mở PR → chờ
-verdict độc lập từ prod trên PR → merge khi PASS».
-Lượt chấm local vẫn chạy được khi cần lặp nhanh, nhưng verdict tính cho cổng là verdict prod.
+Repo nào đã thêm trong ⚙ Cấu hình và bật `truc.bat: true` thì prod tự động chấm mọi PR mới của repo đó
+(poller theo chu kỳ), đăng verdict + gắn commit status theo ba công tắc ở trên. Engine đọc hợp đồng
+`checkmate.yml` và hồ sơ của repo từ bản clone dưới `repos/`, không từ thư mục deploy.
 
 Clone này KHÔNG tự cập nhật cây làm việc (fetch chỉ cập nhật refs). Hợp đồng `checkmate.yml` đọc từ cây
 làm việc của clone — mỗi lần deploy cập nhật nó bằng lệnh MANG TOKEN (shell tay không nạp env, `git pull`
