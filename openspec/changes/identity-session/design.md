@@ -108,10 +108,40 @@ Sau archive, thư viện probe tự chấm neo thêm bao nhiêu vế? Hôm nay 1
 trong 4 mã còn trôi (R3.15 · R4.18 · R4.27 · R9.6), nên **dự đoán: neo KHÔNG tăng, giữ 11/15**. Đo để xác
 nhận; nếu tăng thì em dự đoán sai và phải ghi rõ sai ở đâu.
 
+### D7 — Hàm thuần phải nằm NGOÀI file có side effect (quyết lúc apply)
+
+Bản đầu của D2 nói «tách khỏi `app.use`» và để hai hàm thuần lại trong `server.ts`. Chạy thử thì hai ca
+cookie đầu tiên **chạm trần 5 giây rồi đỏ**: `import('../apps/web/src/server.js')` kéo theo toàn bộ side
+effect của module — mở cơ sở dữ liệu, dựng `express()`, gắn route.
+
+Một ca chỉ muốn kiểm ba chữ trong chuỗi cookie mà phải khởi động cả máy chủ thì nó không còn là ca của hàm
+thuần: nó chậm, nó phụ thuộc trạng thái máy, và nó sẽ thành ca flaky đầu tiên bị người ta bỏ qua.
+
+Nên hai hàm sang file riêng `apps/web/src/session-gate.ts`. Sau khi tách, cùng bộ ca chạy trong **vài mili
+giây**. Bài học tổng quát hơn cả ba change trước gộp lại: **tách quyết định khỏi I/O chưa đủ — phải tách
+sang chỗ mà `import` không kéo theo I/O.**
+
+Cũng vì thế `buildSessionCookie` nhận thêm **tên cookie** làm tham số thay vì đọc hằng từ `identity.ts`:
+một hàm ghép chuỗi không nên có lý do nào để nạp module khác.
+
+### D8 — Lưới R11.4 dùng danh sách VỊ TRÍ, không quét thô (quyết lúc apply)
+
+Đo lúc viết lưới: có **hai** chỗ đọc cookie phiên, và chúng làm hai việc khác nhau — `identity.ts` dựng
+danh tính (cửa duy nhất của luật), còn handler `/logout` trong `server.ts` đọc token để **xoá phiên**
+(R11.13). Chỗ thứ hai không vi phạm R11.4: nó không dựng danh tính.
+
+Lưới máy không phân biệt được «đọc để dựng danh tính» với «đọc để xoá» — muốn phân biệt thì phải hiểu ngữ
+nghĩa, và một lưới đoán ngữ nghĩa sẽ sai theo cả hai chiều. Nên nó dùng **danh sách vị trí có lý do**, cùng
+khuôn `docs/identifier-allowlist.md`: hai chỗ hợp lệ được ghi tên kèm việc chúng làm, chỗ thứ ba làm lưới
+đỏ và phải giải trình trong pull request.
+
+Cái mất: lưới không bắt được ca ai đó thêm một cửa dựng danh tính **bên trong** `identity.ts` hay
+`server.ts`. Đổi lại, hai file ấy đúng là hai file mà người review soi kỹ nhất.
+
 ## Architecture
 
-- `apps/web/src/server.ts`: tách hàm dựng cookie (đổi tham số) và hàm quyết định gác phiên; hằng danh sách
-  đường mở thành export.
+- `apps/web/src/session-gate.ts` (MỚI — D7): `evaluateSessionGate`, `buildSessionCookie`, `OPEN_PATHS`.
+  `server.ts` import chúng; `app.use` chỉ còn dịch quyết định sang lời gọi Express.
 - Lưới mới: hai lưới quét source + ca cho cookie, gác phiên, chmod.
 - `apps/web/src/identity.ts`: **không đổi**.
 - `checkmate.yml` bảng module (⛔C5) · tên mới tiếng Anh (lưới `identifier-language`).

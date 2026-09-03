@@ -18,6 +18,7 @@ import {
   createSession,
   deleteSession,
 } from './identity.js';
+import { buildSessionCookie, evaluateSessionGate, OPEN_PATHS } from './session-gate.js';
 import { loginPage, type LoginState } from './ui-login.js';
 import { probesPage } from './ui-probes.js';
 
@@ -49,20 +50,16 @@ app.use(express.json({ limit: '300kb' }));
 
 // ---- Đăng nhập và chặn cửa (specs/R11) ----
 
-/** Đường KHÔNG cần phiên. Danh sách CHO PHÉP: route mới mặc định phải đăng nhập, không phải nhớ bổ sung. */
-const DUONG_MO = new Set(['/login', '/logout', '/health']);
-
-/** R11.2 — không có phiên hợp lệ thì chặn, KỂ CẢ khi lớp xác thực bên ngoài đã cho qua. */
 app.use((req, res, next) => {
-  if (DUONG_MO.has(req.path)) return next();
-  if (identityIfAny(req)) return next();
-  // API trả JSON, trang trả chuyển hướng — client gọi API mà nhận HTML thì lỗi biến thành «JSON hỏng»,
-  // tức lại một ca báo sai bản chất.
-  if (req.path.startsWith('/api/')) {
-    return res.status(401).json({ loi: 'Chưa đăng nhập hoặc phiên đã hết hạn.', can_dang_nhap: true });
-  }
-  const tiep = req.method === 'GET' && req.originalUrl !== '/' ? `?tiep=${encodeURIComponent(req.originalUrl)}` : '';
-  return res.redirect(303, `/login${tiep}`);
+  const qd = evaluateSessionGate({
+    path: req.path,
+    hasSession: identityIfAny(req) !== null,
+    method: req.method,
+    originalUrl: req.originalUrl,
+  });
+  if (qd.pass) return next();
+  if (qd.as === 'json') return res.status(qd.status).json(qd.body);
+  return res.redirect(qd.status, qd.to);
 });
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
@@ -89,7 +86,7 @@ app.post('/login', (req, res) => {
     return res.redirect(303, `/login?sai=1${tiep ? `&tiep=${encodeURIComponent(tiep)}` : ''}`);
   }
   const { token, hetHan } = createSession(dt.ten);
-  res.setHeader('set-cookie', dungCookiePhien(req, token, hetHan));
+  res.setHeader('set-cookie', buildSessionCookie(req.headers['x-forwarded-proto'], SESSION_COOKIE_NAME, token, hetHan));
   res.redirect(303, internalPath(b.tiep) || '/');
 });
 
@@ -97,7 +94,7 @@ app.post('/logout', (req, res) => {
   // R11.13 — xoá phiên ở PHÍA MÁY CHỦ; xoá mỗi cookie là để lại một token còn sống
   const token = readCookie(req, SESSION_COOKIE_NAME);
   if (token) deleteSession(token);
-  res.setHeader('set-cookie', dungCookiePhien(req, '', new Date(0)));
+  res.setHeader('set-cookie', buildSessionCookie(req.headers['x-forwarded-proto'], SESSION_COOKIE_NAME, '', new Date(0)));
   res.redirect(303, '/login');
 });
 
@@ -108,21 +105,6 @@ app.post('/logout', (req, res) => {
 export function internalPath(x: unknown): string {
   const s = typeof x === 'string' ? x.trim() : '';
   return /^\/[^/\\]/.test(s) ? s : '';
-}
-
-/** R11.14 — HttpOnly + SameSite luôn; Secure khi đi qua HTTPS (nginx báo bằng x-forwarded-proto) */
-function dungCookiePhien(req: express.Request, token: string, hetHan: Date): string {
-  const https = (req.headers['x-forwarded-proto'] ?? '').toString().split(',')[0].trim() === 'https';
-  return [
-    `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}`,
-    'Path=/',
-    'HttpOnly',
-    'SameSite=Lax',
-    https ? 'Secure' : '',
-    `Expires=${hetHan.toUTCString()}`,
-  ]
-    .filter(Boolean)
-    .join('; ');
 }
 
 const rm = new RunManager();
