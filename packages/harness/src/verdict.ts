@@ -11,12 +11,12 @@ import { chuanMuc, type Finding, type Severity } from '../../shared/src/types.js
  */
 
 /** Nhãn máy phong cho một probe. Lấy hình dạng tối thiểu để test dựng được bằng tay. */
-export type TrangThaiProbe = string;
+export type ProbeStateLabel = string;
 
 /** Ứng viên finding, hình dạng TỐI THIỂU mà quyết định verdict cần. */
-export interface UngVienToiThieu {
+export interface MinimalCandidate {
   ma: string;
-  trangThai: TrangThaiProbe;
+  trangThai: ProbeStateLabel;
   probe: { id: string; ten?: string; spec_rule?: string; muc_dich?: string };
   br?: { message?: string };
 }
@@ -25,10 +25,10 @@ export interface UngVienToiThieu {
  * Hai nhãn máy-xác-nhận là hồi quy: PR làm gãy thứ đang chạy (`hoi_quy`), và PR khai một luật rồi vi
  * phạm ngay chính luật vừa khai (`vi_pham_luat_moi`). Hai chuyện khác nhau, cùng chặn merge (R1.20).
  */
-const HOI_QUY = new Set(['hoi_quy', 'vi_pham_luat_moi']);
+const REGRESSION_STATES = new Set(['hoi_quy', 'vi_pham_luat_moi']);
 
 /** Bốn nhãn nói được điều gì đó về pull request — mẫu số của «đủ cơ sở kết luận». */
-const NOI_DUOC_DIEU_GI = new Set(['pass', 'hoi_quy', 'vi_pham_luat_moi', 'cai_thien']);
+const CONCLUSIVE_STATES = new Set(['pass', 'hoi_quy', 'vi_pham_luat_moi', 'cai_thien']);
 
 /**
  * Kết quả của một lượt chấm — NHỊ PHÂN (gốc: R6.1). `FAIL` khi có ít nhất một finding mức `high`
@@ -49,9 +49,9 @@ export function decideResult(findings: unknown): 'PASS' | 'FAIL' {
  *
  * Nhãn KHÔNG phải hồi quy giữ nguyên mức model gán (đã chuẩn hoá) — sàn không lan sang chỗ khác.
  */
-export function regressionFloor(trangThai: TrangThaiProbe, sevModel: unknown): Severity {
+export function regressionFloor(trangThai: ProbeStateLabel, sevModel: unknown): Severity {
   const sev = chuanMuc(sevModel as string);
-  return HOI_QUY.has(trangThai) ? 'high' : sev;
+  return REGRESSION_STATES.has(trangThai) ? 'high' : sev;
 }
 
 /**
@@ -60,12 +60,12 @@ export function regressionFloor(trangThai: TrangThaiProbe, sevModel: unknown): S
  * Model im lặng cũng là một cách hạ mức: không có finding thì không có `high`, và verdict ra `PASS`.
  * Trả về danh sách ứng viên cần bù; chỗ gọi dựng `Finding` mức `high` với bằng chứng chạy thật.
  */
-export function missingRegressionFindings<T extends UngVienToiThieu>(ungVien: readonly T[], maDaCo: unknown): T[] {
+export function missingRegressionFindings<T extends MinimalCandidate>(ungVien: readonly T[], maDaCo: unknown): T[] {
   // Generic: hàm chỉ cần hình dạng TỐI THIỂU để lọc, nhưng phải trả đúng kiểu nó nhận — chỗ gọi còn
   // dựng `Finding` với evidence từ ứng viên đầy đủ, và ép kiểu ở đó là mở đường cho một `as` sai sau này.
   const daCo = maDaCo instanceof Set ? maDaCo : new Set(Array.isArray(maDaCo) ? maDaCo : []);
   if (!Array.isArray(ungVien)) return [];
-  return ungVien.filter((u) => HOI_QUY.has(u?.trangThai) && !daCo.has(u?.ma));
+  return ungVien.filter((u) => REGRESSION_STATES.has(u?.trangThai) && !daCo.has(u?.ma));
 }
 
 /**
@@ -79,9 +79,9 @@ export function missingRegressionFindings<T extends UngVienToiThieu>(ungVien: re
  * Trả LÝ DO chứ không chỉ trả boolean: thông điệp lỗi phải nói người đọc biết vì sao lượt chấm không kết
  * luận được, và lời đó phải khoá được bằng test thay vì dựng lại ở chỗ gọi.
  */
-export function hasBasis(ungVien: readonly UngVienToiThieu[]): { ok: true } | { ok: false; lyDo: string; soProbe: number } {
+export function hasBasis(ungVien: readonly MinimalCandidate[]): { ok: true } | { ok: false; lyDo: string; soProbe: number } {
   const ds = Array.isArray(ungVien) ? ungVien : [];
-  if (ds.some((u) => NOI_DUOC_DIEU_GI.has(u?.trangThai))) return { ok: true };
+  if (ds.some((u) => CONCLUSIVE_STATES.has(u?.trangThai))) return { ok: true };
   const lyDo = ds
     .slice(0, 3)
     .map((u) => `${u?.probe?.id} (${u?.trangThai}): ${String(u?.br?.message ?? '').split('\n')[0]!.slice(0, 200)}`)

@@ -8,7 +8,7 @@
  * Khuôn per-repo vẫn ở `review.khuon_loi` của checkmate.yml repo đích — hai tầng, không trộn (R12.1).
  */
 
-import { TRIGGER_CATALOG, laTriggerHopLe, tapKichHoat, type TriggerDef, type TriggerId } from './trigger-catalog.js';
+import { TRIGGER_CATALOG, isValidTrigger, tapKichHoat, type TriggerDef, type TriggerId } from './trigger-catalog.js';
 
 export interface TriggerExample {
   id: string;
@@ -240,7 +240,7 @@ function phatKhuon(loai: 'code' | 'doc', vanBanDieuKien?: string): string[] {
     }
     // Ví dụ code PHẢI thuộc một trigger có trong danh mục — mồ côi thì không phát. Gác đứng ở CỬA
     // (không nằm trong test) vì đây đúng là chỗ ví dụ đi vào prompt.
-    if (loai === 'code' && !laTriggerHopLe(k.trigger)) {
+    if (loai === 'code' && !isValidTrigger(k.trigger)) {
       console.log(`[khuon-loi] TỪ CHỐI ${k.id}: ví dụ code không thuộc trigger nào trong danh mục (trigger=${String(k.trigger)})`);
       continue;
     }

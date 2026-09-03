@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { SUPPORTED_FORMATS, extractText } from './extract.js';
 import { GOC } from '../../../packages/shared/src/paths.js';
-import { RunManager, evaluateStartRun, TRAN_SONG_SONG } from './runs.js';
+import { RunManager, evaluateStartRun, CONCURRENCY_LIMIT } from './runs.js';
 import { escHtml, shell, returnedToDevSection, prListSection, homePage, runPage, settingsPage, findingHtml, verdictHtml } from './ui.js';
 import {
   SESSION_COOKIE_NAME,
@@ -283,7 +283,7 @@ setInterval(() => {
       for (const p of prs) {
         // CÙNG hàm thuần với đường bấm tay. `findByPr` giữ nguyên chỗ này vì nó là luật khác («một verdict
         // một commit», merge-gate), không thuộc capability chạy-song-song.
-        const cho = evaluateStartRun({ soDangChay: rm.runningCount(), tran: TRAN_SONG_SONG, prDangChay: rm.isPrRunning(p.so) });
+        const cho = evaluateStartRun({ soDangChay: rm.runningCount(), tran: CONCURRENCY_LIMIT, prDangChay: rm.isPrRunning(p.so) });
         if (!cho.chay && cho.lyDo === 'qua_tai') break;
         if (!cho.chay || rm.findByPr(p.so, p.headSha)) continue;
         try {
@@ -672,10 +672,10 @@ app.post('/api/chon-ncc', (req, res) => {
 
 app.post('/api/runs', upload.single('tep'), async (req, res) => {
   // Gác TRẦN đứng ở đây, trước cả việc đọc thân yêu cầu: quyết định ở hàm thuần (runs.ts), route dựng lời.
-  if (!evaluateStartRun({ soDangChay: rm.runningCount(), tran: TRAN_SONG_SONG }).chay) {
+  if (!evaluateStartRun({ soDangChay: rm.runningCount(), tran: CONCURRENCY_LIMIT }).chay) {
     return res
       .status(429)
-      .send(shell('CheckMate — đang bận', `<h1>Đang có run chạy</h1><p class="sub">Checker đang bận kiểm ${TRAN_SONG_SONG} artifact — chờ xong rồi thử lại. <a href="/">← quay lại</a></p>`));
+      .send(shell('CheckMate — đang bận', `<h1>Đang có run chạy</h1><p class="sub">Checker đang bận kiểm ${CONCURRENCY_LIMIT} artifact — chờ xong rồi thử lại. <a href="/">← quay lại</a></p>`));
   }
   const { kieu, preset, noi_dung, so } = req.body as { kieu?: string; preset?: string; noi_dung?: string; so?: string };
   const cfg = readConfig();
@@ -708,7 +708,7 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
       let tacGia: string | undefined;
       try { tacGia = (await getCurrentPr(cfg, pr.so)).tacGia; } catch { /* thiếu tác giả không chặn run */ }
       // Gác MỘT-PR-MỘT-LƯỢT: cùng hàm thuần với gác trần, nên hai đường (bấm tay, chế độ trực) không lệch nhau.
-      if (!evaluateStartRun({ soDangChay: rm.runningCount(), tran: TRAN_SONG_SONG, prDangChay: rm.isPrRunning(pr.so) }).chay) {
+      if (!evaluateStartRun({ soDangChay: rm.runningCount(), tran: CONCURRENCY_LIMIT, prDangChay: rm.isPrRunning(pr.so) }).chay) {
         if (muonJson) return res.status(409).json({ loi: `PR #${pr.so} đang được chấm — chờ run hiện tại xong` });
         return res.status(409).send(shell('CheckMate — đang chấm', `<h1>PR #${pr.so} đang được chấm</h1><p class="sub">Một run khác đang chạy trên PR này — hai run song song sẽ ra hai verdict trùng. <a href="/">← quay lại</a></p>`));
       }

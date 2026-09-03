@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { TRIGGER_CATALOG, laTriggerHopLe, tapKichHoat, timTrigger } from '../packages/harness/src/trigger-catalog.js';
+import { TRIGGER_CATALOG, isValidTrigger, tapKichHoat, timTrigger } from '../packages/harness/src/trigger-catalog.js';
 import { TRIGGER_EXAMPLES, EXAMPLES_PER_TRIGGER, knowledgeByTrigger } from '../packages/harness/src/trigger-examples.js';
 import { normalizeOdcQualifier, normalizeOdcType, chuanMuc } from '../packages/shared/src/types.js';
 
@@ -27,10 +27,10 @@ describe('danh mục trigger — bộ ĐÓNG có kỷ luật', () => {
     }
   });
 
-  it('laTriggerHopLe là cửa validate DUY NHẤT, chịu được đầu vào rác', () => {
-    expect(laTriggerHopLe('variation')).toBe(true);
+  it('isValidTrigger là cửa validate DUY NHẤT, chịu được đầu vào rác', () => {
+    expect(isValidTrigger('variation')).toBe(true);
     for (const rac of [undefined, null, 42, {}, [], '', ' variation ', 'VARIATION', 'sang_tao_moi']) {
-      expect(laTriggerHopLe(rac), `nhận nhầm ${String(rac)}`).toBe(false);
+      expect(isValidTrigger(rac), `nhận nhầm ${String(rac)}`).toBe(false);
     }
     expect(timTrigger('khong_co')).toBeUndefined();
   });
@@ -66,7 +66,7 @@ describe('tập kích hoạt per-repo — số lượng linh hoạt, không ph�
 describe('ví dụ án lệ trực thuộc trigger — có trần và đào thải', () => {
   it('mọi ví dụ code trong kho đều thuộc một trigger có thật', () => {
     for (const k of TRIGGER_EXAMPLES.filter((x) => x.loai === 'code')) {
-      expect(laTriggerHopLe(k.trigger), `${k.id} mồ côi: trigger=${String(k.trigger)}`).toBe(true);
+      expect(isValidTrigger(k.trigger), `${k.id} mồ côi: trigger=${String(k.trigger)}`).toBe(true);
     }
   });
 

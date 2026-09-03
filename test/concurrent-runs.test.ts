@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { evaluateStartRun, TRAN_SONG_SONG } from '../apps/web/src/runs.js';
+import { evaluateStartRun, CONCURRENCY_LIMIT } from '../apps/web/src/runs.js';
 import { refNames } from '../apps/web/src/github.js';
 
 /**
@@ -27,10 +27,10 @@ describe('R-1 — trần lượt chạy đồng thời', () => {
   });
 
   it('trần mặc định là hằng có tên, dùng chung cho mọi đường', () => {
-    expect(TRAN_SONG_SONG).toBe(2);
+    expect(CONCURRENCY_LIMIT).toBe(2);
     // Không truyền `tran` → dùng hằng, không phải một số viết tay ở chỗ gọi.
-    expect(evaluateStartRun({ soDangChay: TRAN_SONG_SONG })).toMatchObject({ chay: false, ma: 429 });
-    expect(evaluateStartRun({ soDangChay: TRAN_SONG_SONG - 1 })).toEqual({ chay: true });
+    expect(evaluateStartRun({ soDangChay: CONCURRENCY_LIMIT })).toMatchObject({ chay: false, ma: 429 });
+    expect(evaluateStartRun({ soDangChay: CONCURRENCY_LIMIT - 1 })).toEqual({ chay: true });
   });
 });
 
@@ -59,7 +59,7 @@ describe('fail-closed: đầu vào méo KHÔNG được cho qua', () => {
 
   it('[T1.7b] trần méo → rơi về hằng, KHÔNG rơi về «không giới hạn»', () => {
     for (const t of [0, -1, NaN, 'nhieu', null, undefined] as unknown[]) {
-      expect(evaluateStartRun({ soDangChay: TRAN_SONG_SONG, tran: t }), `tran=${JSON.stringify(t)}`).toMatchObject({ chay: false });
+      expect(evaluateStartRun({ soDangChay: CONCURRENCY_LIMIT, tran: t }), `tran=${JSON.stringify(t)}`).toMatchObject({ chay: false });
       expect(evaluateStartRun({ soDangChay: 0, tran: t })).toEqual({ chay: true });
     }
   });

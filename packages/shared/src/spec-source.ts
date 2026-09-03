@@ -60,7 +60,7 @@ export const PROCESS_DOC_EXTS = ['.md', '.txt', '.yaml', '.yml', '.json'];
  *  - KHÔNG chuẩn hoá `\` thành `/`: `git diff --name-only` luôn trả `/`, nên `\` là TÊN FILE thật;
  *  - khớp theo CẤU TRÚC: mẫu `rfcs` khớp `rfcs/x.md` nhưng KHÔNG khớp `rfcs-notes.md`.
  */
-export function laThuMucQuyTrinh(file: string, mau: readonly string[]): boolean {
+export function isProcessDocDir(file: string, mau: readonly string[]): boolean {
   return mau.some((m) => {
     const d = m.endsWith('/') ? m : `${m}/`;
     return file.startsWith(d);
@@ -182,7 +182,7 @@ export function loiCuPhapAnToan(e: unknown): string {
  * chỗ người vận hành đọc. (Biên repo còn được giữ bằng cấu trúc ở engine: mẫu chỉ khớp với danh sách
  * file của cây git; đây là lời BÁO cho người khai, không phải hàng rào thứ hai.)
  */
-function lyDoNgoaiRepo(duong: string): string | null {
+function outsideRepoReason(duong: string): string | null {
   const t = duong.replace(/\\/g, '/');
   if (/^([a-zA-Z]:)?\//.test(t) || t.startsWith('//')) return 'đường tuyệt đối — nguồn phải nằm trong repo';
   if (t.split('/').some((seg) => seg === '..')) return 'có `..` — không được trỏ ra ngoài repo';
@@ -197,7 +197,7 @@ function lyDoNgoaiRepo(duong: string): string | null {
  * file CI. Gác này không chặn được người CỐ Ý khai `.github/` (đó là quyền của repo đích, và `checkmate.yml`
  * vốn đi đường code nên PR mở cửa ấy vẫn bị chấm bằng probe), nhưng chặn ca VÔ TÌNH rộng tay — ca thường gặp.
  */
-function lyDoKhongPhaiThuMuc(duong: string): string | null {
+function notADirectoryReason(duong: string): string | null {
   const t = duong.replace(/\\/g, '/').replace(/\/+$/, '').trim();
   if (t === '' || t === '.' || t === '*' || t === '**') return 'phải nêu ít nhất một tầng thư mục — mẫu chạm gốc repo biến mọi tài liệu của repo thành tài liệu quy trình';
   if (/[*?[\]{}]/.test(t)) return 'thư mục tài liệu quy trình nhận đường thư mục, không nhận mẫu glob';
@@ -227,9 +227,9 @@ export function readSourcesCfg(repoPath: string): SourcesCfg | null {
     if (x == null) return undefined;
     const ok: string[] = [];
     // Mọi khoá đi qua ĐÚNG MỘT cửa đọc: luật loại đường ngoài repo và cơ chế `rejected` áp y nguyên.
-    // Khoá `process_docs` có thêm một gác riêng vì nó nới chứ không siết (xem `lyDoKhongPhaiThuMuc`).
+    // Khoá `process_docs` có thêm một gác riêng vì nó nới chứ không siết (xem `notADirectoryReason`).
     for (const d of (Array.isArray(x) ? x : [x]).map((v) => String(v).trim()).filter(Boolean)) {
-      const ly = lyDoNgoaiRepo(d) ?? (key === 'process_docs' ? lyDoKhongPhaiThuMuc(d) : null);
+      const ly = outsideRepoReason(d) ?? (key === 'process_docs' ? notADirectoryReason(d) : null);
       if (ly) rejected.push({ key, pattern: d, reason: ly });
       else ok.push(d);
     }
