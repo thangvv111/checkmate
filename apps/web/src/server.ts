@@ -19,6 +19,7 @@ import {
   deleteSession,
 } from './identity.js';
 import { buildSessionCookie, evaluateSessionGate, OPEN_PATHS } from './session-gate.js';
+import { attachSecretGuard } from './response-secret-guard.js';
 import { loginPage, type LoginState } from './ui-login.js';
 import { probesPage } from './ui-probes.js';
 
@@ -61,6 +62,13 @@ app.use((req, res, next) => {
   if (qd.as === 'json') return res.status(qd.status).json(qd.body);
   return res.redirect(qd.status, qd.to);
 });
+
+/**
+ * Gác bí mật ở bề mặt response (`response-secret-guard`). Đứng SAU gác phiên: response chỉ tồn tại khi
+ * request đã qua xác thực. Bọc cả đường trả JSON lẫn luồng sự kiện — luồng sự kiện là bề mặt dễ quên nhất
+ * vì nó không đi qua `res.json`, mà nó đúng là đường phát log của lượt chấm.
+ */
+app.use(attachSecretGuard);
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
