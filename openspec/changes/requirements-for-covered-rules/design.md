@@ -72,6 +72,38 @@ không đáng là luật.
 - **tầng 3 cặp fixture** — không dựng hàm quét `scan*` mới. `dung-diff.test.ts` có `buildDiff` nhưng đó là
   hàm sản phẩm, không phải hàm quét source.
 
+### D5 — Phép kiểm chính đã làm đúng việc của nó: 21 đột biến, HAI điều hoá ra chưa được gác
+
+D1 đặt mutation làm phép kiểm chính chứ không phải thủ tục. Nó bắt được hai chỗ — và hai chỗ ấy thuộc hai
+loại khác nhau, đúng như bảng ba đường đã dự liệu.
+
+**Lượt một — 10 đột biến gỡ gác TRUNG TÂM của 8 requirement: 10/10 đỏ.** Nhưng con số ấy chưa đủ để khai
+23 điều, vì mỗi requirement gộp nhiều điều và một đột biến chỉ chạm một vế. Nên có lượt hai.
+
+**Lượt hai — 11 đột biến cho các VẾ PHỤ: 9/11 đỏ, hai cái sống sót.**
+
+| | chẩn đoán | bằng chứng |
+|---|---|---|
+| **N2** `R7.6` bỏ phép sắp lại theo thứ tự git | **ca KHÔNG load-bearing** (loại 1) | ca dùng hai file `--- b.ts` và `--- a.ts` **cùng độ dài**; `Array.sort` của V8 ổn định nên thứ tự giữ nguyên ở CẢ HAI hiện thực |
+| **N9** `R2.15` bỏ điều kiện «đúng MỘT testcase» | **đột biến gỡ nhầm chỗ** (loại 3) | phép kiểm title chặn trước ở mọi ca hiện có, nên vế đếm chưa từng được chạm |
+
+Hai chẩn đoán khác nhau nhưng cùng một kết luận: **vế ấy chưa được gác thật.** Xử theo D1 — viết ca, không
+thu hẹp requirement, vì cả hai vế đều đáng là luật:
+
+- ca `R7.6` sửa lại cho thứ tự git **ngược** với thứ tự chọn (file to đứng trước trong danh sách git, engine
+  sắp theo kích thước để chọn file nhỏ trước) — giờ hai hiện thực cho hai kết quả khác nhau;
+- ca `R2.15` mới: hai testcase **cùng mang tên file** — phép kiểm title cho qua, chỉ phép đếm phân biệt được
+  «file không nạp được» với «file nạp được và có hai test».
+
+Đo lại: cả hai ĐỎ, nhất quán hai lần. **21/21.**
+
+*Điều đáng ghi nhất:* nếu change này chỉ chép bảng tra thành văn bản như hình dạng bề ngoài của nó gợi ý,
+hai chỗ hở này đã được **đóng dấu thành luật đang thi hành** — bảng tra sạch, capability đóng, và hai hành
+vi không ai gác. Đúng thứ security S7.2 nêu là rủi ro lớn nhất của change.
+
+*Và N2 là lần thứ SÁU trong repo này gặp «ca xanh trên hệ thống đã hỏng».* Lần này nó không lộ ra khi viết
+ca mới — nó lộ ra khi đi khai luật cho một ca viết từ trước.
+
 ## Architecture
 
 - Chỉ artifact + bảng tra. Không file mới trong `test/` trừ khi D1 đòi.

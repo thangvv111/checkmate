@@ -58,7 +58,14 @@ describe('buildDiff — trần kích thước', () => {
   });
 
   it('giữ nguyên thứ tự file như git trả về, không theo thứ tự sắp xếp nội bộ', () => {
-    const kq = buildDiff(['b.ts', 'a.ts'], (f) => `--- ${f}`, [], 1000);
-    expect(kq.diff).toBe('--- b.ts\n--- a.ts');
+    // Bản đầu của ca này dùng hai file CÙNG ĐỘ DÀI (`--- b.ts` và `--- a.ts`). `Array.sort` của V8 ổn
+    // định, nên thứ tự giữ nguyên dù engine có sắp lại theo git hay không — ca xanh ở cả hai hiện thực.
+    // Đo được bằng đột biến ở change `requirements-for-covered-rules`: bỏ hẳn phép sắp lại, không ca nào đỏ.
+    //
+    // Ca đúng phải cho thứ tự git NGƯỢC với thứ tự chọn: engine sắp theo kích thước để CHỌN (file nhỏ
+    // trước), nên file to phải đứng trước trong danh sách git thì mới phân biệt được hai đường.
+    const kq = buildDiff(['to.ts', 'nho.ts'], diffGia({ 'to.ts': 200, 'nho.ts': 50 }), [], 1000);
+    expect(kq.ngoaiTamNhin, 'trần đủ rộng — ca này nói về THỨ TỰ, không nói về cắt').toEqual([]);
+    expect(kq.diff.startsWith(noiDung(200)), 'file to phải đứng trước vì git trả về nó trước').toBe(true);
   });
 });

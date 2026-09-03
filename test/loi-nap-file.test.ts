@@ -34,6 +34,17 @@ describe('fileLoadError', () => {
     expect(fileLoadError([tc('P1: a', 'failed'), tc('P2: b', 'passed')], 'test/x.probe.test.ts')).toBeNull();
   });
 
+  it('HAI testcase cùng mang tên file vẫn là file đã nạp được — phép đếm là gác riêng', () => {
+    // Ca sinh ra từ đột biến ở change `requirements-for-covered-rules`: bỏ điều kiện «đúng MỘT testcase»
+    // mà không ca nào đỏ, vì mọi ca hiện có đều bị phép kiểm title chặn trước. Tức vế đếm chưa được gác.
+    //
+    // Nó là gác riêng thật: một bộ chạy xuất hai testcase cùng mang tên file (lỗi nạp báo hai lần) thì
+    // phép kiểm title cho qua, và chỉ phép đếm mới phân biệt được «file không nạp được» với «file nạp
+    // được và có hai test».
+    const ten = 'test/x.probe.test.ts';
+    expect(fileLoadError([tc(ten, 'failed'), tc(ten, 'failed')], ten)).toBeNull();
+  });
+
   it('một testcase xanh duy nhất không phải lỗi nạp', () => {
     expect(fileLoadError([tc('P1: a', 'passed')], 'test/x.probe.test.ts')).toBeNull();
   });
