@@ -143,6 +143,20 @@ tail -f ~/checkmate-app/checkmate.log    # log chạy
 
 ## Cập nhật code
 
+### Kiểm sau mỗi lần deploy: quyền file cơ sở dữ liệu (R11.8)
+
+```bash
+ls -l web-runs/checkmate.db web-runs/checkmate.db-wal web-runs/checkmate.db-shm
+```
+
+Cả ba phải là `-rw-------` (600). File `-wal` và `-shm` mang **cùng dữ liệu** với file chính — trong đó có
+hash mật khẩu — nên để hở chúng là khoá cửa trước rồi mở cửa sau.
+
+Lưới `test/identity-session.test.ts` chỉ kiểm được **lời gọi** `chmodSync`, không kiểm được quyền thật trên
+đĩa: một ca đọc quyền sẽ đỏ trên máy dev Windows và xanh trên Linux, mà lưới nói khác nhau tuỳ máy là lưới
+người ta sẽ bỏ qua. Nên phần này là kiểm tay, và đây là chỗ của nó.
+
+
 > ⚠ **Bản hướng dẫn cũ ở mục này XOÁ SỔ DỮ LIỆU PROD.** Lệnh `tar --exclude=node_modules` gói theo cả
 > `config.json`, `.secrets.json`, `web-runs/`, `probes-lib/` và `runs/` của MÁY DEV rồi giải nén đè lên
 > server — tức thay sổ cái, lịch sử chấm và thư viện probe của prod bằng dữ liệu máy dev. Chính tài
