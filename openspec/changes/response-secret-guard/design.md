@@ -104,6 +104,18 @@ gác phải ghi log khi nguồn đối chiếu rỗng vì lỗi đọc.
 Đây đúng mệnh đề của ca T1.1 ở `identifier-language-gate`: một phép quét trả rỗng giống hệt hai chuyện —
 không có gì để thấy, và công cụ hỏng.
 
+### D7 — `blockMessage` KHÔNG NHẬN giá trị, nên không thể rò (phát hiện lúc mutation)
+
+Chạy mutation cho D4 thì lộ ra một điều tốt hơn cả ca test: `blockMessage(source)` chỉ nhận **tên nguồn**,
+không nhận giá trị. Nên nó **không thể** kèm giá trị dù ai đó cố — muốn rò phải đổi cả chữ ký hàm, và điều
+đó hiện ngay trong diff.
+
+Đây là chặn ở **kiểu**, mạnh hơn chặn bằng ca test: ca test bắt hành vi sai sau khi nó xảy ra, chữ ký hàm
+làm hành vi ấy không viết được. Ghi lại vì nó đổi cách đọc mutation M2 — xem tasks §5.
+
+Đường rò còn lại của thông điệp là `findSecret` trả kèm giá trị rồi chỗ gọi in ra. Đường ấy **có** đột biến
+giết được (M2 như đã chạy), nên vế còn lại vẫn được lưới giữ.
+
 ## Architecture
 
 - `apps/web/src/<gác>.ts` (MỚI): hàm thuần thu thập bí mật + hàm thuần dò trong thân + lớp bọc response.
