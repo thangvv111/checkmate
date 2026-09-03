@@ -117,6 +117,39 @@ Capability ấy vừa archive hôm nay, nên đây là change đầu tiên phả
   thành hàm quét thì phải có cả fixture đối kháng lẫn đối chứng; `test/test-grid-integrity.test.ts` sẽ đỏ
   nếu thiếu.
 
+### D8 — Hai đột biến ĐẦU TIÊN đều sai, và sai theo hai kiểu khác nhau (ghi lúc apply)
+
+Lượt mutation đầu chạy bốn đột biến; **không đột biến nào cho kết quả dùng được**, dù cả bốn đều báo
+«[dot bien da xac nhan ap dung]»:
+
+| đột biến | kết quả lượt đầu | thật ra là gì |
+|---|---|---|
+| M1 `[6, 12, 24, 64]` → `[6]` | **0 ca đỏ** | đột biến gỡ nhầm thứ — xem dưới |
+| M2 `break` → `throw` | **1 đỏ / 2 đỏ, LỆCH** | đúng thứ luật «chạy hai lần» sinh ra để bắt |
+| M3, M4 | `MISS count=0` | chuỗi nhiều dòng không khớp vì file dùng CRLF |
+
+**M1 là ca đáng học nhất.** Rút dãy độ dài xuống `[6]` trông như gỡ đúng gác, nhưng `tenFileProbe` còn một
+đường lui cuối hàm trả hash **đầy đủ 64 hex**. Với đột biến ấy, tên vẫn khác tên đang bị chiếm và vẫn dài
+hơn 6 hex — tức **vẫn thoả luật**. Ca xanh là ĐÚNG, đột biến mới là cái sai.
+
+Đột biến đúng gỡ *phép kiểm đụng* chứ không gỡ *dãy độ dài*:
+
+```ts
+if (!daCo.some((q) => q.ten === ten && q.hash !== hash)) return ten;   ->   return ten;
+```
+
+Với nó, ca đỏ nhất quán cả hai lần.
+
+*Vì sao ghi lại:* «đột biến không giết được ca nào» có **ba** cách đọc, không phải hai — ca không
+load-bearing, đột biến không được áp dụng, và **đột biến gỡ nhầm chỗ**. Cách thứ ba không có trong luật
+tầng 1 của `test-grid-integrity`; nó vừa được đo lần đầu ở đây, và cách phân biệt nó là **đọc code quanh
+chỗ đột biến để xem còn đường lui nào không**.
+
+*Và ghi lại M3/M4:* việc kiểm chứng «đột biến đã áp dụng» chỉ trả lời được cho đột biến đã khớp; đột biến
+**không khớp chuỗi** thì báo `MISS`, một tín hiệu khác hẳn và dễ bị lướt qua trong một bảng kết quả dài.
+Nguyên nhân là CRLF — cùng họ với lỗi escape ở D5 của `test-grid-integrity`, và cùng cách chữa: đưa script
+ra file thay vì nhét qua heredoc của shell.
+
 ## Architecture
 
 - `test/probe-library.test.ts` (MỚI) — 7 nhóm ca, mỗi nhóm một requirement.
