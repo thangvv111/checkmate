@@ -31,7 +31,10 @@ const resGia = () => {
     daGuiChunk: [] as unknown[],
     daKetThuc: false,
     maTrangThai: 200,
-    json: (b: unknown) => {
+    // Express dựng `res.json` bằng cách stringify rồi gọi `this.send(...)`. `res` giả phải theo đúng
+    // đường ấy, nếu không ca test sẽ xanh trên một hình dạng mà máy chủ thật không có.
+    json: (b: unknown) => ra.send(JSON.stringify(b)),
+    send: (b: unknown) => {
       ra.daGuiJson = b;
       return ra;
     },
@@ -48,10 +51,6 @@ const resGia = () => {
       return ra;
     },
     type: () => ra,
-    send: (b: unknown) => {
-      ra.daGuiJson = b;
-      return ra;
-    },
   };
   return ra;
 };
@@ -142,7 +141,8 @@ describe('bề mặt 1 — route trả JSON: chặn trọn', () => {
     const than = { repos: [{ github: 'a/b', co_token: true }] };
     res.json(than);
     expect(res.maTrangThai).toBe(200);
-    expect(res.daGuiJson).toEqual(than);
+    // `res` giả đi đúng đường Express: `json` stringify rồi gọi `send`, nên thứ gửi ra là CHUỖI.
+    expect(res.daGuiJson).toBe(JSON.stringify(than));
     delete process.env.GITHUB_TOKEN;
   });
 
@@ -151,6 +151,34 @@ describe('bề mặt 1 — route trả JSON: chặn trọn', () => {
     const res = gan(resGia());
     res.json({ msg: 'ngan' });
     expect(res.maTrangThai).toBe(200);
+    delete process.env.GITHUB_TOKEN;
+  });
+});
+
+describe('bề mặt HTML — chỗ lượt kiểm tay bắt được lỗ mà 16 ca test bỏ sót', () => {
+  // Bản đầu của gác chỉ bọc `json` và `write`. Mọi ca test xanh, mọi đột biến giết đúng ca — nhưng lượt
+  // chạy máy chủ thật cho thấy trang login KHÔNG bị chặn dù chứa đúng chuỗi đã đặt làm bí mật, vì nó đi
+  // qua `res.send`. `server.ts` có 10 chỗ `res.send`, tức mọi màn hình.
+  //
+  // Ca test chỉ kiểm được bề mặt mà người viết NGHĨ RA; máy chủ thật kiểm mọi bề mặt nó có.
+  it('trang HTML mang bí mật bị CHẶN', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    process.env.GITHUB_TOKEN = TOKEN;
+    const res = gan(resGia());
+    res.send(`<html><body>token: ${TOKEN}</body></html>`);
+    expect(res.maTrangThai).toBe(500);
+    expect(String(res.daGuiJson)).not.toContain(TOKEN);
+    delete process.env.GITHUB_TOKEN;
+    vi.restoreAllMocks();
+  });
+
+  it('trang HTML sạch đi qua nguyên vẹn', () => {
+    process.env.GITHUB_TOKEN = TOKEN;
+    const res = gan(resGia());
+    const trang = '<html><body>Đăng nhập</body></html>';
+    res.send(trang);
+    expect(res.maTrangThai).toBe(200);
+    expect(res.daGuiJson).toBe(trang);
     delete process.env.GITHUB_TOKEN;
   });
 });

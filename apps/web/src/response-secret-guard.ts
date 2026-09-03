@@ -117,13 +117,24 @@ export function attachSecretGuard(_req: Request, res: Response, next: NextFuncti
   // một bí mật vừa thêm mà gác chưa biết là đúng cái lỗ này sinh ra để bịt. File nhỏ, hệ điều hành cache.
   const secrets = readSecretsSafely();
 
-  const jsonGoc = res.json.bind(res);
-  res.json = ((body: unknown) => {
+  // Bọc `send`, KHÔNG bọc `json`: Express dựng `res.json` bằng cách stringify rồi gọi `this.send(...)`,
+  // nên một lớp bọc ở `send` phủ cả JSON lẫn **HTML** — và HTML là bề mặt lớn nhất (10 chỗ `res.send`
+  // trong `server.ts`, tức mọi màn hình).
+  //
+  // Bản đầu của gác chỉ bọc `json` và `write`. Mười sáu ca test và năm đột biến đều xanh, nhưng lượt kiểm
+  // tay đầu tiên trên máy chủ thật cho thấy trang login **không** bị chặn dù chứa đúng chuỗi đã đặt làm
+  // bí mật — vì nó đi qua `send`. Đó đúng là thứ ca T7.1 sinh ra để bắt: ca test chỉ kiểm được bề mặt mà
+  // người viết NGHĨ RA, còn máy chủ thật thì kiểm mọi bề mặt nó có.
+  let dangChan = false;
+  const sendGoc = res.send.bind(res);
+  res.send = ((body: unknown) => {
+    if (dangChan) return sendGoc(body as never);
     const nguon = findSecret(body, secrets);
-    if (nguon === null) return jsonGoc(body);
+    if (nguon === null) return sendGoc(body as never);
     console.error(blockMessage(nguon));
+    dangChan = true; // thông điệp chặn không chứa bí mật, nhưng không quét lại cho khỏi tốn một vòng
     return res.status(500).type('application/json').send(JSON.stringify({ loi: blockMessage(nguon) }));
-  }) as Response['json'];
+  }) as Response['send'];
 
   const writeGoc = res.write.bind(res);
   res.write = ((chunk: unknown, ...rest: unknown[]) => {
