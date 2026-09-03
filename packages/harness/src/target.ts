@@ -216,3 +216,30 @@ export function readTarget(repo: string, branch: string, base = 'main', boQuaThe
 
   return { repo, branch, base, branchSha, baseSha, diff, ngoaiTamNhin, specs, units, luatMoi, apiDoc: src.apiDoc, testMau: src.testMau, sources: src.report };
 }
+
+/**
+ * Nguồn đối chiếu của cổng phát thông điệp lỗi, cho bề mặt NGƯỜI — comment pull request và log.
+ *
+ * Người đọc được comment thì đọc được pull request và repo, nên nhắc lại một chuỗi đã có ở đó không rò
+ * thêm gì (`error-message-egress-gate` › cửa ô tầng 3).
+ *
+ * Ghi thẳng một hạn chế hiện tại để không ai đọc nhầm là đã rộng: `TargetInfo` KHÔNG giữ source đầy đủ
+ * của repo đích, chỉ có diff (bản đã cắt theo trần), spec, tài liệu API và test mẫu. Nên hôm nay nguồn
+ * này BẰNG `modelSurfaceSource`. Ranh giới vẫn được dựng vì nó là chỗ hai bề mặt sẽ tách ra: khi nào
+ * nguồn của bề mặt người được nới (đọc thêm source từ worktree), việc nới đó KHÔNG được kéo theo bề mặt
+ * model — model chỉ biết đúng những gì ta gửi.
+ */
+export function humanSurfaceSource(t: TargetInfo): string {
+  return modelSurfaceSource(t);
+}
+
+/**
+ * Nguồn đối chiếu cho bề mặt MODEL — prompt gửi tới dịch vụ bên ngoài.
+ *
+ * CHỈ những khối thật sự đã rào vào prompt của lượt này. `t.diff` ở đây là bản ĐÃ CẮT theo `TRAN_DIFF`
+ * và đã bỏ file «ngoài tầm nhìn» — đúng thứ `promptPhanTich` gửi đi. Một chuỗi nằm trong phần bị cắt thì
+ * CÓ trong pull request nhưng model chưa từng thấy, và phát nó sang model là rò tới một bề mặt mới.
+ */
+export function modelSurfaceSource(t: TargetInfo): string {
+  return [t.diff, t.apiDoc, t.testMau, ...t.specs.map((s) => s.noiDung)].filter(Boolean).join('\n');
+}

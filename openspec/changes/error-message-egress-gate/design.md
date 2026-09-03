@@ -166,7 +166,37 @@ verdict cũ thiếu trường mới thì rơi vào nhánh fail-closed của D4.
   ship — một cổng che quá tay sẽ bị người dùng vòng qua bằng cách đọc sổ, và khi ấy nó chỉ còn là hình thức.
 - [Đụng nhầm vân tay] → requirement 3 + ca test khoá: lọc chỉ áp cho bản phát ra.
 
+### D8 — Khoá của object là CẤU TRÚC, không phải nội dung (quyết lúc apply)
+
+Bản đầu của cửa ô bắt **cả khoá object** qua cửa. Chạy thử thì ra `{ <2 ký tự>: 25, <5 ký tự>: <chuỗi 29
+ký tự> }` — vô dụng, đúng thứ án lệ `loiHaTang` cấm. Tên trường lấy từ khai báo kiểu/schema của repo đích,
+tức là hình dạng dữ liệu chứ không phải nội dung: **bí mật nằm ở giá trị, không nằm ở tên ô chứa nó**.
+
+Nên khoá KHÔNG nháy (`id`, `status`) là định danh → giữ. Khoá CÓ nháy (`'sk-…'`) là **dữ liệu** — khoá của
+một map — nên vẫn phải qua cửa. Hai ca test khoá đúng ranh giới này.
+
+### D9 — Hai nguồn hiện BẰNG NHAU, và điều đó phải nói ra
+
+Đo lúc apply: `TargetInfo` KHÔNG giữ source đầy đủ của repo đích — chỉ `diff` (bản đã cắt), `specs`,
+`apiDoc`, `testMau`. Nên `humanSurfaceSource` hôm nay **trả về đúng** `modelSurfaceSource`.
+
+Hệ quả đo được, ghi thẳng: đột biến «dùng nguồn người ở chỗ gọi của model» (M5) **KHÔNG giết được ca nào**
+ở tầng tích hợp. Ranh giới hai bề mặt hiện chỉ được khoá ở **tầng hàm thuần**, nơi ca test tự truyền hai
+nguồn khác nhau.
+
+Vẫn dựng ranh giới, vì chỗ nguy hiểm không phải hôm nay mà là ngày nguồn bề mặt người được nới: khi ấy
+việc nới KHÔNG được kéo theo bề mặt model. Thứ khoá được điều đó là **ca hợp đồng cho `modelSurfaceSource`**
+— nó chỉ được gồm bốn khối đã rào vào prompt, và đột biến nới nguồn model (M6) giết đúng ca ấy.
+
+*Ghi cả một lỗi đọc số của chính lượt apply:* lần chạy M5 đầu tiên báo «1 failed», suýt kết luận là đột
+biến bị bắt. Chạy lại hai lần nữa: baseline sạch 800 ca, đột biến cũng không có ca đỏ — lần đầu là **flaky**.
+Một lần chạy không đủ để kết luận về mutation, đúng như ca T1.1 của `identifier-language-gate` đã nói ở
+dạng khác: «không thấy gì» và «công cụ hỏng» trông giống hệt nhau.
+
 ## Open Questions
 
-- Ngưỡng số chữ số cho tầng 1: `tightFingerprint` đã có ranh giới «số ngắn / số dài» — dùng lại ngưỡng ấy
-  hay đặt riêng? Quyết lúc apply, ghi lại lý do.
+- ~~Ngưỡng số chữ số cho tầng 1~~ — quyết lúc apply: đặt riêng `MAX_SAFE_DIGITS = 12`, KHÔNG dùng lại
+  ngưỡng của `tightFingerprint`. Hai thứ trả lời hai câu khác nhau: `tightFingerprint` hỏi «số này có phân
+  biệt được hai lỗi không» (nên giữ số ngắn, gột số dài vì số dài hay là id đổi mỗi lần chạy), còn cửa ô
+  hỏi «số này có thể là bí mật không». Buộc chúng dùng chung một hằng là ràng hai câu hỏi vào nhau, và lần
+  sau ai đó chỉnh ngưỡng cho câu này sẽ đổi luôn câu kia mà không biết.

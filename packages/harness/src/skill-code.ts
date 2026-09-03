@@ -2,8 +2,9 @@ import { createHash } from 'node:crypto';
 import { chuanMuc, normalizeOdcQualifier, normalizeOdcType, type Finding, type OdcQualifier, type OdcType, type RunEvent, type Severity } from '../../shared/src/types.js';
 import type { ModelProvider } from './model.js';
 import { callCode, callJson } from './jsonx.js';
-import { readTarget, suggestModulePath, type TargetInfo } from './target.js';
+import { humanSurfaceSource, modelSurfaceSource, readTarget, suggestModulePath, type TargetInfo } from './target.js';
 import { describeSources } from './sources.js';
+import { redactMessage } from '../../shared/src/message-egress.js';
 import { refHitsNew, ruleCoverage } from './spec-units.js';
 import { hasBasis, missingRegressionFindings, regressionFloor } from './verdict.js';
 import { Sandbox, type ProbeResult } from './sandbox.js';
@@ -428,8 +429,12 @@ function promptVietFinding(ungVien: UngVien[], t: TargetInfo, review: ReviewCfg 
     nguon: u.nguon === 'thu_vien' ? 'probe THƯ VIỆN (đã chứng minh khớp contract ở lượt trước)' : 'probe mới sinh',
     phan_loai_may: u.trangThai,
     probe: u.probe,
-    nhanh_pr: { status: u.br.status, loi: u.br.message },
-    nhanh_goc: u.bs ? { status: u.bs.status, loi: u.bs.message } : { status: 'không chạy', loi: '' },
+    // Bề mặt MODEL thứ hai (D2b): thông điệp lỗi của repo đích đi thẳng vào prompt viết finding. Dùng
+    // nguồn của bề mặt model — không phải nguồn bề mặt người.
+    nhanh_pr: { status: u.br.status, loi: redactMessage(u.br.message, modelSurfaceSource(t)) },
+    nhanh_goc: u.bs
+      ? { status: u.bs.status, loi: redactMessage(u.bs.message, modelSurfaceSource(t)) }
+      : { status: 'không chạy', loi: '' },
   }));
   return `Bạn là CHECKER ĐỐI KHÁNG. Máy đã phân loại xong kết quả probe — việc của bạn CHỈ là hai điều:
 1. Với ứng viên \`hoi_quy\` (PR fail + gốc pass — máy đã xác nhận là hồi quy): viết finding tiếng Việt nghiệp vụ + gán mức. BẮT BUỘC mỗi ứng viên hoi_quy có ĐÚNG MỘT finding — bạn không có quyền bỏ.
@@ -566,7 +571,7 @@ export async function runCodeSkill(
     const bs = chay(t.baseSha);
     // C1: nhánh gốc không chạy được (kể cả treo) → KHÔNG có đối chứng — baseKq=undefined, mọi fail thành nghi_van
     if (!bs.ok) {
-      phat({ type: 'log', msg: `Cảnh báo: nhánh gốc KHÔNG chạy được probe (${(bs.loiThu || 'không rõ').slice(0, 160)}) — không có đối chứng, mọi probe fail sẽ là nghi_van thay vì hồi quy` });
+      phat({ type: 'log', msg: `Cảnh báo: nhánh gốc KHÔNG chạy được probe (${redactMessage(bs.loiThu || 'không rõ', humanSurfaceSource(t)).slice(0, 160)}) — không có đối chứng, mọi probe fail sẽ là nghi_van thay vì hồi quy` });
       return { branchKq: br.probes, baseKq: undefined };
     }
     return { branchKq: br.probes, baseKq: bs.probes };
@@ -624,7 +629,13 @@ export async function runCodeSkill(
       if (lan === 2) throw new Error(`Probe không thu thập được sau 2 lần sinh: ${loiThu}`);
       phat({ type: 'log', msg: 'File probe lỗi thu thập — sinh lại lần 2 kèm thông báo lỗi' });
       // Kèm ĐƯỜNG ĐÚNG chứ không chỉ kèm lời kêu: lượt sinh lại mù đường thì nó đoán lại y hệt
-      code = await callCode(model, promptSinhCode(t, keHoach, rao, loiThu + suggestModulePath(loiThu, t.repo), runner));
+      // `loiThu` đi sang MODEL — dùng nguồn của bề mặt model (D2b), không phải nguồn bề mặt người.
+      // `suggestModulePath` vẫn chạy trên bản NGUYÊN VĂN: nó cần đường dẫn thật để gợi ý đúng module, và
+      // thứ nó trả về là đường dẫn do CheckMate sinh chứ không phải chuỗi của repo đích.
+      code = await callCode(
+        model,
+        promptSinhCode(t, keHoach, rao, redactMessage(loiThu, modelSurfaceSource(t)) + suggestModulePath(loiThu, t.repo), runner),
+      );
       continue;
     }
 
@@ -815,6 +826,9 @@ export async function runCodeSkill(
       command: `${runner ? 'lệnh test của repo (checkmate.yml)' : `vitest run test/${u.file}`} (nhánh ${branch} @ ${t.branchSha.slice(0, 7)})`,
       expected: u.probe.ky_vong,
       actual: u.br.message.slice(0, 1200),
+      // Bản cho bề mặt rời khỏi máy chủ. Lọc ở ĐÂY chứ không ở chỗ dựng comment, vì chỉ chỗ này mới có
+      // `t` — tức mới có nguồn đối chiếu của tầng 3 (D3).
+      actual_redacted: redactMessage(u.br.message.slice(0, 1200), humanSurfaceSource(t)),
       exit_code: 1,
     });
 
@@ -898,13 +912,13 @@ export async function runCodeSkill(
           ? {
               probes: filesV.flatMap((f) => {
                 const k = sbV.chayTheoRunner([f], runner, parseJUnit);
-                if (k.loiThu) loiHaTang.push(`${f}: ${k.loiThu.slice(0, 200)}`);
+                if (k.loiThu) loiHaTang.push(`${f}: ${redactMessage(k.loiThu, humanSurfaceSource(t)).slice(0, 200)}`);
                 return k.probes;
               }),
             }
           : (() => {
               const k = sbV.chayVitest(filesV);
-              if (k.loiThu) loiHaTang.push(k.loiThu.slice(0, 300));
+              if (k.loiThu) loiHaTang.push(redactMessage(k.loiThu, humanSurfaceSource(t)).slice(0, 300));
               return k;
             })();
         // `loiThu` từng bị vứt trọn ở đây. Hậu quả: hạ tầng test hỏng (không cài được phụ thuộc, lệnh
