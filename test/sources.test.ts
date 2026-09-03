@@ -14,7 +14,7 @@ import {
   type TreeFile,
 } from '../packages/harness/src/sources.js';
 import { readSourcesCfg } from '../packages/harness/src/runner.js';
-import { laThuMucQuyTrinh, PROCESS_DOC_DIRS } from '../packages/shared/src/spec-source.js';
+import { isProcessDocDir, PROCESS_DOC_DIRS } from '../packages/shared/src/spec-source.js';
 import { readTarget, listTree } from '../packages/harness/src/target.js';
 
 /**
@@ -352,24 +352,24 @@ describe('readSourcesCfg — khoá process_docs (thư mục tài liệu quy trì
   });
 });
 
-describe('laThuMucQuyTrinh — so tiền tố thư mục, giữ ba tính chất của luật định tuyến', () => {
+describe('isProcessDocDir — so tiền tố thư mục, giữ ba tính chất của luật định tuyến', () => {
   it('khớp theo CẤU TRÚC, không theo tiền tố chuỗi', () => {
-    expect(laThuMucQuyTrinh('rfcs/x.md', ['rfcs'])).toBe(true);
-    expect(laThuMucQuyTrinh('rfcs/x.md', ['rfcs/'])).toBe(true);
-    expect(laThuMucQuyTrinh('rfcs-notes.md', ['rfcs'])).toBe(false);
+    expect(isProcessDocDir('rfcs/x.md', ['rfcs'])).toBe(true);
+    expect(isProcessDocDir('rfcs/x.md', ['rfcs/'])).toBe(true);
+    expect(isProcessDocDir('rfcs-notes.md', ['rfcs'])).toBe(false);
   });
 
   it('so ĐÚNG HOA THƯỜNG cho tên thư mục (Linux: OpenSpec/ ≠ openspec/)', () => {
-    expect(laThuMucQuyTrinh('OpenSpec/a.md', ['openspec/'])).toBe(false);
-    expect(laThuMucQuyTrinh('openspec/a.md', ['openspec/'])).toBe(true);
+    expect(isProcessDocDir('OpenSpec/a.md', ['openspec/'])).toBe(false);
+    expect(isProcessDocDir('openspec/a.md', ['openspec/'])).toBe(true);
   });
 
   it('KHÔNG chuẩn hoá dấu chéo ngược — `openspec\hack.ts` là tên file thật ở gốc repo', () => {
-    expect(laThuMucQuyTrinh(String.raw`openspec\hack.ts`, ['openspec/'])).toBe(false);
+    expect(isProcessDocDir(String.raw`openspec\hack.ts`, ['openspec/'])).toBe(false);
   });
 
   it('mặc định của engine là openspec/, và danh sách rỗng thì không khớp gì', () => {
     expect(PROCESS_DOC_DIRS).toEqual(['openspec/']);
-    expect(laThuMucQuyTrinh('openspec/a.md', [])).toBe(false);
+    expect(isProcessDocDir('openspec/a.md', [])).toBe(false);
   });
 });

@@ -389,7 +389,7 @@ export class RunManager {
  * Nâng trần là một quyết định về TÀI NGUYÊN MÁY CHỦ, không phải tinh chỉnh giao diện — nên nó là hằng có
  * tên ở đây, không phải một ô nhập trong cấu hình (nợ có tên: cửa khai kèm giới hạn và cảnh báo).
  */
-export const TRAN_SONG_SONG = 2;
+export const CONCURRENCY_LIMIT = 2;
 
 /**
  * Có được khởi động một lượt chấm mới không — hàm THUẦN, dùng chung cho đường bấm tay và chế độ trực.
@@ -412,7 +412,7 @@ export function evaluateStartRun(input: {
   // Fail-closed: đầu vào méo (không phải số, âm, trần khuyết hay ≤ 0) thì CHẶN. Thà chặn oan một lượt còn
   // hơn nhận vô hạn lượt rồi làm chết máy chủ — hướng sai ở đây không đối xứng.
   const dangChay = typeof input.soDangChay === 'number' && Number.isFinite(input.soDangChay) ? input.soDangChay : Number.POSITIVE_INFINITY;
-  const tran = typeof input.tran === 'number' && Number.isFinite(input.tran) && input.tran > 0 ? input.tran : TRAN_SONG_SONG;
+  const tran = typeof input.tran === 'number' && Number.isFinite(input.tran) && input.tran > 0 ? input.tran : CONCURRENCY_LIMIT;
   if (dangChay >= tran) return { chay: false, ma: 429, lyDo: 'qua_tai' };
   if (input.prDangChay === true) return { chay: false, ma: 409, lyDo: 'pr_dang_cham' };
   return { chay: true };

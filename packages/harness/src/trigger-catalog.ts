@@ -130,7 +130,7 @@ export const TRIGGER_CATALOG: readonly TriggerDef[] = [
 const CHI_MUC = new Map<string, TriggerDef>(TRIGGER_CATALOG.map((t) => [t.id, t]));
 
 /** Mã có trong danh mục không — cửa validate DUY NHẤT, dùng chung cho mọi đường (probe, config). */
-export function laTriggerHopLe(x: unknown): x is TriggerId {
+export function isValidTrigger(x: unknown): x is TriggerId {
   return typeof x === 'string' && CHI_MUC.has(x);
 }
 
@@ -149,13 +149,13 @@ export function timTrigger(id: string): TriggerDef | undefined {
  */
 export function tapKichHoat(khai?: readonly string[]): readonly TriggerDef[] {
   if (!Array.isArray(khai) || khai.length === 0) return TRIGGER_CATALOG;
-  const la = khai.filter((x) => !laTriggerHopLe(x));
+  const la = khai.filter((x) => !isValidTrigger(x));
   if (la.length) {
     console.error(
       `checkmate.yml review.triggers: mã trigger không có trong danh mục, đã bỏ qua: ${la.join(', ')} — danh mục hiện có: ${TRIGGER_CATALOG.map((t) => t.id).join(', ')}`,
     );
   }
-  const bat = new Set(khai.filter(laTriggerHopLe));
+  const bat = new Set(khai.filter(isValidTrigger));
   if (bat.size === 0) {
     console.error('checkmate.yml review.triggers: không mã nào hợp lệ — rơi về TOÀN danh mục (không phát khuôn nào là làm lượt chấm mù trong im lặng)');
     return TRIGGER_CATALOG;

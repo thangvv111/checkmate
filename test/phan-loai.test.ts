@@ -6,7 +6,7 @@ import {
   matchProbeId,
   isNewRule,
   looksLikeBrokenProbe,
-  loiSinhLaiKhongBangChung,
+  retryNoticeNoEvidence,
 } from '../packages/harness/src/skill-code.js';
 import type { ProbeResult } from '../packages/harness/src/sandbox.js';
 
@@ -217,13 +217,13 @@ describe('lời sinh lại khi không probe nào chứng minh được gì (R1.1
   it('nhánh gốc không chạy được probe nào -> nói ra, kèm đủ ba ý', () => {
     // PR thêm MODULE MỚI thì nhánh gốc không có file đó, nên nhánh gốc không cho kết quả nào.
     // Im lặng ở đây tốn trọn một lượt sinh lại: model tưởng mình import sai đường và đi sửa nhầm chỗ.
-    const loi = loiSinhLaiKhongBangChung(undefined, 'vì sao');
+    const loi = retryNoticeNoEvidence(undefined, 'vì sao');
 
     expect(loi).toContain('nhánh gốc KHÔNG chạy được probe nào');
     expect(loi).toContain('mọi probe đỏ đều thành nghi_van chứ không thành hồi quy');
     expect(loi).toContain('PROBE SAI GIẢ ĐỊNH');
     // Mảng rỗng cũng là «không chạy được probe nào» — không chỉ undefined.
-    expect(loiSinhLaiKhongBangChung([], 'vì sao')).toContain('nhánh gốc KHÔNG chạy được probe nào');
+    expect(retryNoticeNoEvidence([], 'vì sao')).toContain('nhánh gốc KHÔNG chạy được probe nào');
     // Vế chung và lý do vẫn còn nguyên, lời cảnh báo không được nuốt chúng.
     expect(loi).toContain('IMPORT SAI MODULE');
     expect(loi).toContain('vì sao');
@@ -232,7 +232,7 @@ describe('lời sinh lại khi không probe nào chứng minh được gì (R1.1
   it('nhánh gốc CÓ kết quả -> KHÔNG có lời đó (nói thừa cũng là nói sai)', () => {
     // Thiếu vế này thì một bản «nhét cảnh báo vào mọi lượt» vẫn xanh, và model bị bảo là không có
     // đối chứng trong khi đối chứng đang nằm ngay đó.
-    const loi = loiSinhLaiKhongBangChung([kq('t1', false), kq('t2', true)], 'vì sao');
+    const loi = retryNoticeNoEvidence([kq('t1', false), kq('t2', true)], 'vì sao');
 
     expect(loi).not.toContain('nhánh gốc KHÔNG chạy được probe nào');
     expect(loi).not.toContain('PROBE SAI GIẢ ĐỊNH');

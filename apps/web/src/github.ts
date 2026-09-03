@@ -3,7 +3,7 @@ import type { CheckmateConfig } from './config.js';
 import { readRepoToken } from './secret-vault.js';
 // Hợp đồng nguồn spec ở TẦNG NỀN: app không được import engine (lưới kien-truc-tang) — web và engine
 // chỉ nói chuyện qua tiến trình CLI. Một glob, một cửa đọc `sources` cho cả router lẫn engine.
-import { matchPattern, readSourcesCfg, laThuMucQuyTrinh, PROCESS_DOC_DIRS, PROCESS_DOC_EXTS, SPEC_CANDIDATES } from '../../../packages/shared/src/spec-source.js';
+import { matchPattern, readSourcesCfg, isProcessDocDir, PROCESS_DOC_DIRS, PROCESS_DOC_EXTS, SPEC_CANDIDATES } from '../../../packages/shared/src/spec-source.js';
 
 /**
  * Chìa dùng cho một lời gọi API, suy từ CHÍNH path đang gọi (R4.18).
@@ -325,7 +325,7 @@ export function classifyPr(
     // Cho cả THƯ MỤC là văn bản thuần thì `openspec/hack.ts` cũng thành tài liệu — cửa né probe rộng nhất,
     // do chính luật này mở ra. Đuôi là HẰNG của engine: repo nói tài liệu của nó NẰM ĐÂU, không nói cái gì
     // là tài liệu.
-    if (laThuMucQuyTrinh(f, thuMucQuyTrinh)) return DUOI_QUY_TRINH.some((d) => t.endsWith(d));
+    if (isProcessDocDir(f, thuMucQuyTrinh)) return DUOI_QUY_TRINH.some((d) => t.endsWith(d));
     // KHÔNG chuẩn hoá dấu `\`: `git diff --name-only` luôn trả `/`, nên `\` là TÊN FILE thật do
     // maker đặt. KHÔNG nhận `openspec` trơ: git liệt kê FILE, không liệt kê thư mục.
     return DUOI_VAN_BAN.some((d) => t.endsWith(d));

@@ -98,11 +98,19 @@ hợp lệ chỉ có hai: «code cũ trước 03/09» hoặc «tiếng Anh bị 
 | `TRAN_SONG_SONG` | `CONCURRENCY_LIMIT` | «trần» = limit |
 | `HOI_QUY` | `REGRESSION_STATES` | tập nhãn, nên số nhiều |
 | `NOI_DUOC_DIEU_GI` | `CONCLUSIVE_STATES` | «nói được điều gì» = kết luận được |
-| `TrangThaiProbe` | `ProbeState` | kiểu `ProbeState` đã có trong `skill-code.ts` — dùng đúng tên ấy |
+| `TrangThaiProbe` | `ProbeStateLabel` | **sửa lúc apply**, xem ghi chú dưới bảng |
 | `UngVienToiThieu` | `MinimalCandidate` | |
 | `loiSinhLaiKhongBangChung` | `retryNoticeNoEvidence` | «lời» ở đây là thông báo, không phải lỗi |
 
 `promptSinhCode` và `promptPhanTich` sinh 24/08 → diện miễn, KHÔNG đổi trong change này.
+
+**Sửa D4 lúc apply — `TrangThaiProbe` KHÔNG đổi thành `ProbeState`.** Bản đầu của bảng nói dùng lại tên
+`ProbeState` đã có trong `skill-code.ts`. Đọc kỹ hai định nghĩa thì thấy chúng khác nghĩa: `ProbeState` là
+**union hẹp** tám nhãn; `TrangThaiProbe = string` là **kiểu lỏng có chủ đích** — comment tại chỗ ghi «hình
+dạng tối thiểu để test dựng được bằng tay», và nó lỏng vì `verdict.ts` nhận nhãn đọc từ sổ cũ, nơi có thể
+còn nhãn không nằm trong union hiện tại (fail-closed). Đặt cùng một tên cho một union hẹp và một `string`
+tự do là **sai nghĩa** — người đọc sẽ tưởng chỗ này đã được kiểu ràng buộc trong khi không. Đó là lỗi tệ
+hơn cả tên tiếng Việt: tên tiếng Việt chỉ khó đọc, tên sai nghĩa thì gây tin nhầm. Dùng `ProbeStateLabel`.
 
 ### D5 — CLAUDE.md ghi ranh giới, và ghi cả án lệ
 
@@ -123,7 +131,7 @@ sao repo chịu tốn một lưới cho việc đặt tên.
 
 ## Data Model
 
-N/A — không đổi kiểu dữ liệu trên đĩa. `TrangThaiProbe` → `ProbeState` chỉ là tên kiểu TypeScript, giá trị
+N/A — không đổi kiểu dữ liệu trên đĩa. `TrangThaiProbe` → `ProbeStateLabel` chỉ là tên kiểu TypeScript, giá trị
 chuỗi (`'hoi_quy'`, `'vi_pham_luat_moi'`…) **KHÔNG đổi** — chúng nằm trong sổ đã ghi và trong verdict cũ.
 
 ## Risks / Trade-offs
@@ -134,6 +142,8 @@ chuỗi (`'hoi_quy'`, `'vi_pham_luat_moi'`…) **KHÔNG đổi** — chúng nằ
   kiểm định dạng dòng. Đây là rủi ro thật vì nó biến lưới thành hình thức.
 - [Đổi 10 tên làm hỏng chỗ gọi] → `tsc` bắt hết ở compile-time; 764 ca test là lưới thứ hai.
 - [Đổi tên kiểu `TrangThaiProbe` chạm dữ liệu cũ] → không: giá trị chuỗi giữ nguyên (§ Data Model).
+  Đo sau khi đổi: `git diff` có 4 dòng chứa `'hoi_quy'`, cả 4 chỉ đổi TÊN HẰNG bọc ngoài, chuỗi bên trong
+  y nguyên.
 
 ## Migration Plan
 

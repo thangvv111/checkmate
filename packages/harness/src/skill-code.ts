@@ -9,7 +9,7 @@ import { hasBasis, missingRegressionFindings, regressionFloor } from './verdict.
 import { Sandbox, type ProbeResult } from './sandbox.js';
 import { updateHistory, readProbeLibrary, admitToLibrary, repoSlug, splitOneProbe, findAndDropBehaviorDuplicates } from './probe-library.js';
 import { getCodeExamples, knowledgeByTrigger } from './trigger-examples.js';
-import { laTriggerHopLe, type TriggerId } from './trigger-catalog.js';
+import { isValidTrigger, type TriggerId } from './trigger-catalog.js';
 import { applyRuling, promptDuplicateRuling, findSuspectedDuplicate, findRerunDuplicate, type Ruling, type RulingCandidate } from './dedup-probe.js';
 import { readReviewCfg, readRunnerCfg, diffIgnorePatterns, parseJUnit, type ReviewCfg, type RunnerCfg } from './runner.js';
 import { FENCE_NOTICE, makeFence, type Fence } from './fence.js';
@@ -367,7 +367,7 @@ Trả lời CHỈ MỘT khối JSON trong fence \`\`\`json:
  * tới được: khoá được nửa dữ liệu (`baseKq`) mà không khoá được nửa quyết định. Tách ra để mỗi vế là một ca.
  * Nói THỪA cũng là nói sai — vế «nhánh gốc còn chạy được thì KHÔNG có lời này» cũng phải có ca riêng.
  */
-export function loiSinhLaiKhongBangChung(baseKq: ProbeResult[] | undefined, viSao: string): string {
+export function retryNoticeNoEvidence(baseKq: ProbeResult[] | undefined, viSao: string): string {
   const chung =
     `KHÔNG probe nào chứng minh được gì: tất cả đều đỏ trên cả hai nhánh hoặc không chạy tới nơi. ` +
     `Thường là do IMPORT SAI MODULE — hàm nằm ở file khác file bạn đoán. Đối chiếu lại phần diff để lấy ĐÚNG ` +
@@ -523,10 +523,10 @@ export async function runCodeSkill(
   const keHoach = (await callJson<{ probes: ProbePlan[] }>(model, promptPhanTich(t, review, rao))).probes.slice(0, MAX_PROBE);
   // Trigger lạ thì XOÁ TRƯỜNG, probe vẫn chạy: nhãn phân loại hỏng không được làm mất một phép thử
   // đã nghĩ ra. Ngược hướng với severity (fail-closed) vì trường này là telemetry, không gác gì.
-  const triggerLa = keHoach.filter((p) => p.trigger !== undefined && !laTriggerHopLe(p.trigger)).map((p) => `${p.id}=${String(p.trigger)}`);
+  const triggerLa = keHoach.filter((p) => p.trigger !== undefined && !isValidTrigger(p.trigger)).map((p) => `${p.id}=${String(p.trigger)}`);
   if (triggerLa.length) {
     phat({ type: 'log', msg: `Trigger ngoài danh mục — xoá trường, probe vẫn chạy: ${triggerLa.join(', ')}` });
-    for (const p of keHoach) if (p.trigger !== undefined && !laTriggerHopLe(p.trigger)) delete p.trigger;
+    for (const p of keHoach) if (p.trigger !== undefined && !isValidTrigger(p.trigger)) delete p.trigger;
   }
   phat({ type: 'log', msg: `${keHoach.length} probe mới: ${keHoach.map((p) => `${p.id} (${p.spec_rule})`).join(' · ')}` });
   if (library.length > 0) {
@@ -703,7 +703,7 @@ export async function runCodeSkill(
     // trần probe đã từng thành chỉ tiêu (ke_hoach = trần ở 14/14 lượt), và probe rải đều danh mục
     // làm false-PASS trông đáng tin hơn thực tế.
     thongKe.trigger_distribution = keHoach.reduce<Record<string, number>>((acc, p) => {
-      if (laTriggerHopLe(p.trigger)) acc[p.trigger] = (acc[p.trigger] ?? 0) + 1;
+      if (isValidTrigger(p.trigger)) acc[p.trigger] = (acc[p.trigger] ?? 0) + 1;
       return acc;
     }, {});
     thongKe.that_lac = keHoach.filter((p) => !idGhiNhan.has(p.id)).map((p) => p.id);
@@ -786,7 +786,7 @@ export async function runCodeSkill(
           t,
           keHoach,
           rao,
-          loiSinhLaiKhongBangChung(baseKq, viSao),
+          retryNoticeNoEvidence(baseKq, viSao),
           runner,
         ),
       );

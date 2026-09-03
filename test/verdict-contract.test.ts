@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { decideResult, regressionFloor, missingRegressionFindings, hasBasis, type UngVienToiThieu } from '../packages/harness/src/verdict.js';
+import { decideResult, regressionFloor, missingRegressionFindings, hasBasis, type MinimalCandidate } from '../packages/harness/src/verdict.js';
 import type { Finding } from '../packages/shared/src/types.js';
 
 /**
@@ -14,7 +14,7 @@ import type { Finding } from '../packages/shared/src/types.js';
 const f = (p: Partial<Finding> = {}): Finding =>
   ({ id: 'f1', skill: 'code', severity: 'medium', title_vi: 't', what_vi: 'w', consequence_vi: 'c', evidence: { type: 'quote', loc: 'x', quote: 'q', rule: 'r' }, ...p }) as Finding;
 
-const uv = (p: Partial<UngVienToiThieu> = {}): UngVienToiThieu => ({
+const uv = (p: Partial<MinimalCandidate> = {}): MinimalCandidate => ({
   ma: 'U1',
   trangThai: 'pass',
   probe: { id: 'P1', ten: 'probe 1', spec_rule: 'R1', muc_dich: 'kiểm X' },

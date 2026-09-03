@@ -81,20 +81,35 @@ tồn tại để chống.
 Proposal có ô «Luật chạm tới»: trả lời bằng `capability › requirement`, ⛔C, hoặc hàng bảng tra; bỏ trống
 vẫn là done-gate chưa ✓.
 
-## Ngôn ngữ định danh — tiếng Anh (PO chốt 01/09)
+## Ngôn ngữ định danh — tiếng Anh (PO chốt 01/09 · ranh giới 03/09)
 
 - **Mọi định danh MỚI SINH viết tiếng Anh.** Định danh = thứ máy trỏ tới hoặc dùng làm khoá — KHÔNG
   chỉ trong code. Danh sách đóng, để không ai lách bằng «cái này đâu phải code»:
-  tên hàm · biến · kiểu · khoá cấu hình · mã enum · **tên file (code LẪN tài liệu)** · **tên thư mục** ·
-  **nhãn/mã luật** (`gate-surface-derives-from-ledger`, không `R6.26`) · **tên capability và tên
+  tên hàm · biến · hằng · kiểu · khoá cấu hình · mã enum · **tên file (code LẪN tài liệu)** · **tên thư
+  mục** · **nhãn/mã luật** (`gate-surface-derives-from-ledger`, không `R6.26`) · **tên capability và tên
   change OpenSpec mới** · tên nhánh git.
   Thuật ngữ trong tài liệu giữ tiếng Anh, chỉ chú thích tiếng Việt khi cần giải thích.
-  *Án lệ 02/09:* agent đề xuất file `LUAT.md` và đặt `man-run.test.ts`, `so-su-kien.test.ts` chỉ
-  một ngày sau khi đặt đúng `design-tokens.test.ts` — luật nằm ở memory thì trôi; nằm ở đây thì không.
+- **NGOÀI phạm vi** (PO chốt 03/09, khai rõ để không ai phải đoán — chỗ nào phải đoán thì chỗ đó sẽ lệch):
+  **trường của object/kiểu** (`{ chay, lyDo, soProbe }`) · **biến cục bộ trong thân hàm** ·
+  **giá trị chuỗi** (`'hoi_quy'` nằm trong sổ đã ghi — đổi nó là đổi DỮ LIỆU, không phải đổi tên).
 - Văn TRÌNH BÀY cho PO (proposal, báo cáo, commit message, comment giải thích) vẫn tiếng Việt.
 - Code cũ mang tên tiếng Việt (`luuMeta`, `docSoCong`, `chuanMuc`…) **giữ nguyên** — đổi hàng loạt là
   một change refactor riêng đã xếp lịch; đừng đổi lắt nhắt từng chỗ khi tiện tay, nó tạo trạng thái
-  nửa nạc nửa mỡ tệ hơn cả hai đầu.
+  nửa nạc nửa mỡ tệ hơn cả hai đầu. Diện được miễn liệt kê ở `docs/identifier-allowlist.md`
+  (đóng băng 03/09, 89 mục) — danh sách CHO PHÉP, **không được nới cho định danh mới sinh**.
+
+⛔ **Cưỡng chế bằng lưới, không bằng câu chữ:** `test/identifier-language.test.ts` quét định danh cấp
+module trong `packages/*/src/` và `apps/web/src/`, đỏ khi có tên ngoài danh sách miễn trừ.
+
+*Vì sao phải tốn một lưới cho việc đặt tên — đo được:* luật này được chốt **01/09 lúc 17:00** và ghi ngay
+vào file mà mọi agent nạp đầu phiên. Định danh vi phạm đầu tiên (`laTriggerHopLe`) sinh lúc **17:16 cùng
+ngày**, bởi chính agent đã đọc nó. Trong 48 giờ sau đó có **10 định danh cấp module vi phạm**, không cái nào
+bị máy phát hiện: tất cả lọt qua `tsc`, qua 764 ca test, qua sáu lượt review PR, và chỉ lộ ra khi PO đọc
+code bằng mắt. Cùng lúc ấy ⛔C5 nằm trong CHÍNH file này, cũng dễ quên như thế, nhưng có
+`test/hop-dong-repo.test.ts` — nên khi agent quên khai export, lưới đỏ **ngay trong phiên**. Khác biệt duy
+nhất giữa hai luật là cái lưới. Một luật không có lưới thì không phải luật đang thi hành; nó là một câu chữ
+mà người ta tin là luật. *(Bản trước của mục này viết «luật nằm ở memory thì trôi; nằm ở đây thì không» —
+câu đó đã bị chính số đo trên bác bỏ.)*
 
 ## Trước khi mở PR, trước khi merge
 
