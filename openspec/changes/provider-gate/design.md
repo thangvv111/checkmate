@@ -62,6 +62,27 @@ do công cụ báo mất xác thực — là chuyện của capability này.
 Thư viện probe tự chấm neo **14/15**, còn trôi đúng `R9.6` thuộc `data-layer`. Nhóm này không chứa mã nào
 đang trôi, nên **dự đoán: neo KHÔNG đổi, vẫn 14/15**.
 
+### D5 — Ca «thứ tự lấy khoá» chỉ có nghĩa khi kho THẬT SỰ có khoá (phát hiện lúc mutation)
+
+Ca đầu em viết: đặt biến môi trường rồi khẳng định `readKey` trả về nó. Mutation đảo thứ tự (kho trước env)
+**không giết được ca nào** — vì kho trên máy chạy test rỗng, nên cả hai thứ tự đều rơi xuống env và ca vẫn
+xanh. Ca không phân biệt được hai hiện thực khác nhau.
+
+Vá bằng `vi.mock` cho kho khoá: kho có khoá riêng, khác giá trị env. Chạy lại mutation thì nó giết đúng ca.
+
+**Đây là lần thứ NĂM trong ngày cùng một họ lỗi:**
+
+| change | ca xanh trên hệ thống đã hỏng |
+|---|---|
+| `error-message-egress-gate` D1 | ca «prompt có thông điệp lỗi» xanh sau khi bỏ rào |
+| `response-secret-guard` T7.1 | 16 ca xanh mà máy chủ thật không chặn gì |
+| `repo-history` D6 | ca «hồ sơ lọc đúng» xanh sau khi bỏ lọc ở route |
+| `provider-gate` D1 | ca «trường `uoc_tinh` tồn tại» xanh dù giá trị luôn sai |
+| `provider-gate` D5 | ca «env thắng kho» xanh dù thứ tự bị đảo — vì kho rỗng |
+
+Mẫu chung: **ca dựng một hiện thực thì phải dựng đủ để hai hiện thực khác nhau cho hai kết quả khác nhau.**
+Mutation là thứ duy nhất phát hiện được điều đó — không có nó thì cả năm ca trên đều trông như đang gác.
+
 ## Architecture
 
 - Lưới mới cho cổng kiểm, kế toán token, và ba điều mất-xác-thực.
