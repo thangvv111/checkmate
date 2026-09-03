@@ -76,6 +76,39 @@ người sau sẽ đọc thành con số tuỳ ý và chỉnh cho tiện.
 - **tầng 2 đếm bề mặt** — **N/A có lý do**: không dựng gác chạy xuyên suốt.
 - **tầng 3 cặp fixture** — không dựng hàm quét `scan*` mới.
 
+### D5 — 20 đột biến: 19 đỏ, MỘT vế chưa được gác (ghi lúc apply)
+
+`R10.12` (ghi sổ atomic) sống sót. Đọc `ghiMeta` theo bảng ba đường của D1: nó ghi file tạm rồi `renameSync`,
+**không có đường lui nào** — nên đây là loại 3, *vế ấy chưa được ca nào gác*.
+
+Ca hiện có mà tiêu đề nghe rất giống — «meta.json rách: giữ bằng chứng .hong-*, thư viện coi như rỗng» —
+nói về đường **ĐỌC** file hỏng, không nói gì về đường **GHI**. Hai chuyện khác nhau, và chỉ đọc tiêu đề thì
+không phân biệt được.
+
+**Ca mới là ca ĐỌC SOURCE, và đó là vế duy nhất trong 20 điều không khoá được bằng hành vi.** Lý do: chứng
+minh atomic thật đòi giết tiến trình giữa hai lời gọi hệ thống — không lưới nào làm được trong một lượt
+`npm test`. Ca vẫn load-bearing (bỏ `renameSync` thì đỏ), nhưng cái mất phải khai: nó khoá **hình dạng** của
+đường ghi, không khoá tính nguyên tử lúc bị kill.
+
+*Vì sao vế này đáng giữ dù chỉ khoá được gián tiếp:* `writeFileSync` trơ bị cắt giữa chừng để lại `meta.json`
+cụt, và vì đường đọc coi file rách như thư viện **rỗng**, một lần rách đủ xoá sổ toàn bộ tài sản tích luỹ.
+Không lỗi nào được ném — chỉ mất hết.
+
+### D6 — Mutation dài phải chạy NỀN, và `git diff` là cổng bắt buộc trước commit
+
+Lượt chạy đầu bị timeout ở phút thứ 10 và bị giết **khi đang giữ đột biến**: `probe-library.ts` ở lại trạng
+thái đã sửa. `finally` trong script chỉ khôi phục khi tiến trình python còn sống; một tín hiệu giết từ ngoài
+thì không có gì chạy.
+
+Phát hiện được vì `git diff --stat packages/` chạy ngay sau đó. Nếu lượt ấy kết thúc bằng commit thay vì
+bằng một phép kiểm, **một đột biến đã vào PR** — và nó là loại thay đổi trông hoàn toàn hợp lệ khi đọc diff
+nhanh (`if (false)`, `giuKhoa = false`), không có lưới nào đỏ vì lưới đã chạy xong trước đó.
+
+Hai điều thành nếp từ đây:
+- lượt mutation quá vài phút thì **chạy nền**, ghi log ra file — không để timeout cắt giữa chừng;
+- `git diff --stat packages/` là **cổng trước mọi commit** của lượt có mutation, không phải một thói quen
+  nhớ ra thì làm.
+
 ## Architecture
 
 - Chỉ artifact + bảng tra. Không file mới trong `test/` trừ khi D1 đòi.

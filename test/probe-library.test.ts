@@ -234,6 +234,29 @@ describe('R10.14 — trần thư viện đọc từ env chỉ nhận số nguyê
   });
 });
 
+describe('R10.12 — ghi sổ thư viện phải ATOMIC', () => {
+  it('ghi ra file tạm rồi ĐỔI TÊN, không ghi đè trực tiếp vào sổ', () => {
+    // Ca sinh ra từ đột biến ở change `close-probe-library-spec`: đổi `ghiMeta` thành ghi thẳng vào đích
+    // mà KHÔNG ca nào đỏ. Đọc code thì thấy không có đường lui nào — tức vế atomic chưa từng được gác.
+    //
+    // `writeFileSync` trơ mà bị kill hoặc mất điện giữa chừng để lại `meta.json` CỤT. Và vì đường đọc coi
+    // file rách như thư viện rỗng, một lần rách đủ xoá sổ toàn bộ tài sản tích luỹ — không lỗi nào được
+    // ném, chỉ mất hết.
+    //
+    // Cái mất, nói thẳng: ca này ĐỌC SOURCE. Chứng minh atomic thật đòi giết tiến trình giữa hai lời gọi
+    // hệ thống — không lưới nào làm được trong một lượt `npm test`. Đây là vế DUY NHẤT trong 20 điều của
+    // change ấy không khoá được bằng hành vi, và ca đọc source vẫn load-bearing: bỏ `renameSync` thì đỏ.
+    const src = readFileSync('packages/harness/src/probe-library.ts', 'utf8');
+    const i = src.indexOf('function ghiMeta(');
+    expect(i, 'phải có đường ghi sổ').toBeGreaterThan(0);
+    const khoi = src.slice(i, i + 700);
+    expect(khoi, 'phải dựng đường dẫn file tạm').toMatch(/const tam = /);
+    expect(khoi, 'ghi vào file TẠM').toMatch(/writeFileSync\(tam,/);
+    expect(khoi, 'rồi đổi tên đè lên đích').toMatch(/renameSync\(tam, dich\)/);
+    expect(khoi, 'KHÔNG được ghi thẳng vào sổ').not.toMatch(/writeFileSync\(dich,/);
+  });
+});
+
 describe('R10.15 — đọc ngoài khoá phải chịu được file bị lượt song song dọn', () => {
   it('sổ có mục mà file đã mất → bỏ qua mục ấy, các probe còn lại về ĐỦ, không ném', () => {
     // Đọc diễn ra ngoài khoá (R10.11), nên giữa lúc đọc sổ và lúc đọc file, một lượt song song có thể đã
