@@ -15,7 +15,7 @@ repo có hàng, hàng `pending` trỏ change có thật trong bảng chia, hàng
 
 Bảng chia change backfill (PO chốt 02/09): `merge-gate` · `verdict-contract` · `identity-session` · `probe-classification` · `data-layer` · `probe-library` · `target-contract` · `repo-history` · `provider-gate` · `model-reply-parsing` · `diff-visibility` · `concurrent-runs`.
 
-Đếm: pending 46 · precedent 16 · housed 189 · invariant 6 · obsolete 5 — tổng 262 hàng.
+Đếm: pending 43 · precedent 16 · housed 192 · invariant 6 · obsolete 5 — tổng 262 hàng.
 
 ## Ba đích của backfill (PO chốt 02/09 — change `product-independent-of-openspec`)
 
@@ -64,7 +64,7 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R2 | Hợp đồng với repo đích: `checkmate.yml` | pending | target-contract | test/dedup-probe.test.ts |
 | R2.1 | Không có `checkmate.yml` thì `docRunnerCfg` PHẢI trả `null` để luồng rơi về đường vitest | pending | target-contract | test/spec-units.test.ts |
 | R2.2 | Khai `runner` mà thiếu `test_cmd` thì coi như không khai runner (trả `null`) | pending | target-contract | test/spec-units.test.ts |
-| R2.3 | `test_cmd` là template chứa hai placeholder (chỗ thay) | pending | target-contract | — |
+| R2.3 | `test_cmd` là template chứa hai placeholder (chỗ thay) | housed | target-contract › `test_cmd` là template hai chỗ thay, và đường dẫn thay vào phải chịu được khoảng trắng | test/target-contract.test.ts |
 | R2.4 | Các trường còn lại (`framework`, `probe_dir`, `probe_ext`, `timeout_s`) có mặc định | pending | target-contract | — |
 | R2.5 | `timeout_s` PHẢI bị kẹp vào dải `[30, 1800]` giây | pending | target-contract | — |
 | R2.6 | Hợp đồng kết quả là JUnit XML, bất kể repo chạy bằng vitest, pytest hay surefire. | pending | target-contract | — |
@@ -78,8 +78,8 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R2.14 | Việc nối id PHẢI kiểm ranh giới | pending | target-contract | test/dedup-probe.test.ts |
 | R2.14 | nối id probe phải kiểm ranh giới: `P1` nuốt kết quả của `P10` khi lượt chấm có từ 10 probe | precedent | pending: target-contract (đoạn «Vì sao») · ứng viên kho khuôn (đích b) | docs/archive/r-rules/R2-hop-dong-repo-dich.md |
 | R2.15 | File probe không nạp được (lỗi import, lỗi cú pháp) vẫn cho ra JUnit XML hợp lệ, nhưng | pending | target-contract | test/loi-nap-file.test.ts |
-| R2.16 | Khi không ghi nhận được probe nào, thông điệp lỗi PHẢI kèm nguyên nhân mà bộ chạy test đã | pending | target-contract | — |
-| R2.17 | Đường dẫn tới repo đích PHẢI được đưa về tuyệt đối trước khi dùng làm đích của symlink hay | pending | target-contract | — |
+| R2.16 | Khi không ghi nhận được probe nào, thông điệp lỗi PHẢI kèm nguyên nhân mà bộ chạy test đã | housed | target-contract › Không ghi nhận được probe nào thì thông điệp lỗi phải mang nguyên nhân bộ chạy đã báo | test/target-contract.test.ts |
+| R2.17 | Đường dẫn tới repo đích PHẢI được đưa về tuyệt đối trước khi dùng làm đích của symlink hay | housed | target-contract › Đích của symlink node_modules phải là đường dẫn TUYỆT ĐỐI | test/target-contract.test.ts |
 | R3 | Bóc trả lời model và rào chống prompt injection | housed | model-reply-parsing › Bóc JSON khỏi trả lời model, và khi không có JSON thì nói ra model đã nói gì | test/boc-model.test.ts |
 | R3.1 | PHẢI bóc được JSON nằm trong code fence (khối mã) có tag `json`, và cả JSON trần không fence. | housed | model-reply-parsing › Bóc JSON khỏi trả lời model, và khi không có JSON thì nói ra model đã nói gì | — |
 | R3.2 | Không tìm thấy JSON thì lỗi ném ra PHẢI kèm trích đoạn trả lời của model, để người đọc log | housed | model-reply-parsing › Bóc JSON khỏi trả lời model, và khi không có JSON thì nói ra model đã nói gì | — |

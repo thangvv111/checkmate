@@ -44,12 +44,15 @@
 
 ## 6. Bảng tra
 
-- [ ] 6.1 **3 hàng** (`R2.3` · `R2.16` · `R2.17`) → `housed` trỏ `target-contract › <tiêu đề>`.
-      **15 hàng còn `pending`** — có ca nhưng chưa có requirement. **Làm ở commit ARCHIVE.**
-- [ ] 6.2 Đo neo thư viện probe — **dự đoán TRƯỚC: vẫn 15/15, change này không thêm mã nào vào thư viện.**
+- [x] 6.1 **3 hàng** (`R2.3` · `R2.16` · `R2.17`) → `housed` trỏ `target-contract › <tiêu đề>`.
+      **15 hàng còn `pending`** — có ca nhưng chưa có requirement. Làm ở commit archive.
+      Đếm bảng: pending 46 -> **43** · housed 189 -> **192**. Lưới `r-rules-map` xanh 6/6.
+- [x] 6.2 Đo neo thư viện probe. **Dự đoán TRƯỚC «vẫn 15/15» — đo được đúng 15/15.**
 
 ## § Sau-merge — nợ có tên
 
-- [ ] N1 Khai requirement cho **15 điều còn `pending`** của capability này để đóng hẳn `target-contract`.
+- [x] N1 PO chốt 04/09: **gộp với N1 của `diff-visibility`** thành một change riêng. Nợ này chuyển sang
+      change ấy, không còn mở ở đây.
+      *(nguyên văn)* Khai requirement cho **15 điều còn `pending`** của capability này để đóng hẳn `target-contract`.
       **KHÔNG thuộc change này** — cùng loại nợ với N1 của `diff-visibility`; trình PO gộp hai cái làm một
       change «đóng nốt hai capability» hay để riêng.
