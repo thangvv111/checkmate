@@ -30,7 +30,11 @@
       BIẾN, lời không đổi một chữ: `${ungVienTatCa.length}`→`${coCoSo.soProbe}` (cùng giá trị) và
       `${sev}`→`${sevModel}` (cùng giá trị — mức model đã chuẩn hoá trước khi ép).
 - [x] 4.3 `npx openspec validate --changes` xanh.
-- [ ] 4.4 Đo lại neo thư viện tự chấm sau archive (kỳ vọng tăng: mã R6.x/R1.x của requirement mới).
+- [x] 4.4 Đo lại neo thư viện sau archive — ĐO 03/09: nguồn 10 file · 60 đơn vị; thư viện 25 vế, neo được
+      3 (R6.15, R6.19), KHÔNG TĂNG. Kỳ vọng «tăng» của task này SAI: 22 vế mất neo trỏ R1.2 · R1.4–R1.7 ·
+      R1.17 · R1.18 · R1.20 · R3.15 · R4.18 · R4.27 · R9.6 · R9.14 — không vế nào trỏ R6.1–R6.5, R6.13,
+      R6.14, R1.12, R1.13. Neo chỉ tăng khi backfill chạm đúng mã thư viện đang dùng (probe-classification
+      sẽ trả R1.2/R1.4–R1.7/R1.17/R1.18/R1.20 — 9 vế).
 
 ## 5. Bảng tra (ở commit archive)
 
