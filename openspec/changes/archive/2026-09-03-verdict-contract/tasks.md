@@ -34,5 +34,5 @@
 
 ## 5. Bảng tra (ở commit archive)
 
-- [ ] 5.1 `docs/r-rules-map.md`: R6.1–R6.5 · R6.13 · R6.14 · R1.12 · R1.13 `pending` → `housed` với địa chỉ
+- [x] 5.1 `docs/r-rules-map.md`: R6.1–R6.5 · R6.13 · R6.14 · R1.12 · R1.13 `pending` → `housed` với địa chỉ
       `verdict-contract › <tiêu đề>`; hàng `precedent` R6.13 trỏ đoạn «Vì sao» của requirement tương ứng.

@@ -15,7 +15,7 @@ repo có hàng, hàng `pending` trỏ change có thật trong bảng chia, hàng
 
 Bảng chia change backfill (PO chốt 02/09): `merge-gate` · `verdict-contract` · `identity-session` · `probe-classification` · `data-layer` · `probe-library` · `target-contract` · `repo-history` · `provider-gate` · `model-reply-parsing` · `diff-visibility` · `concurrent-runs`.
 
-Đếm: pending 197 · precedent 16 · housed 39 · invariant 6 · obsolete 4 — tổng 262 hàng.
+Đếm: pending 188 · precedent 16 · housed 48 · invariant 6 · obsolete 4 — tổng 262 hàng.
 
 ## Ba đích của backfill (PO chốt 02/09 — change `product-independent-of-openspec`)
 
@@ -49,8 +49,8 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R1.9 | Vân tay THÔ gột mọi chữ số, chuỗi hex dài và khoảng trắng thừa | pending | probe-classification | — |
 | R1.10 | Vân tay CHẶT giữ lại chữ số ngắn (status code, số đếm) nhưng vẫn gột thời lượng `ms`, | pending | probe-classification | — |
 | R1.11 | Chỉ khi vân tay thô trùng và vân tay chặt cũng trùng mới được kết luận `ngoai_pham_vi`. | pending | probe-classification | — |
-| R1.12 | Có ít nhất một probe `hoi_quy` thì verdict PHẢI là `FAIL`. | pending | verdict-contract | — |
-| R1.13 | Probe `nghi_van` không tự nó làm nên `FAIL`, nhưng PHẢI được nêu trong verdict để người | pending | verdict-contract | — |
+| R1.12 | Có ít nhất một probe `hoi_quy` thì verdict PHẢI là `FAIL`. | housed | verdict-contract › Hồi quy máy-xác-nhận có sàn cứng high, model không hạ được | test/verdict-contract.test.ts |
+| R1.13 | Probe `nghi_van` không tự nó làm nên `FAIL`, nhưng PHẢI được nêu trong verdict để người | housed | verdict-contract › Verdict nhị phân, ghim commit, kèm thống kê probe đầy đủ | test/verdict-contract.test.ts |
 | R1.14 | Pull request thêm module mới thì nhánh gốc chưa có file đó, nên nhánh gốc không chạy | pending | probe-classification | test/quan-sat-ngoai-pham-vi.test.ts |
 | R1.15 | Trong ca đó, lượt sinh lại probe PHẢI được cho biết rằng nhánh gốc không có đối chứng, và | pending | probe-classification | — |
 | R1.16 | Hệ quả cần hiểu đúng: với pull request thêm tính năng mới, con đường DUY NHẤT để lượt chấm | pending | probe-classification | test/phan-loai.test.ts |
@@ -151,11 +151,11 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R5.20 | Giá trị NGOÀI danh mục — model, và MỌI trường gõ tay được, gồm cả `phuong_thuc` — không | invariant | CLAUDE.md ⛔C3 | test/ba-muc-tu-dong.test.ts |
 | R5.20 | vòng 8: che-của-che không bao giờ khớp sổ kiểm; vòng 11: băm `phuong_thuc` giấu nguyên nhân trong lỗi | precedent | pending: provider-gate (đoạn «Vì sao») | docs/archive/r-rules/R5-cong-nha-cung-cap.md |
 | R6 | Verdict và cổng merge | housed | merge-gate › Merge chỉ khi verdict PASS còn hiệu lực trên pull request đang mở | test/dinh-tuyen-skill.test.ts |
-| R6.1 | Kết quả chỉ có hai giá trị: `PASS` hoặc `FAIL`. Không có trạng thái thứ ba kiểu "PASS có | pending | verdict-contract | — |
-| R6.2 | Verdict PHẢI ghim `artifact_ref.sha_or_hash` | pending | verdict-contract | — |
-| R6.3 | Có finding mức `high` thì kết quả PHẢI là `FAIL`. | pending | verdict-contract | — |
-| R6.4 | Verdict PHẢI kèm `probe_stats` (thống kê probe) để người đọc biết `PASS` nói trên cơ sở nào: | pending | verdict-contract | — |
-| R6.5 | Số probe lên kế hoạch và số thực chạy phải được nêu tách bạch | pending | verdict-contract | — |
+| R6.1 | Kết quả chỉ có hai giá trị: `PASS` hoặc `FAIL`. Không có trạng thái thứ ba kiểu "PASS có | housed | verdict-contract › Verdict nhị phân, ghim commit, kèm thống kê probe đầy đủ | test/verdict-contract.test.ts |
+| R6.2 | Verdict PHẢI ghim `artifact_ref.sha_or_hash` | housed | verdict-contract › Verdict nhị phân, ghim commit, kèm thống kê probe đầy đủ | test/verdict-contract.test.ts |
+| R6.3 | Có finding mức `high` thì kết quả PHẢI là `FAIL`. | housed | verdict-contract › Verdict nhị phân, ghim commit, kèm thống kê probe đầy đủ | test/verdict-contract.test.ts |
+| R6.4 | Verdict PHẢI kèm `probe_stats` (thống kê probe) để người đọc biết `PASS` nói trên cơ sở nào: | housed | verdict-contract › Verdict nhị phân, ghim commit, kèm thống kê probe đầy đủ | test/verdict-contract.test.ts |
+| R6.5 | Số probe lên kế hoạch và số thực chạy phải được nêu tách bạch | housed | verdict-contract › Verdict nhị phân, ghim commit, kèm thống kê probe đầy đủ | test/verdict-contract.test.ts |
 | R6.6 | Verdict `FAIL`, hoặc còn finding `high`, thì nút merge PHẢI khoá | housed | merge-gate › Merge chỉ khi verdict PASS còn hiệu lực trên pull request đang mở | test/merge-gate.test.ts |
 | R6.7 | Finding mức `medium` chỉ được bỏ qua khi người dùng tick xác nhận từng cái | housed | merge-gate › Cảnh báo medium phải được xác nhận từng cái, máy chủ đối chiếu tập id | test/merge-gate.test.ts |
 | R6.8 | Trước khi merge PHẢI hỏi lại GitHub trạng thái PR hiện tại | housed | merge-gate › Merge chỉ khi verdict PASS còn hiệu lực trên pull request đang mở | test/merge-gate.test.ts |
@@ -164,9 +164,9 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R6.11 | Mọi hành động qua cổng (merge / trả về dev) PHẢI ghi vào sổ cái kèm người thực hiện, thời | housed | merge-gate › Hành động cổng vào sổ chỉ-ghi-thêm với danh tính phiên và danh sách cảnh báo đã chấp nhận | test/merge-gate.test.ts |
 | R6.12 | Chế độ demo KHÔNG ĐƯỢC cho thao tác cổng merge và KHÔNG ĐƯỢC cho sửa cấu hình. | housed | merge-gate › Chế độ chỉ-đọc không cho thao tác cổng và không cho sửa cấu hình | test/di-tru-bo-cot-cong.test.ts |
 | R6.12 | phạm vi: cấm THAO TÁC cổng, không cấm di trú dữ liệu lúc khởi động (PO 01/09, M16) | precedent | merge-gate › Chế độ chỉ-đọc không cho thao tác cổng và không cho sửa cấu hình (đoạn «Vì sao») | test/merge-gate.test.ts |
-| R6.13 | Lượt chấm PHẢI có ít nhất một probe ở trạng thái `pass`, `hoi_quy` hoặc `cai_thien` thì mới | pending | verdict-contract | packages/harness/src/skill-code.ts |
-| R6.13 | `ngoai_pham_vi` là trạng thái hút: cả bộ probe import sai module → PASS trên lượt không có phép thử nào chạy | precedent | pending: verdict-contract (đoạn «Vì sao») · ứng viên kho khuôn (đích b) | docs/archive/r-rules/R6-verdict-va-cong-merge.md |
-| R6.14 | Trước khi bỏ cuộc, lượt chấm PHẢI sinh lại file probe một lần, và lượt sinh lại PHẢI được | pending | verdict-contract | — |
+| R6.13 | Lượt chấm PHẢI có ít nhất một probe ở trạng thái `pass`, `hoi_quy` hoặc `cai_thien` thì mới | housed | verdict-contract › PASS phải có bằng chứng — không probe nào chứng minh được gì thì KHÔNG ra verdict | packages/harness/src/skill-code.ts |
+| R6.13 | `ngoai_pham_vi` là trạng thái hút: cả bộ probe import sai module → PASS trên lượt không có phép thử nào chạy | precedent | verdict-contract › PASS phải có bằng chứng — không probe nào chứng minh được gì thì KHÔNG ra verdict (đoạn «Vì sao») | test/verdict-contract.test.ts |
+| R6.14 | Trước khi bỏ cuộc, lượt chấm PHẢI sinh lại file probe một lần, và lượt sinh lại PHẢI được | housed | verdict-contract › Trước khi bỏ cuộc phải sinh lại probe một lần, kèm nguyên nhân thật | test/verdict-contract.test.ts |
 | R6.15 | Ba việc tự động ở cổng PHẢI là ba công tắc RIÊNG, không được gộp thành một, vì mức độ gây | housed | merge-gate › Tự động ở cổng: ba công tắc riêng, máy chỉ được nói KHÔNG | test/ba-muc-tu-dong.test.ts |
 | R6.16 | Đăng verdict tự động KHÔNG ĐƯỢC giới hạn ở chế độ trực | housed | merge-gate › Tự động ở cổng: ba công tắc riêng, máy chỉ được nói KHÔNG | apps/web/src/config.ts |
 | R6.17 | Tự động trả về dev CHỈ được chạy khi verdict là `FAIL` và có ít nhất một finding mức | housed | merge-gate › Tự động ở cổng: ba công tắc riêng, máy chỉ được nói KHÔNG | apps/web/src/config.ts |
