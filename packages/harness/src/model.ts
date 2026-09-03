@@ -136,7 +136,9 @@ export class ClaudeCliProvider implements ModelProvider {
 
   private goiMotLan(prompt: string): Promise<string> {
     return new Promise((resolve, reject) => {
-      // --tools "": tắt toàn bộ tool — call là pure completion, model không tự đi đọc file
+      // --disallowed-tools "<TOOL_CAM>": liệt kê TƯỜNG MINH các tool bị cấm — xem lý do ở chỗ khai
+      // `TOOL_CAM` phía trên. KHÔNG có cờ nào tắt-hết-tool bằng chuỗi rỗng; câu này trước đây ghi
+      // «--tools "": tắt toàn bộ tool» và nói sai đúng cái điều đã tốn một vòng chấm thật để phát hiện.
       // cwd = temp: kể cả có tool cũng không có gì để đọc; --no-session-persistence: không tích session rác
       // Provider 'cli' nghĩa là DÙNG GÓI THUÊ BAO. Nếu để ANTHROPIC_API_KEY trong môi trường,
       // Claude Code sẽ lặng lẽ dùng key đó và tính tiền API — người vận hành tưởng đang tiêu gói
