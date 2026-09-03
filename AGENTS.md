@@ -111,6 +111,46 @@ nhất giữa hai luật là cái lưới. Một luật không có lưới thì 
 mà người ta tin là luật. *(Bản trước của mục này viết «luật nằm ở memory thì trôi; nằm ở đây thì không» —
 câu đó đã bị chính số đo trên bác bỏ.)*
 
+## Lưới — luật về cách viết lưới (PO chốt 03/09)
+
+Repo này đứng trên mệnh đề **«một luật không có lưới thì không phải luật đang thi hành»**. Vế còn lại,
+đo được trong MỘT ngày với sáu ca: **lưới cũng sai được, và khi sai thì nó vẫn trông như đang gác.**
+
+| loại | lưới sai kiểu gì | thứ bắt được nó | án lệ |
+|---|---|---|---|
+| 1 | ca XANH trên hệ thống ĐÃ HỎNG | mutation | 4 ca: `error-message-egress-gate` · `repo-history` · `provider-gate` ×2 |
+| 2 | bề mặt CHƯA AI VIẾT CA | chạy thật | `response-secret-guard`: 16 ca xanh, máy chủ thật không chặn gì |
+| 3 | ca ĐỎ trên hệ thống ĐANG ĐÚNG | đọc code | `data-layer`: lưới báo 6 vi phạm, không cái nào thật |
+
+**Tầng 1 — mutation là bắt buộc, không phải thói quen.** Mỗi ca khoá một *gác* (điều kiện từ chối, phép
+kiểm, lớp bọc) phải có một đột biến gỡ đúng gác ấy làm ca ĐỎ. Đột biến **chạy HAI lần**, kết quả phải nhất
+quán — một lần chạy ở `error-message-egress-gate` báo «1 failed» hoá ra flaky. Và phải **kiểm chứng đột
+biến đã áp dụng** trước khi đọc kết quả: `sed` sửa file thất bại cho ra «không ca nào đỏ», trông y hệt «ca
+không load-bearing».
+
+**Tầng 2 — gác chạy xuyên suốt phải ĐẾM bề mặt bằng máy**, không liệt kê bằng trí nhớ. Ghi lệnh đếm và con
+số vào `design.md` **trước** khi viết ca:
+
+```bash
+grep -c "res.json("  apps/web/src/server.ts   # 19
+grep -c "res.send("  apps/web/src/server.ts   # 10  <- bo sot lan dau
+grep -c "res.write(" apps/web/src/server.ts   # 3
+```
+
+Và tài liệu ca test có mục **«chạy thật một lượt»** — mục ấy **không được tick trước khi chạy**. Ca test chỉ
+kiểm bề mặt người viết *nghĩ ra*; máy chủ thật kiểm mọi bề mặt nó có.
+
+**Tầng 3 — lưới quét source phải có CẶP fixture:** cái sai ĐỎ **và** cái đúng XANH. Đây là tầng duy nhất
+cưỡng chế được bằng máy — `test/test-grid-integrity.test.ts`.
+
+⛔ **Ba tầng này KHÔNG đủ, và điều đó là một phần của luật.** Còn loại thứ tư — **lưới đúng nhưng luật
+sai** — không cơ chế nào bắt được; nó chỉ lộ ra khi có người ĐỌC. Khai ra không phải rào đón: một hệ thống
+kiểm tra tự tuyên bố đã kín sẽ làm người ta thôi đọc, và thôi đọc là đúng chỗ loại thứ tư sống.
+
+*Vì sao chỉ tầng 3 có lưới:* máy không biết ca nào «khoá một gác» hay change nào «dựng gác xuyên suốt» —
+phân biệt ấy là ngữ nghĩa, và một lưới đoán ngữ nghĩa sẽ sai theo cả hai chiều, tức đúng thứ ba tầng này
+sinh ra để chống. Hồ sơ: `openspec/specs/test-grid-integrity/`.
+
 ## Trước khi mở PR, trước khi merge
 
 ```bash
