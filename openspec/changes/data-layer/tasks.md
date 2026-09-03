@@ -2,39 +2,42 @@
 
 ## 1. Luật (capability)
 
-- [ ] 1.1 Delta ADDED `specs/data-layer/spec.md` (6 requirement) — đã viết.
-- [ ] 1.2 Đối chiếu từng requirement với ca đang xanh ở `kho-run` · `kho-socai` · `di-tru` ·
+- [x] 1.1 Delta ADDED `specs/data-layer/spec.md` (6 requirement) — đã viết.
+- [x] 1.2 Đối chiếu từng requirement với ca đang xanh ở `kho-run` · `kho-socai` · `di-tru` ·
       `di-tru-bo-cot-cong` · `doc-du-lieu-cu` · `goc-du-lieu-chung`. **ĐỌC, không đếm mã trích.**
 
 ## 2. Lưới quét source cho ba luật kiến trúc (D2)
 
-- [ ] 2.1 Lưới `R9.1`/`R9.2`: ngoài lớp kho, KHÔNG file nào gọi SQL trực tiếp. Danh sách CHO PHÉP vị trí
+- [x] 2.1 Lưới `R9.1`/`R9.2`: ngoài lớp kho, KHÔNG file nào gọi SQL trực tiếp. Danh sách CHO PHÉP vị trí
       **kèm LOẠI lý do** (file tạm · metadata build · file-là-nguồn · cấu hình/kho khoá theo `R9.13`).
-- [ ] 2.2 Lưới `R9.16`: route `/api/*` không dựng HTML.
-- [ ] 2.3 Thông điệp lưới nêu **file và lý do thiếu** — người đọc sửa được ngay.
+- [x] 2.2 Lưới `R9.16`: route `/api/*` **ĐỌC** không dựng HTML — chỉ quét `GET`, và cắt khối tới route kế
+      tiếp thay vì cắt cứng (D6: bản đầu báo 5 vi phạm mà thực tế không có cái nào).
+- [x] 2.3 Thông điệp lưới nêu **file và lý do thiếu** — người đọc sửa được ngay.
 
 ## 3. Test — những điều chưa khoá
 
-- [ ] 3.1 `R9.3` — mở cơ sở dữ liệu bật khoá ngoại và chế độ nhật ký (ca đọc schema, D4).
-- [ ] 3.2 `R9.11` — cột dùng để lọc/sắp xếp có index (ca đọc schema).
-- [ ] 3.3 **«File là nguồn, bảng là bản đọc»** — bảng trống mà đĩa có → đọc đĩa và dựng lại bảng; đường
+- [x] 3.1 `R9.3` — mở cơ sở dữ liệu bật khoá ngoại và chế độ nhật ký (ca đọc schema, D4).
+- [x] 3.2 `R9.11` — cột dùng để lọc/sắp xếp có index (ca đọc schema).
+- [x] 3.3 **«File là nguồn, bảng là bản đọc»** — bảng trống mà đĩa có → đọc đĩa và dựng lại bảng; đường
       dựng lại là MỘT CHIỀU.
-- [ ] 3.4 `R9.13` — sửa cấu hình bằng tay có hiệu lực ở lượt đọc kế tiếp (⛔C6).
-- [ ] 3.5 Đối chiếu: `R9.4b` (`PRAGMA recursive_triggers` theo kết nối) đã có ca chưa — nếu chưa thì thêm.
+- [x] 3.4 `R9.13` — đối chiếu task 1.2: đã có ca ở `goc-du-lieu-chung.test.ts`; không thêm ca trùng.
+- [x] 3.5 `R9.4b` — có ca «INSERT OR REPLACE bị TỪ CHỐI» ở `kho-socai.test.ts`; thêm ca khoá `PRAGMA
+      recursive_triggers` có mặt trong schema.
 
 ## 4. Mutation — mỗi chiều chạy HAI lần
 
-- [ ] 4.1 Thêm một file ngoài lớp kho gọi SQL → lưới 2.1 ĐỎ (fixture đối kháng).
-- [ ] 4.2 Bỏ nhánh «bảng trống thì đọc đĩa» → ca 3.3 ĐỎ.
-- [ ] 4.3 Bỏ index khỏi schema → ca 3.2 ĐỎ.
-- [ ] 4.4 Bỏ `PRAGMA foreign_keys` → ca 3.1 ĐỎ.
+- [x] 4.1 Fixture đối kháng nằm sẵn trong lưới (ca «file giả ngoài lớp kho chạy SQL» → ĐỎ).
+- [x] 4.2 Bỏ nhánh «bảng trống thì đọc đĩa» → ĐỎ đúng ca 3.3.
+- [x] 4.3 Bỏ index `ix_run_repo_bat_dau` → ĐỎ đúng ca 3.2.
+- [x] 4.4 Bỏ `PRAGMA foreign_keys` → ĐỎ đúng ca 3.1. **Ba đột biến, mỗi cái chạy hai lần, nhất quán.**
 
 ## 5. Kiểm cơ học
 
-- [ ] 5.1 `npx tsc --noEmit` sạch · `npm test` xanh TOÀN BỘ — dự đoán chỉ nêu vế **«không ca cũ nào đỏ»**.
-- [ ] 5.2 `npx openspec validate --changes` xanh.
-- [ ] 5.3 Lưới 2.1 phải bắt được thứ đã biết TRƯỚC khi tin nó — fixture một file giả gọi SQL → ĐỎ.
-      *Ca load-bearing: phép quét trả rỗng trông giống hệt «repo sạch» và «phép quét hỏng».*
+- [x] 5.1 `npx tsc --noEmit` sạch · `npm test` **54 file / 879 ca xanh** (869 + 10 ca mới). Vế «không ca
+      cũ nào đỏ» — ĐÚNG.
+- [x] 5.2 `npx openspec validate --changes` xanh.
+- [x] 5.3 Lưới 2.1 bắt được fixture đối kháng. **Và lưới bản đầu bắt NHẦM sáu chỗ đúng** — xem D6: đó là
+      mặt ngược của cùng vấn đề, lưới đo sai thứ nó tưởng đang đo.
 
 ## 6. Bảng tra (ở commit archive)
 

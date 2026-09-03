@@ -73,6 +73,27 @@ Thư viện probe tự chấm neo **14/15**, còn trôi đúng `R9.6`. Nó thu�
 `kho-socai.test.ts`. **Dự đoán: neo lên 15/15 — không còn mã nào trôi.** Đây là mốc đóng của cả chuỗi
 backfill về mặt neo.
 
+### D6 — Phép quét của em sai hai lần, và code thì đúng (ghi lúc apply)
+
+Lưới `R9.1`/`R9.16` bản đầu báo **sáu vi phạm**. Đọc kỹ thì **không cái nào là vi phạm**, và cả sáu đều do
+phép quét viết ẩu:
+
+| lưới báo | thực tế |
+|---|---|
+| `identity.ts` chạy SQL ngoài lớp kho | nó **là** cửa duy nhất của dữ liệu danh tính — vai lớp kho, chỉ nằm ngoài `store/` vì mang cả phép kiểm quyền |
+| 5 route `/api/*` dựng HTML | `R9.16` nói về route **ĐỌC**; bốn cái bị bắt là POST hoặc bị cắt khối dính sang route kế tiếp |
+
+Hai lỗi của phép quét: (a) quét cả `POST` trong khi luật nói «chỉ **đọc**» — route hành động là cửa dùng
+chung cho form HTML lẫn client JS, và `POST /api/runs` có hẳn cờ `muonJson` để phân biệt; (b) cắt khối cứng
+1500 ký tự nên dính sang route sau.
+
+Ghi lại vì nó là mặt ngược của bài học năm lần trước: ở đó **ca xanh trên hệ thống đã hỏng**; ở đây **ca đỏ
+trên hệ thống đang đúng**. Cả hai đều là lưới đo sai thứ nó tưởng đang đo, và cả hai đều chỉ lộ ra khi đối
+chiếu với code thật thay vì tin vào con số lưới trả về.
+
+`identity.ts` được khai thành **loại ngoại lệ riêng** (`cua-du-lieu-danh-tinh`) chứ không lặng lẽ cho qua:
+người đọc phải thấy đây là ngoại lệ có lý do, không phải một chỗ ai đó quên dọn.
+
 ## Architecture
 
 - Lưới mới: quét source cho ba luật kiến trúc + ca cho «file là nguồn».
