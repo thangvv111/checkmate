@@ -409,13 +409,22 @@ export function classifyPr(
   return { loai: 'doc', lyDo, fileDocUngVien: md, khongDoc };
 }
 
+/**
+ * Tên ref tạm của một lượt chấm — RIÊNG theo pull request, cả ref nhánh PR lẫn ref nhánh gốc.
+ *
+ * Dùng chung một tên ref cho nhánh gốc thì lượt sau force-update ref đó, và lượt trước có thể đối chứng
+ * nhầm sang commit mới hơn commit nó định so. Verdict vẫn ra, nhưng ra TRÊN ĐỐI CHỨNG SAI — không dấu
+ * hiệu nào cho người đọc. Đó là loại hỏng im lặng nguy hiểm nhất của việc chạy song song, nên tên ref
+ * dựng ở MỘT chỗ và có test, không nối chuỗi tại chỗ dùng.
+ */
+export function refNames(so: number): { headRef: string; baseRef: string } {
+  return { headRef: `refs/checkmate/pr${so}`, baseRef: `refs/checkmate/base-pr${so}` };
+}
+
 // Fetch PR + nhánh đích về ref local rồi ROUTER theo loại file đã đổi (specs/R13).
 export function fetchAndRoute(cfg: CheckmateConfig, so: number): FetchedPr {
   const lp = cfg.repo.local_path;
-  const headRef = `refs/checkmate/pr${so}`;
-  // Ref riêng theo PR: hai lượt song song cùng dùng chung một ref base thì lượt sau force-update ref
-  // đó, và lượt trước có thể đối chứng nhầm sang commit base mới hơn commit nó định so.
-  const baseRef = `refs/checkmate/base-pr${so}`;
+  const { headRef, baseRef } = refNames(so);
   git(lp, ['fetch', '-f', nguonFetch(cfg.repo.github), `+refs/pull/${so}/head:${headRef}`, `+refs/heads/${cfg.repo.base_branch}:${baseRef}`]);
   const headSha = git(lp, ['rev-parse', headRef]);
   const filesDoi = git(lp, ['diff', '--name-only', `${baseRef}...${headRef}`]).split('\n').filter(Boolean);

@@ -381,3 +381,39 @@ export class RunManager {
     kho.saveEvents(state.meta.id, state.events);
   }
 }
+
+/**
+ * Trần lượt chấm chạy đồng thời.
+ *
+ * Vì sao có trần: mỗi lượt tốn một worktree trên đĩa, một lượt chạy bộ test THẬT, và các lời gọi model.
+ * Nâng trần là một quyết định về TÀI NGUYÊN MÁY CHỦ, không phải tinh chỉnh giao diện — nên nó là hằng có
+ * tên ở đây, không phải một ô nhập trong cấu hình (nợ có tên: cửa khai kèm giới hạn và cảnh báo).
+ */
+export const TRAN_SONG_SONG = 2;
+
+/**
+ * Có được khởi động một lượt chấm mới không — hàm THUẦN, dùng chung cho đường bấm tay và chế độ trực.
+ *
+ * Trước đây hai đường viết lại điều kiện bằng hai biểu thức riêng (`runningCount() >= 2` ở ba chỗ,
+ * `isPrRunning` ở hai chỗ), nên không ca test nào gọi được tới quyết định, và hai cửa cùng vai có thể lệch
+ * nhau — khuôn «cửa song sinh» đã bị bắt chín lần trong lịch sử repo này.
+ *
+ * THỨ TỰ HAI GÁC LÀ HỢP ĐỒNG: trần đồng thời (429) đứng TRƯỚC một-PR-một-lượt (409). Gác rẻ hơn và chung
+ * hơn đứng trước — khi cả hai cùng đúng, người dùng cần biết «hệ đang bận» chứ không phải «PR này đang chạy».
+ *
+ * Hàm trả QUYẾT ĐỊNH chứ không trả lời văn: đường bấm tay có hai bề mặt (HTML và JSON) với hai câu khác
+ * nhau, nên chỗ gọi dựng lời theo bề mặt của nó.
+ */
+export function evaluateStartRun(input: {
+  soDangChay: unknown;
+  tran?: unknown;
+  prDangChay?: boolean;
+}): { chay: true } | { chay: false; ma: 429 | 409; lyDo: 'qua_tai' | 'pr_dang_cham' } {
+  // Fail-closed: đầu vào méo (không phải số, âm, trần khuyết hay ≤ 0) thì CHẶN. Thà chặn oan một lượt còn
+  // hơn nhận vô hạn lượt rồi làm chết máy chủ — hướng sai ở đây không đối xứng.
+  const dangChay = typeof input.soDangChay === 'number' && Number.isFinite(input.soDangChay) ? input.soDangChay : Number.POSITIVE_INFINITY;
+  const tran = typeof input.tran === 'number' && Number.isFinite(input.tran) && input.tran > 0 ? input.tran : TRAN_SONG_SONG;
+  if (dangChay >= tran) return { chay: false, ma: 429, lyDo: 'qua_tai' };
+  if (input.prDangChay === true) return { chay: false, ma: 409, lyDo: 'pr_dang_cham' };
+  return { chay: true };
+}

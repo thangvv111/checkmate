@@ -27,10 +27,18 @@ const ENV_CHO_PHEP = [
   'NUMBER_OF_PROCESSORS', 'PROCESSOR_ARCHITECTURE', 'USERNAME', 'COMPUTERNAME', 'LANG', 'LC_ALL',
   'NODE', 'NODE_PATH', 'NPM_CONFIG_CACHE', 'PYTHONIOENCODING', 'VIRTUAL_ENV', 'JAVA_HOME', 'MAVEN_HOME', 'GRADLE_HOME',
 ];
-function envSandbox(): NodeJS.ProcessEnv {
+/**
+ * Môi trường cho tiến trình chạy TEST — nơi code của pull request chạy THẬT, nên phải coi nó là code
+ * không tin được.
+ *
+ * Danh sách CHO PHÉP, không bao giờ danh sách cấm: danh sách cấm đòi người viết biết trước mọi bí mật sẽ
+ * tồn tại trong tương lai, nên thêm một khoá vào file môi trường là rò thêm một bí mật mà không ai phải
+ * sửa code — không ai nhận ra. Nhận `nguon` để lưới gọi được với môi trường dựng sẵn.
+ */
+export function envSandbox(nguon: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
   const ra: NodeJS.ProcessEnv = { CI: 'true' };
-  for (const k of Object.keys(process.env)) {
-    if (ENV_CHO_PHEP.includes(k.toUpperCase())) ra[k] = process.env[k];
+  for (const k of Object.keys(nguon)) {
+    if (ENV_CHO_PHEP.includes(k.toUpperCase())) ra[k] = nguon[k];
   }
   return ra;
 }
