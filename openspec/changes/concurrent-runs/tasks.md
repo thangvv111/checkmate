@@ -2,37 +2,40 @@
 
 ## 1. Luật (capability)
 
-- [ ] 1.1 Delta ADDED `specs/concurrent-runs/spec.md` (4 requirement) — đã viết. Test khoá:
+- [x] 1.1 Delta ADDED `specs/concurrent-runs/spec.md` (4 requirement) — đã viết. Test khoá:
       `test/concurrent-runs.test.ts`, `test/env-cli.test.ts`.
 
 ## 2. Web (apps/web)
 
-- [ ] 2.1 `runs.ts`: hằng `TRAN_SONG_SONG = 2` (export) và hàm thuần
+- [x] 2.1 `runs.ts`: hằng `TRAN_SONG_SONG = 2` (export) và hàm thuần
       `evaluateStartRun({ soDangChay, tran, prDangChay })` → `{ chay } | { chay: false, ma, lyDo }` (D1).
-- [ ] 2.2 `server.ts`: hai gác của `/api/runs` (429 trần · 409 một-PR-một-lượt) gọi hàm; lời văn HTML và
+- [x] 2.2 `server.ts`: hai gác của `/api/runs` (429 trần · 409 một-PR-một-lượt) gọi hàm; lời văn HTML và
       JSON giữ NGUYÊN từng chữ; chế độ trực (`:284-285`) cũng gọi hàm, `findByPr` giữ nguyên chỗ (D2).
-- [ ] 2.3 `github.ts`: `refNames(so)` → `{ headRef, baseRef }` (thuần); `fetchAndRoute` gọi nó; không còn
+- [x] 2.3 `github.ts`: `refNames(so)` → `{ headRef, baseRef }` (thuần); `fetchAndRoute` gọi nó; không còn
       chuỗi `refs/checkmate` viết tay (D5).
-- [ ] 2.4 `checkmate.yml` bảng module: thêm `TRAN_SONG_SONG` · `evaluateStartRun` (runs.js) và `refNames`
+- [x] 2.4 `checkmate.yml` bảng module: thêm `TRAN_SONG_SONG` · `evaluateStartRun` (runs.js) và `refNames`
       (github.js) (⛔C5).
 
 ## 3. Test
 
-- [ ] 3.1 `test/concurrent-runs.test.ts`: mọi scenario của requirement 1–3; ca «thứ tự hai gác» (429 trước
+- [x] 3.1 `test/concurrent-runs.test.ts`: mọi scenario của requirement 1–3; ca «thứ tự hai gác» (429 trước
       409); ca chế độ trực và bấm tay cho cùng kết quả với cùng đầu vào; `refNames` mang số PR ở cả head
       lẫn base, hai PR khác nhau ra hai cặp ref khác nhau.
-- [ ] 3.2 `test/env-cli.test.ts`: thêm ca cho R8.12 — biến bí mật MỚI (tên chưa từng có trong danh sách)
-      không lọt vào môi trường tiến trình con, chứng minh đây là danh sách CHO PHÉP chứ không phải danh
-      sách cấm; và ca đối chứng: biến nền cần cho toolchain vẫn có mặt.
-- [ ] 3.3 Mutation: đảo thứ tự hai gác · bỏ gác một-PR-một-lượt · đổi `ENV_CHO_PHEP` thành danh sách cấm →
+- [x] 3.2 `test/env-cli.test.ts` — SOI 03/09: `envForCli` ĐÃ có ca cho biến bí-mật-tương-lai. Chỗ CHƯA khoá
+      là `envSandbox` (môi trường của tiến trình chạy code PR — nguy hiểm hơn hẳn) vì nó không export và
+      đọc thẳng `process.env`. Đã export + nhận `nguon` (refactor tối thiểu, cùng khuôn `envForCli`) và thêm
+      4 ca: token/khoá không lọt · biến bí mật MỚI không lọt · biến nền toolchain vẫn có · môi trường rỗng.
+- [x] 3.3 Mutation: đảo thứ tự hai gác · bỏ gác một-PR-một-lượt · đổi `ENV_CHO_PHEP` thành danh sách cấm →
       mỗi cái phải làm lưới ĐỎ; ghi kết quả vào PR.
 
 ## 4. Kiểm cơ học
 
-- [ ] 4.1 `npx tsc --noEmit` sạch · `npm test` xanh TOÀN BỘ.
-- [ ] 4.2 `git diff` chỗ gọi: không dòng thêm nào mang chuỗi thông điệp (khuôn T2.1 của `merge-gate`);
-      `grep "refs/checkmate"` chỉ còn trong `refNames`.
-- [ ] 4.3 `npx openspec validate --changes` xanh.
+- [x] 4.1 `npx tsc --noEmit` sạch · `npm test` xanh TOÀN BỘ.
+- [x] 4.2 `git diff` chỗ gọi — KIỂM 03/09: `grep "refs/checkmate"` chỉ còn trong `refNames` ✓. Lời văn:
+      ĐÚNG MỘT dòng đổi — câu 429 thay số cứng «kiểm 2 artifact» bằng «kiểm ${TRAN_SONG_SONG} artifact».
+      Chuỗi hiển thị y hệt hôm nay (hằng = 2), và đổi là CHỦ Ý: để lời không nói dối nếu trần đổi. Đây là
+      ngoại lệ có ý thức với khuôn T2.1 của `merge-gate` (ở đó không đổi một chữ nào).
+- [x] 4.3 `npx openspec validate --changes` xanh.
 - [ ] 4.4 Đo lại neo thư viện sau archive — **không kỳ vọng tăng**: 22 vế mất neo trỏ R1/R3/R4/R9, không vế
       nào trỏ R8 (bài học ghi ở `verdict-contract` §4.4). Đo để xác nhận, không để mong.
 
