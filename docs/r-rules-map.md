@@ -15,7 +15,7 @@ repo có hàng, hàng `pending` trỏ change có thật trong bảng chia, hàng
 
 Bảng chia change backfill (PO chốt 02/09): `merge-gate` · `verdict-contract` · `identity-session` · `probe-classification` · `data-layer` · `probe-library` · `target-contract` · `repo-history` · `provider-gate` · `model-reply-parsing` · `diff-visibility` · `concurrent-runs`.
 
-Đếm: pending 188 · precedent 16 · housed 48 · invariant 6 · obsolete 4 — tổng 262 hàng.
+Đếm: pending 181 · precedent 16 · housed 55 · invariant 6 · obsolete 4 — tổng 262 hàng.
 
 ## Ba đích của backfill (PO chốt 02/09 — change `product-independent-of-openspec`)
 
@@ -195,20 +195,20 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R7.9 | File mã nguồn bị loại vì vượt trần PHẢI được cảnh báo riêng, tách khỏi nhóm file sinh | housed | man-run › Chỗ checker không nhìn tới phải nói ra, không cắt âm thầm | openspec/specs/man-run/spec.md |
 | R7.10 | Prompt gửi cho model PHẢI có khối liệt kê các file nó không được xem, kèm chỉ dẫn không | pending | diff-visibility | — |
 | R7.11 | Diff chỉ còn toàn file sinh tự động thì PHẢI báo lỗi nói rõ điều đó, không được báo | pending | diff-visibility | — |
-| R8 | Nhiều lượt chấm chạy song song | pending | concurrent-runs | test/thu-vien.test.ts |
-| R8.1 | Số lượt chạy đồng thời PHẢI có trần | pending | concurrent-runs | test/kho-run.test.ts |
-| R8.2 | Trần tồn tại vì mỗi lượt tốn một worktree trên đĩa, một lượt chạy bộ test thật, và các | pending | concurrent-runs | — |
-| R8.3 | Ref tạm mà lượt chấm fetch về PHẢI mang tên riêng theo PR, kể cả ref của nhánh gốc | pending | concurrent-runs | — |
+| R8 | Nhiều lượt chấm chạy song song | housed | concurrent-runs › Trần lượt chạy đồng thời, vượt trần thì từ chối ngay chứ không xếp hàng ngầm | test/thu-vien.test.ts |
+| R8.1 | Số lượt chạy đồng thời PHẢI có trần | housed | concurrent-runs › Trần lượt chạy đồng thời, vượt trần thì từ chối ngay chứ không xếp hàng ngầm | test/kho-run.test.ts |
+| R8.2 | Trần tồn tại vì mỗi lượt tốn một worktree trên đĩa, một lượt chạy bộ test thật, và các | housed | concurrent-runs › Trần lượt chạy đồng thời, vượt trần thì từ chối ngay chứ không xếp hàng ngầm | test/concurrent-runs.test.ts |
+| R8.3 | Ref tạm mà lượt chấm fetch về PHẢI mang tên riêng theo PR, kể cả ref của nhánh gốc | housed | concurrent-runs › Lượt chấm không dùng chung ref git | test/concurrent-runs.test.ts |
 | R8.4 | Nạp probe vào thư viện là chuỗi đọc → sửa → ghi trên một file sổ dùng chung | pending | probe-library | packages/harness/src/probe-library.ts |
 | R8.5 | Tên file probe trong thư viện PHẢI suy từ nội dung (hash), không từ số thứ tự | pending | probe-library | packages/harness/src/probe-library.ts |
 | R8.6 | Khoá PHẢI được nhả cả khi việc bên trong ném lỗi. | pending | probe-library | — |
 | R8.7 | Khoá của một tiến trình đã chết PHẢI bị phá sau một ngưỡng quá hạn | pending | probe-library | test/kho-run.test.ts |
 | R8.8 | Chờ khoá quá lâu thì vẫn phải làm việc chứ không được bỏ probe | pending | probe-library | packages/harness/src/probe-library.ts |
 | R8.9 | Đẩy file ra khỏi thư viện theo trần FIFO PHẢI xoá luôn file trên đĩa, không để lại file mồ | pending | probe-library | — |
-| R8.10 | Sandbox chạy trên chính máy chủ CheckMate, không phải trên hạ tầng của nhà cung cấp | pending | concurrent-runs | — |
-| R8.11 | Tiến trình chạy test PHẢI nhận môi trường đã lọc | pending | concurrent-runs | test/env-cli.test.ts |
-| R8.12 | Môi trường truyền cho MỌI tiến trình con | pending | concurrent-runs | — |
-| R8.12 | bản trước truyền cả môi trường rồi cắt một tên → `GITHUB_TOKEN` chảy sang tiến trình CLI ở mọi lượt | precedent | pending: concurrent-runs (đoạn «Vì sao») · ứng viên kho khuôn (đích b) | docs/archive/r-rules/R8-chay-song-song.md |
+| R8.10 | Sandbox chạy trên chính máy chủ CheckMate, không phải trên hạ tầng của nhà cung cấp | housed | concurrent-runs › Sandbox chạy trên máy chủ CheckMate với môi trường dựng bằng danh sách cho phép | test/env-cli.test.ts |
+| R8.11 | Tiến trình chạy test PHẢI nhận môi trường đã lọc | housed | concurrent-runs › Sandbox chạy trên máy chủ CheckMate với môi trường dựng bằng danh sách cho phép | test/env-cli.test.ts |
+| R8.12 | Môi trường truyền cho MỌI tiến trình con | housed | concurrent-runs › Sandbox chạy trên máy chủ CheckMate với môi trường dựng bằng danh sách cho phép | test/env-cli.test.ts |
+| R8.12 | bản trước truyền cả môi trường rồi cắt một tên → `GITHUB_TOKEN` chảy sang tiến trình CLI ở mọi lượt | precedent | concurrent-runs › Sandbox chạy trên máy chủ CheckMate với môi trường dựng bằng danh sách cho phép (đoạn «Vì sao») · ứng viên kho khuôn (đích b) | test/env-cli.test.ts |
 | R9 | Tầng dữ liệu: lớp kho và sổ cái chỉ-ghi-thêm | pending | data-layer | test/dedup-probe.test.ts |
 | R9.1 | Route, tầng dựng giao diện và harness KHÔNG được đọc/ghi đĩa hay gọi SQL trực tiếp | pending | data-layer | — |
 | R9.2 | Lớp kho là nơi DUY NHẤT biết mình đang chạy trên SQLite | pending | data-layer | — |

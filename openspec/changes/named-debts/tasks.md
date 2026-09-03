@@ -23,10 +23,14 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
 - [x] 9. ✅ RỜI 03/09 — thành change riêng `rerun-guard-testable` (schema fix, đã merge). Tách điều kiện «chấm lại cùng commit» của handler `/api/runs` (`server.ts:708–717`) thành hàm thuần
       như đã làm cho merge/reject, để scenario R6.10 khoá được cả nửa route — hiện chỉ khoá nửa dữ liệu
       (`findByPr`, `test/kho-run.test.ts`). Nguồn: `merge-gate` §6.2.
-- [ ] 10. `isPrRunning` ở handler `/api/runs` mang CÙNG LỖI với nợ #9: nửa dữ liệu có test
+- [x] 10. ✅ RỜI 03/09 — gộp vào change `concurrent-runs` (đã merge): `evaluateStartRun` quyết cả hai gác,
+      dùng chung cho đường bấm tay và chế độ trực. `isPrRunning` ở handler `/api/runs` mang CÙNG LỖI với nợ #9: nửa dữ liệu có test
       (`test/kho-run.test.ts:123,140,145`), nửa route (409 «đang được chấm») không gọi được. Khác #9 ở chỗ nó
       chỉ là một điều kiện boolean nên tách ra được ít giá trị hơn. PO chốt 03/09: làm ngay sau khi đóng
       `verdict-contract`. Nguồn: soi trong `rerun-guard-testable`.
+- [ ] 11. Trần lượt chạy đồng thời **cấu hình được** — hôm nay là hằng `TRAN_SONG_SONG = 2`
+      (`apps/web/src/runs.ts`). R8.2 nói nâng trần là quyết định TÀI NGUYÊN MÁY CHỦ, nên cửa khai phải kèm
+      giới hạn trên và lời cảnh báo, không phải một ô nhập trơ. Nguồn: `concurrent-runs` §6.2.
 - [ ] 7. **Xoá / archive một repo khỏi CheckMate** — ưu tiên THẤP (PO 02/09). Hiện trạng: hành vi «gỡ khỏi
       danh sách» đã có luật cũ (R4.7 giữ clone + lịch sử, R4.27 xoá token riêng — tra `docs/r-rules-map.md`);
       «archive» (ẩn khỏi danh sách và chế độ trực nhưng giữ lịch sử/sổ, mở lại được) chưa có. Khi làm: soi

@@ -36,16 +36,18 @@
       Chuỗi hiển thị y hệt hôm nay (hằng = 2), và đổi là CHỦ Ý: để lời không nói dối nếu trần đổi. Đây là
       ngoại lệ có ý thức với khuôn T2.1 của `merge-gate` (ở đó không đổi một chữ nào).
 - [x] 4.3 `npx openspec validate --changes` xanh.
-- [ ] 4.4 Đo lại neo thư viện sau archive — **không kỳ vọng tăng**: 22 vế mất neo trỏ R1/R3/R4/R9, không vế
-      nào trỏ R8 (bài học ghi ở `verdict-contract` §4.4). Đo để xác nhận, không để mong.
+- [x] 4.4 Đo lại neo thư viện — ĐO 03/09 (spec chính đã sync, trước commit archive): nguồn 10 file · 60 đơn
+      vị; thư viện 25 vế, NEO 3 (R6.15, R6.19), mất 22 — **không tăng, đúng như dự đoán**. 22 vế trỏ
+      R1.2 · R1.4–R1.7 · R1.17 · R1.18 · R1.20 · R3.15 · R4.18 · R4.27 · R9.6 · R9.14; không vế nào trỏ R8.
+      Lần này dự đoán TRƯỚC rồi mới đo (khác `verdict-contract` §4.4, viết kỳ vọng sai lúc chưa đo).
 
 ## 5. Bảng tra (ở commit archive)
 
-- [ ] 5.1 `docs/r-rules-map.md`: R8 · R8.1 · R8.2 · R8.3 · R8.10 · R8.11 · R8.12 `pending` → `housed` với
+- [x] 5.1 `docs/r-rules-map.md`: R8 · R8.1 · R8.2 · R8.3 · R8.10 · R8.11 · R8.12 `pending` → `housed` với
       địa chỉ `concurrent-runs › <tiêu đề>`; hàng `precedent` R8.12 trỏ đoạn «Vì sao» của requirement 4.
 
 ## 6. Nợ có tên (ghi vào `named-debts` khi archive)
 
-- [ ] 6.1 Nợ #10 đánh dấu ĐÃ RỜI — gộp vào change này (PO chốt 03/09).
-- [ ] 6.2 Mục mới: trần lượt đồng thời cấu hình được (hôm nay là hằng 2). R8.2 nói nâng trần là quyết định
+- [x] 6.1 Nợ #10 đánh dấu ĐÃ RỜI — gộp vào change này (PO chốt 03/09).
+- [x] 6.2 Mục mới: trần lượt đồng thời cấu hình được (hôm nay là hằng 2). R8.2 nói nâng trần là quyết định
       tài nguyên máy chủ, nên cửa khai phải kèm giới hạn và lời cảnh báo — không phải một ô nhập trơ.
