@@ -1,7 +1,7 @@
 # Test cases — error-message-egress-gate
 
 Requirement: R-1 «Thông điệp lỗi rời máy chủ phải qua cổng phát, và cổng là danh sách CHO PHÉP» ·
-R-2 «Cửa ô giá trị có ba tầng, tầng cuối đối chiếu với chính pull request» · R-3 «Cổng chỉ lọc bản PHÁT RA,
+R-2 «Cửa ô giá trị có ba tầng, tầng cuối đối chiếu với thứ bề mặt đó đã có» · R-3 «Cổng chỉ lọc bản PHÁT RA,
 không đụng bản dùng để suy luận».
 
 ## R-1 — cổng, cấu trúc và ô
@@ -22,10 +22,18 @@ không đụng bản dùng để suy luận».
 - [ ] T2.3 [tầng 2 mảng số] `[ 166666667, 166666667, 166666667 ]` qua **nguyên vẹn**.
 - [ ] T2.4 [tầng 2 object một field lạ] chỉ field đó bị gột; khung và field còn lại giữ nguyên.
 - [ ] T2.5 [tầng 2 lồng sâu] chuỗi lạ đặt trong mảng-trong-object vẫn bị gột — đệ quy phải xuống tận đáy.
-- [ ] T2.6 [tầng 3 có trong source] chuỗi tiếng Việt xuất hiện trong source PR → qua cửa.
-- [ ] T2.7 [tầng 3 có trong diff] chuỗi chỉ xuất hiện trong diff → qua cửa.
-- [ ] T2.8 [tầng 3 không có trong PR] chuỗi trông vô hại nhưng không có trong diff lẫn source → **bị gột**.
+- [ ] T2.6 [tầng 3, bề mặt người, có trong source] chuỗi tiếng Việt xuất hiện trong source PR → qua cửa.
+- [ ] T2.7 [tầng 3, bề mặt người, có trong diff] chuỗi chỉ xuất hiện trong diff → qua cửa.
+- [ ] T2.8 [tầng 3 không có ở đâu cả] chuỗi trông vô hại nhưng không có trong diff lẫn source → **bị gột**.
       Cửa quyết theo NGUỒN, không theo vẻ ngoài.
+- [ ] T2.9 [tầng 3, BỀ MẶT MODEL, chuỗi model chưa thấy] chuỗi có trong source PR (hoặc trong phần diff đã
+      bị cắt theo trần) nhưng KHÔNG nằm trong khối nào đã gửi tới model → **bị gột** khi phát sang prompt,
+      dù cùng chuỗi ấy được phép qua ở bề mặt comment. *Đây là ca khoá S1.3 — một nguồn đối chiếu dùng
+      chung cho mọi bề mặt sẽ làm ca này xanh sai.*
+- [ ] T2.10 [tầng 3, bề mặt model, chuỗi model đã thấy] chuỗi nằm trong `t.diff` bản đã cắt (thứ thật sự vào
+      `promptPhanTich`) → qua cửa cho bề mặt prompt.
+- [ ] T2.11 [ranh giới trần cắt] cùng một PR, chuỗi nằm SAU điểm cắt `TRAN_DIFF`: qua ở bề mặt comment,
+      bị gột ở bề mặt model. Hai kết quả khác nhau trên cùng một đầu vào — đúng thiết kế.
 
 ## R-3 — không đụng bản dùng để suy luận
 
@@ -55,6 +63,7 @@ không đụng bản dùng để suy luận».
 - [ ] T6.2 Bỏ tầng 2 → T2.3 đỏ.
 - [ ] T6.3 Đổi cổng thành khớp tiền tố → T1.3 và T5.1 đỏ.
 - [ ] T6.4 Bỏ fail-closed của D4 → T4.1 đỏ.
+- [ ] T6.5 Dùng nguồn bề mặt người cho chỗ gọi của model → T2.9 và T2.11 đỏ.
 
 ## Trục nhạy cảm
 

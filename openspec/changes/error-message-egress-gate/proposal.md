@@ -48,7 +48,9 @@ toán khác hẳn mọi ca ⛔C3 đã giải trong repo:
   1. **hình dạng an toàn** — số ngắn, từ khoá (`undefined`/`null`/`true`/`false`), tên kiểu;
   2. **đệ quy** — mảng/object qua được khi mọi phần tử tự nó qua; phần tử nào không qua thì gột đúng phần
      tử đó, giữ khung;
-  3. **đối chiếu nguồn** — chuỗi tự do qua được khi nó **xuất hiện trong diff hoặc source của PR**.
+  3. **đối chiếu nguồn** — chuỗi tự do qua được khi nó **đã có mặt ở chính bề mặt sắp phát ra**; nguồn
+     đối chiếu KHÁC NHAU theo bề mặt (D2b): comment/log đối chiếu diff + source của PR, còn prompt model
+     chỉ đối chiếu **những khối đã thật sự gửi tới model** — diff đã cắt theo trần, spec, test mẫu.
 - **KHÔNG chặn ở sổ SQLite và màn UI** (PO chốt 03/09) — hai bề mặt nội bộ, sau đăng nhập.
 - **KHÔNG** dò secret theo hình dạng (`ghp_`, `sk-`, entropy cao). Đó là danh sách cấm; nó thành nợ **#15**
   ở vai *cảnh báo*, không ở vai bộ lọc.

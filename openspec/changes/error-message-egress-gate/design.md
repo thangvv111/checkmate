@@ -53,15 +53,45 @@ Cổng phải tách dòng thành cấu trúc + ô, phát cấu trúc, và bắt 
 |---|---|---|
 | 1. hình dạng | số ≤ N chữ số · `undefined`/`null`/`true`/`false`/`NaN` · tên kiểu · tập rỗng | không mang được bí mật |
 | 2. đệ quy | mảng/object mà **mọi** phần tử qua cửa | an toàn theo quy nạp |
-| 3. đối chiếu nguồn | chuỗi tự do **có trong diff hoặc source của PR** | đã công khai trong chính PR |
+| 3. đối chiếu nguồn | chuỗi tự do **đã có mặt ở chính bề mặt sắp phát ra** | nhắc lại thì không rò thêm |
 
 Tầng 2 lấy lại phần lớn 16% «gột một phần» (mảng số). Tầng 3 lấy lại phần lớn 16% «ngoài cấu trúc» (lỗi
 nghiệp vụ do code PR ném — chuỗi ấy nằm trong source).
 
 Tầng 3 là chỗ đắt và cũng là chỗ đúng: nó là danh sách cho phép **theo nguồn**, cùng khuôn `isNewRule` —
-quyết bằng «có trong nhánh PR hay không», không bằng hình dạng. Giới hạn đã khai trong requirement: PR
-commit cả file secret thì chuỗi nằm trong diff và qua cửa; lúc đó bí mật lộ ngay trong PR trước khi
-CheckMate chạm vào.
+quyết bằng «có ở đó hay không», không bằng hình dạng.
+
+### D2b — Nguồn đối chiếu KHÁC NHAU theo bề mặt (PO chốt 03/09, gộp S1.3 vào change)
+
+Bản đầu của tầng 3 dùng **một** nguồn cho cả ba bề mặt: «diff hoặc source của PR». Soi security bắt được lỗ:
+lập luận «đã công khai trong PR» đúng cho comment, **sai cho prompt gửi model** — model không đọc repo, nó
+chỉ biết đúng những gì ta gửi.
+
+Đo trên code (`skill-code.ts`) thì bức tranh cụ thể hơn và chỗ hở hẹp hơn tưởng:
+
+```
+promptPhanTich  (dong 325-386)  rao('DIFF_PR', t.diff)   <- diff DA toi model
+promptSinhCode  (dong 387-415)  KHONG mang diff
+callCode                        stateless, nhung cung mot luot cham
+                                thi model DA nhan diff qua buoc phan tich
+```
+
+Nên chuỗi có trong `t.diff` mà đi sang model qua `loiThu` **không đến nơi mới**. Chỗ thật sự hở là phần
+**model chưa thấy**: diff bị cắt theo `TRAN_DIFF = 120_000`, file `ngoaiTamNhin`, và source không nằm trong
+diff.
+
+Nguyên tắc chốt: **nguồn đối chiếu là thứ BỀ MẶT ĐÓ ĐÃ CÓ**, không phải «PR nói chung».
+
+| bề mặt | nguồn đối chiếu | lấy từ đâu |
+|---|---|---|
+| comment PR · log | diff + source của PR | `t.diff`, `t.specs`, nội dung file repo đích |
+| prompt gửi model | các khối **đã rào vào prompt** của lượt này | `t.diff` (bản đã cắt — chính là thứ vào `promptPhanTich`), `t.specs`, `t.testMau`, `t.apiDoc` |
+
+Chi phí gần bằng không: những khối ấy đã nằm sẵn trong `TargetInfo` và chính là thứ `promptPhanTich` rào.
+Cái phải cẩn thận là **không** đem source đầy đủ làm nguồn cho bề mặt model, và **không** đem diff chưa cắt.
+
+Cách này biến S1.3 từ «chỗ hở phải chấp nhận» thành **một tham số của cổng**: cổng nhận
+`(message, nguồn-đã-đến-bề-mặt-này)`.
 
 ### D3 — Lọc SỚM, lưu HAI bản (chỗ khó nhất của change)
 

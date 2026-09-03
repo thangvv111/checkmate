@@ -11,11 +11,14 @@ niềm tin rằng bề mặt đã được gác.
 - ⚠️ S1.2 **Chỗ yếu số một — verdict cũ.** Verdict ghi trước change không mang bản đã lọc. Fallback về
   `actual` sẽ mở lại đúng lỗ vừa vá bằng một dòng code trông vô hại. D4 chốt fail-closed; ca T4.1 và mutation
   T6.4 khoá nó. Nếu ai đó sau này thêm fallback «cho tiện», hai ca đó phải đỏ.
-- ⚠️ S1.3 **Chỗ yếu số hai — âm tính giả của tầng 3.** Chuỗi bí mật **có** trong diff (PR commit cả `.env`)
-  sẽ qua cửa. Đã khai trong requirement 2 và trong nợ #15. Lập luận chấp nhận: ở ca đó bí mật lộ ngay trong
-  pull request trước khi CheckMate chạm vào — nhưng lập luận ấy chỉ đúng cho **bề mặt pull request**. Nó
-  KHÔNG đúng cho prompt gửi model: một secret trong diff sẽ đi sang dịch vụ thứ ba, nơi nó chưa từng có mặt.
-  **Chưa giải quyết trong change này** — ghi ra để không ai tưởng đã kín; ứng viên nợ.
+- ✅ S1.3 **Đã giải quyết trong change này (PO chốt 03/09 gộp vào).** Bản đầu dùng MỘT nguồn đối chiếu cho
+  cả ba bề mặt, và lập luận «đã công khai trong PR» chỉ đúng cho comment — model không đọc repo, nó chỉ biết
+  đúng những gì ta gửi. D2b chốt: **nguồn đối chiếu là thứ BỀ MẶT ĐÓ ĐÃ CÓ**, khác nhau theo bề mặt. Với
+  prompt model, nguồn là các khối đã thật sự rào vào prompt (`t.diff` **bản đã cắt theo trần**, `t.specs`,
+  `t.testMau`, `t.apiDoc`) — không phải source đầy đủ, không phải diff chưa cắt. Ca T2.9 · T2.11 và mutation
+  T6.5 khoá đúng chỗ này. Đo trên code: `promptPhanTich` (`:341`) có rào `DIFF_PR` nên diff đã tới model
+  trong cùng lượt chấm; phần model CHƯA thấy là đúng phần bị cắt và file `ngoaiTamNhin` — chỗ hở hẹp hơn
+  bản đầu tưởng, và giờ được gác đúng bằng nguồn riêng.
 - ✅ S1.4 Bản che PHÂN BIỆT ĐƯỢC (⛔C3 đòi): phần thay thế mang **độ dài**, nên hai giá trị khác độ dài cho
   hai bản che khác nhau. Hai giá trị **cùng độ dài** thì không phân biệt được — chấp nhận, vì phân biệt sâu
   hơn đòi phát thêm thông tin phái sinh từ chính bí mật.
@@ -73,8 +76,11 @@ Mục tiêu: **đưa một chuỗi bí mật ra bề mặt công khai**. Mọi �
 - ✅ S8.2 (b) giấu trong object/mảng lồng nhiều tầng → T5.2 · T2.5 (đệ quy phải xuống tận đáy).
 - ✅ S8.3 (c) làm bí mật trông như số → T5.3 (ngưỡng số chữ số của tầng 1).
 - ✅ S8.4 (d) đặt đúng vị trí ô của một khuôn đã biết → T5.4.
-- ⚠️ S8.5 (e) **commit bí mật vào chính PR để nó có trong diff** → **ĐƯỜNG NÀY MỞ** (S1.3). Với bề mặt
-  comment thì vô hại theo lập luận «đã công khai sẵn»; với **prompt gửi model** thì không — chưa giải quyết.
+- ⚠️ S8.5 (e) **commit bí mật vào chính PR để nó có trong diff** → với bề mặt **comment** đường này mở theo
+  thiết kế: bí mật đã lộ trong PR trước khi CheckMate chạm vào, nhắc lại không rò thêm. Với **prompt model**
+  đường này ĐÃ ĐƯỢC HẸP LẠI (S1.3/D2b): chỉ phần diff **đã cắt** mới là nguồn, nên bí mật nằm ngoài phần ấy
+  bị gột. Bí mật nằm TRONG phần diff đã gửi thì model đã nhận nó qua `promptPhanTich` rồi — cổng này không
+  phải chỗ chặn, việc phát hiện secret đi VÀO cùng PR là nợ #15.
 - ⚠️ S8.6 (f) đọc sổ nội bộ → mở theo thiết kế (S6.2), vai đọc sổ là vai tin cậy.
 - ✅ S8.7 (g) làm cổng ném để cả lượt chấm chết, rồi đọc thông điệp lỗi của chính cổng → cổng là hàm thuần
   xử lý chuỗi; ca test phải gồm đầu vào méo (rỗng, rất dài, ký tự điều khiển, unicode) và khoá rằng nó
@@ -82,7 +88,8 @@ Mục tiêu: **đưa một chuỗi bí mật ra bề mặt công khai**. Mọi �
 
 ## Notes
 
-- Hai chỗ **chưa kín** và đã khai: S1.3/S8.5 (bí mật trong diff đi sang model) và S6.2/S8.6 (sổ nội bộ giữ
-  nguyên văn). Cái thứ hai là lựa chọn của PO; cái thứ nhất là **ứng viên nợ mới**, cần trình PO.
+- Chỗ **chưa kín** còn lại đúng một, và là lựa chọn có ý thức của PO: S6.2/S8.6 — sổ SQLite và màn hình
+  run giữ nguyên văn, nên vai đọc sổ là vai tin cậy.
+- S1.3 đã được gộp vào change và giải bằng D2b (PO chốt 03/09), không còn là nợ.
 - Tiêu chí «đủ ca test» cho change này không phải số lượng mà là: **mỗi đường ở S8 có một ca**. Một bộ lọc
   bảo mật thiếu ca cho một đường thì đường đó coi như chưa được gác.

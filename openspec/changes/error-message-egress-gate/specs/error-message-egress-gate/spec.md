@@ -31,7 +31,7 @@ sách cấm, và ở đây một âm tính giả **là một bí mật rò ra c�
 - **WHEN** thông điệp bắt đầu bằng một lớp lỗi đã biết nhưng phần còn lại không khớp cấu trúc nào
 - **THEN** phần còn lại KHÔNG được phát nguyên văn chỉ vì tiền tố hợp lệ
 
-### Requirement: Cửa ô giá trị có ba tầng, tầng cuối đối chiếu với chính pull request
+### Requirement: Cửa ô giá trị có ba tầng, tầng cuối đối chiếu với thứ bề mặt đó đã có
 
 Một ô giá trị SHALL qua cửa khi thoả **một** trong ba tầng:
 
@@ -39,18 +39,29 @@ Một ô giá trị SHALL qua cửa khi thoả **một** trong ba tầng:
    `NaN`), tên kiểu (`string`, `number`, `object`…), tập rỗng.
 2. **Đệ quy** — mảng hoặc object qua được khi **mọi phần tử** của nó tự qua cửa. Phần tử nào không qua thì
    chỉ phần tử đó bị gột, khung `[…]` / `{…}` và các phần tử an toàn khác giữ nguyên.
-3. **Đối chiếu nguồn** — chuỗi tự do qua được khi nó **xuất hiện trong diff hoặc source của pull request
-   đang chấm**.
+3. **Đối chiếu nguồn** — chuỗi tự do qua được khi nó **đã có mặt ở chính bề mặt sắp phát ra**.
 
-Tầng 3 là danh sách cho phép **theo nguồn**, không theo hình dạng, và lập luận của nó là: thứ đã nằm trong
-chính pull request thì **đã công khai với mọi người đọc pull request đó**; nhắc lại nó trong comment không
-rò thêm gì. Ngược lại, một khoá nằm trong `.env` **không** được commit thì không có trong diff, nên không
-qua cửa. Cùng khuôn với `isNewRule`: quyết bằng «có trong nhánh PR hay không», không bằng hình dạng.
+Tầng 3 là danh sách cho phép **theo nguồn**, không theo hình dạng. Lập luận: nhắc lại một chuỗi ở nơi nó
+đã có mặt thì không rò thêm gì. Cùng khuôn với `isNewRule` — quyết bằng «có ở đó hay không», không bằng
+hình dạng.
 
-Giới hạn của tầng 3 MUST được khai rõ chứ không được để người đọc tự suy: nếu pull request **commit cả file
-secret**, chuỗi đó nằm trong diff và sẽ qua cửa. Ở ca đó bí mật đã lộ ngay trong pull request trước khi
-CheckMate chạm vào — cổng này không phải chỗ sửa nó. Việc phát hiện và cảnh báo secret đi VÀO cùng pull
-request là một hướng khác, nằm ở nợ có tên #15.
+Hệ quả bắt buộc: **nguồn đối chiếu SHALL khác nhau theo từng bề mặt**, vì mỗi bề mặt đã biết một lượng
+khác nhau. Một nguồn dùng chung cho cả ba là sai, và sai theo hướng mở:
+
+| bề mặt phát ra | nguồn đối chiếu hợp lệ | vì sao |
+|---|---|---|
+| comment pull request | diff **và** source của PR | người đọc được comment thì đọc được repo và diff |
+| log sự kiện | như trên | cùng vòng người đọc |
+| **prompt gửi model** | **chỉ những khối đã thật sự gửi tới model trong lượt này** — diff **đã cắt theo trần**, spec, test mẫu, tài liệu API | model chưa hề thấy phần còn lại |
+
+Chỗ khác biệt không được bỏ qua: diff bị **cắt theo trần** trước khi vào prompt, và file «ngoài tầm nhìn»
+không vào prompt. Một chuỗi nằm trong phần bị cắt **có** trong PR nhưng **chưa** tới model — đối chiếu nó
+với diff đầy đủ rồi phát sang model là gửi bí mật tới một nơi nó chưa từng có mặt.
+
+Giới hạn còn lại MUST được khai rõ: nếu pull request **commit cả file secret** thì chuỗi đó nằm trong diff,
+và với bề mặt pull request nó sẽ qua cửa. Ở ca đó bí mật đã lộ ngay trong pull request trước khi CheckMate
+chạm vào — cổng này không phải chỗ sửa nó, và việc phát hiện secret đi VÀO cùng pull request là hướng
+ngược, nằm ở nợ có tên #15.
 
 #### Scenario: mảng toàn số
 - **WHEN** ô là `[ 166666667, 166666667, 166666667 ]`
@@ -61,8 +72,18 @@ request là một hướng khác, nằm ở nợ có tên #15.
 - **THEN** chỉ field đó bị gột; khung object và các field còn lại giữ nguyên
 
 #### Scenario: lỗi nghiệp vụ do code của PR ném ra
-- **WHEN** thông điệp mang một chuỗi tiếng Việt xuất hiện trong source của pull request
+- **WHEN** thông điệp mang một chuỗi tiếng Việt xuất hiện trong source của pull request, và bề mặt phát ra
+  là comment pull request
 - **THEN** chuỗi qua cửa — nó là thứ người sửa cần đọc nhất, và nó đã công khai trong pull request
+
+#### Scenario: cùng chuỗi ấy, nhưng bề mặt là prompt gửi model
+- **WHEN** chuỗi chỉ có trong source (hoặc trong phần diff đã bị cắt theo trần), không nằm trong khối nào
+  đã gửi tới model ở lượt này
+- **THEN** chuỗi BỊ GỘT — model chưa từng thấy nó, phát sang đó là rò tới một bề mặt mới
+
+#### Scenario: chuỗi đã nằm trong diff đã gửi tới model
+- **WHEN** chuỗi xuất hiện trong phần diff thật sự đã đưa vào prompt phân tích của lượt này
+- **THEN** chuỗi qua cửa cho bề mặt prompt — nhắc lại thứ model đã có không rò thêm gì
 
 #### Scenario: chuỗi không có trong pull request
 - **WHEN** thông điệp mang một chuỗi không tìm thấy trong diff lẫn source của pull request
