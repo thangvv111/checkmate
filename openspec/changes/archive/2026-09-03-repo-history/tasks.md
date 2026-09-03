@@ -49,7 +49,8 @@
 
 ## 6. Bảng tra (ở commit archive)
 
-- [ ] 6.1 `docs/r-rules-map.md`: 30 điều → `housed`. **`R4.26` trỏ `response-secret-guard`** (D2), 29 điều
-      còn lại trỏ `repo-history › <tiêu đề>`.
-- [ ] 6.2 Đo neo thư viện probe sau archive — **dự đoán TRƯỚC: 12 → 14** (D5, `R4.18` và `R4.27` đã có ca).
-      Sai thì ghi rõ sai ở đâu.
+- [x] 6.1 `docs/r-rules-map.md`: 30 hàng → `housed`; `R4.26` trỏ `response-secret-guard` (D2), 29 hàng còn
+      lại trỏ `repo-history › <tiêu đề>`. Đếm bảng: pending 128 → **98** (lần đầu dưới 100) · housed
+      108 → 138. Lưới `r-rules-map` xanh 6/6.
+- [x] 6.2 Đo neo thư viện probe. **Dự đoán TRƯỚC 12 → 14 — đo được đúng 14/15.** `R4.18` và `R4.27` đã neo.
+      Còn trôi đúng **một** mã: `R9.6`, thuộc `data-layer`.

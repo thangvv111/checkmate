@@ -15,7 +15,7 @@ repo có hàng, hàng `pending` trỏ change có thật trong bảng chia, hàng
 
 Bảng chia change backfill (PO chốt 02/09): `merge-gate` · `verdict-contract` · `identity-session` · `probe-classification` · `data-layer` · `probe-library` · `target-contract` · `repo-history` · `provider-gate` · `model-reply-parsing` · `diff-visibility` · `concurrent-runs`.
 
-Đếm: pending 128 · precedent 16 · housed 108 · invariant 6 · obsolete 4 — tổng 262 hàng.
+Đếm: pending 98 · precedent 16 · housed 138 · invariant 6 · obsolete 4 — tổng 262 hàng.
 
 ## Ba đích của backfill (PO chốt 02/09 — change `product-independent-of-openspec`)
 
@@ -98,36 +98,36 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R3.14 | Mất xác thực là lỗi CẤU HÌNH: KHÔNG thử lại. Phiên hết hạn không tự sống lại ở lượt thứ hai. | pending | provider-gate | test/mat-xac-thuc.test.ts |
 | R3.15 | JSON của model không parse được thì lỗi ném ra PHẢI kèm đoạn văn quanh vị trí hỏng, | housed | model-reply-parsing › JSON hỏng phải chỉ đúng chỗ hỏng, và lượt nhắc lại được đưa chính thông điệp đó — đã rào | test/fixtures/thu-vien-doi-cu.json |
 | R3.16 | Lượt nhắc lại PHẢI được đưa chính thông điệp lỗi đó | housed | model-reply-parsing › JSON hỏng phải chỉ đúng chỗ hỏng, và lượt nhắc lại được đưa chính thông điệp đó — đã rào | — |
-| R4 | Nhiều repo và lịch sử chấm theo repo | pending | repo-history | test/dedup-probe.test.ts |
-| R4.1 | `config.repos[]` là nguồn sự thật | pending | repo-history | — |
-| R4.2 | `config.repo` chỉ là view (khung nhìn) của repo đang chọn | pending | repo-history | — |
-| R4.3 | Cấu hình đời cũ chỉ có một `repo` PHẢI được nâng thành danh sách một phần tử mà không mất | pending | repo-history | test/token-repo.test.ts |
-| R4.4 | `repo_dang_chon` trỏ vào repo không còn trong danh sách thì rơi về phần tử đầu, không được | pending | repo-history | — |
-| R4.5 | Người dùng KHÔNG phải gõ tay `owner/repo` | pending | repo-history | test/token-repo.test.ts |
-| R4.6 | Clone repo bằng token thì sau khi clone xong PHẢI gỡ token khỏi remote URL | pending | repo-history | test/token-repo.test.ts |
-| R4.7 | Gỡ repo khỏi danh sách KHÔNG ĐƯỢC xoá clone trên đĩa và KHÔNG ĐƯỢC xoá lịch sử chấm của nó. | pending | repo-history | apps/web/src/secret-vault.ts |
-| R4.8 | Mỗi lượt chấm PHẢI mang trường `repo` (dạng `owner/repo`) được gán tại thời điểm khởi chạy. | pending | repo-history | — |
-| R4.9 | Lọc theo repo PHẢI tách bạch: lượt chấm của repo A không được lọt vào lịch sử repo B, và | pending | repo-history | apps/web/src/ui-ledger.ts |
-| R4.10 | Lọc `verdict=loi` bắt theo trạng thái tiến trình (`trangThai === 'loi'`), không theo kết | pending | repo-history | — |
-| R4.11 | Lọc theo nhà cung cấp dựa vào tiền tố của chuỗi model đã ghim (`claude-cli/…`), không | pending | repo-history | — |
-| R4.12 | Nhiều bộ lọc cùng lúc kết hợp theo kiểu VÀ. | pending | repo-history | — |
-| R4.13 | Model không mang tiền tố nhà cung cấp thì để trống cột nguồn, KHÔNG được đoán bừa. | pending | repo-history | — |
-| R4.14 | Mọi chuỗi do người ngoài viết (tiêu đề PR, tên tác giả, tên repo) PHẢI được escape trước | pending | repo-history | — |
-| R4.15 | Khoá/token hiển thị lại trên giao diện PHẢI bị che | pending | repo-history | — |
-| R4.16 | Sổ cái verdict cũng là một dạng lịch sử | pending | repo-history | — |
-| R4.17 | Thang tin cậy tác giả PHẢI lọc theo repo trước khi tính hồ sơ | pending | repo-history | — |
-| R4.18 | Token GitHub gắn với TỪNG repo. Mọi lời gọi API và mọi lệnh git nhắm vào một repo PHẢI đi | pending | repo-history | test/fixtures/verdict-doi-cu.json |
-| R4.19 | Token KHÔNG ĐƯỢC nằm trong `config.json` | pending | repo-history | test/token-repo.test.ts |
-| R4.20 | Thứ tự lấy token cho một repo: token riêng của repo → biến môi trường `GITHUB_TOKEN` (đường | pending | repo-history | test/token-repo.test.ts |
-| R4.21 | Cấu hình đời cũ có `github_token` dùng chung PHẢI được di trú tự động | pending | repo-history | test/fixtures/verdict-doi-cu.json |
-| R4.22 | Thêm repo đi theo bốn bước, bước sau chỉ mở khi bước trước đã qua | pending | repo-history | apps/web/src/github.ts |
-| R4.23 | Cổng kiểm kết nối PHẢI là một lời gọi THẬT `GET /repos/{owner}/{repo}` bằng chính token vừa | pending | repo-history | test/token-repo.test.ts |
-| R4.24 | Nhánh gốc PHẢI được gợi ý từ `default_branch` mà bước kiểm trả về | pending | repo-history | test/token-repo.test.ts |
-| R4.25 | Repo có trong danh sách nhưng không lấy được token theo R4.20 PHẢI mang trạng thái thiếu | pending | repo-history | apps/web/src/github.ts |
-| R4.26 | Không route nào được trả token về, kể cả đã che (R9.17) | pending | repo-history | apps/web/src/config.ts |
-| R4.27 | Gỡ repo khỏi danh sách PHẢI xoá token riêng của nó khỏi kho bí mật | pending | repo-history | test/fixtures/verdict-doi-cu.json |
-| R4.28 | Lệnh `git fetch` kéo PR về PHẢI mang chìa của repo trong URL của CHÍNH lệnh đó (dùng một | pending | repo-history | — |
-| R4.29 | Mọi văn bản lỗi đi ra ngoài (log, sự kiện run, màn hình) PHẢI được gột token trước | pending | repo-history | test/boc-model.test.ts |
+| R4 | Nhiều repo và lịch sử chấm theo repo | housed | repo-history › Danh sách repo là nguồn sự thật, repo đang chọn chỉ là khung nhìn dựng ra từ nó | test/dedup-probe.test.ts |
+| R4.1 | `config.repos[]` là nguồn sự thật | housed | repo-history › Danh sách repo là nguồn sự thật, repo đang chọn chỉ là khung nhìn dựng ra từ nó | — |
+| R4.2 | `config.repo` chỉ là view (khung nhìn) của repo đang chọn | housed | repo-history › Danh sách repo là nguồn sự thật, repo đang chọn chỉ là khung nhìn dựng ra từ nó | — |
+| R4.3 | Cấu hình đời cũ chỉ có một `repo` PHẢI được nâng thành danh sách một phần tử mà không mất | housed | repo-history › Danh sách repo là nguồn sự thật, repo đang chọn chỉ là khung nhìn dựng ra từ nó | test/token-repo.test.ts |
+| R4.4 | `repo_dang_chon` trỏ vào repo không còn trong danh sách thì rơi về phần tử đầu, không được | housed | repo-history › Danh sách repo là nguồn sự thật, repo đang chọn chỉ là khung nhìn dựng ra từ nó | — |
+| R4.5 | Người dùng KHÔNG phải gõ tay `owner/repo` | housed | repo-history › Danh sách repo là nguồn sự thật, repo đang chọn chỉ là khung nhìn dựng ra từ nó | test/token-repo.test.ts |
+| R4.6 | Clone repo bằng token thì sau khi clone xong PHẢI gỡ token khỏi remote URL | housed | repo-history › Token gắn với TỪNG repo, không bao giờ nằm trong cấu hình | test/token-repo.test.ts |
+| R4.7 | Gỡ repo khỏi danh sách KHÔNG ĐƯỢC xoá clone trên đĩa và KHÔNG ĐƯỢC xoá lịch sử chấm của nó. | housed | repo-history › Vòng đời repo — thêm theo bốn bước, gỡ thì giữ clone và lịch sử | apps/web/src/secret-vault.ts |
+| R4.8 | Mỗi lượt chấm PHẢI mang trường `repo` (dạng `owner/repo`) được gán tại thời điểm khởi chạy. | housed | repo-history › Lịch sử chấm gắn repo tại thời điểm chạy, và lọc phải tách bạch | — |
+| R4.9 | Lọc theo repo PHẢI tách bạch: lượt chấm của repo A không được lọt vào lịch sử repo B, và | housed | repo-history › Lịch sử chấm gắn repo tại thời điểm chạy, và lọc phải tách bạch | apps/web/src/ui-ledger.ts |
+| R4.10 | Lọc `verdict=loi` bắt theo trạng thái tiến trình (`trangThai === 'loi'`), không theo kết | housed | repo-history › Lịch sử chấm gắn repo tại thời điểm chạy, và lọc phải tách bạch | — |
+| R4.11 | Lọc theo nhà cung cấp dựa vào tiền tố của chuỗi model đã ghim (`claude-cli/…`), không | housed | repo-history › Lịch sử chấm gắn repo tại thời điểm chạy, và lọc phải tách bạch | — |
+| R4.12 | Nhiều bộ lọc cùng lúc kết hợp theo kiểu VÀ. | housed | repo-history › Lịch sử chấm gắn repo tại thời điểm chạy, và lọc phải tách bạch | — |
+| R4.13 | Model không mang tiền tố nhà cung cấp thì để trống cột nguồn, KHÔNG được đoán bừa. | housed | repo-history › Lịch sử chấm gắn repo tại thời điểm chạy, và lọc phải tách bạch | — |
+| R4.14 | Mọi chuỗi do người ngoài viết (tiêu đề PR, tên tác giả, tên repo) PHẢI được escape trước | housed | repo-history › Chuỗi do người ngoài viết phải được thoát, khoá hiển thị lại phải bị che | — |
+| R4.15 | Khoá/token hiển thị lại trên giao diện PHẢI bị che | housed | repo-history › Chuỗi do người ngoài viết phải được thoát, khoá hiển thị lại phải bị che | — |
+| R4.16 | Sổ cái verdict cũng là một dạng lịch sử | housed | repo-history › Lịch sử chấm gắn repo tại thời điểm chạy, và lọc phải tách bạch | — |
+| R4.17 | Thang tin cậy tác giả PHẢI lọc theo repo trước khi tính hồ sơ | housed | repo-history › Thang tin cậy lọc theo repo trước khi tính, và khi không lọc thì phải nói ra | — |
+| R4.18 | Token GitHub gắn với TỪNG repo. Mọi lời gọi API và mọi lệnh git nhắm vào một repo PHẢI đi | housed | repo-history › Token gắn với TỪNG repo, không bao giờ nằm trong cấu hình | test/fixtures/verdict-doi-cu.json |
+| R4.19 | Token KHÔNG ĐƯỢC nằm trong `config.json` | housed | repo-history › Token gắn với TỪNG repo, không bao giờ nằm trong cấu hình | test/token-repo.test.ts |
+| R4.20 | Thứ tự lấy token cho một repo: token riêng của repo → biến môi trường `GITHUB_TOKEN` (đường | housed | repo-history › Token gắn với TỪNG repo, không bao giờ nằm trong cấu hình | test/token-repo.test.ts |
+| R4.21 | Cấu hình đời cũ có `github_token` dùng chung PHẢI được di trú tự động | housed | repo-history › Token gắn với TỪNG repo, không bao giờ nằm trong cấu hình | test/fixtures/verdict-doi-cu.json |
+| R4.22 | Thêm repo đi theo bốn bước, bước sau chỉ mở khi bước trước đã qua | housed | repo-history › Vòng đời repo — thêm theo bốn bước, gỡ thì giữ clone và lịch sử | apps/web/src/github.ts |
+| R4.23 | Cổng kiểm kết nối PHẢI là một lời gọi THẬT `GET /repos/{owner}/{repo}` bằng chính token vừa | housed | repo-history › Vòng đời repo — thêm theo bốn bước, gỡ thì giữ clone và lịch sử | test/token-repo.test.ts |
+| R4.24 | Nhánh gốc PHẢI được gợi ý từ `default_branch` mà bước kiểm trả về | housed | repo-history › Vòng đời repo — thêm theo bốn bước, gỡ thì giữ clone và lịch sử | test/token-repo.test.ts |
+| R4.25 | Repo có trong danh sách nhưng không lấy được token theo R4.20 PHẢI mang trạng thái thiếu | housed | repo-history › Vòng đời repo — thêm theo bốn bước, gỡ thì giữ clone và lịch sử | apps/web/src/github.ts |
+| R4.26 | Không route nào được trả token về, kể cả đã che (R9.17) | housed | response-secret-guard › Bí mật của chính checker không được rời máy chủ qua thân response | apps/web/src/config.ts |
+| R4.27 | Gỡ repo khỏi danh sách PHẢI xoá token riêng của nó khỏi kho bí mật | housed | repo-history › Vòng đời repo — thêm theo bốn bước, gỡ thì giữ clone và lịch sử | test/fixtures/verdict-doi-cu.json |
+| R4.28 | Lệnh `git fetch` kéo PR về PHẢI mang chìa của repo trong URL của CHÍNH lệnh đó (dùng một | housed | repo-history › Token gắn với TỪNG repo, không bao giờ nằm trong cấu hình | — |
+| R4.29 | Mọi văn bản lỗi đi ra ngoài (log, sự kiện run, màn hình) PHẢI được gột token trước | housed | repo-history › Token gắn với TỪNG repo, không bao giờ nằm trong cấu hình | test/boc-model.test.ts |
 | R5 | Nhà cung cấp model và cổng kiểm bắt buộc | pending | provider-gate | test/dedup-probe.test.ts |
 | R5.1 | Nhà cung cấp đã ngừng dịch vụ PHẢI mang cờ `ngung` và KHÔNG ĐƯỢC cho chọn | pending | provider-gate | — |
 | R5.2 | Mọi nhà cung cấp còn hoạt động PHẢI khai ít nhất một model. | pending | provider-gate | — |
