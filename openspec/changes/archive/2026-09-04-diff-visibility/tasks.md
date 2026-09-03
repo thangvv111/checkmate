@@ -45,10 +45,11 @@
 
 ## 6. Bảng tra
 
-- [ ] 6.1 **3 hàng** (`R7.8` · `R7.10` · `R7.11`) → `housed` trỏ `diff-visibility › <tiêu đề>`.
+- [x] 6.1 **3 hàng** (`R7.8` · `R7.10` · `R7.11`) → `housed` trỏ `diff-visibility › <tiêu đề>`.
       **8 hàng còn `pending`** — chúng có ca nhưng chưa có requirement; bảng tra chỉ nhận `housed` khi trỏ
-      được tới requirement có thật. **Làm ở commit ARCHIVE** (lưới đòi spec đã vào `openspec/specs/`).
-- [ ] 6.2 Đo neo thư viện probe — **dự đoán TRƯỚC: vẫn 15/15, change này không thêm mã nào vào thư viện.**
+      được tới requirement có thật. Làm ở commit archive.
+      Đếm bảng: pending 49 -> **46** · housed 186 -> **189**. Lưới `r-rules-map` xanh 6/6.
+- [x] 6.2 Đo neo thư viện probe. **Dự đoán TRƯỚC «vẫn 15/15» — đo được đúng 15/15.**
 
 ## § Sau-merge — nợ có tên
 

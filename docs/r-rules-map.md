@@ -15,7 +15,7 @@ repo có hàng, hàng `pending` trỏ change có thật trong bảng chia, hàng
 
 Bảng chia change backfill (PO chốt 02/09): `merge-gate` · `verdict-contract` · `identity-session` · `probe-classification` · `data-layer` · `probe-library` · `target-contract` · `repo-history` · `provider-gate` · `model-reply-parsing` · `diff-visibility` · `concurrent-runs`.
 
-Đếm: pending 49 · precedent 16 · housed 186 · invariant 6 · obsolete 5 — tổng 262 hàng.
+Đếm: pending 46 · precedent 16 · housed 189 · invariant 6 · obsolete 5 — tổng 262 hàng.
 
 ## Ba đích của backfill (PO chốt 02/09 — change `product-independent-of-openspec`)
 
@@ -191,10 +191,10 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R7.5 | Chỉ có đúng một file mà nó đã vượt trần thì vẫn PHẢI giữ | pending | diff-visibility | — |
 | R7.6 | Thứ tự file trong diff dựng ra PHẢI giữ đúng thứ tự git trả về, không theo thứ tự sắp xếp | pending | diff-visibility | — |
 | R7.7 | Mọi file bị bỏ PHẢI được trả về kèm tên file, số ký tự và lý do. | pending | diff-visibility | — |
-| R7.8 | Log của lượt chấm PHẢI liệt kê các file này. | pending | diff-visibility | — |
+| R7.8 | Log của lượt chấm PHẢI liệt kê các file này. | housed | diff-visibility › Log của lượt chấm phải nêu file không vào diff, và PHÂN BIỆT hai lý do | test/diff-visibility.test.ts |
 | R7.9 | File mã nguồn bị loại vì vượt trần PHẢI được cảnh báo riêng, tách khỏi nhóm file sinh | housed | man-run › Chỗ checker không nhìn tới phải nói ra, không cắt âm thầm | openspec/specs/man-run/spec.md |
-| R7.10 | Prompt gửi cho model PHẢI có khối liệt kê các file nó không được xem, kèm chỉ dẫn không | pending | diff-visibility | — |
-| R7.11 | Diff chỉ còn toàn file sinh tự động thì PHẢI báo lỗi nói rõ điều đó, không được báo | pending | diff-visibility | — |
+| R7.10 | Prompt gửi cho model PHẢI có khối liệt kê các file nó không được xem, kèm chỉ dẫn không | housed | diff-visibility › Prompt phải mang khối «file bạn không được xem», kèm chỉ dẫn không kết luận | test/diff-visibility.test.ts |
+| R7.11 | Diff chỉ còn toàn file sinh tự động thì PHẢI báo lỗi nói rõ điều đó, không được báo | housed | diff-visibility › Diff chỉ còn file sinh tự động thì lỗi phải nói đúng nguyên nhân đó | test/diff-visibility.test.ts |
 | R8 | Nhiều lượt chấm chạy song song | housed | concurrent-runs › Trần lượt chạy đồng thời, vượt trần thì từ chối ngay chứ không xếp hàng ngầm | test/thu-vien.test.ts |
 | R8.1 | Số lượt chạy đồng thời PHẢI có trần | housed | concurrent-runs › Trần lượt chạy đồng thời, vượt trần thì từ chối ngay chứ không xếp hàng ngầm | test/kho-run.test.ts |
 | R8.2 | Trần tồn tại vì mỗi lượt tốn một worktree trên đĩa, một lượt chạy bộ test thật, và các | housed | concurrent-runs › Trần lượt chạy đồng thời, vượt trần thì từ chối ngay chứ không xếp hàng ngầm | test/concurrent-runs.test.ts |
