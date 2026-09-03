@@ -70,5 +70,5 @@
 
 ## 6. Sau-merge — nợ có tên (KHÔNG thuộc change này)
 
-- [ ] 6.1 Nợ **#15**: phát hiện dữ liệu nhạy cảm ĐI VÀO cùng pull request và cảnh báo (PO 03/09 — đã vào
+- [x] 6.1 → `named-debts` **#15** (đã vào backlog 03/09, trước khi xin archive). Nợ **#15**: phát hiện dữ liệu nhạy cảm ĐI VÀO cùng pull request và cảnh báo (PO 03/09 — đã vào
       backlog `named-debts`). Hướng ngược với change này, và là danh sách cấm ở vai cảnh báo.
