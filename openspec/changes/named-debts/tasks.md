@@ -53,6 +53,13 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       0 — đã có ca mutation M3 chứng minh), nhưng phải kèm một đợt đổi ~135 tên trong thân hàm: rủi ro cao,
       giá trị thấp, và đúng thứ CLAUDE.md cảnh báo về trạng thái nửa nạc nửa mỡ. Nguồn:
       `identifier-language-gate` D2.
+- [ ] 16. **Đưa thông điệp lỗi vào lượt hai của `callCode`** — hôm nay chỉ đường JSON làm thế. `callJson`
+      khi parse hỏng đưa CHÍNH thông điệp lỗi vào prompt lượt hai (đã rào bằng nonce), và đo được là nó
+      giúp model sửa đúng chỗ; `callCode` thì chỉ nhắc chung theo loại lỗi («bạn dùng tool» / «bạn quên
+      fence»). R3.16 chỉ áp cho đường JSON — đọc bản gốc thì nó nằm trong mục «Lỗi của công cụ», ngay sau
+      R3.15 nói về JSON parse fail — nên đây KHÔNG phải vi phạm, mà là cải tiến chưa làm. Khi làm: phải
+      **rào y như đường JSON**, vì thông điệp ấy cũng dẫn xuất từ diff pull request. Đổi hành vi nên là
+      change riêng, không phải backfill. Nguồn: `model-reply-parsing` D2.
 - [ ] 15. **Phát hiện dữ liệu nhạy cảm TRONG pull request và cảnh báo** (PO 03/09 — chưa làm ngay). Khác
       #12 ở hướng: #12 chặn secret ĐI RA khỏi CheckMate, còn mục này phát hiện secret ĐI VÀO cùng PR —
       `.env` bị commit, khoá hardcode, file credential. Lý do tách: #12 chọn đối chiếu với diff/source PR

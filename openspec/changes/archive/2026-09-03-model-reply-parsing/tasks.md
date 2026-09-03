@@ -68,5 +68,5 @@
       giữ bằng kỷ luật — `R11.20` (danh sách tài khoản, ĐÃ làm ở `identity-session`) · `R9.17` (khoá,
       token — `data-layer`) · `R4.26` (token, kể cả đã che — `repo-history`). PO chốt gộp thành một change
       lưới dùng chung, làm ngay sau change này.
-- [ ] 6.2 Ứng viên nợ: đưa thông điệp lỗi vào lượt hai của `callCode` (D2) — đổi hành vi, phải rào y như
+- [x] 6.2 → `named-debts` **#16** (vào backlog 03/09). Ứng viên nợ: đưa thông điệp lỗi vào lượt hai của `callCode` (D2) — đổi hành vi, phải rào y như
       đường JSON, nên là change riêng chứ không backfill.
