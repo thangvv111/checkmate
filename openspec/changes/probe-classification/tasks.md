@@ -2,30 +2,36 @@
 
 ## 1. Luật (capability)
 
-- [ ] 1.1 Delta ADDED `specs/probe-classification/spec.md` (4 requirement) — đã viết. Test khoá:
+- [x] 1.1 Delta ADDED `specs/probe-classification/spec.md` (4 requirement) — đã viết. Test khoá:
       `test/phan-loai.test.ts` (31 ca sẵn có + 2 ca mới cho R1.15).
-- [ ] 1.2 Đối chiếu từng requirement với ca test đang xanh — nếu spec nói điều gì mà không ca nào khoá, sửa
-      SPEC cho khớp code hoặc thêm ca; KHÔNG chép từ văn bản R (D1).
+- [x] 1.2 Đối chiếu từng requirement với ca test đang xanh. Bắt được **một chỗ spec nói quá code**: R1.20
+      «phân biệt ở MỌI bề mặt người đọc» — dòng log tóm tắt GỘP hai nhãn và bảng hàng dùng cùng mũi tên
+      `✓→✗`. Sửa SPEC cho khớp code (giữ riêng **trong dữ liệu**, có scenario mới «sổ giữ hai nhãn riêng»),
+      ghi chỗ lệch thành mục riêng trong proposal. Hai vế chưa đạt để lại làm ứng viên nợ, KHÔNG khai.
 
 ## 2. Engine (packages/harness)
 
-- [ ] 2.1 `skill-code.ts`: thêm `export` cho `promptSinhCode`. KHÔNG đổi thân hàm, KHÔNG đổi một chữ nào
-      trong prompt (D3).
-- [ ] 2.2 `checkmate.yml` bảng module: thêm `promptSinhCode` vào dòng `skill-code.js` (⛔C5).
+- [x] 2.1 `skill-code.ts`: tách hàm thuần `loiSinhLaiKhongBangChung(baseKq, viSao)` ra khỏi biểu thức ba
+      ngôi tại chỗ gọi và export nó. KHÔNG đổi một chữ nào trong prompt (D3 sửa lúc apply — export
+      `promptSinhCode` không khoá được điều kiện vì điều kiện nằm ở chỗ gọi, không nằm trong hàm).
+- [x] 2.2 `checkmate.yml` bảng module: thêm `loiSinhLaiKhongBangChung` vào dòng `skill-code.js` (⛔C5).
 
 ## 3. Test
 
-- [ ] 3.1 `test/phan-loai.test.ts`: hai ca cho R1.15 — (a) nhánh gốc không chạy được probe nào → prompt sinh
+- [x] 3.1 `test/phan-loai.test.ts`: hai ca cho R1.15 — (a) nhánh gốc không chạy được probe nào → prompt sinh
       lại CÓ lời cảnh báo, nói cả ba ý (không đối chứng · probe đỏ thành nghi vấn · probe sai giả định);
       (b) nhánh gốc CÓ kết quả → prompt KHÔNG có lời đó (nói thừa cũng là nói sai).
-- [ ] 3.2 Mutation: bỏ nhánh `baseKq === undefined || baseKq.length === 0` trong `promptSinhCode` → ca (a)
-      phải ĐỎ; ép luôn thêm lời cảnh báo → ca (b) phải ĐỎ. Ghi kết quả vào PR.
+- [x] 3.2 Mutation: gác `baseKq === undefined || baseKq.length === 0` thay bằng `false` → ca (a) ĐỎ, 32 ca
+      còn lại xanh; thay bằng `true` → ca (b) ĐỎ, 32 ca còn lại xanh. Mỗi chiều giết ĐÚNG một ca, không
+      đỏ lan — gác load-bearing cả hai vế. Ghi kết quả vào PR.
 
 ## 4. Kiểm cơ học
 
-- [ ] 4.1 `npx tsc --noEmit` sạch · `npm test` xanh TOÀN BỘ.
-- [ ] 4.2 `git diff packages/harness/src/skill-code.ts` chỉ có một dòng đổi (thêm `export`).
-- [ ] 4.3 `npx openspec validate --changes` xanh.
+- [x] 4.1 `npx tsc --noEmit` sạch · `npm test` xanh TOÀN BỘ — 47 file / 764 ca.
+- [x] 4.2 `git diff packages/harness/src/skill-code.ts`: `29 14`. Kỳ vọng cũ («đúng 1 dòng») thuộc về D3
+      bản sai; theo D3 đã sửa, con số đúng là: chỗ gọi thu 14 dòng → 1, hàm mới 28 dòng (13 dòng chữ
+      prompt chuyển nguyên văn + JSDoc + chữ ký).
+- [x] 4.3 `npx openspec validate --changes` xanh.
 - [ ] 4.4 Đo neo thư viện sau archive — **dự đoán TRƯỚC: tăng từ 3 lên 12** (9 vế R1.2 · R1.4–R1.7 · R1.17 ·
       R1.18 · R1.20 trỏ đúng nhóm này). Đo để xác nhận; sai thì ghi rõ sai ở đâu (bài học `verdict-contract` §4.4).
 

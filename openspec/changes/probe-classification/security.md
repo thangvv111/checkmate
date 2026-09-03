@@ -1,7 +1,7 @@
 # Security — probe-classification
 
-Change này khai bảng chân trị thành luật và thêm một `export` + hai ca test. Nó KHÔNG đổi hành vi phân
-loại. Nhưng bảng chân trị là chỗ ⛔C2 sống ở tầng probe, nên vẫn phải soi đủ.
+Change này khai bảng chân trị thành luật, tách một hàm thuần dựng chuỗi (`loiSinhLaiKhongBangChung`) và
+thêm hai ca test. Nó KHÔNG đổi hành vi phân loại, KHÔNG đổi một ký tự nào trong prompt. Nhưng bảng chân trị là chỗ ⛔C2 sống ở tầng probe, nên vẫn phải soi đủ.
 
 ## S1. Bí mật & rò rỉ
 

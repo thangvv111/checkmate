@@ -91,9 +91,11 @@ hành vi cần kiểm nên không kết luận được gì. Phép nhận diện
 lỗi nghiệp vụ tiếng Anh tự nhiên, và một vi phạm THẬT bị loại khỏi `hoi_quy` là vá false-FAIL bằng cách mở
 một đường false-PASS.
 
-`vi_pham_luat_moi` SHALL phân biệt được với `hoi_quy` ở **mọi bề mặt người đọc** — verdict, log, comment
-trên pull request (gốc: R1.20). Hai nhãn cùng chặn merge nhưng nói hai chuyện khác nhau, và người sửa cần
-biết mình đang sửa cái gì: «PR làm hỏng thứ đang chạy» khác «PR chưa làm được thứ nó vừa hứa».
+Hai nhãn cùng chặn merge nhưng nói hai chuyện khác nhau, và người sửa cần biết mình đang sửa cái gì: «PR
+làm hỏng thứ đang chạy» khác «PR chưa làm được thứ nó vừa hứa». Nên `vi_pham_luat_moi` MUST được giữ
+**riêng trong dữ liệu lượt chấm** — thống kê đếm nó thành một khoá riêng, mỗi hàng đối chiếu mang trạng
+thái riêng của nó — và MUST NOT bị thu về `hoi_quy` khi ghi sổ (gốc: R1.20). Dữ liệu giữ riêng thì mọi bề
+mặt đọc sổ đều còn đường phân biệt; dữ liệu thu về một thì không bề mặt nào cứu lại được.
 
 *Vì sao thành luật: đo được bằng hai lượt chấm khác nhau đúng một biến — cùng một luật «danh sách trả tối
 đa 20 mục», cùng một dòng code vi phạm, ba probe đỏ như nhau trên nhánh PR. Lượt có luật sẵn ở nhánh gốc ra
@@ -119,6 +121,11 @@ chứng nằm sẵn trong tay máy, và cổng vẫn xanh.*
 #### Scenario: luật mới mà probe xanh
 - **WHEN** probe neo luật mới và pass trên nhánh PR
 - **THEN** nhãn là `pass` — luật mới không tự nó thành lỗi
+
+#### Scenario: sổ giữ hai nhãn riêng
+- **WHEN** một lượt chấm ghi thống kê và bảng đối chiếu probe
+- **THEN** `vi_pham_luat_moi` là một khoá đếm riêng, tách khỏi `hoi_quy`, và trạng thái từng hàng đối chiếu
+  giữ nguyên nhãn máy đã dán
 
 ### Requirement: Nhánh gốc không chạy được probe nào là ca bình thường, và phải nói ra
 

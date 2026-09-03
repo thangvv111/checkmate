@@ -10,7 +10,7 @@ errorFingerprint    tho:  gột hex>=7, MOI chu so, khoang trang     -> dong dau
 tightFingerprint    chat: gột hex>=7, `<so> ms`, so >=5 chu so     -> dong dau, 200 ky tu
 looksLikeBrokenProbe  mau HEP (is not a function · Cannot find module · ten lop loi runtime · …)
 test/phan-loai.test.ts  31 ca — bang chan tri 8 nhanh · van tay 4 ca · luat moi 9 ca · probe hong 2 ca
-R1.15  chuoi trong promptSinhCode (skill-code.ts:767) — ham CHUA export, khong ca nao goi toi
+R1.15  chuoi trong promptSinhCode (skill-code.ts:767) — DIEU KIEN la bieu thuc ? : ngay tai cho goi
 R1.16  cuong che that o hasBasis (verdict-contract), khong co cho rieng
 ```
 
@@ -45,14 +45,24 @@ nhánh PR». Đó là **hệ quả** của bảng chân trị, và chỗ cưỡn
 một điều, và hai chỗ sẽ lệch nhau. Bảng tra đổi hàng R1.16 sang `verdict-contract`; requirement 4 của
 capability này nhắc một câu kèm con trỏ, không lặp luật.
 
-### D3 — Export `promptSinhCode` để khoá R1.15 (PO chốt 03/09)
+### D3 — Tách `loiSinhLaiKhongBangChung` để khoá R1.15 (sửa 03/09 khi apply)
 
-Cùng khuôn `envSandbox` ở `concurrent-runs` và `promptPhanTich` ở `stop-forcing-target-repo-shape`: hàm
-dựng prompt là hàm thuần, export ra thì mỗi câu buộc phải có trong prompt trở thành một ca test chạy được.
-Chỉ thêm từ khoá `export`, KHÔNG đổi thân hàm, KHÔNG đổi chữ nào trong prompt.
+**Bản đầu của D3 sai, và cái sai lộ ra lúc viết ca test.** Nó nói: export `promptSinhCode` là đủ. Không đủ —
+lời cảnh báo R1.15 KHÔNG do `promptSinhCode` quyết. Nó được dựng ở **chỗ gọi**, bằng một biểu thức ba ngôi
+`baseKq === undefined || baseKq.length === 0 ? <cảnh báo> : <rỗng>`, rồi truyền vào qua tham số `loiLanTruoc`.
+Export hàm nhận tham số ấy chỉ khoá được «prompt có chèn `loiLanTruoc` vào không» — tức khoá nửa dữ liệu mà
+bỏ nửa quyết định, đúng chỗ luật sống. Một ca test dựa vào nó vẫn xanh sau khi ai đó xoá hẳn điều kiện.
+
+Nên tách đúng chỗ quyết định: `loiSinhLaiKhongBangChung(baseKq, viSao)` — hàm thuần, nhận đúng hai thứ nó
+cần, trả về chuỗi `loiLanTruoc` đầy đủ. Chữ trong prompt giữ **nguyên từng ký tự**. `promptSinhCode` không
+export nữa (bản apply đã hoàn tác) vì nó không phục vụ ca nào — thêm bề mặt công khai không dùng đến là nợ.
+
+Bài học lặp lại của backfill: **chỗ export phải là chỗ QUYẾT ĐỊNH, không phải chỗ gần nó.** Ở `merge-gate`
+và `concurrent-runs` hai chỗ đó trùng nhau nên không lộ; ở đây chúng cách nhau một tham số.
 
 Ca khoá cần **hai vế**: có cảnh báo khi nhánh gốc rỗng, và KHÔNG có cảnh báo khi nhánh gốc còn chạy được —
 nói thừa cũng là nói sai, và một ca một chiều sẽ xanh cả khi ai đó nhét câu ấy vào mọi lượt sinh lại.
+Mutation đo được cả hai chiều (task 3.2), mỗi chiều giết đúng một ca.
 
 ### D4 — Bảng chân trị viết dạng BẢNG trong requirement
 
@@ -68,7 +78,8 @@ R1 này, nên archive xong neo phải tăng từ 3 lên 12. **Dự đoán trư�
 
 ## Architecture
 
-- `packages/harness/src/skill-code.ts`: thêm `export` cho `promptSinhCode`. Không đổi gì khác.
+- `packages/harness/src/skill-code.ts`: tách `loiSinhLaiKhongBangChung` (export) ra khỏi biểu thức ba ngôi
+  tại chỗ gọi; chỗ gọi thu về một dòng. Chữ trong prompt không đổi một ký tự.
 - `checkmate.yml` bảng module (⛔C5) · `test/phan-loai.test.ts` (2 ca cho R1.15).
 - `apps/web`, `packages/shared`: không đổi.
 
@@ -79,8 +90,8 @@ N/A — không đổi kiểu, không đổi dữ liệu trên đĩa.
 ## Risks / Trade-offs
 
 - [Spec chép từ R thay vì từ code] → D1; mỗi requirement đối chiếu với ca test đang xanh.
-- [Export `promptSinhCode` mở rộng bề mặt công khai] → nó là hàm thuần dựng chuỗi, không I/O, không trạng
-  thái; cùng loại với `promptPhanTich` đã export từ trước.
+- [Export thêm một hàm mở rộng bề mặt công khai] → `loiSinhLaiKhongBangChung` là hàm thuần dựng chuỗi,
+  không I/O, không trạng thái; cùng loại với `promptPhanTich` đã export từ trước. `promptSinhCode` giữ private.
 - [Ca R1.15 chỉ một chiều] → D3 đòi hai vế (có và không có cảnh báo).
 
 ## Migration Plan
