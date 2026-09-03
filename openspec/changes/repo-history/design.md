@@ -77,6 +77,18 @@ Thư viện probe tự chấm hôm nay neo **12/15**, còn trôi `R4.18` · `R4.
 và **đã có ca** trong `token-repo.test.ts`, nên archive xong **dự đoán neo lên 14/15** — chỉ còn `R9.6`
 thuộc `data-layer`.
 
+### D6 — Ca cho `R4.17` vế lọc phải kiểm CHỖ GỌI, không chỉ kiểm hàm (phát hiện lúc apply)
+
+Ca đầu tiên em viết cho vế lọc tự lọc sổ cái trong test rồi gọi `computeProfile` — nó khoá rằng hàm tôn
+trọng dữ liệu vào, **không** khoá rằng route lọc trước khi gọi. Ai bỏ `.filter()` ở route thì ca vẫn xanh,
+mà luật `R4.17` nói «lọc TRƯỚC KHI tính» — tức nó là luật về **chỗ gọi**, không phải về hàm.
+
+Thêm ca 1b đọc source route và khẳng định phép lọc đứng trước `computeProfile`. Mutation M3 (bỏ lọc ở
+route) giết đúng ca ấy và **chỉ** ca ấy — nếu không có 1b thì đột biến đó không ai bắt.
+
+Cùng họ với bài học `error-message-egress-gate` D1 và `response-secret-guard` T7.1: một ca dựng đúng hình
+dạng mình nghĩ ra vẫn có thể xanh trên một hệ thống đã hỏng ở chỗ khác.
+
 ## Architecture
 
 - `apps/web/src/config.ts`: tách hàm thuần cho hình dạng cấu hình (D1). Không đổi hành vi.

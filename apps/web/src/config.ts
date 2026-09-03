@@ -120,6 +120,31 @@ function dsRepoTuLuu(luu: Partial<CheckmateConfig>): RepoConfig[] {
   return luu.repos?.length ? luu.repos : [{ ...MAC_DINH.repos[0], ...(luu.repo ?? {}) }];
 }
 
+/**
+ * Hình dạng repo của một cấu hình: danh sách nào, repo nào đang chọn, và khung nhìn của nó.
+ *
+ * Bốn luật sống trong ba dòng này và trước đây không luật nào gọi tới được vì chúng nằm giữa đường đọc
+ * file:
+ *   - `repos[]` là NGUỒN SỰ THẬT (R4.1);
+ *   - `repo` chỉ là KHUNG NHÌN dựng ra lúc đọc, không lưu song song (R4.2) — hai chỗ giữ cùng một sự
+ *     thật thì sẽ có ngày lệch nhau và người sửa không biết bên nào đúng;
+ *   - cấu hình đời cũ chỉ có một `repo` được nâng thành danh sách một phần tử (R4.3);
+ *   - `repo_dang_chon` trỏ vào repo đã bị gỡ thì rơi về phần tử ĐẦU, không ném (R4.4) — trạng thái ấy là
+ *     bình thường, và làm màn hình chết vì nó là báo sai bản chất.
+ *
+ * Hàm thuần, không I/O: mỗi luật trên là một ca test gọi được.
+ */
+export function resolveRepoShape(luu: Partial<CheckmateConfig>): {
+  repos: RepoConfig[];
+  repo_dang_chon: string;
+  repo: RepoConfig;
+} {
+  const repos = dsRepoTuLuu(luu);
+  const chon =
+    luu.repo_dang_chon && repos.some((r) => r.github === luu.repo_dang_chon) ? luu.repo_dang_chon : repos[0].github;
+  return { repos, repo_dang_chon: chon, repo: repos.find((r) => r.github === chon) ?? repos[0] };
+}
+
 export function readConfig(): CheckmateConfig {
   // `GITHUB_TOKEN` của môi trường vẫn có hiệu lực, nhưng ở bậc 2 của R4.20 và do kho bí mật lo —
   // không còn nhồi vào `config.github_token` nữa. Giữ trong khoá cache để sửa env rồi restart vẫn ăn.
@@ -130,13 +155,10 @@ export function readConfig(): CheckmateConfig {
   const raw = readFileSync(FILE, 'utf8');
   if (cache && cache.raw === raw && cache.token === tokenEnv) return cache.c;
   const luu = JSON.parse(raw) as Partial<CheckmateConfig>;
-  // Config đời cũ chỉ có MỘT repo — nâng thành danh sách mà không mất thiết lập nào
-  const repos = dsRepoTuLuu(luu);
-  const chon = luu.repo_dang_chon && repos.some((r) => r.github === luu.repo_dang_chon) ? luu.repo_dang_chon : repos[0].github;
+  // Hình dạng repo (R4.1–R4.4) quyết ở hàm thuần `resolveRepoShape` — ở đây chỉ ghép vào cấu hình.
+  const hinhDang = resolveRepoShape(luu);
   const c: CheckmateConfig = {
-    repos,
-    repo_dang_chon: chon,
-    repo: repos.find((r) => r.github === chon) ?? repos[0],
+    ...hinhDang,
     github_token: luu.github_token ?? '',
     agent: nangCapAgent(luu.agent),
     // R6.19 — chỉ giữ KHOÁ ĐÃ BIẾT. Cho khoá lạ đi qua thì một `config.json` sửa tay có thể dựng ra
