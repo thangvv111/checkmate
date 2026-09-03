@@ -68,6 +68,19 @@ lọt qua là **lỗi cài đặt**, không phải giới hạn phương pháp. 
 
 ## Kiểm tay
 
-- [ ] T7.1 Mở giao diện thật một lượt sau khi gắn gác: các màn chính tải được, luồng sự kiện của một lượt
-      chấm chạy tới hết. Máy đo được «không chặn oan trong test»; không đo được «giao diện thật vẫn dùng
-      được». Gác chạy trên MỌI response nên một lỗi ở đây hỏng toàn bộ, không hỏng một chỗ.
+- [x] T7.1 **Ô có giá trị nhất của change** — nó bắt được lỗ mà 18 ca test và 5 đột biến bỏ sót.
+
+      Chạy máy chủ thật hai chiều:
+      - đặt một chuỗi CÓ trong trang login làm `GITHUB_TOKEN` → `/login` trả **500**, thông điệp nêu
+        `env.GITHUB_TOKEN` và KHÔNG nêu giá trị;
+      - không cài bí mật → `/health` 200 · `/login` 200 (37KB) · `/` 303 · `/api/runs` 401, **không chặn
+        oan lần nào**.
+
+      Lượt chạy ĐẦU TIÊN cho thấy gác **không chặn gì**: nó chỉ bọc `res.json` và `res.write`, còn trang
+      HTML đi qua `res.send` — và `server.ts` có 10 chỗ `res.send`, tức mọi màn hình. Đã sửa (bọc `send`,
+      vì Express dựng `json` bằng cách gọi `send`), và sửa cả `res` giả trong test cho đi đúng đường ấy —
+      trước đó lưới đang đo một hình dạng mà máy chủ thật không có.
+
+      *Bài học: ca test chỉ kiểm được bề mặt mà người viết NGHĨ RA; máy chủ thật kiểm mọi bề mặt nó có.*
+
+      Dữ liệu `web-runs/` và `config.json` khớp từng byte với bản sao lưu trước khi chạy.
