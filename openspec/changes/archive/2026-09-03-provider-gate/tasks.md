@@ -37,5 +37,7 @@
 
 ## 5. Bảng tra (ở commit archive)
 
-- [ ] 5.1 `docs/r-rules-map.md`: 23 điều → `housed` `provider-gate › <tiêu đề>`.
-- [ ] 5.2 Đo neo thư viện probe — **dự đoán TRƯỚC: KHÔNG đổi, vẫn 14/15** (D4). Sai thì ghi rõ sai ở đâu.
+- [x] 5.1 `docs/r-rules-map.md`: 23 hàng → `housed` + 1 hàng `precedent` trỏ đúng đoạn. Đếm bảng:
+      pending 98 → **75** · housed 138 → 161. Lưới `r-rules-map` xanh 6/6.
+- [x] 5.2 Đo neo thư viện probe. **Dự đoán TRƯỚC «không đổi, vẫn 14/15» — đo được đúng 14/15.** Còn trôi
+      đúng `R9.6`, thuộc `data-layer` — change kế tiếp sẽ đóng nốt.

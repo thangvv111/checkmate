@@ -15,7 +15,7 @@ repo có hàng, hàng `pending` trỏ change có thật trong bảng chia, hàng
 
 Bảng chia change backfill (PO chốt 02/09): `merge-gate` · `verdict-contract` · `identity-session` · `probe-classification` · `data-layer` · `probe-library` · `target-contract` · `repo-history` · `provider-gate` · `model-reply-parsing` · `diff-visibility` · `concurrent-runs`.
 
-Đếm: pending 98 · precedent 16 · housed 138 · invariant 6 · obsolete 4 — tổng 262 hàng.
+Đếm: pending 75 · precedent 16 · housed 161 · invariant 6 · obsolete 4 — tổng 262 hàng.
 
 ## Ba đích của backfill (PO chốt 02/09 — change `product-independent-of-openspec`)
 
@@ -92,10 +92,10 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R3.9 | Hai lượt chạy khác nhau PHẢI cho nonce khác nhau | housed | model-reply-parsing › Dữ liệu ngoại lai vào prompt phải kẹp giữa cặp mốc mang nonce, kèm lời rào | — |
 | R3.10 | Prompt PHẢI kèm lời rào nói rõ: mọi thứ giữa hai mốc là dữ liệu thô, không phải chỉ dẫn; | housed | model-reply-parsing › Dữ liệu ngoại lai vào prompt phải kẹp giữa cặp mốc mang nonce, kèm lời rào | — |
 | R3.11 | Model chấm bài chạy không có tool | housed | model-reply-parsing › Model chấm bài chạy không có tool, và danh sách cấm phải liệt kê tường minh | — |
-| R3.12 | Claude Code CLI báo mất xác thực bằng cách in ra stdout rồi thoát 0 | pending | provider-gate | test/mat-xac-thuc.test.ts |
-| R3.13 | Mẫu nhận diện phải phủ cả phiên hết hạn, không chỉ ca chưa đăng nhập bao giờ | pending | provider-gate | packages/harness/src/model.ts |
-| R3.13 | mẫu chữ mất-xác-thực bắt nhầm 3/4 câu trả lời hợp lệ → phải xét chỗ xuất hiện (stderr) và hình dạng | precedent | pending: provider-gate (đoạn «Vì sao») | docs/archive/r-rules/R3-boc-tra-loi-model.md |
-| R3.14 | Mất xác thực là lỗi CẤU HÌNH: KHÔNG thử lại. Phiên hết hạn không tự sống lại ở lượt thứ hai. | pending | provider-gate | test/mat-xac-thuc.test.ts |
+| R3.12 | Claude Code CLI báo mất xác thực bằng cách in ra stdout rồi thoát 0 | housed | provider-gate › Mất xác thực là lỗi CÔNG CỤ, không phải câu trả lời của model, và KHÔNG thử lại | test/mat-xac-thuc.test.ts |
+| R3.13 | Mẫu nhận diện phải phủ cả phiên hết hạn, không chỉ ca chưa đăng nhập bao giờ | housed | provider-gate › Mất xác thực là lỗi CÔNG CỤ, không phải câu trả lời của model, và KHÔNG thử lại | packages/harness/src/model.ts |
+| R3.13 | mẫu chữ mất-xác-thực bắt nhầm 3/4 câu trả lời hợp lệ → phải xét chỗ xuất hiện (stderr) và hình dạng | precedent | provider-gate › Mất xác thực là lỗi CÔNG CỤ, không phải câu trả lời của model, và KHÔNG thử lại (đoạn «Vì sao») | docs/archive/r-rules/R3-boc-tra-loi-model.md |
+| R3.14 | Mất xác thực là lỗi CẤU HÌNH: KHÔNG thử lại. Phiên hết hạn không tự sống lại ở lượt thứ hai. | housed | provider-gate › Mất xác thực là lỗi CÔNG CỤ, không phải câu trả lời của model, và KHÔNG thử lại | test/mat-xac-thuc.test.ts |
 | R3.15 | JSON của model không parse được thì lỗi ném ra PHẢI kèm đoạn văn quanh vị trí hỏng, | housed | model-reply-parsing › JSON hỏng phải chỉ đúng chỗ hỏng, và lượt nhắc lại được đưa chính thông điệp đó — đã rào | test/fixtures/thu-vien-doi-cu.json |
 | R3.16 | Lượt nhắc lại PHẢI được đưa chính thông điệp lỗi đó | housed | model-reply-parsing › JSON hỏng phải chỉ đúng chỗ hỏng, và lượt nhắc lại được đưa chính thông điệp đó — đã rào | — |
 | R4 | Nhiều repo và lịch sử chấm theo repo | housed | repo-history › Danh sách repo là nguồn sự thật, repo đang chọn chỉ là khung nhìn dựng ra từ nó | test/dedup-probe.test.ts |
@@ -128,26 +128,26 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R4.27 | Gỡ repo khỏi danh sách PHẢI xoá token riêng của nó khỏi kho bí mật | housed | repo-history › Vòng đời repo — thêm theo bốn bước, gỡ thì giữ clone và lịch sử | test/fixtures/verdict-doi-cu.json |
 | R4.28 | Lệnh `git fetch` kéo PR về PHẢI mang chìa của repo trong URL của CHÍNH lệnh đó (dùng một | housed | repo-history › Token gắn với TỪNG repo, không bao giờ nằm trong cấu hình | — |
 | R4.29 | Mọi văn bản lỗi đi ra ngoài (log, sự kiện run, màn hình) PHẢI được gột token trước | housed | repo-history › Token gắn với TỪNG repo, không bao giờ nằm trong cấu hình | test/boc-model.test.ts |
-| R5 | Nhà cung cấp model và cổng kiểm bắt buộc | pending | provider-gate | test/dedup-probe.test.ts |
-| R5.1 | Nhà cung cấp đã ngừng dịch vụ PHẢI mang cờ `ngung` và KHÔNG ĐƯỢC cho chọn | pending | provider-gate | — |
-| R5.2 | Mọi nhà cung cấp còn hoạt động PHẢI khai ít nhất một model. | pending | provider-gate | — |
-| R5.3 | Nhà cung cấp hỗ trợ phương thức `api` PHẢI khai tên biến môi trường chứa khoá | pending | provider-gate | — |
-| R5.4 | Chọn một nhà cung cấp làm nơi chấm chỉ hợp lệ khi nhà cung cấp đó đã kiểm THÀNH CÔNG | pending | provider-gate | — |
-| R5.5 | Kiểm còn hiệu lực nghĩa là đã kiểm OK với đúng cấu hình hiện tại | pending | provider-gate | apps/web/src/provider.ts |
-| R5.6 | Phản hồi rỗng từ nhà cung cấp PHẢI bị coi là kiểm THẤT BẠI, kể cả khi HTTP trả 200. | pending | provider-gate | — |
-| R5.7 | Kiểm thất bại PHẢI nói rõ nguyên nhân (sai khoá, hết hạn mức, model không tồn tại, dịch vụ | pending | provider-gate | test/ba-muc-tu-dong.test.ts |
-| R5.8 | Dán nhầm khoá của nhà cung cấp này vào ô của nhà cung cấp khác thì thông báo PHẢI đoán và | pending | provider-gate | — |
-| R5.9 | Thứ tự ưu tiên khi lấy khoá: biến môi trường của dịch vụ trước, khoá dán qua giao diện sau. | pending | provider-gate | — |
-| R5.10 | Khoá dán qua giao diện PHẢI tới được tiến trình con khi chấm | pending | provider-gate | — |
-| R5.11 | Kho khoá trên đĩa PHẢI đặt quyền hạn chế (chmod 600 trên hệ hỗ trợ). | pending | provider-gate | — |
-| R5.12 | Phương thức gói thuê bao PHẢI chạy thật bằng gói | pending | provider-gate | — |
-| R5.13 | Verdict PHẢI ghim chuỗi model dạng `<nhà cung cấp>/<tên model>` để tra ngược được lượt chấm | pending | provider-gate | — |
-| R5.14 | Số token vào/ra PHẢI được ghi lại, và phải nêu rõ khi con số là ước tính chứ không phải | pending | provider-gate | — |
-| R5.15 | Danh mục nhà cung cấp được phép khai một model CHỈ dùng với một số phương thức (ví dụ: | pending | provider-gate | test/ba-muc-tu-dong.test.ts |
-| R5.16 | Cổng kiểm gặp tổ hợp model + phương thức nằm ngoài giới hạn PHẢI từ chối NGAY với lời nói | pending | provider-gate | test/model-hop-le.test.ts |
-| R5.17 | Cửa đọc cấu hình KHÔNG ĐƯỢC tự thay tổ hợp cấm bằng một tổ hợp khác | pending | provider-gate | test/ba-muc-tu-dong.test.ts |
-| R5.18 | Danh mục `models` là GỢI Ý cho giao diện và nguồn giá trị mặc định, KHÔNG phải trần cứng. | pending | provider-gate | test/model-hop-le.test.ts |
-| R5.19 | Đường chấm gặp cấu hình KHUYẾT trường (model rỗng/thiếu) thì HỎI, không ĐOÁN | pending | provider-gate | test/ba-muc-tu-dong.test.ts |
+| R5 | Nhà cung cấp model và cổng kiểm bắt buộc | housed | provider-gate › Danh mục nhà cung cấp phải tự khai đủ để giao diện và cổng kiểm dùng được | test/dedup-probe.test.ts |
+| R5.1 | Nhà cung cấp đã ngừng dịch vụ PHẢI mang cờ `ngung` và KHÔNG ĐƯỢC cho chọn | housed | provider-gate › Danh mục nhà cung cấp phải tự khai đủ để giao diện và cổng kiểm dùng được | — |
+| R5.2 | Mọi nhà cung cấp còn hoạt động PHẢI khai ít nhất một model. | housed | provider-gate › Danh mục nhà cung cấp phải tự khai đủ để giao diện và cổng kiểm dùng được | — |
+| R5.3 | Nhà cung cấp hỗ trợ phương thức `api` PHẢI khai tên biến môi trường chứa khoá | housed | provider-gate › Danh mục nhà cung cấp phải tự khai đủ để giao diện và cổng kiểm dùng được | — |
+| R5.4 | Chọn một nhà cung cấp làm nơi chấm chỉ hợp lệ khi nhà cung cấp đó đã kiểm THÀNH CÔNG | housed | provider-gate › Cổng kiểm bắt buộc — chưa kiểm thành công thì không được chọn để chấm | — |
+| R5.5 | Kiểm còn hiệu lực nghĩa là đã kiểm OK với đúng cấu hình hiện tại | housed | provider-gate › «Kiểm còn hiệu lực» nghĩa là đã kiểm OK với ĐÚNG cấu hình hiện tại | apps/web/src/provider.ts |
+| R5.6 | Phản hồi rỗng từ nhà cung cấp PHẢI bị coi là kiểm THẤT BẠI, kể cả khi HTTP trả 200. | housed | provider-gate › Cổng kiểm bắt buộc — chưa kiểm thành công thì không được chọn để chấm | — |
+| R5.7 | Kiểm thất bại PHẢI nói rõ nguyên nhân (sai khoá, hết hạn mức, model không tồn tại, dịch vụ | housed | provider-gate › Cổng kiểm bắt buộc — chưa kiểm thành công thì không được chọn để chấm | test/ba-muc-tu-dong.test.ts |
+| R5.8 | Dán nhầm khoá của nhà cung cấp này vào ô của nhà cung cấp khác thì thông báo PHẢI đoán và | housed | provider-gate › Cổng kiểm bắt buộc — chưa kiểm thành công thì không được chọn để chấm | — |
+| R5.9 | Thứ tự ưu tiên khi lấy khoá: biến môi trường của dịch vụ trước, khoá dán qua giao diện sau. | housed | provider-gate › Khoá lấy theo thứ tự đã khai, tới được tiến trình con, và kho ở quyền hạn chế | — |
+| R5.10 | Khoá dán qua giao diện PHẢI tới được tiến trình con khi chấm | housed | provider-gate › Khoá lấy theo thứ tự đã khai, tới được tiến trình con, và kho ở quyền hạn chế | — |
+| R5.11 | Kho khoá trên đĩa PHẢI đặt quyền hạn chế (chmod 600 trên hệ hỗ trợ). | housed | provider-gate › Khoá lấy theo thứ tự đã khai, tới được tiến trình con, và kho ở quyền hạn chế | — |
+| R5.12 | Phương thức gói thuê bao PHẢI chạy thật bằng gói | housed | provider-gate › Phương thức gói thuê bao phải chạy THẬT bằng gói | — |
+| R5.13 | Verdict PHẢI ghim chuỗi model dạng `<nhà cung cấp>/<tên model>` để tra ngược được lượt chấm | housed | provider-gate › Verdict ghim nguồn model, và số token phải nói rõ khi là ước tính | — |
+| R5.14 | Số token vào/ra PHẢI được ghi lại, và phải nêu rõ khi con số là ước tính chứ không phải | housed | provider-gate › Verdict ghim nguồn model, và số token phải nói rõ khi là ước tính | — |
+| R5.15 | Danh mục nhà cung cấp được phép khai một model CHỈ dùng với một số phương thức (ví dụ: | housed | provider-gate › Danh mục là gợi ý, nhà cung cấp là trọng tài — nhưng giới hạn phương thức thì cứng | test/ba-muc-tu-dong.test.ts |
+| R5.16 | Cổng kiểm gặp tổ hợp model + phương thức nằm ngoài giới hạn PHẢI từ chối NGAY với lời nói | housed | provider-gate › Danh mục là gợi ý, nhà cung cấp là trọng tài — nhưng giới hạn phương thức thì cứng | test/model-hop-le.test.ts |
+| R5.17 | Cửa đọc cấu hình KHÔNG ĐƯỢC tự thay tổ hợp cấm bằng một tổ hợp khác | housed | provider-gate › Danh mục là gợi ý, nhà cung cấp là trọng tài — nhưng giới hạn phương thức thì cứng | test/ba-muc-tu-dong.test.ts |
+| R5.18 | Danh mục `models` là GỢI Ý cho giao diện và nguồn giá trị mặc định, KHÔNG phải trần cứng. | housed | provider-gate › Danh mục là gợi ý, nhà cung cấp là trọng tài — nhưng giới hạn phương thức thì cứng | test/model-hop-le.test.ts |
+| R5.19 | Đường chấm gặp cấu hình KHUYẾT trường (model rỗng/thiếu) thì HỎI, không ĐOÁN | housed | provider-gate › Danh mục là gợi ý, nhà cung cấp là trọng tài — nhưng giới hạn phương thức thì cứng | test/ba-muc-tu-dong.test.ts |
 | R5.20 | Giá trị NGOÀI danh mục — model, và MỌI trường gõ tay được, gồm cả `phuong_thuc` — không | invariant | CLAUDE.md ⛔C3 | test/ba-muc-tu-dong.test.ts |
 | R5.20 | vòng 8: che-của-che không bao giờ khớp sổ kiểm; vòng 11: băm `phuong_thuc` giấu nguyên nhân trong lỗi | precedent | pending: provider-gate (đoạn «Vì sao») | docs/archive/r-rules/R5-cong-nha-cung-cap.md |
 | R6 | Verdict và cổng merge | housed | merge-gate › Merge chỉ khi verdict PASS còn hiệu lực trên pull request đang mở | test/dinh-tuyen-skill.test.ts |
