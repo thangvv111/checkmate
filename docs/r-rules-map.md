@@ -15,7 +15,7 @@ repo có hàng, hàng `pending` trỏ change có thật trong bảng chia, hàng
 
 Bảng chia change backfill (PO chốt 02/09): `merge-gate` · `verdict-contract` · `identity-session` · `probe-classification` · `data-layer` · `probe-library` · `target-contract` · `repo-history` · `provider-gate` · `model-reply-parsing` · `diff-visibility` · `concurrent-runs`.
 
-Đếm: pending 57 · precedent 16 · housed 179 · invariant 6 · obsolete 4 — tổng 262 hàng.
+Đếm: pending 49 · precedent 16 · housed 186 · invariant 6 · obsolete 5 — tổng 262 hàng.
 
 ## Ba đích của backfill (PO chốt 02/09 — change `product-independent-of-openspec`)
 
@@ -200,11 +200,11 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R8.2 | Trần tồn tại vì mỗi lượt tốn một worktree trên đĩa, một lượt chạy bộ test thật, và các | housed | concurrent-runs › Trần lượt chạy đồng thời, vượt trần thì từ chối ngay chứ không xếp hàng ngầm | test/concurrent-runs.test.ts |
 | R8.3 | Ref tạm mà lượt chấm fetch về PHẢI mang tên riêng theo PR, kể cả ref của nhánh gốc | housed | concurrent-runs › Lượt chấm không dùng chung ref git | test/concurrent-runs.test.ts |
 | R8.4 | Nạp probe vào thư viện là chuỗi đọc → sửa → ghi trên một file sổ dùng chung | pending | probe-library | packages/harness/src/probe-library.ts |
-| R8.5 | Tên file probe trong thư viện PHẢI suy từ nội dung (hash), không từ số thứ tự | pending | probe-library | packages/harness/src/probe-library.ts |
+| R8.5 | Tên file probe trong thư viện PHẢI suy từ nội dung (hash), không từ số thứ tự | housed | probe-library › Tên file probe suy từ NỘI DUNG, và hậu tố nới dài ra khi còn đụng | packages/harness/src/probe-library.ts |
 | R8.6 | Khoá PHẢI được nhả cả khi việc bên trong ném lỗi. | pending | probe-library | — |
 | R8.7 | Khoá của một tiến trình đã chết PHẢI bị phá sau một ngưỡng quá hạn | pending | probe-library | test/kho-run.test.ts |
-| R8.8 | Chờ khoá quá lâu thì vẫn phải làm việc chứ không được bỏ probe | pending | probe-library | packages/harness/src/probe-library.ts |
-| R8.9 | Đẩy file ra khỏi thư viện theo trần FIFO PHẢI xoá luôn file trên đĩa, không để lại file mồ | pending | probe-library | — |
+| R8.8 | Chờ khoá quá lâu thì vẫn phải làm việc chứ không được bỏ probe | housed | probe-library › Chờ khoá hết giờ thì VẪN làm việc, không bỏ probe | packages/harness/src/probe-library.ts |
+| R8.9 | Đẩy file ra khỏi thư viện theo trần FIFO PHẢI xoá luôn file trên đĩa, không để lại file mồ | obsolete | thay bằng R10.22 — đào thải theo điểm GIỮ/LOẠI bốn nấc, FIFO không còn tồn tại | — |
 | R8.10 | Sandbox chạy trên chính máy chủ CheckMate, không phải trên hạ tầng của nhà cung cấp | housed | concurrent-runs › Sandbox chạy trên máy chủ CheckMate với môi trường dựng bằng danh sách cho phép | test/env-cli.test.ts |
 | R8.11 | Tiến trình chạy test PHẢI nhận môi trường đã lọc | housed | concurrent-runs › Sandbox chạy trên máy chủ CheckMate với môi trường dựng bằng danh sách cho phép | test/env-cli.test.ts |
 | R8.12 | Môi trường truyền cho MỌI tiến trình con | housed | concurrent-runs › Sandbox chạy trên máy chủ CheckMate với môi trường dựng bằng danh sách cho phép | test/env-cli.test.ts |
@@ -226,7 +226,7 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R9.12 | Mọi giá trị do người dùng nhập vào câu truy vấn PHẢI đi qua tham số ràng buộc | housed | data-layer › Lọc, sắp xếp và phân trang chạy dưới cơ sở dữ liệu, và giá trị người dùng nhập phải qua tham số | — |
 | R9.13 | Cấu hình (`config.json`) và kho khoá (`.secrets.json`) cố ý ở lại dạng file, không vào | housed | data-layer › Cấu hình và kho khoá CỐ Ý ở lại dạng file | test/ba-muc-tu-dong.test.ts |
 | R9.14 | Cấu hình được cache theo thời điểm sửa file, và cache bị bỏ ngay khi ghi | invariant | CLAUDE.md ⛔C6 | test/ba-muc-tu-dong.test.ts |
-| R9.15 | File probe trong thư viện ở lại trên đĩa vì chúng là mã nguồn phải chạy được | pending | probe-library | — |
+| R9.15 | File probe trong thư viện ở lại trên đĩa vì chúng là mã nguồn phải chạy được | housed | probe-library › Code probe ở lại dạng FILE vì nó là mã nguồn phải chạy được | — |
 | R9.16 | Các route `/api/*` chỉ đọc qua lớp kho và trả dữ liệu thuần | housed | data-layer › Mọi truy cập dữ liệu đi qua lớp kho, và lớp kho là nơi DUY NHẤT biết nền lưu trữ | — |
 | R9.17 | KHÔNG route nào được trả về khoá, token hay bí mật | housed | response-secret-guard › Bí mật của chính checker không được rời máy chủ qua thân response | test/token-repo.test.ts |
 | R9.18 | Lọc và phân trang chạy dưới cơ sở dữ liệu, không nạp cả bảng lên rồi cắt | housed | data-layer › Lọc, sắp xếp và phân trang chạy dưới cơ sở dữ liệu, và giá trị người dùng nhập phải qua tham số | — |
@@ -234,7 +234,7 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R10.1 | Đơn vị nạp, lưu, và đào thải của thư viện là một probe | pending | probe-library | packages/harness/src/probe-library.ts |
 | R10.1 | đo 8 file thư viện có 4 cặp trùng cùng commit → đổi hạt nạp từ bộ sang probe | precedent | pending: probe-library (đoạn «Vì sao») | docs/archive/r-rules/R10-thu-vien-tung-probe.md |
 | R10.2 | File per-probe được tách từ file của lượt chấm | pending | probe-library | test/dedup-probe.test.ts |
-| R10.3 | File tách là artifact MỚI chưa từng chạy | pending | probe-library | packages/harness/src/probe-library.ts |
+| R10.3 | File tách là artifact MỚI chưa từng chạy | housed | probe-library › Probe tách ra là artifact MỚI chưa từng chạy, và phải chạy sạch trước khi được nạp | packages/harness/src/probe-library.ts |
 | R10.4 | Trần thư viện đếm theo probe (mặc định 100, chỉnh qua `CHECKER_LIB_TRAN`, kẹp | pending | probe-library | test/thu-vien.test.ts |
 | R10.5 | Thư viện đời bộ được di trú tự động sang đời probe ở lần đọc đầu | pending | probe-library | packages/harness/src/probe-library.ts |
 | R10.6 | Probe mới trùng cả ba: commit sinh (`sha_sinh`), id, và | pending | probe-library | test/dedup-probe.test.ts |
@@ -242,13 +242,13 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R10.8 | Model phân xử bằng đúng một câu hẹp | pending | probe-library | test/dedup-probe.test.ts |
 | R10.9 | Mỗi probe thư viện tích luỹ lịch sử kết quả theo từng lượt | pending | probe-library | packages/harness/src/probe-library.ts |
 | R10.10 | Lịch sử hành vi có trần (20 lượt gần nhất) | pending | probe-library | packages/harness/src/probe-library.ts |
-| R10.11 | Lời gọi model phân xử KHÔNG được nằm trong khoá thư viện ([R8.4](R8-chay-song-song.md)): | pending | probe-library | packages/harness/src/probe-library.ts |
+| R10.11 | Lời gọi model phân xử KHÔNG được nằm trong khoá thư viện ([R8.4](R8-chay-song-song.md)): | housed | probe-library › Lời gọi model phân xử trùng lặp nằm NGOÀI khoá thư viện | packages/harness/src/probe-library.ts |
 | R10.11 | đọc thư viện NGOÀI khoá, quyết định, rồi nạp trong khoá với kiểm lại — lời gọi model không được nằm trong khoá liên tiến trình | precedent | pending: probe-library (đoạn «Vì sao») · ứng viên kho khuôn (đích b) | docs/archive/r-rules/R10-thu-vien-tung-probe.md |
 | R10.12 | Ghi sổ thư viện (`meta.json`) PHẢI atomic | pending | probe-library | test/thu-vien.test.ts |
 | R10.12 | fallback-rỗng rồi ghi đè biến một sổ rách thành xoá sổ cả thư viện trong im lặng | precedent | pending: probe-library (đoạn «Vì sao») · ứng viên kho khuôn (đích b) | docs/archive/r-rules/R10-thu-vien-tung-probe.md |
 | R10.13 | Di trú PHẢI ghi sổ mới TRƯỚC rồi mới xoá file bộ cũ, và CHỈ xoá file bộ đã di trú trọn | invariant | CLAUDE.md § Dữ liệu prod là tài sản | test/thu-vien.test.ts |
-| R10.14 | Trần thư viện đọc từ biến môi trường chỉ nhận số nguyên sạch | pending | probe-library | — |
-| R10.15 | Đọc thư viện diễn ra ngoài khoá (R10.11) nên PHẢI chịu được file bị lượt song song dọn | pending | probe-library | — |
+| R10.14 | Trần thư viện đọc từ biến môi trường chỉ nhận số nguyên sạch | housed | probe-library › Trần thư viện đọc từ biến môi trường chỉ nhận số nguyên sạch, và bị kẹp hai đầu | — |
+| R10.15 | Đọc thư viện diễn ra ngoài khoá (R10.11) nên PHẢI chịu được file bị lượt song song dọn | housed | probe-library › Đọc thư viện ngoài khoá phải chịu được file bị lượt song song dọn | — |
 | R10.16 | Máy tách phải nhận diện regex literal khi đếm ngoặc (ngoặc trong `/x\)/` không phải | pending | probe-library | — |
 | R10.20 | Tầng 4 chỉ được so trên những lượt mà trạng thái nói về hành vi riêng của probe | pending | probe-library | packages/harness/src/probe-library.ts |
 | R10.21 | Hai probe cùng `pass` mãi KHÔNG chứng minh chúng trùng nhau, chỉ chứng minh chưa có gì | pending | probe-library | — |

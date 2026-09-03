@@ -53,8 +53,9 @@
 
 ## 6. Bảng tra
 
-- [ ] 6.1 7 hàng → `housed` trỏ `probe-library › <tiêu đề>`; **`R8.9` → `obsolete`** kèm «thay bằng R10.22
-      đào thải theo điểm» (D1). Cập nhật dòng Đếm. **Làm ở commit ARCHIVE** — lưới `r-rules-map` đòi hàng
-      `housed` trỏ requirement CÓ THẬT trong `openspec/specs/`, mà spec chỉ vào đó lúc archive. Đã thử sớm
-      một lần: lưới đỏ đúng chỗ ấy, và đó là lưới làm đúng việc của nó.
-- [ ] 6.2 Đo neo thư viện probe — **dự đoán TRƯỚC: vẫn 15/15, change này không thêm mã nào vào thư viện.**
+- [x] 6.1 7 hàng → `housed` trỏ `probe-library › <tiêu đề>`; **`R8.9` → `obsolete`** kèm «thay bằng R10.22
+      đào thải theo điểm» (D1). Cập nhật dòng Đếm. Làm ở commit archive như đã ghi.
+      Đếm bảng: pending 57 -> **49** · housed 179 -> **186** · obsolete 4 -> **5**. Lưới `r-rules-map` xanh 6/6.
+      *(Đã thử sớm một lần ở lượt apply: lưới đỏ đúng chỗ ấy — nó đòi requirement CÓ THẬT trong
+      `openspec/specs/`, mà spec chỉ vào đó lúc archive. Lưới làm đúng việc của nó.)*
+- [x] 6.2 Đo neo thư viện probe. **Dự đoán TRƯỚC «vẫn 15/15» — đo được đúng 15/15, không còn mã nào trôi.**
