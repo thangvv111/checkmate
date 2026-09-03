@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { chuanMuc, type ArtifactRef, type Finding, type RunEvent, type Verdict } from '../../shared/src/types.js';
 import { ProviderConfigError, pickProvider, checkProvider, costMetrics, costSummary } from './model.js';
 import { runCodeSkill } from './skill-code.js';
+import { decideResult } from './verdict.js';
 import { runDocSkill } from './skill-doc.js';
 
 function layArg(ten: string, macDinh?: string): string | undefined {
@@ -177,7 +178,7 @@ async function main(): Promise<void> {
       run_id: runId,
       skill,
       artifact_ref: artifactRef,
-      result: findings.some((f) => chuanMuc(f.severity) === 'high') ? 'FAIL' : 'PASS',
+      result: decideResult(findings), // nhị phân, fail-closed với severity lạ (verdict.ts)
       findings,
       probe_stats: probeStats,
       chi_phi: costMetrics(),

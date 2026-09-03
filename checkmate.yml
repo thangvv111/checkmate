@@ -34,6 +34,7 @@ runner:
       ../packages/harness/src/dedup-probe.js → splitRule · findRerunDuplicate · findSuspectedDuplicate · applyRuling · promptDuplicateRuling
       ../packages/harness/src/jsonx.js       → unwrapJson · unwrapCode · ModelUsedToolError · callJson · callCode
       ../packages/harness/src/fence.js         → makeFence · FENCE_NOTICE
+      ../packages/harness/src/verdict.js      → decideResult · regressionFloor · missingRegressionFindings · hasBasis
       ../packages/harness/src/spec-units.js    → splitSpecUnits · splitAllSpecUnits · extractCodes · splitRuleRefs · resolveRule · ruleCoverage · findNewUnits · refHitsNew · MAX_UNIT_DEPTH
       ../apps/web/src/ui.js                  → escHtml · splitSource · CSS · shell · findingHtml · verdictHtml
       ../apps/web/src/ui-history.js          → filterRuns

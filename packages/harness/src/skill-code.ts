@@ -5,6 +5,7 @@ import { callCode, callJson } from './jsonx.js';
 import { readTarget, suggestModulePath, type TargetInfo } from './target.js';
 import { describeSources } from './sources.js';
 import { refHitsNew, ruleCoverage } from './spec-units.js';
+import { hasBasis, missingRegressionFindings, regressionFloor } from './verdict.js';
 import { Sandbox, type ProbeResult } from './sandbox.js';
 import { updateHistory, readProbeLibrary, admitToLibrary, repoSlug, splitOneProbe, findAndDropBehaviorDuplicates } from './probe-library.js';
 import { getCodeExamples, knowledgeByTrigger } from './trigger-examples.js';
@@ -738,17 +739,12 @@ export async function runCodeSkill(
     // được TOÀN BỘ probe mà vẫn ra xanh.
     // Chỉ ba trạng thái nói lên điều gì đó về PR: pass (hành vi đúng), hoi_quy (PR làm hỏng),
     // cai_thien (PR sửa được lỗi cũ). Không có cái nào thì lượt chấm không đủ cơ sở kết luận.
-    const coBangChung = ungVienTatCa.filter(
-      (u) => u.trangThai === 'pass' || u.trangThai === 'hoi_quy' || u.trangThai === 'vi_pham_luat_moi' || u.trangThai === 'cai_thien',
-    );
-    if (coBangChung.length === 0) {
-      const viSao = ungVienTatCa
-        .slice(0, 3)
-        .map((u) => `${u.probe.id} (${u.trangThai}): ${u.br.message.split('\n')[0].slice(0, 200)}`)
-        .join('\n');
+    const coCoSo = hasBasis(ungVienTatCa);
+    if (!coCoSo.ok) {
+      const viSao = coCoSo.lyDo;
       if (lan === 2) {
         throw new Error(
-          `Không đủ cơ sở kết luận: ${ungVienTatCa.length} probe đều KHÔNG chứng minh được gì ` +
+          `Không đủ cơ sở kết luận: ${coCoSo.soProbe} probe đều KHÔNG chứng minh được gì ` +
             `(không probe nào pass, hồi quy hay cải thiện) sau 2 lần sinh. Verdict PASS ở đây sẽ là xanh giả.\n${viSao}`,
         );
       }
@@ -814,10 +810,11 @@ export async function runCodeSkill(
         phat({ type: 'log', msg: `Lưới máy: vứt finding trỏ vào ứng viên không tồn tại/không được phép (${f.ma})` });
         continue;
       }
-      let sev = chuanMuc(f.severity);
-      if ((u.trangThai === 'hoi_quy' || u.trangThai === 'vi_pham_luat_moi') && sev !== 'high') {
-        phat({ type: 'log', msg: `C3: model gán ${sev} cho hồi quy máy-xác-nhận ${u.ma} (${u.probe.id}) — máy ép về high (sàn cứng cho regression)` });
-        sev = 'high';
+      // SÀN CỨNG cho hồi quy máy-xác-nhận (verdict.ts): model gán mức nào cũng không hạ được dưới `high`.
+      const sevModel = chuanMuc(f.severity);
+      const sev = regressionFloor(u.trangThai, f.severity);
+      if (sev !== sevModel) {
+        phat({ type: 'log', msg: `C3: model gán ${sevModel} cho hồi quy máy-xác-nhận ${u.ma} (${u.probe.id}) — máy ép về high (sàn cứng cho regression)` });
       }
       findings.push({
         id: `F${findings.length + 1}`,
@@ -833,7 +830,7 @@ export async function runCodeSkill(
 
     // Lưới máy 2: MỌI hồi quy máy-xác-nhận phải có finding — model im lặng thì máy tự bổ sung, fail-closed mức high
     const daCo = new Set(kl.findings.map((f) => f.ma));
-    for (const u of duocPhepFinding.filter((x) => (x.trangThai === 'hoi_quy' || x.trangThai === 'vi_pham_luat_moi') && !daCo.has(x.ma))) {
+    for (const u of missingRegressionFindings(duocPhepFinding, daCo)) {
       phat({ type: 'log', msg: `Lưới máy: model bỏ sót hồi quy ${u.ma} (${u.probe.id} — ${u.probe.ten}) — máy tự bổ sung finding mức high (fail-closed)` });
       findings.push({
         id: `F${findings.length + 1}`,
