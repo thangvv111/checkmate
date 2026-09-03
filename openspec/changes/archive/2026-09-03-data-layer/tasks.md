@@ -41,6 +41,7 @@
 
 ## 6. Bảng tra (ở commit archive)
 
-- [ ] 6.1 `docs/r-rules-map.md`: 18 điều → `housed`. **`R9.17` trỏ `response-secret-guard`** (D3), 17 điều
-      còn lại trỏ `data-layer › <tiêu đề>`.
-- [ ] 6.2 Đo neo thư viện probe — **dự đoán TRƯỚC: 14 → 15/15, không còn mã nào trôi** (D5). Sai thì ghi rõ.
+- [x] 6.1 `docs/r-rules-map.md`: 18 hàng → `housed`; `R9.17` trỏ `response-secret-guard` (D3). Đếm bảng:
+      pending 75 → **57** · housed 161 → 179. Lưới `r-rules-map` xanh 6/6.
+- [x] 6.2 Đo neo thư viện probe. **Dự đoán TRƯỚC «14 → 15/15, không còn mã nào trôi» — đo được đúng
+      15/15, KHÔNG CÒN MÃ NÀO TRÔI.** Mọi mã `R` mà thư viện probe tự chấm neo vào đều đã có nhà.

@@ -15,7 +15,7 @@ repo có hàng, hàng `pending` trỏ change có thật trong bảng chia, hàng
 
 Bảng chia change backfill (PO chốt 02/09): `merge-gate` · `verdict-contract` · `identity-session` · `probe-classification` · `data-layer` · `probe-library` · `target-contract` · `repo-history` · `provider-gate` · `model-reply-parsing` · `diff-visibility` · `concurrent-runs`.
 
-Đếm: pending 75 · precedent 16 · housed 161 · invariant 6 · obsolete 4 — tổng 262 hàng.
+Đếm: pending 57 · precedent 16 · housed 179 · invariant 6 · obsolete 4 — tổng 262 hàng.
 
 ## Ba đích của backfill (PO chốt 02/09 — change `product-independent-of-openspec`)
 
@@ -209,27 +209,27 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R8.11 | Tiến trình chạy test PHẢI nhận môi trường đã lọc | housed | concurrent-runs › Sandbox chạy trên máy chủ CheckMate với môi trường dựng bằng danh sách cho phép | test/env-cli.test.ts |
 | R8.12 | Môi trường truyền cho MỌI tiến trình con | housed | concurrent-runs › Sandbox chạy trên máy chủ CheckMate với môi trường dựng bằng danh sách cho phép | test/env-cli.test.ts |
 | R8.12 | bản trước truyền cả môi trường rồi cắt một tên → `GITHUB_TOKEN` chảy sang tiến trình CLI ở mọi lượt | precedent | concurrent-runs › Sandbox chạy trên máy chủ CheckMate với môi trường dựng bằng danh sách cho phép (đoạn «Vì sao») · ứng viên kho khuôn (đích b) | test/env-cli.test.ts |
-| R9 | Tầng dữ liệu: lớp kho và sổ cái chỉ-ghi-thêm | pending | data-layer | test/dedup-probe.test.ts |
-| R9.1 | Route, tầng dựng giao diện và harness KHÔNG được đọc/ghi đĩa hay gọi SQL trực tiếp | pending | data-layer | — |
-| R9.2 | Lớp kho là nơi DUY NHẤT biết mình đang chạy trên SQLite | pending | data-layer | — |
-| R9.3 | Mở cơ sở dữ liệu phải bật `foreign_keys` và dùng chế độ nhật ký `WAL`, vì nhiều lượt chấm | pending | data-layer | — |
-| R9.4 | Bảng sổ cái chỉ nhận `INSERT`. `UPDATE` và `DELETE` lên bảng đó PHẢI bị cơ sở dữ liệu từ | pending | data-layer | test/kho-socai.test.ts |
-| R9.4b | `PRAGMA recursive_triggers` là thiết lập theo từng kết nối, không lưu trong file cơ sở | pending | data-layer | — |
+| R9 | Tầng dữ liệu: lớp kho và sổ cái chỉ-ghi-thêm | housed | data-layer › Mọi truy cập dữ liệu đi qua lớp kho, và lớp kho là nơi DUY NHẤT biết nền lưu trữ | test/dedup-probe.test.ts |
+| R9.1 | Route, tầng dựng giao diện và harness KHÔNG được đọc/ghi đĩa hay gọi SQL trực tiếp | housed | data-layer › Mọi truy cập dữ liệu đi qua lớp kho, và lớp kho là nơi DUY NHẤT biết nền lưu trữ | — |
+| R9.2 | Lớp kho là nơi DUY NHẤT biết mình đang chạy trên SQLite | housed | data-layer › Mọi truy cập dữ liệu đi qua lớp kho, và lớp kho là nơi DUY NHẤT biết nền lưu trữ | — |
+| R9.3 | Mở cơ sở dữ liệu phải bật `foreign_keys` và dùng chế độ nhật ký `WAL`, vì nhiều lượt chấm | housed | data-layer › Lọc, sắp xếp và phân trang chạy dưới cơ sở dữ liệu, và giá trị người dùng nhập phải qua tham số | — |
+| R9.4 | Bảng sổ cái chỉ nhận `INSERT`. `UPDATE` và `DELETE` lên bảng đó PHẢI bị cơ sở dữ liệu từ | housed | data-layer › Sổ cái chỉ-ghi-thêm, và điều đó được cưỡng chế ở tầng cơ sở dữ liệu | test/kho-socai.test.ts |
+| R9.4b | `PRAGMA recursive_triggers` là thiết lập theo từng kết nối, không lưu trong file cơ sở | housed | data-layer › Sổ cái chỉ-ghi-thêm, và điều đó được cưỡng chế ở tầng cơ sở dữ liệu | — |
 | R9.4b | cùng câu REPLACE: qua `moDb()` bị chặn, kết nối riêng lọt → chỉ-ghi-thêm là bất biến ỨNG DỤNG, không của file | precedent | pending: data-layer (đoạn «Vì sao») · ứng viên kho khuôn (đích b) | docs/archive/r-rules/R9-tang-du-lieu.md |
-| R9.5 | Một verdict chỉ vào sổ đúng một lần | pending | data-layer | test/kho-socai.test.ts |
-| R9.6 | Sổ hành động cổng (ai merge, ai trả về dev, chấp nhận cảnh báo nào) là một bảng riêng, cũng | pending | data-layer | test/fixtures/thu-vien-doi-cu.json |
-| R9.7 | Dữ liệu đang nằm trên đĩa (file run JSON, `verdict-ledger.jsonl`, `review-log.jsonl`, | pending | data-layer | test/di-tru.test.ts |
-| R9.8 | Di trú KHÔNG được xoá file gốc. Chúng ở lại làm bản đối chứng cho tới khi có quyết định dọn. | pending | data-layer | — |
-| R9.9 | Dòng hỏng trong file nguồn không được làm sập cả lượt di trú | pending | data-layer | test/di-tru.test.ts |
-| R9.10 | Lọc theo repo, verdict, skill, nhà cung cấp và tìm chữ (xem [R4](R4-lich-su-theo-repo.md)) | pending | data-layer | apps/web/src/server.ts |
-| R9.11 | Các cột dùng để lọc và sắp xếp thường xuyên phải có index | pending | data-layer | — |
-| R9.12 | Mọi giá trị do người dùng nhập vào câu truy vấn PHẢI đi qua tham số ràng buộc | pending | data-layer | — |
-| R9.13 | Cấu hình (`config.json`) và kho khoá (`.secrets.json`) cố ý ở lại dạng file, không vào | pending | data-layer | test/ba-muc-tu-dong.test.ts |
+| R9.5 | Một verdict chỉ vào sổ đúng một lần | housed | data-layer › Sổ cái chỉ-ghi-thêm, và điều đó được cưỡng chế ở tầng cơ sở dữ liệu | test/kho-socai.test.ts |
+| R9.6 | Sổ hành động cổng (ai merge, ai trả về dev, chấp nhận cảnh báo nào) là một bảng riêng, cũng | housed | data-layer › Sổ cái chỉ-ghi-thêm, và điều đó được cưỡng chế ở tầng cơ sở dữ liệu | test/fixtures/thu-vien-doi-cu.json |
+| R9.7 | Dữ liệu đang nằm trên đĩa (file run JSON, `verdict-ledger.jsonl`, `review-log.jsonl`, | housed | data-layer › Di trú không xoá nguồn, đếm được phần bỏ qua, và chạy lại không nhân đôi | test/di-tru.test.ts |
+| R9.8 | Di trú KHÔNG được xoá file gốc. Chúng ở lại làm bản đối chứng cho tới khi có quyết định dọn. | housed | data-layer › Di trú không xoá nguồn, đếm được phần bỏ qua, và chạy lại không nhân đôi | — |
+| R9.9 | Dòng hỏng trong file nguồn không được làm sập cả lượt di trú | housed | data-layer › Di trú không xoá nguồn, đếm được phần bỏ qua, và chạy lại không nhân đôi | test/di-tru.test.ts |
+| R9.10 | Lọc theo repo, verdict, skill, nhà cung cấp và tìm chữ (xem [R4](R4-lich-su-theo-repo.md)) | housed | data-layer › Lọc, sắp xếp và phân trang chạy dưới cơ sở dữ liệu, và giá trị người dùng nhập phải qua tham số | apps/web/src/server.ts |
+| R9.11 | Các cột dùng để lọc và sắp xếp thường xuyên phải có index | housed | data-layer › Lọc, sắp xếp và phân trang chạy dưới cơ sở dữ liệu, và giá trị người dùng nhập phải qua tham số | — |
+| R9.12 | Mọi giá trị do người dùng nhập vào câu truy vấn PHẢI đi qua tham số ràng buộc | housed | data-layer › Lọc, sắp xếp và phân trang chạy dưới cơ sở dữ liệu, và giá trị người dùng nhập phải qua tham số | — |
+| R9.13 | Cấu hình (`config.json`) và kho khoá (`.secrets.json`) cố ý ở lại dạng file, không vào | housed | data-layer › Cấu hình và kho khoá CỐ Ý ở lại dạng file | test/ba-muc-tu-dong.test.ts |
 | R9.14 | Cấu hình được cache theo thời điểm sửa file, và cache bị bỏ ngay khi ghi | invariant | CLAUDE.md ⛔C6 | test/ba-muc-tu-dong.test.ts |
 | R9.15 | File probe trong thư viện ở lại trên đĩa vì chúng là mã nguồn phải chạy được | pending | probe-library | — |
-| R9.16 | Các route `/api/*` chỉ đọc qua lớp kho và trả dữ liệu thuần | pending | data-layer | — |
-| R9.17 | KHÔNG route nào được trả về khoá, token hay bí mật | pending | data-layer | test/token-repo.test.ts |
-| R9.18 | Lọc và phân trang chạy dưới cơ sở dữ liệu, không nạp cả bảng lên rồi cắt | pending | data-layer | — |
+| R9.16 | Các route `/api/*` chỉ đọc qua lớp kho và trả dữ liệu thuần | housed | data-layer › Mọi truy cập dữ liệu đi qua lớp kho, và lớp kho là nơi DUY NHẤT biết nền lưu trữ | — |
+| R9.17 | KHÔNG route nào được trả về khoá, token hay bí mật | housed | response-secret-guard › Bí mật của chính checker không được rời máy chủ qua thân response | test/token-repo.test.ts |
+| R9.18 | Lọc và phân trang chạy dưới cơ sở dữ liệu, không nạp cả bảng lên rồi cắt | housed | data-layer › Lọc, sắp xếp và phân trang chạy dưới cơ sở dữ liệu, và giá trị người dùng nhập phải qua tham số | — |
 | R10 | Thư viện probe: hạt nạp là TỪNG PROBE, trùng lặp xử theo bốn tầng | pending | probe-library | test/phan-loai.test.ts |
 | R10.1 | Đơn vị nạp, lưu, và đào thải của thư viện là một probe | pending | probe-library | packages/harness/src/probe-library.ts |
 | R10.1 | đo 8 file thư viện có 4 cặp trùng cùng commit → đổi hạt nạp từ bộ sang probe | precedent | pending: probe-library (đoạn «Vì sao») | docs/archive/r-rules/R10-thu-vien-tung-probe.md |
