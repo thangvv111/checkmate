@@ -20,6 +20,15 @@ export interface EvidenceTestRun {
   command: string;
   expected: string;
   actual: string;
+  /**
+   * Bản `actual` đã qua cổng phát (`error-message-egress-gate`) — thứ DUY NHẤT được đưa lên bề mặt rời
+   * khỏi máy chủ (comment pull request, log). `actual` giữ nguyên văn cho sổ, màn hình run và phép so
+   * vân tay; hai bản không thay thế nhau được.
+   *
+   * Optional vì verdict ghi TRƯỚC change này không có nó. Thiếu trường này thì bề mặt công khai phải
+   * fail-closed — KHÔNG được rơi về `actual`, vì đó chính là lỗ mà cổng sinh ra để vá.
+   */
+  actual_redacted?: string;
   exit_code: number;
 }
 

@@ -53,3 +53,12 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       0 — đã có ca mutation M3 chứng minh), nhưng phải kèm một đợt đổi ~135 tên trong thân hàm: rủi ro cao,
       giá trị thấp, và đúng thứ CLAUDE.md cảnh báo về trạng thái nửa nạc nửa mỡ. Nguồn:
       `identifier-language-gate` D2.
+- [ ] 15. **Phát hiện dữ liệu nhạy cảm TRONG pull request và cảnh báo** (PO 03/09 — chưa làm ngay). Khác
+      #12 ở hướng: #12 chặn secret ĐI RA khỏi CheckMate, còn mục này phát hiện secret ĐI VÀO cùng PR —
+      `.env` bị commit, khoá hardcode, file credential. Lý do tách: #12 chọn đối chiếu với diff/source PR
+      làm cửa cho phép, nên **thứ đã nằm trong diff thì qua cửa** — đúng, vì lúc đó secret đã công khai
+      với mọi người đọc PR rồi, CheckMate chỉ nhắc lại. Nhưng «đã lộ sẵn» không có nghĩa là «không đáng
+      báo»: một PR commit nhầm `.env` là thứ người review cần biết NGAY. Đây là finding, không phải bộ
+      lọc — và nó là danh sách CẤM theo hình dạng (`ghp_`, `sk-`, `AKIA`, JWT, entropy cao), chấp nhận
+      được ở vai CẢNH BÁO vì âm tính giả chỉ làm sót một lời nhắc, không mở đường rò. Nguồn:
+      `error-message-egress-gate` (explore 03/09).

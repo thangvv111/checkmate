@@ -330,7 +330,15 @@ function dongFinding(f: Finding): string {
   const muc = chuanMuc(f.severity).toUpperCase();
   let bc = '';
   if (f.evidence.type === 'test_run') {
-    bc = `kỳ vọng: ${f.evidence.expected.slice(0, 200)} → thực tế: ${f.evidence.actual.split('\n')[0].slice(0, 200)}`;
+    // D4 — FAIL-CLOSED. Verdict ghi TRƯỚC `error-message-egress-gate` không mang bản đã lọc, và comment
+    // pull request là bề mặt CÔNG KHAI, không thu hồi được. Cám dỗ ở đây là rơi về `evidence.actual`
+    // «cho verdict cũ vẫn đọc được» — đó chính là lỗ mà cổng sinh ra để vá, mở lại bằng một dòng trông
+    // vô hại. Verdict cũ vẫn xem được đầy đủ ở màn hình run (nội bộ, sau đăng nhập).
+    const tt =
+      typeof f.evidence.actual_redacted === 'string'
+        ? f.evidence.actual_redacted.split('\n')[0].slice(0, 200)
+        : '<lượt chấm cũ: nội dung không phát ra bề mặt công khai, xem màn hình run>';
+    bc = `kỳ vọng: ${f.evidence.expected.slice(0, 200)} → thực tế: ${tt}`;
   } else if (f.evidence.type === 'quote_pair') {
     bc = `${f.evidence.loc_a}: «${f.evidence.quote_a.slice(0, 150)}» ⟷ ${f.evidence.loc_b}: «${f.evidence.quote_b.slice(0, 150)}»`;
   } else {
