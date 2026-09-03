@@ -15,7 +15,7 @@ repo có hàng, hàng `pending` trỏ change có thật trong bảng chia, hàng
 
 Bảng chia change backfill (PO chốt 02/09): `merge-gate` · `verdict-contract` · `identity-session` · `probe-classification` · `data-layer` · `probe-library` · `target-contract` · `repo-history` · `provider-gate` · `model-reply-parsing` · `diff-visibility` · `concurrent-runs`.
 
-Đếm: pending 181 · precedent 16 · housed 55 · invariant 6 · obsolete 4 — tổng 262 hàng.
+Đếm: pending 163 · precedent 16 · housed 73 · invariant 6 · obsolete 4 — tổng 262 hàng.
 
 ## Ba đích của backfill (PO chốt 02/09 — change `product-independent-of-openspec`)
 
@@ -36,29 +36,29 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 
 | code | title | bucket | home | evidence |
 |---|---|---|---|---|
-| R1 | Phân loại probe bằng MÁY, đối chứng hai nhánh | pending | probe-classification | test/dedup-probe.test.ts |
-| R1.1 | `br` không có kết quả thì trạng thái PHẢI là `khong_chay` | pending | probe-classification | test/phan-loai.test.ts |
-| R1.2 | Probe `skipped` (bị bỏ qua, ví dụ `it.skip`) KHÔNG ĐƯỢC tính là `pass` | pending | probe-classification | test/fixtures/verdict-doi-cu.json |
-| R1.2 | probe `skipped` không được tính là pass — đường lách lưới rẻ nhất | precedent | pending: probe-classification (đoạn «Vì sao») · ứng viên kho khuôn (đích b) | docs/archive/r-rules/R1-phan-loai-probe.md |
-| R1.3 | Xanh cả hai nhánh → `pass`. | pending | probe-classification | — |
-| R1.4 | Đỏ ở nhánh gốc mà xanh ở nhánh PR → `cai_thien` | pending | probe-classification | — |
-| R1.5 | Đỏ ở nhánh PR mà xanh ở nhánh gốc → `hoi_quy` (regression | pending | probe-classification | test/phan-loai.test.ts |
-| R1.6 | Đỏ ở nhánh PR nhưng không có dữ liệu đối chứng (`bs` không tồn tại vì nhánh gốc không | pending | probe-classification | — |
-| R1.7 | Đỏ cả hai nhánh cùng nguyên nhân → `ngoai_pham_vi` | pending | probe-classification | — |
-| R1.8 | Đỏ cả hai nhánh nhưng khác nguyên nhân → `nghi_van`, đẩy cho model phân xử | pending | probe-classification | — |
-| R1.9 | Vân tay THÔ gột mọi chữ số, chuỗi hex dài và khoảng trắng thừa | pending | probe-classification | — |
-| R1.10 | Vân tay CHẶT giữ lại chữ số ngắn (status code, số đếm) nhưng vẫn gột thời lượng `ms`, | pending | probe-classification | — |
-| R1.11 | Chỉ khi vân tay thô trùng và vân tay chặt cũng trùng mới được kết luận `ngoai_pham_vi`. | pending | probe-classification | — |
+| R1 | Phân loại probe bằng MÁY, đối chứng hai nhánh | housed | probe-classification › Máy phân loại probe theo bảng chân trị hai nhánh | test/dedup-probe.test.ts |
+| R1.1 | `br` không có kết quả thì trạng thái PHẢI là `khong_chay` | housed | probe-classification › Máy phân loại probe theo bảng chân trị hai nhánh | test/phan-loai.test.ts |
+| R1.2 | Probe `skipped` (bị bỏ qua, ví dụ `it.skip`) KHÔNG ĐƯỢC tính là `pass` | housed | probe-classification › Máy phân loại probe theo bảng chân trị hai nhánh | test/fixtures/verdict-doi-cu.json |
+| R1.2 | probe `skipped` không được tính là pass — đường lách lưới rẻ nhất | precedent | probe-classification › Máy phân loại probe theo bảng chân trị hai nhánh (scenario «probe bị vô hiệu hoá») · ứng viên kho khuôn (đích b) | docs/archive/r-rules/R1-phan-loai-probe.md |
+| R1.3 | Xanh cả hai nhánh → `pass`. | housed | probe-classification › Máy phân loại probe theo bảng chân trị hai nhánh | — |
+| R1.4 | Đỏ ở nhánh gốc mà xanh ở nhánh PR → `cai_thien` | housed | probe-classification › Máy phân loại probe theo bảng chân trị hai nhánh | — |
+| R1.5 | Đỏ ở nhánh PR mà xanh ở nhánh gốc → `hoi_quy` (regression | housed | probe-classification › Máy phân loại probe theo bảng chân trị hai nhánh | test/phan-loai.test.ts |
+| R1.6 | Đỏ ở nhánh PR nhưng không có dữ liệu đối chứng (`bs` không tồn tại vì nhánh gốc không | housed | probe-classification › Máy phân loại probe theo bảng chân trị hai nhánh | — |
+| R1.7 | Đỏ cả hai nhánh cùng nguyên nhân → `ngoai_pham_vi` | housed | probe-classification › Máy phân loại probe theo bảng chân trị hai nhánh | — |
+| R1.8 | Đỏ cả hai nhánh nhưng khác nguyên nhân → `nghi_van`, đẩy cho model phân xử | housed | probe-classification › Máy phân loại probe theo bảng chân trị hai nhánh | — |
+| R1.9 | Vân tay THÔ gột mọi chữ số, chuỗi hex dài và khoảng trắng thừa | housed | probe-classification › «Cùng nguyên nhân» quyết bằng vân tay hai tầng | — |
+| R1.10 | Vân tay CHẶT giữ lại chữ số ngắn (status code, số đếm) nhưng vẫn gột thời lượng `ms`, | housed | probe-classification › «Cùng nguyên nhân» quyết bằng vân tay hai tầng | — |
+| R1.11 | Chỉ khi vân tay thô trùng và vân tay chặt cũng trùng mới được kết luận `ngoai_pham_vi`. | housed | probe-classification › «Cùng nguyên nhân» quyết bằng vân tay hai tầng | — |
 | R1.12 | Có ít nhất một probe `hoi_quy` thì verdict PHẢI là `FAIL`. | housed | verdict-contract › Hồi quy máy-xác-nhận có sàn cứng high, model không hạ được | test/verdict-contract.test.ts |
 | R1.13 | Probe `nghi_van` không tự nó làm nên `FAIL`, nhưng PHẢI được nêu trong verdict để người | housed | verdict-contract › Verdict nhị phân, ghim commit, kèm thống kê probe đầy đủ | test/verdict-contract.test.ts |
-| R1.14 | Pull request thêm module mới thì nhánh gốc chưa có file đó, nên nhánh gốc không chạy | pending | probe-classification | test/quan-sat-ngoai-pham-vi.test.ts |
-| R1.15 | Trong ca đó, lượt sinh lại probe PHẢI được cho biết rằng nhánh gốc không có đối chứng, và | pending | probe-classification | — |
-| R1.16 | Hệ quả cần hiểu đúng: với pull request thêm tính năng mới, con đường DUY NHẤT để lượt chấm | pending | probe-classification | test/phan-loai.test.ts |
-| R1.17 | Khi một luật spec chỉ tồn tại ở nhánh PR mà không có ở nhánh gốc, nhánh gốc KHÔNG PHẢI | pending | probe-classification | test/fixtures/verdict-doi-cu.json |
-| R1.17 | đo hai lượt chấm khác đúng một biến: luật sẵn ở gốc → FAIL; PR mang cả luật lẫn code → ba probe bị dán `ngoai_pham_vi`, PASS | precedent | pending: probe-classification (đoạn «Vì sao») | docs/archive/r-rules/R1-phan-loai-probe.md |
-| R1.18 | Trong ca đó, probe đỏ ở nhánh PR PHẢI mang nhãn `vi_pham_luat_moi`, và nhãn này chặn | pending | probe-classification | test/fixtures/verdict-doi-cu.json |
+| R1.14 | Pull request thêm module mới thì nhánh gốc chưa có file đó, nên nhánh gốc không chạy | housed | probe-classification › Nhánh gốc không chạy được probe nào là ca bình thường, và phải nói ra | test/quan-sat-ngoai-pham-vi.test.ts |
+| R1.15 | Trong ca đó, lượt sinh lại probe PHẢI được cho biết rằng nhánh gốc không có đối chứng, và | housed | probe-classification › Nhánh gốc không chạy được probe nào là ca bình thường, và phải nói ra | — |
+| R1.16 | Hệ quả cần hiểu đúng: với pull request thêm tính năng mới, con đường DUY NHẤT để lượt chấm | housed | verdict-contract › PASS phải có bằng chứng — không probe nào chứng minh được gì thì KHÔNG ra verdict | test/phan-loai.test.ts |
+| R1.17 | Khi một luật spec chỉ tồn tại ở nhánh PR mà không có ở nhánh gốc, nhánh gốc KHÔNG PHẢI | housed | probe-classification › Luật chỉ có ở nhánh PR: nhánh gốc không phải đối chứng hợp lệ | test/fixtures/verdict-doi-cu.json |
+| R1.17 | đo hai lượt chấm khác đúng một biến: luật sẵn ở gốc → FAIL; PR mang cả luật lẫn code → ba probe bị dán `ngoai_pham_vi`, PASS | precedent | probe-classification › Luật chỉ có ở nhánh PR: nhánh gốc không phải đối chứng hợp lệ (đoạn «Vì sao») | docs/archive/r-rules/R1-phan-loai-probe.md |
+| R1.18 | Trong ca đó, probe đỏ ở nhánh PR PHẢI mang nhãn `vi_pham_luat_moi`, và nhãn này chặn | housed | probe-classification › Luật chỉ có ở nhánh PR: nhánh gốc không phải đối chứng hợp lệ | test/fixtures/verdict-doi-cu.json |
 | R1.19 | Luật «chỉ có ở nhánh PR» được xác định bằng cách so nội dung `specs/` giữa hai nhánh, không | housed | spec-source › Luật là ĐƠN VỊ CÓ ĐỊA CHỈ, không phải một mã có khuôn | openspec/specs/spec-source/spec.md |
-| R1.20 | `vi_pham_luat_moi` PHẢI được phân biệt rõ với `hoi_quy` ở mọi bề mặt người đọc | pending | probe-classification | test/phan-loai.test.ts |
+| R1.20 | `vi_pham_luat_moi` PHẢI được phân biệt rõ với `hoi_quy` ở mọi bề mặt người đọc | housed | probe-classification › Luật chỉ có ở nhánh PR: nhánh gốc không phải đối chứng hợp lệ | test/phan-loai.test.ts |
 | R1.21 | Mã luật mà mỗi probe neo vào PHẢI được ghi ra verdict, không chỉ sống trong lượt sinh | housed | man-run › Verdict phải khai cả phần yếu của chính lượt chấm | openspec/specs/man-run/spec.md |
 | R1.22 | Verdict PHẢI nêu số luật đã có probe neo vào trên tổng số mã luật đọc được từ `specs/`. | housed | spec-source › Chấm KHÔNG có spec là trạng thái phải KHAI RA, không phải im lặng | openspec/specs/spec-source/spec.md |
 | R2 | Hợp đồng với repo đích: `checkmate.yml` | pending | target-contract | test/dedup-probe.test.ts |

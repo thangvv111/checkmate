@@ -32,11 +32,15 @@
       bản sai; theo D3 đã sửa, con số đúng là: chỗ gọi thu 14 dòng → 1, hàm mới 28 dòng (13 dòng chữ
       prompt chuyển nguyên văn + JSDoc + chữ ký).
 - [x] 4.3 `npx openspec validate --changes` xanh.
-- [ ] 4.4 Đo neo thư viện sau archive — **dự đoán TRƯỚC: tăng từ 3 lên 12** (9 vế R1.2 · R1.4–R1.7 · R1.17 ·
-      R1.18 · R1.20 trỏ đúng nhóm này). Đo để xác nhận; sai thì ghi rõ sai ở đâu (bài học `verdict-contract` §4.4).
+- [x] 4.4 Đo neo thư viện sau archive. **Dự đoán TRƯỚC: 3 → 12. Đo được: 3 → 11.** Sai 1, và sai ở phép
+      ĐẾM chứ không ở nội dung: dự đoán viết «9 vế» nhưng danh sách liệt kê chỉ có 8 mã (`R1.4–R1.7` là 4
+      mã, không phải 5). Cả 8 mã dự đoán đều neo đúng — R1.2 · R1.4 · R1.5 · R1.6 · R1.7 · R1.17 · R1.18 ·
+      R1.20. Thư viện tự chấm: 16 probe, 15 mã R riêng biệt, **11 neo · 4 còn trôi** (R3.15 · R4.18 ·
+      R4.27 · R9.6, thuộc `data-layer` và `target-contract` chưa backfill).
 
 ## 5. Bảng tra (ở commit archive)
 
-- [ ] 5.1 `docs/r-rules-map.md`: R1 · R1.1–R1.11 · R1.14 · R1.15 · R1.17 · R1.18 · R1.20 → `housed` với địa
+- [x] 5.1 `docs/r-rules-map.md`: 18 hàng `pending` → `housed`, 2 hàng `precedent` trỏ đúng đoạn. Đếm bảng:
+      pending 181 → 163 · housed 55 → 73. Lưới `test/r-rules-map.test.ts` xanh 6/6. Chi tiết: R1 · R1.1–R1.11 · R1.14 · R1.15 · R1.17 · R1.18 · R1.20 → `housed` với địa
       chỉ `probe-classification › <tiêu đề>`; **R1.16 → `housed` `verdict-contract › PASS phải có bằng
       chứng…`** (D2); hàng `precedent` R1.2 và R1.17 trỏ đoạn «Vì sao» của requirement tương ứng.
