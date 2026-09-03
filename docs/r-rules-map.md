@@ -15,7 +15,7 @@ repo có hàng, hàng `pending` trỏ change có thật trong bảng chia, hàng
 
 Bảng chia change backfill (PO chốt 02/09): `merge-gate` · `verdict-contract` · `identity-session` · `probe-classification` · `data-layer` · `probe-library` · `target-contract` · `repo-history` · `provider-gate` · `model-reply-parsing` · `diff-visibility` · `concurrent-runs`.
 
-Đếm: pending 163 · precedent 16 · housed 73 · invariant 6 · obsolete 4 — tổng 262 hàng.
+Đếm: pending 142 · precedent 16 · housed 94 · invariant 6 · obsolete 4 — tổng 262 hàng.
 
 ## Ba đích của backfill (PO chốt 02/09 — change `product-independent-of-openspec`)
 
@@ -255,30 +255,30 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R10.22 | Khi thư viện vượt trần, nạn nhân chọn theo thứ tự | pending | probe-library | test/thu-vien.test.ts |
 | R10.23 | Probe từng bắt hồi quy mang cờ `da_bat_hoi_quy` vĩnh viễn (không trôi theo trần | pending | probe-library | packages/harness/src/probe-library.ts |
 | R10.24 | `flaky_diem` đếm số lần cùng một sha lượt chấm cho ra hai trạng thái KHÁC nhau ở | pending | probe-library | test/thu-vien.test.ts |
-| R11 | Danh tính người thao tác và phiên đăng nhập | pending | identity-session | test/danh-tinh.test.ts |
-| R11.1 | Người thao tác cổng PHẢI là danh tính của phiên đăng nhập | pending | identity-session | test/doi-soat-cong.test.ts |
-| R11.2 | Không có phiên hợp lệ thì mọi hành động cổng PHẢI bị từ chối, kể cả khi lớp xác thực | pending | identity-session | apps/web/src/server.ts |
-| R11.2 | không áp cho đối soát — đối soát chép lại hành động ở hệ khác (ranh giới với R6.24b) | precedent | pending: identity-session (đoạn «Vì sao») | docs/archive/r-rules/R11-danh-tinh-va-phien.md |
-| R11.3 | Hàm đọc danh tính KHÔNG ĐƯỢC có bất kỳ giá trị mặc định nào | pending | identity-session | test/danh-tinh.test.ts |
-| R11.4 | Mọi chỗ đọc danh tính PHẢI đi qua đúng một hàm | pending | identity-session | apps/web/src/gate.ts |
+| R11 | Danh tính người thao tác và phiên đăng nhập | housed | identity-session › Danh tính người thao tác đến từ phiên đăng nhập, qua đúng một cửa, không có mặc định | test/danh-tinh.test.ts |
+| R11.1 | Người thao tác cổng PHẢI là danh tính của phiên đăng nhập | housed | identity-session › Danh tính người thao tác đến từ phiên đăng nhập, qua đúng một cửa, không có mặc định | test/doi-soat-cong.test.ts |
+| R11.2 | Không có phiên hợp lệ thì mọi hành động cổng PHẢI bị từ chối, kể cả khi lớp xác thực | housed | identity-session › Không phiên hợp lệ thì chặn tất cả, kể cả khi lớp xác thực bên ngoài đã cho qua | apps/web/src/server.ts |
+| R11.2 | không áp cho đối soát — đối soát chép lại hành động ở hệ khác (ranh giới với R6.24b) | precedent | identity-session › Không phiên hợp lệ thì chặn tất cả, kể cả khi lớp xác thực bên ngoài đã cho qua (đoạn «Vì sao») | docs/archive/r-rules/R11-danh-tinh-va-phien.md |
+| R11.3 | Hàm đọc danh tính KHÔNG ĐƯỢC có bất kỳ giá trị mặc định nào | housed | identity-session › Danh tính người thao tác đến từ phiên đăng nhập, qua đúng một cửa, không có mặc định | test/danh-tinh.test.ts |
+| R11.4 | Mọi chỗ đọc danh tính PHẢI đi qua đúng một hàm | housed | identity-session › Danh tính người thao tác đến từ phiên đăng nhập, qua đúng một cửa, không có mặc định | apps/web/src/gate.ts |
 | R11.5 | Mật khẩu KHÔNG BAO GIỜ được lưu ở dạng đọc được, và KHÔNG BAO GIỜ rời khỏi máy chủ dưới | invariant | CLAUDE.md ⛔C3 | test/danh-tinh.test.ts |
-| R11.6 | Băm mật khẩu PHẢI dùng hàm chậm có muối riêng cho từng tài khoản | pending | identity-session | test/danh-tinh.test.ts |
-| R11.7 | Tài khoản lưu trong cơ sở dữ liệu | pending | identity-session | apps/web/src/store/db.ts |
-| R11.8 | Vì R11.7, file cơ sở dữ liệu và các file đi kèm (`-wal`, `-shm`) PHẢI ở quyền 600, và tài | pending | identity-session | apps/web/src/store/db.ts |
-| R11.9 | Tên đăng nhập PHẢI được ép khuôn lúc tạo tài khoản, không phải lúc hiển thị | pending | identity-session | test/danh-tinh.test.ts |
-| R11.10 | Sai mật khẩu PHẢI trả về cùng một thông điệp với sai tên đăng nhập | pending | identity-session | test/danh-tinh.test.ts |
-| R11.11 | Token phiên PHẢI là giá trị ngẫu nhiên đủ dài, và trong cơ sở dữ liệu chỉ lưu hash | pending | identity-session | test/danh-tinh.test.ts |
-| R11.12 | Phiên PHẢI có hạn. Hết hạn thì bị từ chối như không có phiên, và người dùng được đưa về | pending | identity-session | — |
-| R11.13 | Đăng xuất PHẢI xoá phiên ở phía máy chủ, không chỉ xoá cookie ở trình duyệt | pending | identity-session | test/danh-tinh.test.ts |
-| R11.14 | Cookie phiên PHẢI đặt `HttpOnly` và `SameSite`, và đặt `Secure` khi phục vụ qua HTTPS. | pending | identity-session | apps/web/src/server.ts |
-| R11.15 | Sổ hành động cổng ghi tên người bấm lấy từ phiên (R11.1) | pending | identity-session | test/doi-soat-cong.test.ts |
-| R11.16 | Tên tác giả PR PHẢI được đóng băng vào chính hàng của sổ cổng tại thời điểm bấm, chứ | pending | identity-session | test/so-cong.test.ts |
-| R11.17 | Khi người bấm cổng trùng với tác giả PR, hệ thống PHẢI cảnh báo tại chỗ trước khi bấm và | pending | identity-session | test/so-cong.test.ts |
+| R11.6 | Băm mật khẩu PHẢI dùng hàm chậm có muối riêng cho từng tài khoản | housed | identity-session › Mật khẩu băm chậm có muối riêng, và thông điệp đăng nhập sai không phân biệt được | test/danh-tinh.test.ts |
+| R11.7 | Tài khoản lưu trong cơ sở dữ liệu | housed | identity-session › Tài khoản sống trong cơ sở dữ liệu, tên ép khuôn tại nguồn, quản trị bằng lệnh trên máy chủ | apps/web/src/store/db.ts |
+| R11.8 | Vì R11.7, file cơ sở dữ liệu và các file đi kèm (`-wal`, `-shm`) PHẢI ở quyền 600, và tài | housed | identity-session › Tài khoản sống trong cơ sở dữ liệu, tên ép khuôn tại nguồn, quản trị bằng lệnh trên máy chủ | apps/web/src/store/db.ts |
+| R11.9 | Tên đăng nhập PHẢI được ép khuôn lúc tạo tài khoản, không phải lúc hiển thị | housed | identity-session › Tài khoản sống trong cơ sở dữ liệu, tên ép khuôn tại nguồn, quản trị bằng lệnh trên máy chủ | test/danh-tinh.test.ts |
+| R11.10 | Sai mật khẩu PHẢI trả về cùng một thông điệp với sai tên đăng nhập | housed | identity-session › Mật khẩu băm chậm có muối riêng, và thông điệp đăng nhập sai không phân biệt được | test/danh-tinh.test.ts |
+| R11.11 | Token phiên PHẢI là giá trị ngẫu nhiên đủ dài, và trong cơ sở dữ liệu chỉ lưu hash | housed | identity-session › Phiên có token ngẫu nhiên chỉ lưu hash, có hạn, và chết thật khi đăng xuất hoặc gỡ tài khoản | test/danh-tinh.test.ts |
+| R11.12 | Phiên PHẢI có hạn. Hết hạn thì bị từ chối như không có phiên, và người dùng được đưa về | housed | identity-session › Phiên có token ngẫu nhiên chỉ lưu hash, có hạn, và chết thật khi đăng xuất hoặc gỡ tài khoản | — |
+| R11.13 | Đăng xuất PHẢI xoá phiên ở phía máy chủ, không chỉ xoá cookie ở trình duyệt | housed | identity-session › Phiên có token ngẫu nhiên chỉ lưu hash, có hạn, và chết thật khi đăng xuất hoặc gỡ tài khoản | test/danh-tinh.test.ts |
+| R11.14 | Cookie phiên PHẢI đặt `HttpOnly` và `SameSite`, và đặt `Secure` khi phục vụ qua HTTPS. | housed | identity-session › Cookie phiên đặt HttpOnly và SameSite, và Secure khi phục vụ qua HTTPS | apps/web/src/server.ts |
+| R11.15 | Sổ hành động cổng ghi tên người bấm lấy từ phiên (R11.1) | housed | merge-gate › Hành động cổng vào sổ chỉ-ghi-thêm với danh tính phiên và danh sách cảnh báo đã chấp nhận | test/doi-soat-cong.test.ts |
+| R11.16 | Tên tác giả PR PHẢI được đóng băng vào chính hàng của sổ cổng tại thời điểm bấm, chứ | housed | merge-gate › Hành động cổng vào sổ chỉ-ghi-thêm với danh tính phiên và danh sách cảnh báo đã chấp nhận | test/so-cong.test.ts |
+| R11.17 | Khi người bấm cổng trùng với tác giả PR, hệ thống PHẢI cảnh báo tại chỗ trước khi bấm và | housed | identity-session › Vai tách theo việc, và người bấm trùng tác giả pull request phải bị nêu tên | test/so-cong.test.ts |
 | R11.18 | Tác nhân máy (agent, lượt chạy tự động) PHẢI mang danh tính riêng và KHÔNG được merge. | invariant | CLAUDE.md ⛔C1 | test/danh-tinh.test.ts |
-| R11.18b | Vai dành cho tác nhân máy là `tu_dong` | pending | identity-session | test/danh-tinh.test.ts |
-| R11.19 | Thêm tài khoản, đổi mật khẩu, đổi vai, gỡ tài khoản đi bằng lệnh trên máy chủ, không | pending | identity-session | apps/web/src/cli-tai-khoan.ts |
-| R11.20 | KHÔNG route nào được trả danh sách tài khoản, hash, hay muối | pending | identity-session | apps/web/src/identity.ts |
-| R11.21 | Gỡ một tài khoản PHẢI huỷ mọi phiên đang sống của tài khoản đó | pending | identity-session | test/danh-tinh.test.ts |
+| R11.18b | Vai dành cho tác nhân máy là `tu_dong` | housed | identity-session › Vai tách theo việc, và người bấm trùng tác giả pull request phải bị nêu tên | test/danh-tinh.test.ts |
+| R11.19 | Thêm tài khoản, đổi mật khẩu, đổi vai, gỡ tài khoản đi bằng lệnh trên máy chủ, không | housed | identity-session › Tài khoản sống trong cơ sở dữ liệu, tên ép khuôn tại nguồn, quản trị bằng lệnh trên máy chủ | apps/web/src/cli-tai-khoan.ts |
+| R11.20 | KHÔNG route nào được trả danh sách tài khoản, hash, hay muối | housed | identity-session › Không bề mặt nào phát danh sách tài khoản, hash hay muối ra ngoài | apps/web/src/identity.ts |
+| R11.21 | Gỡ một tài khoản PHẢI huỷ mọi phiên đang sống của tài khoản đó | housed | identity-session › Phiên có token ngẫu nhiên chỉ lưu hash, có hạn, và chết thật khi đăng xuất hoặc gỡ tài khoản | test/danh-tinh.test.ts |
 | R12 | Kho khuôn lỗi common: tri thức tái dùng giữa các repo | housed | truc-phan-loai-code | openspec/specs/truc-phan-loai-code/spec.md |
 | R12 | PR #12, 13 vòng, 26 finding — quá nửa rơi vào chưa tới chục khuôn lặp lại → kho khuôn common | precedent | housed: truc-phan-loai-code (đã có «Lý do phải thành luật») | docs/archive/r-rules/R12-kho-khuon-loi-common.md |
 | R12.1 | Khuôn common sống trong repo CheckMate (`packages/harness/src/khuon-loi.ts`), không | housed | truc-phan-loai-code › Danh mục trigger và tập kích hoạt per-repo | openspec/specs/truc-phan-loai-code/spec.md |

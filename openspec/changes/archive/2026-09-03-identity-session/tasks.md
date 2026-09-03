@@ -53,11 +53,15 @@
 - [x] 5.3 Hai lưới mới bắt được thứ đã biết TRƯỚC khi tin chúng: ba fixture đối kháng (route gọi
       `listAccounts`, route đọc thẳng SQL, cửa thứ hai đọc cookie) đều làm lưới đỏ và nêu đúng file.
       *Ca load-bearing: một phép quét trả rỗng trông giống hệt «repo sạch» và «phép quét hỏng».*
-- [ ] 5.4 Đo neo thư viện probe sau archive — **dự đoán TRƯỚC: KHÔNG tăng, giữ 11/15** (D6). Sai thì ghi rõ
-      sai ở đâu.
+- [x] 5.4 Đo neo thư viện probe sau archive. **Dự đoán TRƯỚC: không tăng, giữ 11/15 — đo được đúng 11/15.**
+      Bốn mã còn trôi vẫn là R3.15 · R4.18 · R4.27 · R9.6, thuộc `data-layer` và `target-contract` chưa
+      backfill. Dự đoán ĐÚNG (lần trước ở `probe-classification` sai vì đếm nhầm; lần này đếm bằng cách
+      liệt kê mã chứ không cộng nhẩm).
 
 ## 6. Bảng tra (ở commit archive)
 
-- [ ] 6.1 `docs/r-rules-map.md`: 19 điều → `housed` `identity-session › <tiêu đề>`; **R11.15 và R11.16 →
+- [x] 6.1 `docs/r-rules-map.md`: **21 hàng `pending` → `housed`** (19 điều về `identity-session`, R11.15 và
+      R11.16 về `merge-gate`) + 2 hàng `precedent` trỏ đúng đoạn. Đếm bảng: pending 163 → 142 · housed
+      73 → 94. Lưới `r-rules-map` xanh 6/6. Chi tiết: 19 điều → `housed` `identity-session › <tiêu đề>`; **R11.15 và R11.16 →
       `housed` `merge-gate › Hành động cổng vào sổ chỉ-ghi-thêm…`** (D3); hai hàng `precedent` (R11.2 ranh
       giới đối soát, R11 mở đầu «Basic Auth… `userInfo().username` = ubuntu») trỏ đoạn «Vì sao» tương ứng.
