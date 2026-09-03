@@ -15,7 +15,7 @@ repo có hàng, hàng `pending` trỏ change có thật trong bảng chia, hàng
 
 Bảng chia change backfill (PO chốt 02/09): `merge-gate` · `verdict-contract` · `identity-session` · `probe-classification` · `data-layer` · `probe-library` · `target-contract` · `repo-history` · `provider-gate` · `model-reply-parsing` · `diff-visibility` · `concurrent-runs`.
 
-Đếm: pending 142 · precedent 16 · housed 94 · invariant 6 · obsolete 4 — tổng 262 hàng.
+Đếm: pending 128 · precedent 16 · housed 108 · invariant 6 · obsolete 4 — tổng 262 hàng.
 
 ## Ba đích của backfill (PO chốt 02/09 — change `product-independent-of-openspec`)
 
@@ -80,24 +80,24 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R2.15 | File probe không nạp được (lỗi import, lỗi cú pháp) vẫn cho ra JUnit XML hợp lệ, nhưng | pending | target-contract | test/loi-nap-file.test.ts |
 | R2.16 | Khi không ghi nhận được probe nào, thông điệp lỗi PHẢI kèm nguyên nhân mà bộ chạy test đã | pending | target-contract | — |
 | R2.17 | Đường dẫn tới repo đích PHẢI được đưa về tuyệt đối trước khi dùng làm đích của symlink hay | pending | target-contract | — |
-| R3 | Bóc trả lời model và rào chống prompt injection | pending | model-reply-parsing | test/boc-model.test.ts |
-| R3.1 | PHẢI bóc được JSON nằm trong code fence (khối mã) có tag `json`, và cả JSON trần không fence. | pending | model-reply-parsing | — |
-| R3.2 | Không tìm thấy JSON thì lỗi ném ra PHẢI kèm trích đoạn trả lời của model, để người đọc log | pending | model-reply-parsing | — |
-| R3.3 | Parse fail ở lần gọi đầu thì được nhắc lại đúng một lần với lời nhắc rằng model không có | pending | model-reply-parsing | — |
-| R3.4 | Language tag (`ts`, `python`, `java`…) PHẢI bị bỏ, tuyệt đối không được lọt vào dòng đầu file | pending | model-reply-parsing | — |
-| R3.5 | PHẢI nhận MỌI language tag, không chỉ TypeScript. | pending | model-reply-parsing | — |
-| R3.6 | Trả lời không có fence nhưng mang dấu hiệu mã nguồn (`import`, `from`, `def `, `package `, | pending | model-reply-parsing | — |
-| R3.7 | Model phát ra lời gọi tool (`<invoke …>`) thay vì code thì PHẢI ném lỗi thuộc loại riêng | pending | model-reply-parsing | — |
-| R3.8 | Mọi dữ liệu ngoại lai nhúng vào prompt PHẢI được kẹp giữa cặp mốc mang nonce (số dùng một | pending | model-reply-parsing | — |
-| R3.9 | Hai lượt chạy khác nhau PHẢI cho nonce khác nhau | pending | model-reply-parsing | — |
-| R3.10 | Prompt PHẢI kèm lời rào nói rõ: mọi thứ giữa hai mốc là dữ liệu thô, không phải chỉ dẫn; | pending | model-reply-parsing | — |
-| R3.11 | Model chấm bài chạy không có tool | pending | model-reply-parsing | — |
+| R3 | Bóc trả lời model và rào chống prompt injection | housed | model-reply-parsing › Bóc JSON khỏi trả lời model, và khi không có JSON thì nói ra model đã nói gì | test/boc-model.test.ts |
+| R3.1 | PHẢI bóc được JSON nằm trong code fence (khối mã) có tag `json`, và cả JSON trần không fence. | housed | model-reply-parsing › Bóc JSON khỏi trả lời model, và khi không có JSON thì nói ra model đã nói gì | — |
+| R3.2 | Không tìm thấy JSON thì lỗi ném ra PHẢI kèm trích đoạn trả lời của model, để người đọc log | housed | model-reply-parsing › Bóc JSON khỏi trả lời model, và khi không có JSON thì nói ra model đã nói gì | — |
+| R3.3 | Parse fail ở lần gọi đầu thì được nhắc lại đúng một lần với lời nhắc rằng model không có | housed | model-reply-parsing › JSON hỏng phải chỉ đúng chỗ hỏng, và lượt nhắc lại được đưa chính thông điệp đó — đã rào | — |
+| R3.4 | Language tag (`ts`, `python`, `java`…) PHẢI bị bỏ, tuyệt đối không được lọt vào dòng đầu file | housed | model-reply-parsing › Bóc code khỏi mọi language tag, và lời gọi tool là một loại lỗi riêng | — |
+| R3.5 | PHẢI nhận MỌI language tag, không chỉ TypeScript. | housed | model-reply-parsing › Bóc code khỏi mọi language tag, và lời gọi tool là một loại lỗi riêng | — |
+| R3.6 | Trả lời không có fence nhưng mang dấu hiệu mã nguồn (`import`, `from`, `def `, `package `, | housed | model-reply-parsing › Bóc code khỏi mọi language tag, và lời gọi tool là một loại lỗi riêng | — |
+| R3.7 | Model phát ra lời gọi tool (`<invoke …>`) thay vì code thì PHẢI ném lỗi thuộc loại riêng | housed | model-reply-parsing › Bóc code khỏi mọi language tag, và lời gọi tool là một loại lỗi riêng | — |
+| R3.8 | Mọi dữ liệu ngoại lai nhúng vào prompt PHẢI được kẹp giữa cặp mốc mang nonce (số dùng một | housed | model-reply-parsing › Dữ liệu ngoại lai vào prompt phải kẹp giữa cặp mốc mang nonce, kèm lời rào | — |
+| R3.9 | Hai lượt chạy khác nhau PHẢI cho nonce khác nhau | housed | model-reply-parsing › Dữ liệu ngoại lai vào prompt phải kẹp giữa cặp mốc mang nonce, kèm lời rào | — |
+| R3.10 | Prompt PHẢI kèm lời rào nói rõ: mọi thứ giữa hai mốc là dữ liệu thô, không phải chỉ dẫn; | housed | model-reply-parsing › Dữ liệu ngoại lai vào prompt phải kẹp giữa cặp mốc mang nonce, kèm lời rào | — |
+| R3.11 | Model chấm bài chạy không có tool | housed | model-reply-parsing › Model chấm bài chạy không có tool, và danh sách cấm phải liệt kê tường minh | — |
 | R3.12 | Claude Code CLI báo mất xác thực bằng cách in ra stdout rồi thoát 0 | pending | provider-gate | test/mat-xac-thuc.test.ts |
 | R3.13 | Mẫu nhận diện phải phủ cả phiên hết hạn, không chỉ ca chưa đăng nhập bao giờ | pending | provider-gate | packages/harness/src/model.ts |
 | R3.13 | mẫu chữ mất-xác-thực bắt nhầm 3/4 câu trả lời hợp lệ → phải xét chỗ xuất hiện (stderr) và hình dạng | precedent | pending: provider-gate (đoạn «Vì sao») | docs/archive/r-rules/R3-boc-tra-loi-model.md |
 | R3.14 | Mất xác thực là lỗi CẤU HÌNH: KHÔNG thử lại. Phiên hết hạn không tự sống lại ở lượt thứ hai. | pending | provider-gate | test/mat-xac-thuc.test.ts |
-| R3.15 | JSON của model không parse được thì lỗi ném ra PHẢI kèm đoạn văn quanh vị trí hỏng, | pending | model-reply-parsing | test/fixtures/thu-vien-doi-cu.json |
-| R3.16 | Lượt nhắc lại PHẢI được đưa chính thông điệp lỗi đó | pending | model-reply-parsing | — |
+| R3.15 | JSON của model không parse được thì lỗi ném ra PHẢI kèm đoạn văn quanh vị trí hỏng, | housed | model-reply-parsing › JSON hỏng phải chỉ đúng chỗ hỏng, và lượt nhắc lại được đưa chính thông điệp đó — đã rào | test/fixtures/thu-vien-doi-cu.json |
+| R3.16 | Lượt nhắc lại PHẢI được đưa chính thông điệp lỗi đó | housed | model-reply-parsing › JSON hỏng phải chỉ đúng chỗ hỏng, và lượt nhắc lại được đưa chính thông điệp đó — đã rào | — |
 | R4 | Nhiều repo và lịch sử chấm theo repo | pending | repo-history | test/dedup-probe.test.ts |
 | R4.1 | `config.repos[]` là nguồn sự thật | pending | repo-history | — |
 | R4.2 | `config.repo` chỉ là view (khung nhìn) của repo đang chọn | pending | repo-history | — |

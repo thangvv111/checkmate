@@ -37,9 +37,10 @@
 
 ## 5. Bảng tra (ở commit archive)
 
-- [ ] 5.1 `docs/r-rules-map.md`: 14 điều → `housed` `model-reply-parsing › <tiêu đề>`.
-- [ ] 5.2 Đo neo thư viện probe sau archive — **dự đoán TRƯỚC: tăng 11 → 12** (D5, `R3.15` thuộc change
-      này). Sai thì ghi rõ sai ở đâu.
+- [x] 5.1 `docs/r-rules-map.md`: 14 hàng → `housed`. Đếm bảng: pending 142 → 128 · housed 94 → 108. Lưới
+      `r-rules-map` xanh 6/6.
+- [x] 5.2 Đo neo thư viện probe. **Dự đoán TRƯỚC 11 → 12 — đo được đúng 12/15.** `R3.15` đã neo. Còn trôi
+      3: `R4.18` · `R4.27` (`repo-history`) · `R9.6` (`data-layer`). Đây là lần đầu neo tăng sau ba change.
 
 ## 6. Sau-merge — việc có tên (KHÔNG thuộc change này)
 
