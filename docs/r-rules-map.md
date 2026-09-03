@@ -15,7 +15,7 @@ repo có hàng, hàng `pending` trỏ change có thật trong bảng chia, hàng
 
 Bảng chia change backfill (PO chốt 02/09): `merge-gate` · `verdict-contract` · `identity-session` · `probe-classification` · `data-layer` · `probe-library` · `target-contract` · `repo-history` · `provider-gate` · `model-reply-parsing` · `diff-visibility` · `concurrent-runs`.
 
-Đếm: pending 43 · precedent 16 · housed 192 · invariant 6 · obsolete 5 — tổng 262 hàng.
+Đếm: pending 20 · precedent 16 · housed 215 · invariant 6 · obsolete 5 — tổng 262 hàng.
 
 ## Ba đích của backfill (PO chốt 02/09 — change `product-independent-of-openspec`)
 
@@ -61,23 +61,23 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R1.20 | `vi_pham_luat_moi` PHẢI được phân biệt rõ với `hoi_quy` ở mọi bề mặt người đọc | housed | probe-classification › Luật chỉ có ở nhánh PR: nhánh gốc không phải đối chứng hợp lệ | test/phan-loai.test.ts |
 | R1.21 | Mã luật mà mỗi probe neo vào PHẢI được ghi ra verdict, không chỉ sống trong lượt sinh | housed | man-run › Verdict phải khai cả phần yếu của chính lượt chấm | openspec/specs/man-run/spec.md |
 | R1.22 | Verdict PHẢI nêu số luật đã có probe neo vào trên tổng số mã luật đọc được từ `specs/`. | housed | spec-source › Chấm KHÔNG có spec là trạng thái phải KHAI RA, không phải im lặng | openspec/specs/spec-source/spec.md |
-| R2 | Hợp đồng với repo đích: `checkmate.yml` | pending | target-contract | test/dedup-probe.test.ts |
-| R2.1 | Không có `checkmate.yml` thì `docRunnerCfg` PHẢI trả `null` để luồng rơi về đường vitest | pending | target-contract | test/spec-units.test.ts |
-| R2.2 | Khai `runner` mà thiếu `test_cmd` thì coi như không khai runner (trả `null`) | pending | target-contract | test/spec-units.test.ts |
+| R2 | Hợp đồng với repo đích: `checkmate.yml` | housed | target-contract › `checkmate.yml` là tuỳ chọn; khai thiếu hoặc khai hỏng thì rơi về mặc định | test/dedup-probe.test.ts |
+| R2.1 | Không có `checkmate.yml` thì `docRunnerCfg` PHẢI trả `null` để luồng rơi về đường vitest | housed | target-contract › `checkmate.yml` là tuỳ chọn; khai thiếu hoặc khai hỏng thì rơi về mặc định | test/spec-units.test.ts |
+| R2.2 | Khai `runner` mà thiếu `test_cmd` thì coi như không khai runner (trả `null`) | housed | target-contract › `checkmate.yml` là tuỳ chọn; khai thiếu hoặc khai hỏng thì rơi về mặc định | test/spec-units.test.ts |
 | R2.3 | `test_cmd` là template chứa hai placeholder (chỗ thay) | housed | target-contract › `test_cmd` là template hai chỗ thay, và đường dẫn thay vào phải chịu được khoảng trắng | test/target-contract.test.ts |
-| R2.4 | Các trường còn lại (`framework`, `probe_dir`, `probe_ext`, `timeout_s`) có mặc định | pending | target-contract | — |
-| R2.5 | `timeout_s` PHẢI bị kẹp vào dải `[30, 1800]` giây | pending | target-contract | — |
-| R2.6 | Hợp đồng kết quả là JUnit XML, bất kể repo chạy bằng vitest, pytest hay surefire. | pending | target-contract | — |
-| R2.7 | Thẻ `<failure/>` rỗng vẫn PHẢI được đọc là `failed` | pending | target-contract | — |
-| R2.8 | `testcase` nằm trong `testsuite` lồng nhau PHẢI được gom hết | pending | target-contract | — |
-| R2.9 | XML không phải JUnit PHẢI trả danh sách rỗng, KHÔNG được ném lỗi làm sập lượt chấm. | pending | target-contract | — |
-| R2.10 | Khối `review.khuon_loi` là danh sách góc tấn công ưu tiên của domain (miền nghiệp vụ) này. | pending | target-contract | — |
-| R2.11 | Khối `review.severity_map` định nghĩa cái gì là `high`/`medium`/`low` với riêng repo này. | pending | target-contract | — |
-| R2.12 | `checkmate.yml` cú pháp hỏng thì `docReviewCfg` PHẢI fail-safe (hỏng an toàn) về `null`, | pending | target-contract | test/quan-sat-ngoai-pham-vi.test.ts |
-| R2.13 | Nối id probe với testcase PHẢI nhận đủ ba dạng tên mà các bộ chạy sinh ra | pending | target-contract | — |
-| R2.14 | Việc nối id PHẢI kiểm ranh giới | pending | target-contract | test/dedup-probe.test.ts |
+| R2.4 | Các trường còn lại (`framework`, `probe_dir`, `probe_ext`, `timeout_s`) có mặc định | housed | target-contract › `checkmate.yml` là tuỳ chọn; khai thiếu hoặc khai hỏng thì rơi về mặc định | test/runner-cfg.test.ts |
+| R2.5 | `timeout_s` PHẢI bị kẹp vào dải `[30, 1800]` giây | housed | target-contract › `checkmate.yml` là tuỳ chọn; khai thiếu hoặc khai hỏng thì rơi về mặc định | test/runner-cfg.test.ts |
+| R2.6 | Hợp đồng kết quả là JUnit XML, bất kể repo chạy bằng vitest, pytest hay surefire. | housed | target-contract › JUnit XML là hợp đồng kết quả, và đường đọc phải chịu được mọi biến thể | test/runner-cfg.test.ts |
+| R2.7 | Thẻ `<failure/>` rỗng vẫn PHẢI được đọc là `failed` | housed | target-contract › JUnit XML là hợp đồng kết quả, và đường đọc phải chịu được mọi biến thể | test/runner-cfg.test.ts |
+| R2.8 | `testcase` nằm trong `testsuite` lồng nhau PHẢI được gom hết | housed | target-contract › JUnit XML là hợp đồng kết quả, và đường đọc phải chịu được mọi biến thể | test/runner-cfg.test.ts |
+| R2.9 | XML không phải JUnit PHẢI trả danh sách rỗng, KHÔNG được ném lỗi làm sập lượt chấm. | housed | target-contract › JUnit XML là hợp đồng kết quả, và đường đọc phải chịu được mọi biến thể | test/runner-cfg.test.ts |
+| R2.10 | Khối `review.khuon_loi` là danh sách góc tấn công ưu tiên của domain (miền nghiệp vụ) này. | housed | target-contract › Khối `review` cho repo khai góc tấn công và thang severity của riêng nó | test/runner-cfg.test.ts |
+| R2.11 | Khối `review.severity_map` định nghĩa cái gì là `high`/`medium`/`low` với riêng repo này. | housed | target-contract › Khối `review` cho repo khai góc tấn công và thang severity của riêng nó | test/runner-cfg.test.ts |
+| R2.12 | `checkmate.yml` cú pháp hỏng thì `docReviewCfg` PHẢI fail-safe (hỏng an toàn) về `null`, | housed | target-contract › `checkmate.yml` là tuỳ chọn; khai thiếu hoặc khai hỏng thì rơi về mặc định | test/quan-sat-ngoai-pham-vi.test.ts |
+| R2.13 | Nối id probe với testcase PHẢI nhận đủ ba dạng tên mà các bộ chạy sinh ra | housed | target-contract › Nối id probe với testcase nhận đủ ba dạng tên, và kiểm ranh giới id | test/runner-cfg.test.ts |
+| R2.14 | Việc nối id PHẢI kiểm ranh giới | housed | target-contract › Nối id probe với testcase nhận đủ ba dạng tên, và kiểm ranh giới id | test/dedup-probe.test.ts |
 | R2.14 | nối id probe phải kiểm ranh giới: `P1` nuốt kết quả của `P10` khi lượt chấm có từ 10 probe | precedent | pending: target-contract (đoạn «Vì sao») · ứng viên kho khuôn (đích b) | docs/archive/r-rules/R2-hop-dong-repo-dich.md |
-| R2.15 | File probe không nạp được (lỗi import, lỗi cú pháp) vẫn cho ra JUnit XML hợp lệ, nhưng | pending | target-contract | test/loi-nap-file.test.ts |
+| R2.15 | File probe không nạp được (lỗi import, lỗi cú pháp) vẫn cho ra JUnit XML hợp lệ, nhưng | housed | target-contract › File probe không nạp được là trạng thái RIÊNG, không phải probe đỏ | test/loi-nap-file.test.ts |
 | R2.16 | Khi không ghi nhận được probe nào, thông điệp lỗi PHẢI kèm nguyên nhân mà bộ chạy test đã | housed | target-contract › Không ghi nhận được probe nào thì thông điệp lỗi phải mang nguyên nhân bộ chạy đã báo | test/target-contract.test.ts |
 | R2.17 | Đường dẫn tới repo đích PHẢI được đưa về tuyệt đối trước khi dùng làm đích của symlink hay | housed | target-contract › Đích của symlink node_modules phải là đường dẫn TUYỆT ĐỐI | test/target-contract.test.ts |
 | R3 | Bóc trả lời model và rào chống prompt injection | housed | model-reply-parsing › Bóc JSON khỏi trả lời model, và khi không có JSON thì nói ra model đã nói gì | test/boc-model.test.ts |
@@ -183,14 +183,14 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R6.26 | Hành động cổng CHỈ tồn tại trong sổ chỉ-ghi-thêm | housed | doi-soat-cong › Hành động cổng chỉ sống trong sổ — bề mặt là bản phái sinh | openspec/specs/doi-soat-cong/spec.md |
 | R6.27 | Mọi mục bị bộ lọc loại khỏi phép đếm PHẢI được đếm và nói ra trong phần mô tả. | housed | doi-soat-cong › Mọi mục không đọc được phải được đếm và nói ra | openspec/specs/doi-soat-cong/spec.md |
 | R6.31 | ví dụ trong chú thích `spec-units.ts` (mục con giả định) — lưới miễn đích danh | obsolete | không có trong R — chú thích/test dùng làm ví dụ | packages/harness/src/spec-units.ts |
-| R7 | Tầm nhìn diff: cắt được, nhưng không cắt âm thầm | pending | diff-visibility | test/dedup-probe.test.ts |
-| R7.1 | File sinh tự động PHẢI bị loại khỏi diff đưa vào prompt | pending | diff-visibility | — |
-| R7.2 | Repo khai thêm mẫu riêng qua `review.bo_qua_diff` trong `checkmate.yml`. | pending | diff-visibility | — |
-| R7.3 | Mẫu regex repo khai sai cú pháp PHẢI bị bỏ qua, KHÔNG được làm sập lượt chấm. | pending | diff-visibility | — |
-| R7.4 | Sau khi loại file sinh tự động mà diff vẫn vượt trần thì PHẢI cắt tiếp, ưu tiên giữ file | pending | diff-visibility | — |
-| R7.5 | Chỉ có đúng một file mà nó đã vượt trần thì vẫn PHẢI giữ | pending | diff-visibility | — |
-| R7.6 | Thứ tự file trong diff dựng ra PHẢI giữ đúng thứ tự git trả về, không theo thứ tự sắp xếp | pending | diff-visibility | — |
-| R7.7 | Mọi file bị bỏ PHẢI được trả về kèm tên file, số ký tự và lý do. | pending | diff-visibility | — |
+| R7 | Tầm nhìn diff: cắt được, nhưng không cắt âm thầm | housed | diff-visibility › Mọi file bị bỏ đều được trả về kèm tên, kích thước và lý do | test/dedup-probe.test.ts |
+| R7.1 | File sinh tự động PHẢI bị loại khỏi diff đưa vào prompt | housed | diff-visibility › File sinh tự động bị loại khỏi diff, và repo khai thêm được mẫu của riêng nó | test/dung-diff.test.ts |
+| R7.2 | Repo khai thêm mẫu riêng qua `review.bo_qua_diff` trong `checkmate.yml`. | housed | diff-visibility › File sinh tự động bị loại khỏi diff, và repo khai thêm được mẫu của riêng nó | test/dung-diff.test.ts |
+| R7.3 | Mẫu regex repo khai sai cú pháp PHẢI bị bỏ qua, KHÔNG được làm sập lượt chấm. | housed | diff-visibility › File sinh tự động bị loại khỏi diff, và repo khai thêm được mẫu của riêng nó | test/dung-diff.test.ts |
+| R7.4 | Sau khi loại file sinh tự động mà diff vẫn vượt trần thì PHẢI cắt tiếp, ưu tiên giữ file | housed | diff-visibility › Vượt trần thì cắt tiếp theo hướng phủ nhiều nhất, và không bao giờ cắt xuống rỗng | test/dung-diff.test.ts |
+| R7.5 | Chỉ có đúng một file mà nó đã vượt trần thì vẫn PHẢI giữ | housed | diff-visibility › Vượt trần thì cắt tiếp theo hướng phủ nhiều nhất, và không bao giờ cắt xuống rỗng | test/dung-diff.test.ts |
+| R7.6 | Thứ tự file trong diff dựng ra PHẢI giữ đúng thứ tự git trả về, không theo thứ tự sắp xếp | housed | diff-visibility › Vượt trần thì cắt tiếp theo hướng phủ nhiều nhất, và không bao giờ cắt xuống rỗng | test/dung-diff.test.ts |
+| R7.7 | Mọi file bị bỏ PHẢI được trả về kèm tên file, số ký tự và lý do. | housed | diff-visibility › Mọi file bị bỏ đều được trả về kèm tên, kích thước và lý do | test/dung-diff.test.ts |
 | R7.8 | Log của lượt chấm PHẢI liệt kê các file này. | housed | diff-visibility › Log của lượt chấm phải nêu file không vào diff, và PHÂN BIỆT hai lý do | test/diff-visibility.test.ts |
 | R7.9 | File mã nguồn bị loại vì vượt trần PHẢI được cảnh báo riêng, tách khỏi nhóm file sinh | housed | man-run › Chỗ checker không nhìn tới phải nói ra, không cắt âm thầm | openspec/specs/man-run/spec.md |
 | R7.10 | Prompt gửi cho model PHẢI có khối liệt kê các file nó không được xem, kèm chỉ dẫn không | housed | diff-visibility › Prompt phải mang khối «file bạn không được xem», kèm chỉ dẫn không kết luận | test/diff-visibility.test.ts |

@@ -35,8 +35,9 @@ Mỗi đột biến gỡ gác trung tâm của một requirement, chạy **hai l
 
 ## 4. Bảng tra
 
-- [ ] 4.1 **23 hàng** → `housed` trỏ `<capability> › <tiêu đề>`. Cập nhật dòng Đếm.
-      **Làm ở commit ARCHIVE** (lưới đòi spec đã vào `openspec/specs/`).
-- [ ] 4.2 Sau change này **không hàng nào** của `diff-visibility` và `target-contract` còn `pending` —
-      kiểm bằng máy, không bằng trí nhớ.
-- [ ] 4.3 Đo neo thư viện probe — **dự đoán TRƯỚC: vẫn 15/15**.
+- [x] 4.1 **23 hàng** → `housed` trỏ `<capability> › <tiêu đề>`. Cập nhật dòng Đếm.
+      Làm ở commit archive.
+      Đếm bảng: pending 43 -> **20** · housed 192 -> **215**. Lưới `r-rules-map` xanh 6/6.
+- [x] 4.2 Kiểm bằng máy (quét lại bảng sau khi sửa): **KHÔNG CÒN HÀNG NÀO** của hai capability ở `pending`.
+      Cả hai **đóng hẳn**.
+- [x] 4.3 Đo neo thư viện probe. **Dự đoán TRƯỚC «vẫn 15/15» — đo được đúng 15/15.**
