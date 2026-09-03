@@ -356,6 +356,34 @@ Trả lời CHỈ MỘT khối JSON trong fence \`\`\`json:
   }", "trigger": "<mã trigger ở trên>", "ky_vong": "mô tả kỳ vọng theo spec (status/giá trị)"}]}`;
 }
 
+/**
+ * Lời nhắc cho lượt SINH LẠI khi không probe nào chứng minh được gì.
+ *
+ * Hai vế, và vế thứ hai là luật (gốc: R1.15): khi nhánh gốc KHÔNG chạy được probe nào — thường vì pull
+ * request thêm module mới mà nhánh gốc chưa có — phải nói ra. Không nói thì model tưởng mình import sai
+ * đường và đi sửa nhầm chỗ, mất trọn một lượt sinh lại.
+ *
+ * Điều kiện ấy trước đây nằm ngay trong biểu thức truyền vào `promptSinhCode`, nên không ca test nào gọi
+ * tới được: khoá được nửa dữ liệu (`baseKq`) mà không khoá được nửa quyết định. Tách ra để mỗi vế là một ca.
+ * Nói THỪA cũng là nói sai — vế «nhánh gốc còn chạy được thì KHÔNG có lời này» cũng phải có ca riêng.
+ */
+export function loiSinhLaiKhongBangChung(baseKq: ProbeResult[] | undefined, viSao: string): string {
+  const chung =
+    `KHÔNG probe nào chứng minh được gì: tất cả đều đỏ trên cả hai nhánh hoặc không chạy tới nơi. ` +
+    `Thường là do IMPORT SAI MODULE — hàm nằm ở file khác file bạn đoán. Đối chiếu lại phần diff để lấy ĐÚNG ` +
+    `đường dẫn file chứa hàm, và import trực tiếp (không bọc try/catch rồi assert typeof, vì như thế lỗi import ` +
+    `biến thành assertion thường và che mất nguyên nhân thật).`;
+  const khongDoiChung =
+    baseKq === undefined || baseKq.length === 0
+      ? `\n\nLƯU Ý QUAN TRỌNG: nhánh gốc KHÔNG chạy được probe nào (thường vì PR này THÊM MODULE MỚI mà nhánh gốc chưa có). ` +
+        `Vậy không có đối chứng, và mọi probe đỏ đều thành nghi_van chứ không thành hồi quy. Muốn lượt chấm có cơ sở, ` +
+        `probe phải CHẠY ĐƯỢC VÀ PASS trên nhánh PR — tức là kiểm đúng chữ ký hàm như diff khai. ` +
+        `Đọc lại chữ ký trong diff: đúng tên tham số, đúng thứ tự, đúng kiểu trả về. Probe đỏ ở đây nhiều khả năng là ` +
+        `PROBE SAI GIẢ ĐỊNH chứ không phải code sai.`
+      : '';
+  return `${chung}${khongDoiChung}\n${viSao}`;
+}
+
 function promptSinhCode(t: TargetInfo, keHoach: ProbePlan[], rao: Fence, loiLanTruoc?: string, runner?: RunnerCfg | null): string {
   const luatRieng = runner
     ? `- Viết cho framework: ${runner.framework} — đúng cú pháp chạy được bằng lệnh test của repo.
@@ -758,20 +786,7 @@ export async function runCodeSkill(
           t,
           keHoach,
           rao,
-          `KHÔNG probe nào chứng minh được gì: tất cả đều đỏ trên cả hai nhánh hoặc không chạy tới nơi. ` +
-            `Thường là do IMPORT SAI MODULE — hàm nằm ở file khác file bạn đoán. Đối chiếu lại phần diff để lấy ĐÚNG ` +
-            `đường dẫn file chứa hàm, và import trực tiếp (không bọc try/catch rồi assert typeof, vì như thế lỗi import ` +
-            `biến thành assertion thường và che mất nguyên nhân thật).` +
-            // PR thêm MODULE MỚI thì nhánh gốc không có file đó, nên nhánh gốc không chạy được probe nào.
-            // Không nói ra thì model tưởng mình sai đường import và đi sửa nhầm chỗ ở lượt sinh lại.
-            (baseKq === undefined || baseKq.length === 0
-              ? `\n\nLƯU Ý QUAN TRỌNG: nhánh gốc KHÔNG chạy được probe nào (thường vì PR này THÊM MODULE MỚI mà nhánh gốc chưa có). ` +
-                `Vậy không có đối chứng, và mọi probe đỏ đều thành nghi_van chứ không thành hồi quy. Muốn lượt chấm có cơ sở, ` +
-                `probe phải CHẠY ĐƯỢC VÀ PASS trên nhánh PR — tức là kiểm đúng chữ ký hàm như diff khai. ` +
-                `Đọc lại chữ ký trong diff: đúng tên tham số, đúng thứ tự, đúng kiểu trả về. Probe đỏ ở đây nhiều khả năng là ` +
-                `PROBE SAI GIẢ ĐỊNH chứ không phải code sai.`
-              : '') +
-            `\n${viSao}`,
+          loiSinhLaiKhongBangChung(baseKq, viSao),
           runner,
         ),
       );
