@@ -57,8 +57,10 @@
 
 ## 6. Sau-merge — nợ có tên (KHÔNG thuộc change này)
 
-- [ ] 6.1 S1.2 (`probe-classification`): thông điệp lỗi nguyên văn từ repo đích vào `evidence.actual` → có
-      thể lên comment PR, bề mặt công khai. Ứng viên nợ ⛔C3.
-- [ ] 6.2 R1.20 hai vế chưa đạt: dòng log tóm tắt gộp `hoi_quy` với `vi_pham_luat_moi`; chữ phân biệt ở màn
-      run không ca test nào khoá.
-- [ ] 6.3 Biến cục bộ tiếng Việt (~135) — chỉ mở nếu PO muốn siết (D2).
+Cả ba đã RỜI sang backlog `named-debts` ngày 03/09 (PO chốt) — mục 12, 13, 14.
+
+- [x] 6.1 → `named-debts` **#12**. S1.2: thông điệp lỗi nguyên văn từ repo đích vào `evidence.actual` → có
+      thể lên comment PR, bề mặt công khai. Ứng viên ⛔C3.
+- [x] 6.2 → `named-debts` **#13**. R1.20 hai vế chưa đạt: dòng log tóm tắt gộp `hoi_quy` với
+      `vi_pham_luat_moi`; chữ phân biệt ở màn run không ca test nào khoá.
+- [x] 6.3 → `named-debts` **#14**. Biến cục bộ tiếng Việt (~135) — chỉ mở nếu PO muốn siết (D2).

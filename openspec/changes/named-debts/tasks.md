@@ -35,3 +35,21 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       danh sách» đã có luật cũ (R4.7 giữ clone + lịch sử, R4.27 xoá token riêng — tra `docs/r-rules-map.md`);
       «archive» (ẩn khỏi danh sách và chế độ trực nhưng giữ lịch sử/sổ, mở lại được) chưa có. Khi làm: soi
       cả hai đường trong một change, đặt tên tiếng Anh.
+- [ ] 12. **Thông điệp lỗi nguyên văn từ repo đích lên comment PR** — ứng viên ⛔C3. Lỗi do bộ chạy test của
+      repo đích sinh ra đi vào `evidence.actual` của finding, và finding lên comment pull request: **bề mặt
+      công khai, không thu hồi được**. Nếu bộ chạy test in secret vào thông điệp lỗi thì secret ra comment.
+      Hai hàm vân tay đã gột hex dài trước khi SO SÁNH, nhưng bản gột chỉ dùng để so — bản nguyên văn vẫn đi
+      tiếp. Khi làm: quyết xem che ở đâu (lúc dựng evidence hay lúc dựng comment) và che thế nào để hai lỗi
+      khác nhau vẫn phân biệt được (⛔C3 đòi bản che PHÂN BIỆT ĐƯỢC). Nguồn: `probe-classification` S1.2.
+- [ ] 13. **`vi_pham_luat_moi` phân biệt được với `hoi_quy` ở BỀ MẶT ĐỌC** — hôm nay chỉ phân biệt trong dữ
+      liệu. Dòng log tóm tắt gộp hai nhãn thành một số (`skill-code.ts:1024`), bảng từng hàng dùng **cùng mũi
+      tên** `✓→✗` (`skill-code.ts:1029`, `ui.ts:1333`). Màn run CÓ dịch thành chữ riêng «vi phạm luật PR vừa
+      khai» (`ui.ts:1339`) nhưng **không ca test nào khoá** — `grep 'vi phạm luật PR vừa khai' test/` trả
+      rỗng. Hai nhãn cùng chặn merge nhưng nói hai chuyện khác nhau, và người sửa cần biết mình đang sửa cái
+      gì. Nguồn: `probe-classification` task 1.2 (chỗ spec nói quá code, đã sửa spec theo code).
+- [ ] 14. **Biến cục bộ tiếng Việt (~135)** — chỉ mở nếu PO muốn siết. Lưới
+      `test/identifier-language.test.ts` cố ý dừng ở **cấp module** (khai báo cột 0): cấp module có 10 vi
+      phạm, tính cả thân hàm thì lên ~135. Mở rộng lưới xuống thân hàm là **một dòng đổi regex** (bỏ neo cột
+      0 — đã có ca mutation M3 chứng minh), nhưng phải kèm một đợt đổi ~135 tên trong thân hàm: rủi ro cao,
+      giá trị thấp, và đúng thứ CLAUDE.md cảnh báo về trạng thái nửa nạc nửa mỡ. Nguồn:
+      `identifier-language-gate` D2.
