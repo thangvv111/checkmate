@@ -84,6 +84,33 @@ Cám dỗ là để phần này ở ghi chú. Nhưng một hệ thống kiểm t
 Hôm nay loại thứ tư được bắt bằng một câu hỏi của PO, không bằng cơ chế nào. Viết điều đó vào spec là cách
 duy nhất để người sau biết họ vẫn phải đọc.
 
+### D5 — Loại lỗi thứ 3 tái diễn NGAY trong change sinh ra để chống nó (ghi lúc apply)
+
+Bản đầu của `test/test-grid-integrity.test.ts` dựng regex từ tên hàm:
+
+```ts
+const cua = khoi.filter((k) => new RegExp(`\\b${ten}\\s*\\(`).test(k));
+```
+
+Heredoc của shell ăn một lớp backslash, nên file trên đĩa mang `` `\b${ten}\s*\(` `` — TypeScript đọc
+`\b` thành ký tự backspace, `\s` thành `s`, `\(` thành `(`. Regex thành `/scanDirectSqls*(/` và ném
+`SyntaxError: Unterminated group`. **Năm ca đỏ, không ca nào là lỗi thật.**
+
+Đây đúng là **loại 3** mà capability này sinh ra để bắt: *ca đỏ trên hệ thống đang đúng*. Nó tái diễn ngay
+trong lượt apply của chính change ấy, bởi cùng một người vừa viết ra ba tầng.
+
+Bài học không phải «cẩn thận hơn» — bài học là **bỏ hẳn cái regex dựng động**:
+
+```ts
+const cua = khoi.filter((k) => k.includes(`${ten}(`));
+```
+
+Một phép so chuỗi không có gì để escape sai. Đường hỏng bị **gỡ bỏ**, không phải được canh giữ. Chỗ nào
+gác được bằng cách làm cho lỗi không tồn tại thì đừng gác bằng cách nhớ.
+
+*(Ghi chú về tầng 1: chuỗi này KHÔNG bị mutation bắt — regex hỏng làm ca ĐỎ, mà đỏ thì mutation coi là
+«lưới hoạt động». Đúng như requirement 4 khai: mutation không phân biệt đỏ đúng với đỏ oan.)*
+
 ## Architecture
 
 - `test/<lưới-cho-lưới>.test.ts` (MỚI): quét `test/`, đòi mỗi hàm `scan*` export có cặp fixture.
