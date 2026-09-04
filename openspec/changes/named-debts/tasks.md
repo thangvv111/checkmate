@@ -8,8 +8,10 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       khoá), mỗi loại cần một bộ chia riêng và lưới riêng. Nguồn: `stop-forcing-target-repo-shape` §6.1.
 - [ ] 2. Mức 3 — chạy tiếp lượt dở sau khi server dừng. Điều kiện trước: luật ghim SHA cho lượt chạy tiếp
       (head đổi giữa chừng thì lượt cũ vô hiệu). Nguồn: `man-run-va-cong-merge`.
-- [ ] 3. Webhook GitHub realtime, xác thực chữ ký HMAC. Là cửa vào **không xác thực người dùng** đầu tiên của
-      sản phẩm → security review riêng, không gộp việc khác. Nguồn: `man-run-va-cong-merge`.
+- [x] 3. ✅ XONG 05/09 — change `github-webhook` (đã merge + archive, deploy lên prod). Hai gác độc lập:
+      HMAC-SHA256 trên raw body (so timing-safe) và repo phải nằm trong danh sách đã khai. `security.md` viết
+      riêng trước khi có dòng code nào, đúng yêu cầu của mục nợ này. nginx miễn Basic Auth cho ĐÚNG một đường
+      bằng `location =`; đường anh em vẫn ăn 401 của nginx (đã đo từ ngoài Internet). Nguồn: `man-run-va-cong-merge`.
 - [ ] 4. Bỏ Basic Auth ở nginx — gói ba việc, **rào `/login` (giới hạn tần suất / khoá tạm) đi trước**, rồi mới
       bỏ lớp ngoài. Nguồn: `man-run-va-cong-merge`.
 - [ ] 5. Dựng lại nội dung 5 màn còn lại theo gói design CCS (vỏ chung đã có). Nguồn: `dong-bo-giao-dien-ccs`.

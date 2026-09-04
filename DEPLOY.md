@@ -54,12 +54,19 @@ location = /api/webhook/github {
     auth_basic off;                 # GitHub khong gui duoc Basic Auth
     proxy_pass http://127.0.0.1:4001;
     proxy_set_header Host $host;
-    proxy_set_header X-Hub-Signature-256 $http_x_hub_signature_256;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
 }
 ```
 
 Dùng `location =` (khớp **chính xác**) chứ không `location /api/webhook` — tiền tố sẽ miễn auth cho mọi
-đường con thêm về sau, tức một cửa mở ra mà không ai định mở.
+đường con thêm về sau, tức một cửa mở ra mà không ai định mở. Đo được từ ngoài sau khi đặt (05/09):
+`/api/webhook/github` tới được ứng dụng, còn `/api/webhook/github/x` và `/api/webhook/khac` vẫn ăn `401` kèm
+`WWW-Authenticate: Basic realm="CheckMate"` của nginx.
+
+KHÔNG cần `proxy_set_header X-Hub-Signature-256` — nginx chuyển tiếp header nó không biết theo mặc định;
+khai lại chỉ thêm một chỗ sai được mà không thêm gì.
 
 ### Khai báo ở GitHub
 

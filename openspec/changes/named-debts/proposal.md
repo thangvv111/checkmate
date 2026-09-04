@@ -22,7 +22,7 @@ Luật ra vào:
 |---|---|---|
 | 1 | Bộ chia spec cho tài liệu **không phải văn bản có tiêu đề**: OpenAPI · JSON Schema · Gherkin `.feature` | `stop-forcing-target-repo-shape` |
 | 2 | **Mức 3** — chạy tiếp lượt dở sau khi server dừng (cần luật ghim SHA trước) | `man-run-va-cong-merge` |
-| 3 | **Webhook GitHub** realtime có chữ ký — cửa vào không xác thực đầu tiên của sản phẩm | `man-run-va-cong-merge` |
+| 3 | ~~**Webhook GitHub** realtime có chữ ký — cửa vào không xác thực đầu tiên của sản phẩm~~ ✅ `github-webhook` 05/09 | `man-run-va-cong-merge` |
 | 4 | **Bỏ Basic Auth** ở nginx — gói ba việc, rào `/login` đi trước | `man-run-va-cong-merge` |
 | 5 | Dựng lại nội dung **5 màn còn lại** theo gói design CCS | `dong-bo-giao-dien-ccs` |
 | 11 | Trần lượt đồng thời **cấu hình được** (hôm nay hằng 2) — cửa khai phải kèm giới hạn và cảnh báo | `concurrent-runs` |
