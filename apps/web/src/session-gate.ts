@@ -14,7 +14,18 @@
  * Export để lưới khoá được NỘI DUNG của nó: thêm một đường vào đây là mở một cửa vào hệ thống, nên việc đó
  * phải làm một ca test đỏ chứ không lặng lẽ đi qua review.
  */
-export const OPEN_PATHS: ReadonlySet<string> = new Set(['/login', '/logout', '/health']);
+/**
+ * Đường KHÔNG cần phiên.
+ *
+ * Nới danh sách này là mở một cửa vào hệ thống, và sau khi bỏ Basic Auth ở nginx (nợ #4) thì đây là
+ * HÀNG RÀO DUY NHẤT giữa Internet và ứng dụng. Ba đường đầu không gây tác dụng phụ nào: `/login` là
+ * cửa vào, `/logout` xoá phiên của chính người gọi, `/health` chỉ đọc.
+ *
+ * `/api/webhook/github` là đường ĐẦU TIÊN vừa không cần phiên vừa GÂY TÁC DỤNG PHỤ (khởi lượt chấm,
+ * tiêu token, chiếm trần). Nó đứng được ở đây vì có hai gác riêng, độc lập với nhau: chữ ký HMAC trên
+ * raw body, VÀ repo phải nằm trong danh sách người vận hành đã khai (`github-webhook` S4.2).
+ */
+export const OPEN_PATHS: ReadonlySet<string> = new Set(['/login', '/logout', '/health', '/api/webhook/github']);
 
 export type SessionGateDecision =
   | { pass: true }

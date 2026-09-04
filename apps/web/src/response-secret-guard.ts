@@ -54,6 +54,9 @@ export function collectSecrets(
   };
   if (vault) {
     them('oauth_token', vault.claude_code_oauth_token);
+    // `github-webhook` S1.3 — cửa mới không được là chỗ hở của gác cũ. Chữ ký là một hàm của bí mật,
+    // nên rò bí mật ra bất kỳ response nào là rò thứ mở được cả cửa.
+    them('github_webhook_secret', vault.github_webhook_secret);
     for (const [ma, khoa] of Object.entries(vault.khoa ?? {})) them(`khoa.${ma}`, khoa);
     for (const [repo, tok] of Object.entries(vault.repo_token ?? {})) them(`repo_token.${repo}`, tok);
   }

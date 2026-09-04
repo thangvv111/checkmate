@@ -9,14 +9,77 @@ URL: https://checkmate.botswain.net (Lightsail 47.131.132.95, dùng chung máy v
 - Source: `/home/ubuntu/checkmate-app/{checkmate,demo-credit-approval,demo-python}`; log: `~/checkmate-app/checkmate.log`.
 - `CHECKMATE_MODE=org` → mở /settings và cổng merge/reject (đã an toàn nhờ lớp Basic Auth nginx bên dưới; đổi về `demo` trong unit systemd nếu muốn khoá chỉ-đọc).
 - **HTTP Basic Auth** ở tầng nginx: user `checkmate`, mật khẩu do chủ máy chọn (hash apr1 tại
-  `/etc/nginx/.htpasswd-checkmate`, quyền 640 root:www-data). Đường `/.well-known/acme-challenge/`
-  được **miễn trừ auth** — nếu không, certbot renew sẽ thất bại và SSL chết sau 90 ngày.
+  `/etc/nginx/.htpasswd-checkmate`, quyền 640 root:www-data). Có **hai** đường được miễn trừ auth,
+  và chỉ hai: `/.well-known/acme-challenge/` (thiếu thì certbot renew thất bại, SSL chết sau 90 ngày) và
+  `/api/webhook/github` (GitHub không gửi được Basic Auth). Xem mục webhook bên dưới trước khi mở đường thứ hai.
 
 ### Đổi mật khẩu về sau
 ```
 printf '%s' 'MAT-KHAU-MOI' | openssl passwd -apr1 -stdin   # ra hash
 sudo nano /etc/nginx/.htpasswd-checkmate                    # sửa thành  checkmate:HASH
 sudo systemctl reload nginx
+```
+
+## Webhook GitHub — chấm ngay khi PR mở, thay vì đợi chu kỳ trực
+
+Đường `POST /api/webhook/github`. Đây là **cửa vào không xác thực người dùng duy nhất** của sản phẩm — nó
+nằm trong `OPEN_PATHS`, tức không đi qua cửa phiên như 39 route còn lại. Hai gác ĐỘC LẬP đứng ở đó và cả
+hai phải qua: **chữ ký HMAC-SHA256 trên raw body**, và **repo trong payload phải nằm trong danh sách đã
+khai** ở Cấu hình. Chữ ký một mình không đủ: nó chỉ chứng minh người gửi biết bí mật, không chứng minh việc
+này nên làm — mà «nên làm» ở đây nghĩa là clone và chạy test của một repo trên chính máy chủ này.
+
+**Chưa đặt bí mật thì cửa từ chối TẤT** (⛔C2). Bản deploy không đặt gì chạy y như hôm nay — vẫn polling
+theo chu kỳ trực, không mất gì ngoài độ trễ. Đó cũng là lý do polling phải giữ: nó là thứ làm cho «từ
+chối oan» chỉ tốn thêm một chu kỳ, thay vì mất hẳn một lượt chấm.
+
+### Đặt bí mật
+
+Bí mật nằm ở **kho khoá** `.secrets.json` (quyền 600), khoá `github_webhook_secret` — không ở
+`config.json`, vì `config.json` được đọc rồi trả ra nhiều bề mặt còn kho khoá thì không.
+
+```bash
+openssl rand -hex 32                                  # sinh bi mat, luu lai de dan sang GitHub
+cd /home/ubuntu/checkmate-app/checkmate
+sudo -u ubuntu nano .secrets.json                     # them  "github_webhook_secret": "<bi-mat>"
+chmod 600 .secrets.json
+```
+
+Không cần restart: kho khoá được đọc lại ở **mỗi lượt** (⛔C6 — sửa tay phải có hiệu lực ở lượt đọc kế
+tiếp). Xoá khoá ấy đi là tắt webhook ngay, không cần đổi gì khác.
+
+### Mở đường ở nginx — ĐÚNG một đường
+
+```nginx
+location = /api/webhook/github {
+    auth_basic off;                 # GitHub khong gui duoc Basic Auth
+    proxy_pass http://127.0.0.1:4001;
+    proxy_set_header Host $host;
+    proxy_set_header X-Hub-Signature-256 $http_x_hub_signature_256;
+}
+```
+
+Dùng `location =` (khớp **chính xác**) chứ không `location /api/webhook` — tiền tố sẽ miễn auth cho mọi
+đường con thêm về sau, tức một cửa mở ra mà không ai định mở.
+
+### Khai báo ở GitHub
+
+Repo → Settings → Webhooks → Add webhook:
+
+| Ô | Giá trị |
+|---|---|
+| Payload URL | `https://checkmate.botswain.net/api/webhook/github` |
+| Content type | `application/json` |
+| Secret | bí mật vừa sinh |
+| Events | chỉ **Pull requests** |
+
+### Kiểm nó đang hoạt động
+
+GitHub ⇒ tab **Recent Deliveries** của webhook: `200` là nhận, `401` là chữ ký không qua, `422` là repo
+chưa khai trong Cấu hình, `403` là máy đang ở chế độ chỉ-đọc. **Phản hồi không nói lý do** — chủ ý, vì
+người đọc phản hồi có thể là người đang dò. Lý do đầy đủ nằm ở log máy chủ:
+
+```bash
+journalctl -u checkmate -f | grep Webhook
 ```
 
 ## Bốn khác biệt so với chạy trên máy dev (đều đã xử, ghi để lần sau khỏi mò)

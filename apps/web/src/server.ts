@@ -19,6 +19,8 @@ import {
   deleteSession,
 } from './identity.js';
 import { buildSessionCookie, evaluateSessionGate, OPEN_PATHS } from './session-gate.js';
+import { verifyWebhookSignature, decideWebhookAction } from './webhook.js';
+import { readWebhookSecret } from './secret-vault.js';
 import { attachSecretGuard } from './response-secret-guard.js';
 import { loginPage, type LoginState } from './ui-login.js';
 import { probesPage } from './ui-probes.js';
@@ -46,6 +48,14 @@ import { readProviderState, tryProvider, type ProviderState } from './model-sour
 import { chuanMuc } from '../../../packages/shared/src/types.js';
 
 const app = express();
+// `github-webhook` D1 — raw body CHỈ cho đường webhook, mounted theo đường và đặt TRƯỚC `express.json`.
+// HMAC phải tính trên đúng chuỗi byte đã nhận: `JSON.parse` rồi dựng lại cho ra chuỗi khác (thứ tự khoá,
+// khoảng trắng, cách thoát unicode), nên chữ ký không bao giờ khớp — và người dựng sẽ bị cám dỗ nới phép
+// kiểm cho nó khớp, tức mở đúng cái cửa mình vừa dựng để đóng.
+//
+// Cách kia (`express.json({ verify })`) bắt MỌI request giữ thêm một bản body trong bộ nhớ, kể cả request
+// mang mật khẩu đăng nhập — giữ dữ liệu nhạy cảm lâu hơn cần, cho một tính năng dùng nó ở đúng một đường.
+app.use('/api/webhook/github', express.raw({ type: '*/*', limit: '1mb' }));
 app.use(express.urlencoded({ extended: false, limit: '300kb' }));
 app.use(express.json({ limit: '300kb' }));
 
@@ -658,6 +668,81 @@ app.post('/api/chon-ncc', (req, res) => {
   }
   writeConfig({ ...c, agent: { ...c.agent, ncc: ma } });
   res.json({ ok: true, thong_diep: `Đã chuyển sang ${dn.ten} (${cfg.model})` });
+});
+
+/**
+ * Webhook GitHub — `github-webhook`.
+ *
+ * CỬA VÀO KHÔNG XÁC THỰC NGƯỜI DÙNG duy nhất của sản phẩm. Nó nằm trong `OPEN_PATHS`, và sau khi bỏ Basic
+ * Auth ở nginx (nợ #4) thì `OPEN_PATHS` là hàng rào duy nhất giữa Internet và ứng dụng.
+ *
+ * Hai gác ĐỘC LẬP đứng ở đây, và cả hai phải qua:
+ *   1. chữ ký HMAC-SHA256 trên RAW BODY   — chứng minh người gửi biết bí mật;
+ *   2. repo nằm trong danh sách đã khai   — chứng minh việc này NÊN LÀM.
+ * Chữ ký một mình không đủ: bí mật rò được, và một webhook hợp lệ trỏ repo lạ khiến CheckMate clone rồi
+ * chạy test của repo chưa ai khai — tức chạy code lạ trên máy chủ (security S4.2).
+ *
+ * Phản hồi nói LOẠI, log máy chủ nói LÝ DO (D4): trả lời khác nhau cho «chữ ký sai» và «chưa cấu hình bí
+ * mật» là nói cho người gửi biết trạng thái bên trong máy chủ.
+ */
+app.post('/api/webhook/github', (req, res) => {
+  // Chế độ chỉ-đọc: chạy một lượt chấm là ghi vào sổ, tiêu token và chiếm trần — không phải chỉ-đọc.
+  if (MODE === 'demo') {
+    console.error('Webhook: từ chối — chế độ demo không chạy lượt chấm.');
+    return res.status(403).json({ ok: false });
+  }
+  const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.from('');
+  const xac = verifyWebhookSignature(raw, req.get('x-hub-signature-256'), readWebhookSecret());
+  if (!xac.ok) {
+    // Log nói đủ cho người vận hành; phản hồi thì KHÔNG — người đọc phản hồi có thể là người tấn công.
+    console.error(`Webhook: từ chối — ${xac.ly_do}`);
+    return res.status(401).json({ ok: false });
+  }
+
+  let than: unknown;
+  try {
+    than = JSON.parse(raw.toString('utf8'));
+  } catch {
+    console.error('Webhook: từ chối — thân yêu cầu không phải JSON hợp lệ.');
+    return res.status(400).json({ ok: false });
+  }
+
+  const cfg = readConfig();
+  const quyet = decideWebhookAction(req.get('x-github-event'), than, cfg.repos.map((r) => r.github));
+  if (quyet.lam === 'bo_qua') {
+    // Sự kiện GitHub gửi mà ta không quan tâm là chuyện BÌNH THƯỜNG. Trả lỗi cho nó thì GitHub thử lại vài
+    // lần rồi tự tắt webhook — hỏng một đường vào vì một thứ không phải lỗi.
+    return res.json({ ok: true, bo_qua: true });
+  }
+  if (quyet.lam === 'tu_choi') {
+    console.error(`Webhook: từ chối — ${quyet.ly_do}`);
+    return res.status(422).json({ ok: false });
+  }
+
+  // Cấu hình dựng theo repo TRONG PAYLOAD, không theo repo đang chọn: `chamPr` chấm theo `cfg.repo`, nên
+  // dùng repo đang chọn thì webhook của repo A khởi lượt chấm trên repo B (D3).
+  const repoCfg = findRepo(cfg, quyet.repo);
+  if (!repoCfg) {
+    console.error(`Webhook: từ chối — repo ${quyet.repo} biến mất khỏi cấu hình giữa chừng.`);
+    return res.status(422).json({ ok: false });
+  }
+
+  // ĐÚNG cửa điều kiện chạy như đường polling và đường bấm tay — webhook không được là đường tắt.
+  const cho = evaluateStartRun({ soDangChay: rm.runningCount(), tran: CONCURRENCY_LIMIT, prDangChay: rm.isPrRunning(quyet.so) });
+  if (!cho.chay) {
+    console.error(`Webhook: PR #${quyet.so} chưa chạy được — ${cho.lyDo}. Chế độ trực sẽ nhặt lại ở chu kỳ sau.`);
+    return res.status(202).json({ ok: true, hoan: true });
+  }
+
+  void (async () => {
+    try {
+      const kq = await chamPr({ ...cfg, repo: repoCfg, repo_dang_chon: repoCfg.github }, quyet.so);
+      if ('id' in kq) console.log(`Webhook: chấm PR #${quyet.so} @ ${quyet.headSha.slice(0, 7)} (run ${kq.id})`);
+    } catch (e) {
+      console.error(`Webhook: PR #${quyet.so} lỗi —`, (e as Error).message.slice(0, 200));
+    }
+  })();
+  res.json({ ok: true });
 });
 
 /**
