@@ -323,22 +323,36 @@ describe('D6 — GIẢ ĐỊNH NỀN: tiến trình chấm sống sót qua cái 
       );
 
       const p = spawn('node', [cha, so], { stdio: 'ignore' });
-      const cho = (ms: number): void => {
-        const het = Date.now() + ms;
-        while (Date.now() < het) {
-          /* chờ đồng bộ — ca này đo hành vi hệ điều hành, không đo tốc độ */
-        }
+
+      // Ngủ ĐỒNG BỘ mà KHÔNG quay CPU. Bản đầu của ca này chờ bằng `while (Date.now() < het) {}`, và
+      // vòng quay ấy chiếm trọn một lõi suốt thời gian chờ — tức nó cướp CPU của chính hai tiến trình
+      // nó đang đợi. Chạy riêng thì máy rảnh nên kịp; chạy `npm test` toàn bộ (nhiều worker vitest cùng
+      // lúc) thì `node` cha + `cmd.exe` + `node` cháu không khởi động kịp trong 1500 ms và ca ĐỎ.
+      // Đo 05/09: chạy riêng 2/2 XANH, chạy toàn bộ 2/3 ĐỎ.
+      const nghi = (ms: number): void => {
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
       };
-      cho(1500);
-      const truoc = existsSync(so) ? readFileSync(so, 'utf8').trim().split('\n').length : 0;
+      // Chờ theo ĐIỀU KIỆN có hạn, không theo ĐỒNG HỒ. Ca vẫn đỏ nếu cháu thật sự không ghi tiếp —
+      // thứ mất đi chỉ là sự phụ thuộc vào tải máy.
+      const choDen = (dieuKien: () => boolean, hanMs: number): void => {
+        const het = Date.now() + hanMs;
+        while (Date.now() < het && !dieuKien()) nghi(50);
+      };
+      // `''.trim().split('\n')` trả `['']` — độ dài 1. Bản cũ đếm kiểu đó nên một file RỖNG đọc thành
+      // «đã có 1 dòng», và phép kiểm `> 0` xanh trên hệ thống đã hỏng. Lọc dòng rỗng đi.
+      const demDong = (): number =>
+        existsSync(so) ? readFileSync(so, 'utf8').split('\n').filter((d) => d.trim()).length : 0;
+
+      choDen(() => demDong() > 0, 12_000);
+      const truoc = demDong();
       expect(truoc, 'cháu phải đang ghi trước khi giết cha').toBeGreaterThan(0);
 
       // Giết ĐÚNG tiến trình cha, không giết cây — đúng cách một server bị dừng.
       if (process.platform === 'win32') execFileSync('taskkill', ['/pid', String(p.pid), '/F'], { stdio: 'ignore' });
       else process.kill(p.pid!, 'SIGKILL');
-      cho(2000);
+      choDen(() => demDong() > truoc, 12_000);
 
-      const sau = readFileSync(so, 'utf8').trim().split('\n').length;
+      const sau = demDong();
       expect(sau, `cháu phải ghi tiếp sau khi cha chết (trước ${truoc}, sau ${sau})`).toBeGreaterThan(truoc);
 
       try {
@@ -347,7 +361,7 @@ describe('D6 — GIẢ ĐỊNH NỀN: tiến trình chấm sống sót qua cái 
         /* cháu có thể còn giữ file — không phải lỗi của ca này */
       }
     },
-    30_000,
+    45_000,
   );
 });
 
