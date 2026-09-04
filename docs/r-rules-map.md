@@ -15,7 +15,7 @@ repo có hàng, hàng `pending` trỏ change có thật trong bảng chia, hàng
 
 Bảng chia change backfill (PO chốt 02/09): `merge-gate` · `verdict-contract` · `identity-session` · `probe-classification` · `data-layer` · `probe-library` · `target-contract` · `repo-history` · `provider-gate` · `model-reply-parsing` · `diff-visibility` · `concurrent-runs`.
 
-Đếm: pending 20 · precedent 16 · housed 215 · invariant 6 · obsolete 5 — tổng 262 hàng.
+Đếm: pending 0 · precedent 16 · housed 235 · invariant 6 · obsolete 5 — tổng 262 hàng.
 
 ## Ba đích của backfill (PO chốt 02/09 — change `product-independent-of-openspec`)
 
@@ -199,10 +199,10 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R8.1 | Số lượt chạy đồng thời PHẢI có trần | housed | concurrent-runs › Trần lượt chạy đồng thời, vượt trần thì từ chối ngay chứ không xếp hàng ngầm | test/kho-run.test.ts |
 | R8.2 | Trần tồn tại vì mỗi lượt tốn một worktree trên đĩa, một lượt chạy bộ test thật, và các | housed | concurrent-runs › Trần lượt chạy đồng thời, vượt trần thì từ chối ngay chứ không xếp hàng ngầm | test/concurrent-runs.test.ts |
 | R8.3 | Ref tạm mà lượt chấm fetch về PHẢI mang tên riêng theo PR, kể cả ref của nhánh gốc | housed | concurrent-runs › Lượt chấm không dùng chung ref git | test/concurrent-runs.test.ts |
-| R8.4 | Nạp probe vào thư viện là chuỗi đọc → sửa → ghi trên một file sổ dùng chung | pending | probe-library | packages/harness/src/probe-library.ts |
+| R8.4 | Nạp probe vào thư viện là chuỗi đọc → sửa → ghi trên một file sổ dùng chung | housed | probe-library › Sổ dùng chung được bảo vệ HAI lớp — khoá cho cuộc đua, ghi atomic cho cái chết giữa chừng | packages/harness/src/probe-library.ts |
 | R8.5 | Tên file probe trong thư viện PHẢI suy từ nội dung (hash), không từ số thứ tự | housed | probe-library › Tên file probe suy từ NỘI DUNG, và hậu tố nới dài ra khi còn đụng | packages/harness/src/probe-library.ts |
-| R8.6 | Khoá PHẢI được nhả cả khi việc bên trong ném lỗi. | pending | probe-library | — |
-| R8.7 | Khoá của một tiến trình đã chết PHẢI bị phá sau một ngưỡng quá hạn | pending | probe-library | test/kho-run.test.ts |
+| R8.6 | Khoá PHẢI được nhả cả khi việc bên trong ném lỗi. | housed | probe-library › Sổ dùng chung được bảo vệ HAI lớp — khoá cho cuộc đua, ghi atomic cho cái chết giữa chừng | test/thu-vien.test.ts |
+| R8.7 | Khoá của một tiến trình đã chết PHẢI bị phá sau một ngưỡng quá hạn | housed | probe-library › Sổ dùng chung được bảo vệ HAI lớp — khoá cho cuộc đua, ghi atomic cho cái chết giữa chừng | test/kho-run.test.ts |
 | R8.8 | Chờ khoá quá lâu thì vẫn phải làm việc chứ không được bỏ probe | housed | probe-library › Chờ khoá hết giờ thì VẪN làm việc, không bỏ probe | packages/harness/src/probe-library.ts |
 | R8.9 | Đẩy file ra khỏi thư viện theo trần FIFO PHẢI xoá luôn file trên đĩa, không để lại file mồ | obsolete | thay bằng R10.22 — đào thải theo điểm GIỮ/LOẠI bốn nấc, FIFO không còn tồn tại | — |
 | R8.10 | Sandbox chạy trên chính máy chủ CheckMate, không phải trên hạ tầng của nhà cung cấp | housed | concurrent-runs › Sandbox chạy trên máy chủ CheckMate với môi trường dựng bằng danh sách cho phép | test/env-cli.test.ts |
@@ -230,31 +230,31 @@ backfill tương ứng — không nhét thêm ngoài cửa đào thải.
 | R9.16 | Các route `/api/*` chỉ đọc qua lớp kho và trả dữ liệu thuần | housed | data-layer › Mọi truy cập dữ liệu đi qua lớp kho, và lớp kho là nơi DUY NHẤT biết nền lưu trữ | — |
 | R9.17 | KHÔNG route nào được trả về khoá, token hay bí mật | housed | response-secret-guard › Bí mật của chính checker không được rời máy chủ qua thân response | test/token-repo.test.ts |
 | R9.18 | Lọc và phân trang chạy dưới cơ sở dữ liệu, không nạp cả bảng lên rồi cắt | housed | data-layer › Lọc, sắp xếp và phân trang chạy dưới cơ sở dữ liệu, và giá trị người dùng nhập phải qua tham số | — |
-| R10 | Thư viện probe: hạt nạp là TỪNG PROBE, trùng lặp xử theo bốn tầng | pending | probe-library | test/phan-loai.test.ts |
-| R10.1 | Đơn vị nạp, lưu, và đào thải của thư viện là một probe | pending | probe-library | packages/harness/src/probe-library.ts |
+| R10 | Thư viện probe: hạt nạp là TỪNG PROBE, trùng lặp xử theo bốn tầng | housed | probe-library › Hạt nạp là TỪNG PROBE, và thư viện đời bộ được di trú tự động | test/phan-loai.test.ts |
+| R10.1 | Đơn vị nạp, lưu, và đào thải của thư viện là một probe | housed | probe-library › Hạt nạp là TỪNG PROBE, và thư viện đời bộ được di trú tự động | packages/harness/src/probe-library.ts |
 | R10.1 | đo 8 file thư viện có 4 cặp trùng cùng commit → đổi hạt nạp từ bộ sang probe | precedent | pending: probe-library (đoạn «Vì sao») | docs/archive/r-rules/R10-thu-vien-tung-probe.md |
-| R10.2 | File per-probe được tách từ file của lượt chấm | pending | probe-library | test/dedup-probe.test.ts |
+| R10.2 | File per-probe được tách từ file của lượt chấm | housed | probe-library › Hạt nạp là TỪNG PROBE, và thư viện đời bộ được di trú tự động | test/dedup-probe.test.ts |
 | R10.3 | File tách là artifact MỚI chưa từng chạy | housed | probe-library › Probe tách ra là artifact MỚI chưa từng chạy, và phải chạy sạch trước khi được nạp | packages/harness/src/probe-library.ts |
-| R10.4 | Trần thư viện đếm theo probe (mặc định 100, chỉnh qua `CHECKER_LIB_TRAN`, kẹp | pending | probe-library | test/thu-vien.test.ts |
-| R10.5 | Thư viện đời bộ được di trú tự động sang đời probe ở lần đọc đầu | pending | probe-library | packages/harness/src/probe-library.ts |
-| R10.6 | Probe mới trùng cả ba: commit sinh (`sha_sinh`), id, và | pending | probe-library | test/dedup-probe.test.ts |
-| R10.7 | Probe mới có luật spec giao với probe đã có (chuỗi | pending | probe-library | packages/harness/src/dedup-probe.ts |
-| R10.8 | Model phân xử bằng đúng một câu hẹp | pending | probe-library | test/dedup-probe.test.ts |
-| R10.9 | Mỗi probe thư viện tích luỹ lịch sử kết quả theo từng lượt | pending | probe-library | packages/harness/src/probe-library.ts |
-| R10.10 | Lịch sử hành vi có trần (20 lượt gần nhất) | pending | probe-library | packages/harness/src/probe-library.ts |
+| R10.4 | Trần thư viện đếm theo probe (mặc định 100, chỉnh qua `CHECKER_LIB_TRAN`, kẹp | housed | probe-library › Trần đếm theo probe, và đào thải chọn nạn nhân theo ĐIỂM bốn nấc | test/thu-vien.test.ts |
+| R10.5 | Thư viện đời bộ được di trú tự động sang đời probe ở lần đọc đầu | housed | probe-library › Hạt nạp là TỪNG PROBE, và thư viện đời bộ được di trú tự động | packages/harness/src/probe-library.ts |
+| R10.6 | Probe mới trùng cả ba: commit sinh (`sha_sinh`), id, và | housed | probe-library › Gỡ trùng bốn tầng — cơ học trước, model sau, và nghiêng về GIỮ | test/dedup-probe.test.ts |
+| R10.7 | Probe mới có luật spec giao với probe đã có (chuỗi | housed | probe-library › Gỡ trùng bốn tầng — cơ học trước, model sau, và nghiêng về GIỮ | packages/harness/src/dedup-probe.ts |
+| R10.8 | Model phân xử bằng đúng một câu hẹp | housed | probe-library › Gỡ trùng bốn tầng — cơ học trước, model sau, và nghiêng về GIỮ | test/dedup-probe.test.ts |
+| R10.9 | Mỗi probe thư viện tích luỹ lịch sử kết quả theo từng lượt | housed | probe-library › Lịch sử hành vi là BẰNG CHỨNG, và không phải nhãn nào cũng tính | packages/harness/src/probe-library.ts |
+| R10.10 | Lịch sử hành vi có trần (20 lượt gần nhất) | housed | probe-library › Lịch sử hành vi là BẰNG CHỨNG, và không phải nhãn nào cũng tính | packages/harness/src/probe-library.ts |
 | R10.11 | Lời gọi model phân xử KHÔNG được nằm trong khoá thư viện ([R8.4](R8-chay-song-song.md)): | housed | probe-library › Lời gọi model phân xử trùng lặp nằm NGOÀI khoá thư viện | packages/harness/src/probe-library.ts |
 | R10.11 | đọc thư viện NGOÀI khoá, quyết định, rồi nạp trong khoá với kiểm lại — lời gọi model không được nằm trong khoá liên tiến trình | precedent | pending: probe-library (đoạn «Vì sao») · ứng viên kho khuôn (đích b) | docs/archive/r-rules/R10-thu-vien-tung-probe.md |
-| R10.12 | Ghi sổ thư viện (`meta.json`) PHẢI atomic | pending | probe-library | test/thu-vien.test.ts |
+| R10.12 | Ghi sổ thư viện (`meta.json`) PHẢI atomic | housed | probe-library › Sổ dùng chung được bảo vệ HAI lớp — khoá cho cuộc đua, ghi atomic cho cái chết giữa chừng | test/thu-vien.test.ts |
 | R10.12 | fallback-rỗng rồi ghi đè biến một sổ rách thành xoá sổ cả thư viện trong im lặng | precedent | pending: probe-library (đoạn «Vì sao») · ứng viên kho khuôn (đích b) | docs/archive/r-rules/R10-thu-vien-tung-probe.md |
 | R10.13 | Di trú PHẢI ghi sổ mới TRƯỚC rồi mới xoá file bộ cũ, và CHỈ xoá file bộ đã di trú trọn | invariant | CLAUDE.md § Dữ liệu prod là tài sản | test/thu-vien.test.ts |
 | R10.14 | Trần thư viện đọc từ biến môi trường chỉ nhận số nguyên sạch | housed | probe-library › Trần thư viện đọc từ biến môi trường chỉ nhận số nguyên sạch, và bị kẹp hai đầu | — |
 | R10.15 | Đọc thư viện diễn ra ngoài khoá (R10.11) nên PHẢI chịu được file bị lượt song song dọn | housed | probe-library › Đọc thư viện ngoài khoá phải chịu được file bị lượt song song dọn | — |
-| R10.16 | Máy tách phải nhận diện regex literal khi đếm ngoặc (ngoặc trong `/x\)/` không phải | pending | probe-library | — |
-| R10.20 | Tầng 4 chỉ được so trên những lượt mà trạng thái nói về hành vi riêng của probe | pending | probe-library | packages/harness/src/probe-library.ts |
-| R10.21 | Hai probe cùng `pass` mãi KHÔNG chứng minh chúng trùng nhau, chỉ chứng minh chưa có gì | pending | probe-library | — |
-| R10.22 | Khi thư viện vượt trần, nạn nhân chọn theo thứ tự | pending | probe-library | test/thu-vien.test.ts |
-| R10.23 | Probe từng bắt hồi quy mang cờ `da_bat_hoi_quy` vĩnh viễn (không trôi theo trần | pending | probe-library | packages/harness/src/probe-library.ts |
-| R10.24 | `flaky_diem` đếm số lần cùng một sha lượt chấm cho ra hai trạng thái KHÁC nhau ở | pending | probe-library | test/thu-vien.test.ts |
+| R10.16 | Máy tách phải nhận diện regex literal khi đếm ngoặc (ngoặc trong `/x\)/` không phải | housed | probe-library › Máy tách phải hiểu regex literal khi đếm ngoặc | test/thu-vien.test.ts |
+| R10.20 | Tầng 4 chỉ được so trên những lượt mà trạng thái nói về hành vi riêng của probe | housed | probe-library › Lịch sử hành vi là BẰNG CHỨNG, và không phải nhãn nào cũng tính | packages/harness/src/probe-library.ts |
+| R10.21 | Hai probe cùng `pass` mãi KHÔNG chứng minh chúng trùng nhau, chỉ chứng minh chưa có gì | housed | probe-library › Lịch sử hành vi là BẰNG CHỨNG, và không phải nhãn nào cũng tính | test/thu-vien.test.ts |
+| R10.22 | Khi thư viện vượt trần, nạn nhân chọn theo thứ tự | housed | probe-library › Trần đếm theo probe, và đào thải chọn nạn nhân theo ĐIỂM bốn nấc | test/thu-vien.test.ts |
+| R10.23 | Probe từng bắt hồi quy mang cờ `da_bat_hoi_quy` vĩnh viễn (không trôi theo trần | housed | probe-library › Trần đếm theo probe, và đào thải chọn nạn nhân theo ĐIỂM bốn nấc | packages/harness/src/probe-library.ts |
+| R10.24 | `flaky_diem` đếm số lần cùng một sha lượt chấm cho ra hai trạng thái KHÁC nhau ở | housed | probe-library › Trần đếm theo probe, và đào thải chọn nạn nhân theo ĐIỂM bốn nấc | test/thu-vien.test.ts |
 | R11 | Danh tính người thao tác và phiên đăng nhập | housed | identity-session › Danh tính người thao tác đến từ phiên đăng nhập, qua đúng một cửa, không có mặc định | test/danh-tinh.test.ts |
 | R11.1 | Người thao tác cổng PHẢI là danh tính của phiên đăng nhập | housed | identity-session › Danh tính người thao tác đến từ phiên đăng nhập, qua đúng một cửa, không có mặc định | test/doi-soat-cong.test.ts |
 | R11.2 | Không có phiên hợp lệ thì mọi hành động cổng PHẢI bị từ chối, kể cả khi lớp xác thực | housed | identity-session › Không phiên hợp lệ thì chặn tất cả, kể cả khi lớp xác thực bên ngoài đã cho qua | apps/web/src/server.ts |

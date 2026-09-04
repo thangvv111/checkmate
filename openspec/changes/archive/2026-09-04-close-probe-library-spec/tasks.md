@@ -62,7 +62,8 @@ Không dừng ở «một đột biến cho mỗi requirement» — lượt trư
 
 ## 4. Bảng tra
 
-- [ ] 4.1 **20 hàng** → `housed` trỏ `probe-library › <tiêu đề>`. Cập nhật dòng Đếm.
-      **Làm ở commit ARCHIVE.**
-- [ ] 4.2 Kiểm bằng máy: sau change này **bảng tra còn 0 hàng `pending`**.
-- [ ] 4.3 Đo neo thư viện probe — **dự đoán TRƯỚC: vẫn 15/15**.
+- [x] 4.1 **20 hàng** → `housed` trỏ `probe-library › <tiêu đề>`. Cập nhật dòng Đếm.
+      Làm ở commit archive. Đếm bảng: pending 20 -> **0** · housed 215 -> **235**.
+- [x] 4.2 Kiểm bằng máy (quét lại toàn bảng sau khi sửa): **KHÔNG CÒN HÀNG NÀO** ở `pending`.
+      **Chuỗi backfill đóng** — 262 hàng nay đều có nhà.
+- [x] 4.3 Đo neo thư viện probe. **Dự đoán TRƯỚC «vẫn 15/15» — đo được đúng.**
