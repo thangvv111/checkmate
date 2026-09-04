@@ -6,7 +6,7 @@ import { humanSurfaceSource, modelSurfaceSource, readTarget, suggestModulePath, 
 import { describeSources } from './sources.js';
 import { redactMessage } from '../../shared/src/message-egress.js';
 import { refHitsNew, ruleCoverage } from './spec-units.js';
-import { hasBasis, missingRegressionFindings, regressionFloor } from './verdict.js';
+import { classifyInsufficientBasis, hasBasis, hasNoBaseline, missingRegressionFindings, regressionFloor } from './verdict.js';
 import { Sandbox, type ProbeResult } from './sandbox.js';
 import { updateHistory, readProbeLibrary, admitToLibrary, repoSlug, splitOneProbe, findAndDropBehaviorDuplicates } from './probe-library.js';
 import { getCodeExamples, knowledgeByTrigger } from './trigger-examples.js';
@@ -374,8 +374,10 @@ export function retryNoticeNoEvidence(baseKq: ProbeResult[] | undefined, viSao: 
     `Thường là do IMPORT SAI MODULE — hàm nằm ở file khác file bạn đoán. Đối chiếu lại phần diff để lấy ĐÚNG ` +
     `đường dẫn file chứa hàm, và import trực tiếp (không bọc try/catch rồi assert typeof, vì như thế lỗi import ` +
     `biến thành assertion thường và che mất nguyên nhân thật).`;
+  // D3 — gọi CHÍNH hàm chung thay vì viết lại biểu thức: hai cửa cùng vai viết bằng hai biểu
+  // thức riêng sẽ lệch nhau, và lệch trong im lặng. Bản cũ ở đây còn NÉM khi nhận `null`.
   const khongDoiChung =
-    baseKq === undefined || baseKq.length === 0
+    hasNoBaseline(baseKq)
       ? `\n\nLƯU Ý QUAN TRỌNG: nhánh gốc KHÔNG chạy được probe nào (thường vì PR này THÊM MODULE MỚI mà nhánh gốc chưa có). ` +
         `Vậy không có đối chứng, và mọi probe đỏ đều thành nghi_van chứ không thành hồi quy. Muốn lượt chấm có cơ sở, ` +
         `probe phải CHẠY ĐƯỢC VÀ PASS trên nhánh PR — tức là kiểm đúng chữ ký hàm như diff khai. ` +
@@ -782,9 +784,18 @@ export async function runCodeSkill(
     if (!coCoSo.ok) {
       const viSao = coCoSo.lyDo;
       if (lan === 2) {
+        // Kết cục này phải là DỮ LIỆU chứ không phải một câu chữ: bản trước nhận diện nó bằng
+        // một phép so chũơi trên thông điệp lỗi, ở đúng đường render — sửa lời văn là mất tính năng
+        // mà không lưới nào đỏ. Phát sự kiện TRƯỚC rồi VẪN ném: đường ném là đường fail-closed
+        // (⛔C2), sự kiện chỉ là dấu vết máy đọc được — không phải đường thoát.
+        const loai = classifyInsufficientBasis(baseKq, ungVienTatCa);
+        // GỘT trước khi ra khỏi engine, và dùng LẠI bản đã gột cho cả cú ném: hai bản khác nhau
+        // của cùng một sự thật là cửa song sinh, mà ở đây nghĩa là một bên gột một bên không.
+        const viSaoSach = redactMessage(viSao, humanSurfaceSource(t));
+        if (loai) phat({ type: 'khong_du_co_so', chi_tiet: { loai, so_probe: coCoSo.soProbe, ly_do: viSaoSach } });
         throw new Error(
           `Không đủ cơ sở kết luận: ${coCoSo.soProbe} probe đều KHÔNG chứng minh được gì ` +
-            `(không probe nào pass, hồi quy hay cải thiện) sau 2 lần sinh. Verdict PASS ở đây sẽ là xanh giả.\n${viSao}`,
+            `(không probe nào pass, hồi quy hay cải thiện) sau 2 lần sinh. Verdict PASS ở đây sẽ là xanh giả.\n${viSaoSach}`,
         );
       }
       phat({

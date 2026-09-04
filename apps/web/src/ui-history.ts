@@ -6,7 +6,14 @@ import type { RunMeta } from './runs.js';
 
 export interface HistoryFilter {
   repo?: string;
-  verdict?: string; // PASS | FAIL | loi
+  /**
+   * PASS | FAIL | loi | khong_du_co_so
+   *
+   * `khong_du_co_so` TÁCH khỏi `loi` có chủ đích: «engine không kết luận được» và «máy chủ hỏng» là hai
+   * chuyện có hai người chịu trách nhiệm và hai cách sửa khác nhau. Trộn chúng vào một nhãn thì con số
+   * nói lên chỗ yếu của engine bị con số nói lên chỗ yếu của hạ tầng che mất.
+   */
+  verdict?: string;
   skill?: string; // code | doc
   ncc?: string; // claude-cli | anthropic-api | google-gemini | openai | github-models
   q?: string;
@@ -27,9 +34,13 @@ export function filterRuns(runs: RunMeta[], loc: HistoryFilter): RunMeta[] {
   return runs.filter((r) => {
     if (loc.repo && (r.repo ?? '') !== loc.repo) return false;
     if (loc.skill && r.skill !== loc.skill) return false;
-    if (loc.verdict) {
-      const v = r.verdict?.result ?? (r.trangThai === 'loi' ? 'loi' : '');
-      if (loc.verdict === 'loi' ? r.trangThai !== 'loi' : v !== loc.verdict) return false;
+    if (loc.verdict === 'khong_du_co_so') {
+      if (!r.khongDuCoSo) return false;
+    } else if (loc.verdict === 'loi') {
+      // «lỗi» ở đây nghĩa là LỖI HẠ TẦNG: lượt không đủ cơ sở có nhãn riêng, không nằm trong rổ này.
+      if (r.trangThai !== 'loi' || r.khongDuCoSo) return false;
+    } else if (loc.verdict) {
+      if ((r.verdict?.result ?? '') !== loc.verdict) return false;
     }
     if (loc.ncc && splitSource(r.verdict?.model).nguonMa !== loc.ncc) return false;
     if (q) {
@@ -63,7 +74,9 @@ export function historyPage(runs: RunMeta[], loc: HistoryFilter, repos: string[]
           ? '<span style="color:var(--muted)">đang chạy…</span>'
           : r.verdict
             ? `<span class="vd-pill vd-${r.verdict.result}">${r.verdict.result}</span> · ${r.verdict.findings.length} finding`
-            : '<span style="color:var(--fail)">lỗi</span>';
+            : r.khongDuCoSo
+              ? '<span class="vd-pill vd-thieu-co-so" title="lượt chấm chạy xong nhưng không chứng minh được gì — khác với lỗi hạ tầng">Không đủ cơ sở</span>'
+              : '<span style="color:var(--fail)">lỗi</span>';
       return `<tr>
 <td><a href="/runs/${r.id}">${escHtml(r.tieuDe)}</a></td>
 <td class="mono" style="font-size:11.5px;color:var(--muted)">${escHtml(r.repo ?? '—')}</td>
@@ -96,7 +109,7 @@ export function historyPage(runs: RunMeta[], loc: HistoryFilter, repos: string[]
 
 <form method="get" action="/lich-su" class="card" style="max-width:100%;margin-bottom:14px;display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
   ${chon('repo', 'Repo', repos.map((r) => [r, r] as [string, string]), loc.repo)}
-  ${chon('verdict', 'Kết quả', [['PASS', 'PASS'], ['FAIL', 'FAIL'], ['loi', 'lỗi']], loc.verdict)}
+  ${chon('verdict', 'Kết quả', [['PASS', 'PASS'], ['FAIL', 'FAIL'], ['khong_du_co_so', 'Không đủ cơ sở'], ['loi', 'lỗi hạ tầng']], loc.verdict)}
   ${chon('skill', 'Loại', [['code', 'code'], ['doc', 'tài liệu']], loc.skill)}
   ${chon(
     'ncc',

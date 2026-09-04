@@ -253,12 +253,40 @@ describe('màn Run nói thật về chính lượt chấm', () => {
   });
 
   it('KHÔNG RA VERDICT khác hẳn PASS/FAIL, và không lẫn vào hộp lỗi chung', () => {
-    const html = runPage(meta({ trangThai: 'loi', verdict: undefined }), false, [
-      { t: 10, e: { type: 'error', msg: 'Không đủ cơ sở kết luận: 6 probe đều KHÔNG chứng minh được gì' } },
-    ]);
+    // 05/09 — `insufficient-basis-verdict-state`: ca này trước đây dựng từ MỘT CÂU LỖI, vì bản cũ
+    // nhận diện kết cục này bằng `/không đủ cơ sở/i.test(msg)` ngay tại đường render. Nó ĐỎ đúng
+    // ý muốn của change: kết cục nay là DỮ LIỆU trên lượt chấm, không còn là một câu chữ. Sửa ca cho
+    // đúng nguồn mới, không nới phép kiểm để nó xanh lại.
+    const html = runPage(
+      meta({
+        trangThai: 'loi',
+        verdict: undefined,
+        khongDuCoSo: { loai: 'khong_probe_nao_toi_noi', so_probe: 6, ly_do: 'p1 (ngoai_pham_vi): Cannot find module' },
+      }),
+      false,
+      [{ t: 10, e: { type: 'error', msg: 'Không đủ cơ sở kết luận: 6 probe đều KHÔNG chứng minh được gì' } }],
+    );
     expect(html).toContain('KHÔNG RA VERDICT');
+    expect(html, 'phải nói ĐÚNG loại, không nói chung chung').toContain('không phép thử nào chạy được đến nơi');
+    expect(html, 'số probe là thứ người đọc cần để biết lượt chấm đã thử bao nhiêu lần').toContain('6 probe đã chạy');
     expect(html).toContain('vd-khoi trong');
     expect(html, 'không được lặp lại trong hộp lỗi chung').not.toContain('<b>LỖI:</b>');
+  });
+
+  it('ĐỔI LỌI VĂN thông điệp lỗi KHÔNG làm card biến mất — ca chứng minh bệnh cũ đã chữa', () => {
+    // Chính bệnh sinh ra change này: bản cũ đọc câu lỗi, nên đổi «không đủ cơ sở» thành «không đủ căn
+    // cứ» là card biến mất, lượt thất bại hiện thành lỗi hạ tầng, và `npm test` vẫn xanh.
+    const html = runPage(
+      meta({
+        trangThai: 'loi',
+        verdict: undefined,
+        khongDuCoSo: { loai: 'goc_khong_doi_chung', so_probe: 4, ly_do: 'x' },
+      }),
+      false,
+      [{ t: 10, e: { type: 'error', msg: 'Một câu hoàn toàn khác, không chứa cụm từ cũ' } }],
+    );
+    expect(html).toContain('KHÔNG RA VERDICT');
+    expect(html, 'loại thứ hai có lời văn riêng').toContain('nhánh gốc không chạy được');
   });
 
   it('vế đối chứng: lỗi hệ thống thật vẫn vào hộp lỗi chung, không đội lốt «không đủ cơ sở»', () => {
