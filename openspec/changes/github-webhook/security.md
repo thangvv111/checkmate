@@ -6,10 +6,13 @@ không xác thực người dùng đầu tiên** của sản phẩm. Mọi mục
 ## S0. Bề mặt mới — hai lớp bảo vệ cùng bị chọc
 
 ```
-Internet -> nginx (HTTPS + BASIC AUTH) -> 127.0.0.1:4001 -> app (cua phien) -> route
-              ^                                              ^
-              | webhook can NGOAI LE                         | webhook can vao OPEN_PATHS
-              | (GitHub khong gui credential)                | (POST dau tien khong can phien)
+HOM NAY
+  Internet -> nginx (HTTPS + Basic Auth TAM) -> app (CUA PHIEN — lop xac thuc that) -> route
+                ^ webhook can ngoai le            ^ webhook can vao OPEN_PATHS
+                  (GitHub khong gui credential)     (POST dau tien khong can phien)
+
+SAU NO #4 (PO bo sung 05/09: Basic Auth se bo, lop that la cua phien)
+  Internet -> nginx (chi HTTPS) -> app: OPEN_PATHS la HANG RAO DUY NHAT
 ```
 
 Đếm bằng máy trước change: `OPEN_PATHS` **3** đường (`/login`, `/logout`, `/health`) — **không đường POST
@@ -17,8 +20,17 @@ nào**; 15 route POST **đều** sau cửa phiên; nginx có **1** ngoại lệ 
 
 Sau change: `OPEN_PATHS` **4**, một route POST không cần phiên, nginx **2** ngoại lệ.
 
-**Sau hai việc đó, an ninh của cửa dồn vào HMAC.** Đó là lý do change này có gác thứ hai (S4.2) — không
-phải phòng xa, mà vì một gác duy nhất trên một cửa Internet là một điểm hỏng đơn.
+**PO bổ sung 05/09:** Basic Auth sẽ bỏ (nợ #4); lớp xác thực thật là cửa phiên, không dựa nginx. Điều đó
+làm ngoại lệ nginx thành chuyện tạm — nhưng làm `OPEN_PATHS` thành **hàng rào duy nhất**, tức đưa một
+đường POST vào đó nặng hơn chứ không nhẹ hơn. Sau change và sau #4, `/api/webhook/github` là **đường duy
+nhất từ Internet vào ứng dụng không qua xác thực nào ngoài HMAC**.
+
+**An ninh của cửa dồn vào HMAC.** Đó là lý do change này có gác thứ hai (S4.2) — không phải phòng xa, mà
+vì một gác duy nhất trên một cửa Internet là một điểm hỏng đơn.
+
+⚠️ **S0.1 — hai việc cộng lại.** Change này *thêm* một đường mở đúng lúc #4 sắp *bỏ* lớp che bên ngoài, và
+đo được 05/09: `/login` **chưa có rào tần suất**. Không phải lý do dừng change này, nhưng là ràng buộc thứ
+tự phải nói ra: #4 rào `/login` xong rồi mới bỏ lớp ngoài — đúng như chính mục nợ ấy đã viết.
 
 ## S1. Bí mật & rò rỉ
 

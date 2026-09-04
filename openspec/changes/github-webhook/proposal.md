@@ -11,21 +11,24 @@ Webhook đổi độ trễ về gần 0. PO chốt hướng này 05/09 sau khi c
 
 ## Cái giá — nói trước, vì nó là lý do mục nợ đòi review riêng
 
-`/webhook` là **cửa vào không xác thực người dùng đầu tiên** của sản phẩm, và nó chọc **hai** lớp bảo vệ
-đang có:
+`/webhook` là **cửa vào không xác thực người dùng đầu tiên** của sản phẩm.
 
 ```
-Internet -> nginx (HTTPS + HTTP BASIC AUTH) -> 127.0.0.1:4001 -> app (cua phien)
-              |                                                    |
-              +-- webhook can NGOAI LE                             +-- webhook can vao OPEN_PATHS
+Internet -> nginx (HTTPS + Basic Auth TAM THOI) -> 127.0.0.1:4001 -> app (CUA PHIEN — lop that)
+              |                                                       |
+              +-- webhook can ngoai le (het vai khi no #4 xong)       +-- webhook can vao OPEN_PATHS
 ```
 
-GitHub không gửi credential Basic Auth, nên `/webhook` phải được **miễn Basic Auth ở nginx** — một lỗ trên
-lớp mà `DEPLOY.md` đang dựa vào (*«chế độ org đã an toàn nhờ lớp Basic Auth nginx bên dưới»*). Và nó phải
-vào `OPEN_PATHS` — trở thành **đường POST đầu tiên không cần phiên**.
+**PO bổ sung 05/09: Basic Auth ở nginx sẽ bỏ (nợ #4) — sản phẩm đã có lớp xác thực riêng không dựa nginx**,
+đó là cửa phiên cộng tài khoản trong cơ sở dữ liệu. Thông tin ấy đổi trọng tâm của change này, và **theo
+hướng nặng thêm chứ không nhẹ đi**:
 
-Sau hai việc đó, toàn bộ an ninh của cửa ấy dồn vào **một mình HMAC**. Đó là điều change này phải làm cho
-đúng, và là lý do `security.md` ở đây dài hơn phần còn lại.
+- ngoại lệ Basic Auth chỉ là chuyện **tạm** — nó hết vai khi #4 xong, nên không phải chỗ đáng lo nhất;
+- nhưng sau #4, **`OPEN_PATHS` là hàng rào DUY NHẤT** giữa Internet và ứng dụng. Đưa một đường POST vào
+  danh sách ấy vì thế nặng hơn, không nhẹ hơn.
+
+Sau change, `/api/webhook/github` là **đường duy nhất từ Internet vào ứng dụng không qua xác thực nào ngoài
+HMAC**. Đó là điều change này phải làm cho đúng, và là lý do `security.md` ở đây dài hơn phần còn lại.
 
 ## What Changes
 

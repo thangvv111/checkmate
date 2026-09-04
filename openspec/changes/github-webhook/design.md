@@ -8,11 +8,15 @@ HOM NAY (polling)
   chu ky 180s (kep [60,3600]) · do tre <= 3 phut · 1 loi goi GitHub moi chu ky
 
 SAU CHANGE (webhook + polling)
-  Internet -> nginx (HTTPS + BASIC AUTH) -> 127.0.0.1:4001 -> app (cua phien)
-                |  /api/webhook/github CAN NGOAI LE          |  CAN vao OPEN_PATHS
-                v                                            v
-              HMAC-SHA256 tren RAW BODY  ->  kiem repo da khai  ->  evaluateStartRun  ->  chamPr
+  Internet -> nginx (Basic Auth TAM) -> 127.0.0.1:4001 -> app (CUA PHIEN — lop that)
+                |                                          |
+                v                                          v
+              HMAC-SHA256 tren RAW BODY -> kiem repo da khai -> evaluateStartRun -> chamPr
   polling GIU NGUYEN — luoi an toan khi webhook rot
+
+SAU KHI NO #4 XONG (bo Basic Auth)
+  Internet -> nginx (chi HTTPS) -> app: OPEN_PATHS la HANG RAO DUY NHAT
+  => /api/webhook/github = duong DUY NHAT vao ung dung khong qua xac thuc nao ngoai HMAC
 ```
 
 ## Goals / Non-Goals
@@ -86,6 +90,26 @@ Cám dỗ là tắt polling khi có webhook. Không làm:
 
 Cái giá của việc giữ cả hai: một lời gọi `listPrs` mỗi chu kỳ, và khả năng hai đường cùng thấy một PR —
 điều mà `findByPr` («một verdict một commit») đã chặn sẵn.
+
+### D5b — Basic Auth sắp bỏ, nên trọng tâm dịch sang `OPEN_PATHS` (PO bổ sung 05/09)
+
+PO cho biết Basic Auth ở nginx sẽ bỏ (nợ #4), và sản phẩm **đã có lớp xác thực riêng không dựa nginx** —
+cửa phiên cộng tài khoản trong cơ sở dữ liệu.
+
+Điều đó **không** làm change này nhẹ đi; nó dịch trọng tâm:
+
+| | trước khi biết | sau khi biết |
+|---|---|---|
+| ngoại lệ Basic Auth ở nginx | «lỗ trên lớp đang che toàn bộ» | chuyện **tạm**, hết vai khi #4 xong |
+| `/api/webhook/github` trong `OPEN_PATHS` | một trong hai lớp bị chọc | **hàng rào duy nhất** sau #4 |
+
+Nên phần đáng đầu tư là **HMAC và gác repo**, không phải cấu hình nginx. Và D6 dưới đây — giữ cho việc mở
+thêm một đường là *thay đổi nhìn thấy được* — quan trọng hơn lúc viết bản đầu.
+
+*Một quan sát đáng ghi, không phải để phản đối:* change này **thêm** một đường mở đúng lúc #4 sắp **bỏ**
+lớp che bên ngoài. Hai việc cộng lại làm `OPEN_PATHS` thành bề mặt tấn công chính của sản phẩm. Không phải
+lý do dừng — nhưng là lý do #4 phải rào `/login` cho xong trước khi bỏ lớp ngoài, đúng như chính mục nợ ấy
+đã viết. Đo được 05/09: `/login` hiện **chưa có** rào tần suất.
 
 ### D6 — `OPEN_PATHS` có lưới khoá ĐÚNG NỘI DUNG, và nó sẽ đỏ
 
