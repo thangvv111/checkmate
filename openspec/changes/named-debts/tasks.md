@@ -60,6 +60,19 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       R3.15 nói về JSON parse fail — nên đây KHÔNG phải vi phạm, mà là cải tiến chưa làm. Khi làm: phải
       **rào y như đường JSON**, vì thông điệp ấy cũng dẫn xuất từ diff pull request. Đổi hành vi nên là
       change riêng, không phải backfill. Nguồn: `model-reply-parsing` D2.
+- [ ] 17. **Trần số đầu dò không nhìn ARTIFACT** (PO 04/09 — ghi backlog, chưa làm ngay). Hôm nay skill code cắt
+      cứng `keHoach.slice(0, MAX_PROBE)` với `max_probe` từ cấu hình (mặc định 10, kẹp [2,20]), còn skill doc
+      dùng **hằng số cứng trong code** `MAX_FINDING = 8` và KHÔNG đọc cấu hình. Cả hai không nhìn độ dài, số
+      mục luật hay số bảng của artifact: tài liệu 3 trang và 30 trang đều tối đa 8 finding.
+      *Cái mất khi chưa làm:* artifact lớn bị chấm nông mà không có tín hiệu nào nói ra — người đọc verdict
+      không phân biệt được «tài liệu sạch» với «đã chạm trần».
+
+- [ ] 18. **Thư viện probe chạy TOÀN BỘ mỗi lượt, không lọc theo diff** (PO 04/09 — ghi backlog). Đo được:
+      một lượt chạy 36 probe thư viện dù PR chỉ đổi 3 file. Không sai kết quả (mọi probe vẫn so hai nhánh),
+      nhưng là chi phí thời gian tuyến tính theo kích thước thư viện — trần thư viện mặc định 100.
+      *Cẩn thận khi làm:* lọc theo diff là đánh đổi phủ lấy tốc độ, và probe không khớp diff vẫn có thể bắt
+      được hồi quy do tác dụng phụ. Phải khai rõ cái mất trước khi siết.
+
 - [ ] 15. **Phát hiện dữ liệu nhạy cảm TRONG pull request và cảnh báo** (PO 03/09 — chưa làm ngay). Khác
       #12 ở hướng: #12 chặn secret ĐI RA khỏi CheckMate, còn mục này phát hiện secret ĐI VÀO cùng PR —
       `.env` bị commit, khoá hardcode, file credential. Lý do tách: #12 chọn đối chiếu với diff/source PR

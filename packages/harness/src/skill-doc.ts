@@ -32,6 +32,30 @@ interface UngVien {
   quotes: Array<{ quote: string; vi_tri: string }>;
 }
 
+/**
+ * Nhãn một dòng cho một ứng viên — HÀM THUẦN.
+ *
+ * Nhãn rubric đến từ một danh mục HỮU HẠN, nên hai ứng viên nhắm hai chỗ hoàn toàn khác nhau vẫn hiện
+ * ra giống hệt nếu chỉ in mã + rubric. Người đọc thấy hai dòng như nhau sẽ kết luận engine sinh trùng
+ * và tự gỡ bớt.
+ *
+ * Đo được 04/09 trên `docs/prd-phe-duyet-han-muc.md`: «D1 (mâu thuẫn nội tại) · D2 (mâu thuẫn nội tại)»
+ * — thực ra D1 bắt ví dụ để người tạo TỰ DUYỆT còn D2 bắt cùng ví dụ ấy VƯỢT THẨM QUYỀN, và cả hai đều
+ * là finding `high`. Gỡ bớt một cái là mất một finding high.
+ *
+ * Thứ phân biệt là TIÊU ĐỀ, không phải vị trí. Bản vá đầu dùng `quotes[].vi_tri` và lượt kiểm tay cho
+ * thấy nó KHÔNG đủ: hai finding ấy cùng trỏ «dòng 80 (Mục 5 — Ví dụ minh hoạ luồng chuẩn)», nên hai
+ * dòng vẫn hiện ra giống hệt. Hai luật khác nhau bị vi phạm ở CÙNG MỘT CHỖ là chuyện bình thường —
+ * đó chính là hình dạng của một ví dụ viết sai.
+ */
+export function describeCandidate(u: { id: string; rubric: string; title_vi?: string; quotes?: Array<{ vi_tri?: string }> }): string {
+  const nhan = NHAN_RUBRIC[u.rubric as RubricLoai] ?? u.rubric;
+  const ten = (u.title_vi ?? '').trim();
+  const noi = (u.quotes ?? []).map((q) => (q?.vi_tri ?? '').trim()).find((x) => x.length > 0);
+  const cho = ten || noi || '';
+  return cho ? `${u.id} (${nhan}) ${cho.slice(0, 56)}` : `${u.id} (${nhan})`;
+}
+
 const NHAN_RUBRIC: Record<RubricLoai, string> = {
   mau_thuan: 'mâu thuẫn nội tại',
   khong_do_duoc: 'tiêu chí không đo được',
@@ -185,7 +209,7 @@ export async function runDocSkill(model: ModelProvider, file: string, phat: Phat
     phat({ type: 'log', msg: `Loại ${sai.length} ứng viên có rubric ngoài ${rubricHopLe.size} loại: ${sai.map((u) => `${u.id}(${String(u.rubric)})`).join(', ')}` });
     ungVien = ungVien.filter((u) => rubricHopLe.has(u.rubric));
   }
-  phat({ type: 'log', msg: `${ungVien.length} ứng viên: ${ungVien.map((u) => `${u.id} (${NHAN_RUBRIC[u.rubric]})`).join(' · ')}` });
+  phat({ type: 'log', msg: `${ungVien.length} ứng viên: ${ungVien.map(describeCandidate).join(' · ')}` });
 
   phat({ type: 'stage', stage: 4, ten: 'Đối chiếu trích dẫn nguyên văn (máy kiểm) + vòng phản biện' });
   const canDoiQuote = (u: UngVien) => (CAN_HAI_VE.has(u.rubric) ? 2 : 1);

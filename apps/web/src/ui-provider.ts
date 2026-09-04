@@ -17,6 +17,28 @@ export interface ProviderSectionView {
 
 const NHAN_PT: Record<Method, string> = { thue_bao: 'Gói thuê bao', api: 'API (tính theo token)' };
 
+/**
+ * Câu nói về lần kiểm gần nhất — HÀM THUẦN.
+ *
+ * Sổ kiểm giữ kết quả của một lần kiểm ĐÃ XẢY RA, đúng với phương thức lúc ấy. In thẳng câu ấy ra khi
+ * cấu hình đã đổi sang phương thức khác là trình bày một kết quả của đường API như thể nó nói về đường
+ * thuê bao — và hai đường cần hai thứ hoàn toàn khác nhau: đường API cần khoá, đường thuê bao cần phiên
+ * đăng nhập trên máy chủ.
+ *
+ * Đo được 04/09: cấu hình đang `thue_bao`, sổ còn kết quả `api` với câu «Chưa có API key Anthropic — dán
+ * vào ô bên dưới». PO đọc xong đi tìm API key cho một chế độ không dùng API key, rồi kết luận nhầm rằng
+ * tính năng kho khoá đã phá đường phiên Claude Code — trong khi đường ấy còn nguyên và phiên vẫn hợp lệ.
+ */
+export function checkMessage(kiem: CheckResult | undefined, cfg: ProviderConfig): string {
+  if (!kiem) return 'chưa kiểm lần nào';
+  const nhan = NHAN_PT[cfg.phuong_thuc] ?? String(cfg.phuong_thuc);
+  if (kiem.phuong_thuc !== cfg.phuong_thuc) {
+    return `Lần kiểm gần nhất chạy ở phương thức khác (${NHAN_PT[kiem.phuong_thuc as Method] ?? String(kiem.phuong_thuc)}) — cần kiểm lại theo «${nhan}» đang chọn.`;
+  }
+  if (kiem.model !== cfg.model) return `Lần kiểm gần nhất chạy với model khác — cần kiểm lại với model đang chọn.`;
+  return kiem.thong_diep.slice(0, 160);
+}
+
 function huyHieu(kiem: CheckResult | undefined, cfg: ProviderConfig): string {
   if (!kiem) return '<span style="font-size:11.5px;color:var(--muted)">chưa kiểm</span>';
   const hopLe = kiem.ok && kiem.model === cfg.model && kiem.phuong_thuc === cfg.phuong_thuc;
@@ -105,7 +127,7 @@ export function providerSection(v: ProviderSectionView): string {
     <div style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <button type="button" class="phu-nho nut-kiem" data-ncc="${dn.ma}" ${ro2}>Kiểm tra ${escHtml(dn.ten)}</button>
       <button type="button" class="nut-dung" data-ncc="${dn.ma}" ${ro2} ${!dn.ngung && daKiem && !dangDung ? '' : 'disabled'}>${dangDung ? 'Đang dùng' : 'Dùng nhà cung cấp này'}</button>
-      <span class="kq-kiem" data-ncc="${dn.ma}" style="font-size:12px;color:var(--muted);flex:1;min-width:220px">${kiem ? escHtml(kiem.thong_diep.slice(0, 160)) : 'chưa kiểm lần nào'}</span>
+      <span class="kq-kiem" data-ncc="${dn.ma}" style="font-size:12px;color:var(--muted);flex:1;min-width:220px">${escHtml(checkMessage(kiem, cfg))}</span>
     </div>
     <p style="font-size:11.5px;color:var(--muted);margin:8px 0 0">Lưu cấu hình trước, rồi bấm <b>Kiểm tra</b>. Chỉ khi kiểm thành công với đúng model + phương thức này thì nút <b>Dùng nhà cung cấp này</b> mới bật — CheckMate không cho chọn nguồn model chưa chứng minh chạy được.</p>
   </div>

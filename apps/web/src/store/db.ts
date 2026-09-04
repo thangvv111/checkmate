@@ -176,6 +176,11 @@ function napCotThieu(d: DatabaseSync): void {
     // dựng lại bảng (SQLite không ALTER được CHECK), mà bảng này là sổ kiểm toán đang giữ dữ liệu
     // thật và có trigger cấm XOÁ — dựng lại nó là thao tác nguy hiểm nhất có thể làm với một cuốn sổ.
     ['so_cong', 'ngoai_cong', 'INTEGER NOT NULL DEFAULT 0'],
+    // `stalled-run-recovery` — pid của tiến trình chấm. Lúc khởi động lại phải phân biệt lượt còn sống
+    // với lượt đã chết, mà phép kiểm cũ («sổ sự kiện có tồn tại không») không đo được điều đó: sổ là
+    // file trên đĩa, nó tồn tại MÃI sau khi tiến trình chết. Hàng đời cũ có pid rỗng và được đọc là
+    // ĐÃ CHẾT — fail-closed, vì đoán nhầm «còn sống» khoá một pull request mà không ai gỡ được.
+    ['run', 'pid', 'INTEGER'],
   ];
   for (const [bang, cot, kieu] of them) {
     const daCo = (d.prepare(`PRAGMA table_info(${bang})`).all() as Array<{ name: string }>).some((c) => c.name === cot);

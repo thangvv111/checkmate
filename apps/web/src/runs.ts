@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { closeSync, existsSync, openSync, readFileSync, readSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -22,6 +22,11 @@ export interface RunMeta {
   ketThuc?: string; // set khi tiến trình kết thúc — cả lượt xong lẫn lượt lỗi, để tính thời gian chạy
   /** owner/repo của lượt chấm — lịch sử và sổ cái lọc theo trường này */
   repo?: string;
+  /**
+   * pid tiến trình chấm. Lúc khởi động lại, đây là thứ DUY NHẤT đo được «lượt này còn sống không»:
+   * sổ sự kiện là file trên đĩa nên nó tồn tại mãi sau khi tiến trình chết. Rỗng ⇒ ĐÃ CHẾT.
+   */
+  pid?: number;
   verdict?: Verdict;
   pr?: { so: number; headSha: string; tacGia?: string };
   /**
@@ -36,6 +41,15 @@ interface RunState {
   meta: RunMeta;
   events: StoredEvent[];
   subs: Set<(ev: StoredEvent) => void>;
+  /**
+   * Lượt này đã bị người vận hành huỷ.
+   *
+   * Cờ nằm trên `state` chứ không phải trên `this.runs`, vì nhánh `child.on('close')` giữ `state` qua
+   * closure — xoá khỏi `this.runs` không chạm tới nó. Không có cờ này thì handler đóng sẽ chạy tiếp và
+   * `luu(state)` ghi đè sổ bằng bộ nhớ của nó, XOÁ MẤT dòng «ai huỷ» vừa ghi thẳng vào cơ sở dữ liệu.
+   * Đo được ở lượt kiểm tay 04/09: 23 ca test đều xanh, mà lượt thật mất dòng sổ.
+   */
+  daHuy?: boolean;
   /** Sổ sự kiện trên đĩa của lượt này — NGUỒN SỰ THẬT; bộ nhớ và cơ sở dữ liệu là bản đọc. */
   duongSo?: string;
   /** Đã đọc tới byte nào của sổ. */
@@ -133,6 +147,12 @@ export class RunManager {
         env: { ...process.env, ...envThem },
       },
     );
+    // pid ghi NGAY: nếu tiến trình web chết trước khi lượt xong, đây là thứ duy nhất còn lại để lượt
+    // khởi động sau đo được «lượt này còn sống không» (`stalled-run-recovery`).
+    if (typeof child.pid === 'number') {
+      meta.pid = child.pid;
+      kho.saveMeta(meta);
+    }
     // stdout KHÔNG còn là đường sự kiện — nhưng vẫn phải hút cho cạn, kẻo tiến trình con nghẽn ống
     // rồi đứng im, và không ai hiểu vì sao lượt chấm treo.
     createInterface({ input: child.stdout }).on('line', () => {});
@@ -181,7 +201,9 @@ export class RunManager {
         }
       }
       state.thoiTheoHead?.();
-      this.luu(state);
+      // Lượt đã bị huỷ thì sổ và trạng thái ĐÃ được ghi ở `huyLuot`. Ghi thêm ở đây là ghi đè: `luu`
+      // dựng lại sổ từ bộ nhớ của tiến trình web, mà bộ nhớ ấy không có dòng «ai huỷ».
+      if (!state.daHuy) this.luu(state);
       for (const s of state.subs) s({ t: Date.now() - t0, e: { type: 'log', msg: '__END__' } });
     });
     return id;
@@ -255,19 +277,65 @@ export class RunManager {
    * Gọi TRƯỚC `cleanupOrphanRuns` — lượt còn sổ đang lớn dần là lượt còn sống, và đánh dấu nó hỏng
    * chỉ vì mình vừa khởi động lại là vứt bỏ công việc đang chạy đúng.
    */
-  noiLaiLuotDangChay(): string[] {
-    const noi: string[] = [];
+  noiLaiLuotDangChay(): { noiLai: string[]; danhDauLoi: string[] } {
+    const noiLai: string[] = [];
+    const danhDauLoi: string[] = [];
     for (const m of kho.listRuns({ gioi_han: 200 })) {
       if (m.trangThai !== 'dang_chay') continue;
+      const song = decideRunLiveness(m.pid, processAlive);
+      if (!song.song) {
+        // Lượt chết KHÔNG được giữ ở `dang_chay`: `runningCount()` đếm nó và `isPrRunning()` đọc nó,
+        // nên nó khoá trần chạy đồng thời VÀ khoá luôn việc chấm lại đúng pull request ấy. Đo được
+        // một lượt nằm 17 giờ, khoá PR #7 của repo đích, và không thao tác nào trên giao diện gỡ nổi.
+        this.ketThucLoi(
+          m,
+          song.ly_do === 'khong_co_pid'
+            ? 'Lượt chấm bị bỏ dở: không có dấu vết tiến trình (lượt của bản cũ, hoặc tiến trình chưa kịp ghi pid). Đánh dấu lỗi để trần chạy đồng thời và pull request không bị khoá.'
+            : 'Lượt chấm bị bỏ dở: tiến trình chấm không còn chạy (CheckMate dừng giữa chừng, deploy hoặc crash). Đánh dấu lỗi để trần chạy đồng thời và pull request không bị khoá.',
+        );
+        danhDauLoi.push(m.id);
+        continue;
+      }
       const p = duongSoSuKien(m.id);
-      if (!existsSync(p)) continue; // không có sổ thì không nối được gì — để cleanup dọn
+      if (!existsSync(p)) continue; // tiến trình còn sống nhưng chưa kịp mở sổ — lượt sau đọc tiếp
       const state: RunState = { meta: m, events: [], subs: new Set(), duongSo: p, daDoc: 0 };
       this.runs.set(m.id, state);
       this.docSo(state);
       this.batTheoDoiSo(state);
-      noi.push(m.id);
+      noiLai.push(m.id);
     }
-    return noi;
+    return { noiLai, danhDauLoi };
+  }
+
+  /** Kết thúc một lượt ở trạng thái lỗi kèm lý do đọc được — lỗi không nói vì sao là báo thiếu bản chất. */
+  private ketThucLoi(meta: RunMeta, lyDo: string): void {
+    kho.appendEvent(meta.id, { t: 0, e: { type: 'log', msg: lyDo } });
+    kho.saveMeta({ ...meta, trangThai: 'loi', ketThuc: new Date().toISOString() });
+  }
+
+  /**
+   * Huỷ một lượt ĐANG CHẠY. Trả về `daDungTienTrinh` để bề mặt nói đúng chuyện gì đã xảy ra: đánh dấu
+   * lượt và dừng tiến trình là HAI việc, và việc thứ hai có thể không làm được (xem `mayKillRun`).
+   */
+  huyLuot(id: string, nguoi: string): { ok: false; loi: string } | { ok: true; daDungTienTrinh: boolean } {
+    const meta = kho.readMeta(id);
+    if (!meta) return { ok: false, loi: 'Không có lượt chấm này.' };
+    if (meta.trangThai !== 'dang_chay') return { ok: false, loi: 'Lượt chấm này đã kết thúc.' };
+    // Đặt cờ TRƯỚC khi kill: tiến trình chết sẽ kích hoạt `child.on('close')`, và nhánh ấy phải biết
+    // lượt đã được kết sổ rồi. Đặt sau thì có cửa sổ đua mà bên thua là dòng «ai huỷ».
+    const st = this.runs.get(id);
+    if (st) st.daHuy = true;
+    const daDungTienTrinh = killRunProcess(meta.pid, id);
+    this.ketThucLoi(
+      meta,
+      `Người vận hành ${nguoi} huỷ lượt chấm.` +
+        (daDungTienTrinh
+          ? ' Tiến trình chấm đã được dừng.'
+          : ' KHÔNG dừng được tiến trình chấm (không xác minh được đúng tiến trình của lượt này); nếu nó còn chạy thì nó vẫn ghi tiếp vào sổ.'),
+    );
+    this.runs.get(id)?.thoiTheoDoi?.();
+    this.runs.delete(id);
+    return { ok: true, daDungTienTrinh };
   }
 
   /**
@@ -404,6 +472,76 @@ export const CONCURRENCY_LIMIT = 2;
  * Hàm trả QUYẾT ĐỊNH chứ không trả lời văn: đường bấm tay có hai bề mặt (HTML và JSON) với hai câu khác
  * nhau, nên chỗ gọi dựng lời theo bề mặt của nó.
  */
+/** Vì sao một lượt `dang_chay` không còn sống. */
+export type RunDeadReason = 'khong_co_pid' | 'tien_trinh_da_chet';
+
+/**
+ * Lượt này còn sống không — HÀM THUẦN, phép kiểm tiến trình truyền vào để mỗi nhánh là một ca.
+ *
+ * Không có pid ⇒ ĐÃ CHẾT, không suy đoán. Hướng sai ở đây không đối xứng: đoán nhầm «chết» thì mất một
+ * lượt phải chấm lại; đoán nhầm «còn sống» thì khoá một pull request mà không ai gỡ được.
+ */
+export function decideRunLiveness(
+  pid: number | undefined,
+  conSong: (pid: number) => boolean,
+): { song: true } | { song: false; ly_do: RunDeadReason } {
+  if (typeof pid !== 'number' || !Number.isFinite(pid) || pid <= 0) return { song: false, ly_do: 'khong_co_pid' };
+  return conSong(pid) ? { song: true } : { song: false, ly_do: 'tien_trinh_da_chet' };
+}
+
+/** Có tiến trình mang pid này không. KHÔNG trả lời «đúng tiến trình của lượt nào» — xem `mayKillRun`. */
+export function processAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Được phép kết thúc tiến trình này không — HÀM THUẦN.
+ *
+ * pid bị hệ điều hành TÁI DÙNG: sau một lần khởi động máy, đúng con số ấy gần như chắc chắn thuộc về
+ * tiến trình khác. Kill mù là giết một tiến trình vô can của người dùng — thiệt hại nằm NGOÀI phạm vi
+ * sản phẩm này và không đảo ngược được. Nên chỉ kill khi dòng lệnh mang chính run id (engine truyền
+ * `--events-out runs/<id>/events.jsonl`, nên id có mặt ở đó). Không đọc được dòng lệnh ⇒ KHÔNG kill.
+ */
+export function mayKillRun(dongLenh: string | null | undefined, runId: string): boolean {
+  return typeof dongLenh === 'string' && dongLenh.length > 0 && runId.length > 0 && dongLenh.includes(runId);
+}
+
+/** Dòng lệnh của một tiến trình, hoặc `null` khi không đọc được. */
+export function readCommandLine(pid: number): string | null {
+  try {
+    if (process.platform === 'win32') {
+      const ra = spawnSync(
+        'powershell',
+        ['-NoProfile', '-Command', `(Get-CimInstance Win32_Process -Filter "ProcessId=${pid}").CommandLine`],
+        { encoding: 'utf8', timeout: 10_000 },
+      );
+      return (ra.stdout ?? '').trim() || null;
+    }
+    return readFileSync(`/proc/${pid}/cmdline`, 'utf8').replace(/\0/g, ' ').trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Kết thúc tiến trình chấm của một lượt — CHỈ khi xác minh được. Trả về đã dừng được hay chưa. */
+export function killRunProcess(pid: number | undefined, runId: string): boolean {
+  if (typeof pid !== 'number' || !Number.isFinite(pid) || pid <= 0) return false;
+  if (!processAlive(pid)) return false;
+  if (!mayKillRun(readCommandLine(pid), runId)) return false;
+  try {
+    if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], { timeout: 15_000 });
+    else process.kill(pid, 'SIGKILL');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function evaluateStartRun(input: {
   soDangChay: unknown;
   tran?: unknown;

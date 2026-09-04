@@ -105,30 +105,38 @@ describe('bảng sự kiện là BẢN ĐỌC — dựng lại được từ s�
   });
 });
 
-describe('lượt mồ côi — nối lại được thì KHÔNG phải mồ côi', () => {
-  it('lượt còn sổ trên đĩa được nối lại, và không bị đánh dấu hỏng', () => {
-    kho.saveMeta(meta({ id: 'song', trangThai: 'dang_chay' }));
+describe('lượt mồ côi — phân biệt bằng TIẾN TRÌNH, không bằng sự tồn tại của sổ', () => {
+  it('tiến trình còn sống thì lượt được nối lại, trạng thái giữ nguyên', () => {
+    // pid của chính tiến trình test: chắc chắn còn sống, nên đây là vế «lượt đang chạy đúng».
+    kho.saveMeta(meta({ id: 'song', trangThai: 'dang_chay', pid: process.pid }));
     ghiSo('song', [JSON.stringify({ t: 0, e: { type: 'stage', stage: 2, ten: 'Đọc spec' } })]);
 
     const rm = new RunManager();
-    const noiLai = rm.noiLaiLuotDangChay();
-    expect(noiLai, 'lượt còn sổ phải nối lại được').toContain('song');
+    const { noiLai, danhDauLoi } = rm.noiLaiLuotDangChay();
+    expect(noiLai, 'tiến trình còn sống thì phải nối lại').toContain('song');
+    expect(danhDauLoi, 'lượt đang chạy đúng KHÔNG được đánh dấu lỗi').not.toContain('song');
 
     const moCoi = rm.cleanupOrphanRuns(noiLai);
     expect(moCoi, 'lượt đã nối lại KHÔNG được đếm là mồ côi').not.toContain('song');
     expect(kho.readMeta('song')?.trangThai, 'lượt đang chạy đúng thì trạng thái phải giữ nguyên').toBe('dang_chay');
   });
 
-  it('lượt KHÔNG còn sổ thì vẫn thành mồ côi, và có ghi lý do', () => {
-    // Vế đối chứng: thiếu ca này thì một bản «nối lại tất» cũng xanh ở ca trên, và trần chạy song
-    // song sẽ bị khoá vĩnh viễn bởi những lượt đã chết từ đời nào.
+  it('KHÔNG có pid thì thành LỖI ngay, kèm lý do — dù sổ vẫn còn trên đĩa', () => {
+    // Ca load-bearing của bản vá `stalled-run-recovery`. Bản trước hỏi «sổ có tồn tại không», mà sổ là
+    // file trên đĩa nên nó tồn tại MÃI sau khi tiến trình chết — lượt chết được nối lại thành «đang
+    // chạy» vĩnh viễn, khoá trần chạy đồng thời và khoá luôn việc chấm lại đúng pull request ấy.
     kho.saveMeta(meta({ id: 'chet', trangThai: 'dang_chay' }));
-    const rm = new RunManager();
-    const noiLai = rm.noiLaiLuotDangChay();
-    expect(noiLai, 'không có sổ thì không nối lại được gì').not.toContain('chet');
+    ghiSo('chet', [JSON.stringify({ t: 0, e: { type: 'stage', stage: 2, ten: 'Đọc spec' } })]);
 
-    expect(rm.cleanupOrphanRuns(noiLai)).toContain('chet');
+    const rm = new RunManager();
+    const { noiLai, danhDauLoi } = rm.noiLaiLuotDangChay();
+    expect(noiLai, 'không có pid thì KHÔNG được nối lại').not.toContain('chet');
+    expect(danhDauLoi, 'phải bị đánh dấu lỗi ngay').toContain('chet');
     expect(kho.readMeta('chet')?.trangThai).toBe('loi');
+    expect(
+      kho.readEvents('chet').some((x) => x.e.type === 'log' && /bỏ dở/.test((x.e as { msg: string }).msg)),
+      'phải ghi lý do vào sổ — lỗi không nói vì sao là báo thiếu bản chất',
+    ).toBe(true);
     const lyDo = kho.readEvents('chet').map((x) => (x.e as { msg?: string }).msg ?? '').join(' ');
     expect(lyDo, 'chuyển sang lỗi mà không nói vì sao cũng là báo thiếu bản chất').toMatch(/bỏ dở|dừng giữa chừng/);
   });
