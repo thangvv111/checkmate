@@ -14,9 +14,11 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       bằng `location =`; đường anh em vẫn ăn 401 của nginx (đã đo từ ngoài Internet). Nguồn: `man-run-va-cong-merge`.
 - [ ] 4. Bỏ Basic Auth ở nginx — gói ba việc, **rào `/login` (giới hạn tần suất / khoá tạm) đi trước**, rồi mới
       bỏ lớp ngoài. Nguồn: `man-run-va-cong-merge`.
-- [ ] 5. Dựng lại nội dung 5 màn còn lại theo gói design CCS (vỏ chung đã có). Nguồn: `dong-bo-giao-dien-ccs`.
-      ⏳ 05/09: đã xong **Lịch sử · Sổ cái · Tin cậy** (`data-table-screens-ccs`) và **Cấu hình**
-      (`settings-screen-ccs`). Còn lại: **Nguyên tắc**.
+- [x] 5. ✅ XONG 05/09 — cả năm màn về khớp gói design CCS qua ba change:
+      **Lịch sử · Sổ cái · Tin cậy** (`data-table-screens-ccs`) · **Cấu hình** (`settings-screen-ccs`) ·
+      **Nguyên tắc** (`principles-screen-ccs`). Hai chỗ đi chệch gói có ghi lý do: «PR chờ» trên card
+      Cấu hình thành nợ #19, và màn Nguyên tắc giữ nav trái vì trang còn mang bài giải thích mười mục.
+      Nguồn: `dong-bo-giao-dien-ccs`.
 - [ ] 19. «PR chờ» trên card repo ở màn Cấu hình — gói design CCS khai, `settings-screen-ccs` CỐ Ý
       không làm. Lý do: nó cần một lời gọi GitHub CHO TỪNG REPO ở MỖI lần mở màn, tức màn chậm dần
       theo số repo và ăn hạn ngạch API cho một con số trang trí — mà màn Cấu hình phải mở được cả khi
