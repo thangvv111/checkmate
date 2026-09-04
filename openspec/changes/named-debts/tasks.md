@@ -35,12 +35,27 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       danh sách» đã có luật cũ (R4.7 giữ clone + lịch sử, R4.27 xoá token riêng — tra `docs/r-rules-map.md`);
       «archive» (ẩn khỏi danh sách và chế độ trực nhưng giữ lịch sử/sổ, mở lại được) chưa có. Khi làm: soi
       cả hai đường trong một change, đặt tên tiếng Anh.
-- [ ] 12. **Thông điệp lỗi nguyên văn từ repo đích lên comment PR** — ứng viên ⛔C3. Lỗi do bộ chạy test của
-      repo đích sinh ra đi vào `evidence.actual` của finding, và finding lên comment pull request: **bề mặt
-      công khai, không thu hồi được**. Nếu bộ chạy test in secret vào thông điệp lỗi thì secret ra comment.
-      Hai hàm vân tay đã gột hex dài trước khi SO SÁNH, nhưng bản gột chỉ dùng để so — bản nguyên văn vẫn đi
-      tiếp. Khi làm: quyết xem che ở đâu (lúc dựng evidence hay lúc dựng comment) và che thế nào để hai lỗi
-      khác nhau vẫn phân biệt được (⛔C3 đòi bản che PHÂN BIỆT ĐƯỢC). Nguồn: `probe-classification` S1.2.
+- [x] 12. ✅ **ĐÃ ĐÓNG từ trước, xác nhận bằng ĐO 04/09** — nợ này sống lâu hơn vấn đề nó mô tả.
+      Hai câu hỏi mục nợ để ngỏ («che ở đâu» · «che thế nào») đều đã được `error-message-egress-gate`
+      trả lời và thi hành:
+      · **che ở đâu** — `skill-code.ts:831` sinh `actual_redacted` bằng `redactMessage(…, humanSurfaceSource(t))`,
+        và comment ngay đó ghi lý do: chỉ chỗ ấy mới có `t`, tức mới có nguồn đối chiếu của tầng 3;
+      · **che thế nào** — `redactSlot` giữ vân tay sha256 nên hai lỗi khác nhau vẫn phân biệt được (⛔C3);
+      · **bề mặt công khai** — `gate.ts:334` `dongFinding` CHỈ đọc `actual_redacted` và **fail-closed** khi
+        thiếu (verdict đời cũ ra «nội dung không phát ra bề mặt công khai, xem màn hình run»).
+
+      **Đếm bề mặt bằng máy (04/09):** 5 đường ghi lên GitHub — `renderReceipt` · `renderAutoVerdict` ·
+      `renderRuling` (cả ba đi qua `dongFinding`) · `mergePr` (moTa = sha + run_id + số cảnh báo) ·
+      `setCommitStatus` (moTa = «CheckMate: FAIL — N finding», chỉ đếm số). Không đường nào dùng
+      `evidence.actual`. Hai chỗ còn dùng nguyên văn là màn hình run (nội bộ, sau đăng nhập) và CLI trên
+      máy chủ — đúng phạm vi.
+
+      **Mutation chứng minh gác LOAD-BEARING** (mỗi cái hai lần, nhất quán):
+      · rơi về `actual` khi thiếu bản che — đúng «cám dỗ» mà comment trong code cảnh báo → **1 ca ĐỎ**;
+      · dùng thẳng `actual` → **2 ca ĐỎ** (cả vế verdict cũ lẫn vế verdict mới).
+
+      *Bài học ở tầng backlog:* mục nợ này ĐÚNG lúc viết và SAI lúc đọc — không cơ chế nào bắt được, chỉ
+      có người đọc. Cùng họ với loại lỗi thứ tư mà `test-grid-integrity` khai.
 - [ ] 13. **`vi_pham_luat_moi` phân biệt được với `hoi_quy` ở BỀ MẶT ĐỌC** — hôm nay chỉ phân biệt trong dữ
       liệu. Dòng log tóm tắt gộp hai nhãn thành một số (`skill-code.ts:1024`), bảng từng hàng dùng **cùng mũi
       tên** `✓→✗` (`skill-code.ts:1029`, `ui.ts:1333`). Màn run CÓ dịch thành chữ riêng «vi phạm luật PR vừa
