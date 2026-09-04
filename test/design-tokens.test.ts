@@ -117,6 +117,118 @@ describe('lưới token — hai họ token không trộn', () => {
   });
 });
 
+/** Tên biến này thuộc họ SEMANTIC hay họ LOOK — suy từ chính cái tên. */
+export function tokenFamily(ten: string): 'semantic' | 'look' {
+  return /(^|-)(pass|fail|medium)(-|$)/.test(ten.replace(/^--/, '')) ? 'semantic' : 'look';
+}
+
+/**
+ * Bí danh TRỘN HAI HỌ — biến mang tên họ này lại khai bằng token họ kia.
+ *
+ * Vì sao phải quét KHAI BÁO chứ không cấm chỗ dùng: cấm `var(--teal)` là cấm triệu chứng. Ai đó đặt
+ * bí danh tên khác (`--xanh`, `--ok`) là lại lọt, và danh sách cấm phải nuôi bằng tay mãi mãi. Quét
+ * khai báo thì bắt được MỌI tên, kể cả tên chưa ai nghĩ ra.
+ *
+ * Đo được (05/09): khối bí danh `--teal: var(--pass)` · `--amber: var(--medium)` … đã đưa **38 chỗ**
+ * trong giao diện đi vòng qua lưới cấm hex — trong đó có tag «đang chọn», tag «đang dùng», mục nav
+ * đang mở và một con số đếm, tất cả tô bằng đúng màu PASS. Lưới xanh suốt thời gian đó, vì nó soi mã
+ * màu mà chỗ hỏng không có mã màu nào.
+ */
+export function scanTokenAliases(css: string): string[] {
+  const loi: string[] = [];
+  let depth = 0;
+  for (const line of String(css ?? '').split(/\r?\n/)) {
+    const mo = /:root\s*\{/.test(line);
+    if (mo) depth++;
+    if (depth > 0) {
+      const m = /(--[a-z0-9-]+)\s*:\s*var\(\s*(--[a-z0-9-]+)\s*\)/i.exec(line);
+      // Trộn họ theo CẢ HAI CHIỀU: look mang tên semantic, và semantic mang tên look. Bản đầu chỉ
+      // nghĩ tới chiều thứ nhất vì đó là chiều đang có bệnh — mà chiều kia gây đúng cùng hậu quả.
+      if (m && tokenFamily(m[1]!) !== tokenFamily(m[2]!)) {
+        loi.push(`${m[1]} -> ${m[2]}`);
+      }
+    }
+    if (depth > 0 && !mo && /\}/.test(line)) depth--;
+  }
+  return loi;
+}
+
+/** Chỗ mang TRẠNG THÁI GIAO DIỆN mà lại lấy màu từ bộ semantic. */
+export function scanSemanticOnUiState(src: string): string[] {
+  const NHAN = ['đang chọn', 'đang dùng', 'Đã lưu cấu hình', 'docs-nav a.on'];
+  return String(src ?? '')
+    .split(/\r?\n/)
+    .filter((d) => NHAN.some((n) => d.includes(n)))
+    .filter((d) => /var\(--pass|var\(--fail|var\(--medium/.test(d))
+    .map((d) => d.trim().slice(0, 110));
+}
+
+describe('lưới token — CẤM BÍ DANH trộn hai họ', () => {
+  it('mã nguồn hiện tại: không bí danh nào trộn họ', () => {
+    const css = readFileSync(join(THU_MUC_UI, 'ui.ts'), 'utf8');
+    expect(scanTokenAliases(css), 'bí danh trộn hai họ token').toEqual([]);
+  });
+
+  it('phép quét BẮT được cả hai chiều trộn — fixture đối kháng', () => {
+    expect(scanTokenAliases(':root {\n  --teal: var(--pass);\n}')).toHaveLength(1);
+    expect(scanTokenAliases(':root {\n  --pass: var(--color-accent);\n}')).toHaveLength(1);
+    expect(scanTokenAliases(':root {\n  --amber: var(--medium);\n}')).toHaveLength(1);
+  });
+
+  it('bí danh trong CÙNG một họ thì XANH — fixture đối chứng', () => {
+    // Không có vế này thì một phép quét «cấm mọi bí danh» cũng xanh ở ca đối kháng, rồi báo oan
+    // trên năm bí danh look→look đang có và hoàn toàn hợp lệ.
+    expect(scanTokenAliases(':root {\n  --surface: var(--color-bg);\n}')).toEqual([]);
+    expect(scanTokenAliases(':root {\n  --fail-soft: var(--fail-tint);\n}')).toEqual([]);
+    const css = readFileSync(join(THU_MUC_UI, 'ui.ts'), 'utf8');
+    for (const ten of ['--bg', '--surface', '--ink', '--muted', '--line']) {
+      expect(css, `bí danh look→look ${ten} phải còn`).toContain(`${ten}: var(--color-`);
+    }
+  });
+
+  it('không xét dòng ngoài :root, và không ném trên đầu vào khuyết', () => {
+    expect(scanTokenAliases('--teal: var(--pass);')).toEqual([]);
+    expect(scanTokenAliases('')).toEqual([]);
+    expect(scanTokenAliases(null as never)).toEqual([]);
+  });
+
+  it('tokenFamily phân loại đúng hai họ', () => {
+    for (const t of ['--pass', '--pass-tint', '--fail', '--fail-ink', '--medium', '--medium-tint']) {
+      expect(tokenFamily(t), t).toBe('semantic');
+    }
+    for (const t of ['--color-accent', '--color-bg', '--surface', '--line', '--color-neutral-800']) {
+      expect(tokenFamily(t), t).toBe('look');
+    }
+  });
+});
+
+describe('lưới token — TRẠNG THÁI GIAO DIỆN không mang màu verdict', () => {
+  it('không chỗ nào của «đang chọn / đang dùng / nav đang mở / đã lưu» lấy màu semantic', () => {
+    // Hướng rò thứ hai của cùng một luật. Scenario cũ canh «đổi accent không đổi nghĩa verdict»;
+    // đây canh chiều ngược lại — đổi màu PASS không được đổi vẻ của một trạng thái giao diện.
+    const pham = uiFiles().flatMap((f) => scanSemanticOnUiState(readFileSync(f, 'utf8')).map((d) => `${f}: ${d}`));
+    expect(pham, `trạng thái giao diện mang màu verdict:\n${pham.join('\n')}`).toEqual([]);
+  });
+
+  it('phép quét BẮT được cái sai — fixture đối kháng', () => {
+    expect(scanSemanticOnUiState('<span style="background:var(--pass-tint)">đang chọn</span>')).toHaveLength(1);
+  });
+
+  it('vế ĐỐI CHỨNG: chỗ ĐÚNG LÀ kết quả phép kiểm thì VẪN dùng semantic', () => {
+    // Thiếu ca này thì ca trên xanh cả khi ai đó xoá sạch màu semantic khỏi giao diện.
+    const repo = readFileSync(join(THU_MUC_UI, 'ui-repo.ts'), 'utf8');
+    const ncc = readFileSync(join(THU_MUC_UI, 'ui-provider.ts'), 'utf8');
+    expect(repo, '«chìa riêng» là mức TỐT của một trục ba mức').toContain('var(--pass-tint);color:var(--pass-ink)">chìa riêng');
+    expect(repo, '«thiếu token» là mức HỎNG của cùng trục ấy').toContain('color:var(--fail)" title="Không chấm được');
+    expect(ncc, '«✓ đã kiểm» là kết quả một phép kiểm').toContain('color:var(--pass-ink);font-weight:600" title="kiểm lúc');
+  });
+
+  it('badge «trực» dùng jade, không dùng amber — bật trực không phải một cảnh báo', () => {
+    const repo = readFileSync(join(THU_MUC_UI, 'ui-repo.ts'), 'utf8');
+    expect(repo).toContain('var(--pass-tint);color:var(--pass-ink)">trực');
+  });
+});
+
 describe('lưới token — hình dạng Modernist', () => {
   it('radius 0 mọi nơi, ngoại lệ duy nhất là pill và hình tròn', () => {
     const pham: string[] = [];

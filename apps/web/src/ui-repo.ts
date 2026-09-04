@@ -22,12 +22,12 @@ export interface RepoSectionView {
 const CHIP = 'font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:99px;margin-left:4px';
 
 function chipToken(r: RepoView): string {
-  if (r.token_rieng) return `<span style="${CHIP};background:var(--teal-soft);color:var(--teal)">chìa riêng</span>`;
+  if (r.token_rieng) return `<span style="${CHIP};background:var(--pass-tint);color:var(--pass-ink)">chìa riêng</span>`;
   if (r.co_token)
-    return `<span style="${CHIP};background:var(--amber-soft);color:var(--amber)" title="Đang dùng GITHUB_TOKEN của máy chủ — chìa chung cho mọi repo chưa có chìa riêng">chìa chung</span>`;
+    return `<span style="${CHIP};background:var(--medium-tint);color:var(--medium-ink)" title="Đang dùng GITHUB_TOKEN của máy chủ — chìa chung cho mọi repo chưa có chìa riêng">chìa chung</span>`;
   if (r.co_gh)
-    return `<span style="${CHIP};background:var(--amber-soft);color:var(--amber)" title="Đang đi bằng lệnh gh đã đăng nhập trên máy chủ — chạy được, nhưng chìa là của người đăng nhập gh chứ không phải của repo">chìa máy (gh)</span>`;
-  return `<span style="${CHIP};background:var(--fail-soft);color:var(--fail)" title="Không chấm được repo này cho tới khi có token">thiếu token</span>`;
+    return `<span style="${CHIP};background:var(--medium-tint);color:var(--medium-ink)" title="Đang đi bằng lệnh gh đã đăng nhập trên máy chủ — chạy được, nhưng chìa là của người đăng nhập gh chứ không phải của repo">chìa máy (gh)</span>`;
+  return `<span style="${CHIP};background:var(--fail-tint);color:var(--fail)" title="Không chấm được repo này cho tới khi có token">thiếu token</span>`;
 }
 
 export function repoSection(v: RepoSectionView): string {
@@ -35,12 +35,12 @@ export function repoSection(v: RepoSectionView): string {
   const dong = v.repos
     .map((r) => {
       const chon = r.github === v.dangChon;
-      const vien = !r.co_token && !r.co_gh ? 'var(--fail-soft)' : chon ? 'var(--teal)' : 'var(--line)';
+      const vien = !r.co_token && !r.co_gh ? 'var(--fail-tint)' : chon ? 'var(--color-accent)' : 'var(--line)';
       return `<div class="repo-row" style="border-color:${vien}">
   <div style="flex:1;min-width:0">
     <div style="font-size:13.5px;font-weight:600">${escHtml(r.github)}
-      ${chon ? `<span style="${CHIP};background:var(--teal-soft);color:var(--teal)">đang chọn</span>` : ''}
-      ${r.truc ? `<span style="${CHIP};background:var(--amber-soft);color:var(--amber)">trực</span>` : ''}
+      ${chon ? `<span style="${CHIP};background:var(--color-accent-200);color:var(--color-accent-700)">đang chọn</span>` : ''}
+      ${r.truc ? `<span style="${CHIP};background:var(--pass-tint);color:var(--pass-ink)">trực</span>` : ''}
       ${chipToken(r)}
     </div>
     <div class="mono" style="font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">nhánh đích ${escHtml(r.base_branch)} · ${escHtml(r.local_path)}</div>
@@ -48,7 +48,7 @@ export function repoSection(v: RepoSectionView): string {
   </div>
   <button type="button" class="phu-nho nut-token-repo" data-repo="${escHtml(r.github)}" ${ro}>${r.token_rieng ? 'Đổi token' : 'Đặt token'}</button>
   ${chon ? '' : `<button type="button" class="phu-nho nut-chon-repo" data-repo="${escHtml(r.github)}" ${ro}>Chọn</button>`}
-  <button type="button" class="phu-nho nut-go-repo" data-repo="${escHtml(r.github)}" ${ro} style="color:var(--fail);border-color:var(--fail-soft)">Gỡ</button>
+  <button type="button" class="phu-nho nut-go-repo" data-repo="${escHtml(r.github)}" ${ro} style="color:var(--fail);border-color:var(--fail-tint)">Gỡ</button>
 </div>`;
     })
     .join('');
@@ -95,7 +95,7 @@ export const JS_REPO = String.raw`
   var sNhanh=document.getElementById('repo-nhanh'), dBuoc4=document.getElementById('buoc4');
   var githubDaKiem='';
 
-  function bao(o, ok, van){ if(!o) return; o.style.color = ok ? 'var(--teal)' : 'var(--fail)'; o.textContent=(ok?'✓ ':'✗ ')+van; }
+  function bao(o, ok, van){ if(!o) return; o.style.color = ok ? 'var(--pass-ink)' : 'var(--fail)'; o.textContent=(ok?'✓ ':'✗ ')+van; }
 
   // Đổi URL hay token thì kết quả kiểm cũ hết giá trị — đóng bước 4 lại, kẻo thêm repo bằng chìa đã bỏ
   function huyKiem(){
@@ -155,7 +155,7 @@ export const JS_REPO = String.raw`
               (r.private?' <span style="font-size:10px;color:var(--muted)">riêng tư</span>':'')+
               '<br><span class="mono" style="font-size:11px;color:var(--muted)">nhánh mặc định '+esc(r.default_branch)+'</span></span>'+
             (r.da_them
-              ? '<span style="font-size:11.5px;color:var(--teal)">đã thêm</span>'
+              ? '<span style="font-size:11.5px;color:var(--pass-ink)">đã thêm</span>'
               : '<button type="button" class="phu-nho nut-dien-repo" data-repo="'+esc(r.full_name)+'">Dùng repo này</button>')+
           '</div>';
         }).join('')+'</div>';

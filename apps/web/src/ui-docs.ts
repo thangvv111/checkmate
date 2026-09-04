@@ -13,7 +13,7 @@ const CSS_DOCS = `
   .docs-nav a { display:block; font-size:13px; color:var(--muted); text-decoration:none;
     padding:5px 10px; border-left:2px solid var(--line); line-height:1.4; }
   .docs-nav a:hover { color:var(--ink); }
-  .docs-nav a.on { color:var(--teal); border-left-color:var(--teal); font-weight:600; background:var(--teal-soft); }
+  .docs-nav a.on { color:var(--color-accent); border-left-color:var(--color-accent); font-weight:600; background:var(--color-accent-100); }
   .docs-body section { margin:0 0 34px; scroll-margin-top:18px; }
   .docs-body h2 { font-size:19px; margin:0 0 10px; }
   .docs-body h3 { font-size:14.5px; margin:18px 0 6px; }
@@ -21,16 +21,16 @@ const CSS_DOCS = `
   .docs-body p { margin:0 0 10px; max-width:68ch; }
   .docs-body ul { margin:0 0 10px; padding-left:22px; }
   .docs-body li { margin:3px 0; }
-  .docs-body .tomtat { border-left:3px solid var(--teal); background:var(--teal-soft); border-radius:var(--radius-md);
+  .docs-body .tomtat { border-left:3px solid var(--color-accent); background:var(--color-accent-100); border-radius:var(--radius-md);
     padding:10px 14px; margin:0 0 14px; font-size:13.5px; max-width:66ch; }
-  .docs-body .luuy { border-left:3px solid var(--amber); background:var(--amber-soft); border-radius:var(--radius-md);
+  .docs-body .luuy { border-left:3px solid var(--medium); background:var(--medium-tint); border-radius:var(--radius-md);
     padding:10px 14px; margin:12px 0; font-size:13.5px; max-width:66ch; }
   .docs-body table.ca { border-collapse:collapse; margin:12px 0 14px; font-size:13.5px; background:var(--surface);
     border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; }
   .docs-body table.ca th { text-align:left; font-size:11px; letter-spacing:.06em; text-transform:uppercase;
     color:var(--muted); background:var(--color-surface); padding:8px 14px; }
   .docs-body table.ca td { padding:8px 14px; border-top:1px solid var(--line); }
-  .docs-body table.ca td.kq-ok { color:var(--teal); font-weight:600; }
+  .docs-body table.ca td.kq-ok { color:var(--pass-ink); font-weight:600; }
   .docs-body table.ca td.kq-no { color:var(--fail); font-weight:600; }
   .docs-body code { font:12.5px/1.5 Consolas,monospace; background:var(--color-surface); border-radius:var(--radius-md); padding:1px 5px; }
   .docs-body .vidu { background:var(--color-surface); border:1px solid var(--line); border-radius:var(--radius-md); padding:10px 14px;
@@ -39,7 +39,7 @@ const CSS_DOCS = `
   .docs-body .buoc { display:flex; gap:10px; margin:4px 0 10px; flex-wrap:wrap; }
   .docs-body .buoc span { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-pill);
     padding:4px 12px; font-size:12.5px; color:var(--ink); white-space:nowrap; }
-  .docs-body .buoc span b { color:var(--teal); font-weight:700; margin-right:4px; }
+  .docs-body .buoc span b { color:var(--color-accent); font-weight:700; margin-right:4px; }
   @media (max-width:800px) { .docs { grid-template-columns:1fr; } .docs-nav { position:static; display:none; } }
 `;
 

@@ -43,10 +43,10 @@ function huyHieu(kiem: CheckResult | undefined, cfg: ProviderConfig): string {
   if (!kiem) return '<span style="font-size:11.5px;color:var(--muted)">chưa kiểm</span>';
   const hopLe = kiem.ok && kiem.model === cfg.model && kiem.phuong_thuc === cfg.phuong_thuc;
   if (hopLe) {
-    return `<span style="font-size:11.5px;color:var(--teal);font-weight:600" title="kiểm lúc ${kiem.luc.slice(0, 16).replace('T', ' ')}">✓ đã kiểm</span>`;
+    return `<span style="font-size:11.5px;color:var(--pass-ink);font-weight:600" title="kiểm lúc ${kiem.luc.slice(0, 16).replace('T', ' ')}">✓ đã kiểm</span>`;
   }
   if (kiem.ok) {
-    return '<span style="font-size:11.5px;color:var(--amber);font-weight:600" title="đã đổi model hoặc phương thức so với lần kiểm — phải kiểm lại">⚠ cấu hình đã đổi, cần kiểm lại</span>';
+    return '<span style="font-size:11.5px;color:var(--medium-ink);font-weight:600" title="đã đổi model hoặc phương thức so với lần kiểm — phải kiểm lại">⚠ cấu hình đã đổi, cần kiểm lại</span>';
   }
   return '<span style="font-size:11.5px;color:var(--fail);font-weight:600">✗ kiểm thất bại</span>';
 }
@@ -62,18 +62,18 @@ export function providerSection(v: ProviderSectionView): string {
     const daKiem = !!kiem?.ok && kiem.model === cfg.model && kiem.phuong_thuc === cfg.phuong_thuc;
 
     const dongTrangThai = [
-      dn.khoa ? `${tt?.co_khoa ? '<b style="color:var(--teal)">✓</b>' : '<b style="color:var(--fail)">✗</b>'} ${escHtml(dn.khoa.nhan)}: ${escHtml(tt?.mo_ta_khoa ?? '—')}` : '',
-      tt?.mo_ta_thue_bao ? `${tt.san_sang_thue_bao ? '<b style="color:var(--teal)">✓</b>' : '<b style="color:var(--fail)">✗</b>'} Gói thuê bao: ${escHtml(tt.mo_ta_thue_bao)}` : '',
+      dn.khoa ? `${tt?.co_khoa ? '<b style="color:var(--pass-ink)">✓</b>' : '<b style="color:var(--fail)">✗</b>'} ${escHtml(dn.khoa.nhan)}: ${escHtml(tt?.mo_ta_khoa ?? '—')}` : '',
+      tt?.mo_ta_thue_bao ? `${tt.san_sang_thue_bao ? '<b style="color:var(--pass-ink)">✓</b>' : '<b style="color:var(--fail)">✗</b>'} Gói thuê bao: ${escHtml(tt.mo_ta_thue_bao)}` : '',
     ]
       .filter(Boolean)
       .map((d) => `<div style="margin:2px 0">${d}</div>`)
       .join('');
 
-    return `<details class="ncc" ${dangDung ? 'open' : ''} data-ncc="${dn.ma}" style="border:1px solid ${dangDung ? 'var(--teal)' : 'var(--line)'};border-radius:var(--radius-md);margin:8px 0;background:var(--surface)">
+    return `<details class="ncc" ${dangDung ? 'open' : ''} data-ncc="${dn.ma}" style="border:1px solid ${dangDung ? 'var(--color-accent)' : 'var(--line)'};border-radius:var(--radius-md);margin:8px 0;background:var(--surface)">
   <summary style="padding:9px 12px;cursor:pointer;font-size:13.5px;display:flex;align-items:center;gap:8px">
     <b>${escHtml(dn.ten)}</b>
-    ${dangDung ? '<span style="font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;background:var(--teal-soft);color:var(--teal);padding:2px 7px;border-radius:99px">đang dùng</span>' : ''}
-    <span style="margin-left:auto">${dn.ngung ? '<span style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;background:var(--fail-soft);color:var(--fail);padding:2px 7px;border-radius:99px">đã ngừng</span>' : huyHieu(kiem, cfg)}</span>
+    ${dangDung ? '<span style="font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;background:var(--color-accent-200);color:var(--color-accent-700);padding:2px 7px;border-radius:99px">đang dùng</span>' : ''}
+    <span style="margin-left:auto">${dn.ngung ? '<span style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;background:var(--fail-tint);color:var(--fail);padding:2px 7px;border-radius:99px">đã ngừng</span>' : huyHieu(kiem, cfg)}</span>
   </summary>
   <div style="padding:2px 12px 12px">
     ${dn.ngung ? `<div class="ev" style="border-left:3px solid var(--fail);margin:0 0 10px"><b>Dịch vụ đã ngừng.</b> ${escHtml(dn.ngung)}</div>` : ''}
@@ -168,7 +168,7 @@ export const JS_PROVIDER = `
       var ma=b.dataset.ncc; b.disabled=true; ganKq(ma,'Đang gọi thử nhà cung cấp...','var(--muted)');
       fetch('/api/thu-ncc',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({ncc:ma})})
         .then(function(r){return r.json();}).then(function(d){
-          ganKq(ma,(d.ok?'✓ ':'✗ ')+d.thong_diep+' — '+d.giay+'s', d.ok?'var(--teal)':'var(--fail)');
+          ganKq(ma,(d.ok?'✓ ':'✗ ')+d.thong_diep+' — '+d.giay+'s', d.ok?'var(--pass-ink)':'var(--fail)');
           var nut=document.querySelector('.nut-dung[data-ncc="'+ma+'"]');
           if(nut && d.ok && nut.textContent.indexOf('Đang dùng')<0) nut.disabled=false;
         })

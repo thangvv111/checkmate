@@ -213,11 +213,6 @@ textarea.input { min-height:90px; resize:vertical; }
   --ink: var(--color-text);
   --muted: var(--color-neutral-600);
   --line: var(--color-divider);
-  --teal: var(--pass);
-  --teal-soft: var(--pass-tint);
-  --fail-soft: var(--fail-tint);
-  --amber: var(--medium);
-  --amber-soft: var(--medium-tint);
 }
 
 .mono { font-family:var(--font-mono); }
@@ -936,7 +931,7 @@ export function settingsPage(v: SettingsView, nguoi = ''): string {
     'Cấu hình — CheckMate',
     `<h1>Cấu hình</h1>
 <p class="sub">Chế độ: <b>${v.mode === 'demo' ? 'DEMO (chỉ đọc — bản public khoá vào repo demo)' : 'ORG (self-host, chỉnh được)'}</b> · <a href="/">← về trang chính</a></p>
-${v.daLuu ? '<div class="card" style="border-color:var(--teal);margin-bottom:14px">✓ Đã lưu cấu hình.</div>' : ''}
+${v.daLuu ? '<div class="card" style="border-color:var(--color-accent);margin-bottom:14px">✓ Đã lưu cấu hình.</div>' : ''}
 <form method="post" action="/settings">
 <div class="card" style="max-width:760px;margin-bottom:14px">
   <h3>GitHub token — repo <span class="mono">${v.repoGithub}</span></h3>
