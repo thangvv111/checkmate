@@ -17,6 +17,11 @@ const FILE_SECRET = join(GOC, '.secrets.json');
 
 export interface SecretVault {
   claude_code_oauth_token?: string;
+  /**
+   * Bí mật webhook GitHub (`github-webhook`). Ở KHO KHOÁ chứ không ở `config.json`: `config.json`
+   * được đọc và trả ra nhiều bề mặt, kho khoá thì không — và kho khoá ở quyền 600.
+   */
+  github_webhook_secret?: string;
   khoa?: Partial<Record<ProviderId, string>>;
   /** Token GitHub theo TỪNG repo, khoá là `owner/repo` viết thường (R4.18) */
   repo_token?: Record<string, string>;
@@ -60,6 +65,15 @@ export function writeVault(kho: SecretVault): void {
 /** GitHub coi `Owner/Repo` và `owner/repo` là một — khoá kho phải chuẩn hoá kẻo lưu hai chìa cho một repo */
 export function repoKey(github: string): string {
   return github.trim().toLowerCase();
+}
+
+/** Bí mật webhook, hoặc rỗng khi chưa cấu hình. Rỗng ⇒ cửa webhook TỪ CHỐI TẤT (⛔C2). */
+export function readWebhookSecret(): string {
+  return (readVault().github_webhook_secret ?? '').trim();
+}
+
+export function writeWebhookSecret(biMat: string): void {
+  writeVault({ ...readVault(), github_webhook_secret: biMat.trim() });
 }
 
 /**

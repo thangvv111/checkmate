@@ -183,8 +183,13 @@ describe('R11.2 — không phiên hợp lệ thì chặn, kể cả khi lớp ng
   it('danh sách đường mở đúng nội dung đã chốt — thêm một đường làm ca này ĐỎ', async () => {
     // Nới danh sách này là mở một cửa vào hệ thống. Khoá nội dung để việc đó thành thay đổi nhìn thấy
     // được, chứ không lặng lẽ đi qua review.
+    //
+    // 05/09 — `github-webhook` thêm `/api/webhook/github`. Ca này ĐÃ ĐỎ đúng như thiết kế của nó
+    // (change ấy D6: «nó đỏ là Ý MUỐN, không phải phiền toái phải né»), và đây là lần sửa có lý do:
+    // đó là đường ĐẦU TIÊN vừa không cần phiên vừa gây tác dụng phụ. Nó đứng được trong danh sách này
+    // nhờ hai gác riêng — HMAC trên raw body, và repo phải đã khai — chứ không nhờ được miễn.
     const { OPEN_PATHS } = await import('../apps/web/src/session-gate.js');
-    expect([...OPEN_PATHS].sort()).toEqual(['/health', '/login', '/logout']);
+    expect([...OPEN_PATHS].sort()).toEqual(['/api/webhook/github', '/health', '/login', '/logout']);
   });
 });
 
