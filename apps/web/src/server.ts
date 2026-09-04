@@ -25,7 +25,7 @@ import { attachSecretGuard } from './response-secret-guard.js';
 import { loginPage, type LoginState } from './ui-login.js';
 import { probesPage } from './ui-probes.js';
 
-import { MODE, ProviderConfigErrorCfg, configForReview, currentConfig, maskToken, maskToken2, readConfig, migrateRepoToken, readSubscriptionToken, agentEnv, writeConfig, writeSubscriptionToken } from './config.js';
+import { LIBRARY_CAP, MODE, PROBE_DEPTH, ProviderConfigErrorCfg, clampToRange, configForReview, currentConfig, maskToken, maskToken2, readConfig, migrateRepoToken, readSubscriptionToken, agentEnv, writeConfig, writeSubscriptionToken } from './config.js';
 import { PROVIDER_CATALOG, providerDefinition, validModel, readProviderCheck, writeKey, checkStillValid, type ProviderConfig, type ProviderId, type Method } from './provider.js';
 import { REPO_ROOT, slugGithubRepo, findRepo, type RepoConfig } from './config.js';
 import { existsSync as coFile } from 'node:fs';
@@ -409,7 +409,18 @@ app.get('/settings', (req, res) => {
       localPath: c.repo.local_path,
       tokenChe: maskToken(readRepoToken(c.repo.github)),
       khoiRepoHtml: repoSection({
-        repos: c.repos.map((r) => ({ ...r, co_token: hasToken(r.github), token_rieng: Boolean(readOwnToken(r.github)), co_gh: hasGhCli() })),
+        repos: c.repos.map((r) => ({
+          ...r,
+          co_token: hasToken(r.github),
+          token_rieng: Boolean(readOwnToken(r.github)),
+          co_gh: hasGhCli(),
+          // Bản che DÙNG CHUNG, không tự cắt chuỗi tại chỗ (⛔C3): bản che thứ hai luôn là bản lệch, và
+          // che trần theo độ dài thì hai repo dùng nhầm chìa của nhau nhìn giống hệt.
+          token_che: readOwnToken(r.github) ? maskToken2(readOwnToken(r.github)) : '',
+          // Đọc từ bảng `run` — rẻ và luôn có. Cố ý KHÔNG gọi GitHub để lấy «PR chờ»: màn Cấu hình
+          // phải mở được cả khi mạng hỏng — đó là màn người ta vào để SỬA khi có gì đó hỏng.
+          lan_cham_cuoi: rm.danhSach({ repo: r.github, gioi_han: 1 })[0]?.batDau,
+        })),
         dangChon: c.repo_dang_chon,
         hasToken: hasToken(c.repo.github),
         moKhoa: MODE === 'org',
@@ -423,6 +434,7 @@ app.get('/settings', (req, res) => {
         moKhoa: MODE === 'org',
       }),
       maxProbe: c.agent.max_probe,
+      tranThuVien: c.agent.tran_thu_vien ?? LIBRARY_CAP.mac_dinh,
       skeptic: c.agent.skeptic,
       trucBat: c.truc.bat,
       trucChuKy: c.truc.chu_ky_giay,
@@ -487,7 +499,9 @@ app.post('/settings', (req, res) => {
         }
         return ra;
       })(),
-      max_probe: Math.min(20, Math.max(2, Number(b.max_probe) || 10)),
+      // Kẹp bằng CHÍNH khoảng đã khai — chép tay biên ở đây là cách bốn con số cũ sinh ra.
+      max_probe: clampToRange(b.max_probe, PROBE_DEPTH),
+      tran_thu_vien: clampToRange(b.tran_thu_vien, LIBRARY_CAP),
       skeptic: b.skeptic === '1',
     },
     truc: {

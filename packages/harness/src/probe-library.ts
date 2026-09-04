@@ -18,6 +18,9 @@ const GOC_LIB = process.env.CHECKER_LIB_DIR ?? resolve('probes-lib');
 // (dàn review bắt được) — giá trị hỏng thì dùng mặc định, không đoán.
 function docTranProbe(): number {
   const tho = (process.env.CHECKER_LIB_TRAN ?? '').trim();
+  // Ba con số dưới đây là bản sao của `LIBRARY_CAP` ở `apps/web/src/config.ts` — engine KHÔNG import
+  // được từ lớp web (ranh giới gói), nên chúng phải khớp bằng LƯỚI chứ không bằng lời hứa. Ca test
+  // của change `settings-screen-ccs` so hai chỗ và ĐỎ khi lệch.
   if (!/^\d+$/.test(tho)) return 100;
   return Math.min(200, Math.max(6, Number(tho)));
 }
