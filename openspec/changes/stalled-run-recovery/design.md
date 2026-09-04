@@ -162,6 +162,25 @@ Sửa đúng chỗ: **giữ giả định thứ hai** (D0 chứng minh nó đún
 *Đây là loại lỗi thứ tư mà `test-grid-integrity` khai: lưới đúng, luật sai. Không lưới nào đỏ suốt thời gian
 hai khẳng định sống cạnh nhau, vì mỗi bên tự nhất quán — chỉ khi đọc cả hai mới thấy.*
 
+### D8 — Mutation bắt được gác NẶNG NHẤT chưa có ca (ghi lúc apply)
+
+Mười đột biến, mỗi cái hai lần. Chín đỏ ngay. **Một sống sót: bỏ hẳn `if (!mayKillRun(...))` trong
+`killRunProcess`** — tức phép xác minh trước khi kill, gác nặng nhất của cả change.
+
+Đọc theo bảng ba đường: không có đường lui nào, và ca huỷ hiện có dùng lượt **không có pid** nên dừng ở
+dòng đầu, chưa chạm tới gác. `mayKillRun` có ca cho *logic* của phép xác minh, nhưng **không ca nào khoá
+việc `killRunProcess` thực sự gọi nó**.
+
+Đúng khuôn **«cửa song sinh»** đã bị bắt chín lần trong repo này, chỉ đổi hình dạng: lần này không phải hai
+cửa viết hai biểu thức, mà là **một hàm thuần có ca và một chỗ gọi không ai kiểm**.
+
+Ca mới: spawn một tiến trình vô can, gọi `killRunProcess(pid, 'wKHONGPHAICUANO')` → phải trả `false` **và
+tiến trình ấy phải còn sống**. Đo lại: ĐỎ. Tổng **10/10**.
+
+*Điều đáng ghi:* nếu dừng ở «9/10 và `mayKillRun` đã có ca», change này sẽ merge với một nút giao diện
+giết được tiến trình tuỳ ý trên máy chủ — đúng thứ security S0 dựng ba rào để chống, mà rào thứ nhất thì
+không ai kiểm.
+
 ## Architecture
 
 - `store/db.ts` — thêm cột vào `run` qua khuôn `napCotThieu` (tự hết việc, không cần bước thủ công).

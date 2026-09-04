@@ -660,6 +660,28 @@ app.post('/api/chon-ncc', (req, res) => {
   res.json({ ok: true, thong_diep: `Đã chuyển sang ${dn.ten} (${cfg.model})` });
 });
 
+/**
+ * Huỷ một lượt ĐANG CHẠY.
+ *
+ * Đây là route duy nhất trong sản phẩm đi từ HTTP tới `kill` một tiến trình hệ điều hành, nên nó phải
+ * đứng sau đủ ba rào: chế độ demo từ chối · pid chỉ lấy từ hàng `run` do chính engine ghi · và phép
+ * xác minh dòng lệnh trong `killRunProcess` (pid bị hệ điều hành tái dùng — kill mù là giết một tiến
+ * trình vô can của người dùng).
+ */
+app.post('/api/runs/:id/huy', (req, res) => {
+  if (MODE === 'demo') return res.status(403).json({ ok: false, loi: 'Chế độ demo không cho huỷ lượt chấm.' });
+  const nguoi = ai(req) || 'không rõ';
+  const kq = rm.huyLuot(String(req.params.id), nguoi);
+  if (!kq.ok) return res.status(409).json(kq);
+  res.json({
+    ok: true,
+    da_dung_tien_trinh: kq.daDungTienTrinh,
+    thong_diep: kq.daDungTienTrinh
+      ? 'Đã huỷ lượt chấm và dừng tiến trình.'
+      : 'Đã đánh dấu lượt chấm là lỗi, nhưng KHÔNG dừng được tiến trình (không xác minh được đúng tiến trình của lượt này).',
+  });
+});
+
 app.post('/api/runs', upload.single('tep'), async (req, res) => {
   // Gác TRẦN đứng ở đây, trước cả việc đọc thân yêu cầu: quyết định ở hàm thuần (runs.ts), route dựng lời.
   if (!evaluateStartRun({ soDangChay: rm.runningCount(), tran: CONCURRENCY_LIMIT }).chay) {
@@ -1044,8 +1066,11 @@ app.listen(port, '127.0.0.1', () => {
   void chayDoiSoat();
   // NỐI LẠI trước, DỌN XÁC sau. Lượt còn sổ sự kiện trên đĩa là lượt tiến trình con vẫn đang ghi
   // tiếp — nó sống sót qua lần khởi động lại này, và đánh dấu nó hỏng là vứt bỏ việc đang chạy đúng.
-  const noiLai = rm.noiLaiLuotDangChay();
-  if (noiLai.length) console.log(`Nối lại ${noiLai.length} lượt chấm còn dang dở: ${noiLai.join(', ')}`);
+  const { noiLai, danhDauLoi } = rm.noiLaiLuotDangChay();
+  if (noiLai.length) console.log(`Nối lại ${noiLai.length} lượt chấm còn đang chạy: ${noiLai.join(', ')}`);
+  // Lượt có tiến trình đã chết KHÔNG được giữ ở `dang_chay`: nó khoá trần chạy đồng thời và khoá luôn
+  // việc chấm lại đúng pull request ấy (`stalled-run-recovery`).
+  if (danhDauLoi.length) console.log(`Đánh dấu lỗi ${danhDauLoi.length} lượt có tiến trình đã chết: ${danhDauLoi.join(', ')}`);
   const moCoi = rm.cleanupOrphanRuns(noiLai);
   if (moCoi.length) console.log(`Đã dọn ${moCoi.length} lượt chấm bỏ dở của lần chạy trước: ${moCoi.join(', ')}`);
   console.log(`CheckMate web: http://127.0.0.1:${port}`);

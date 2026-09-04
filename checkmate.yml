@@ -51,14 +51,14 @@ runner:
       ../apps/web/src/trust.js              → computeProfile
       ../apps/web/src/model-source.js         → readProviderState · tryProvider · trySource
       ../apps/web/src/extract.js             → SUPPORTED_FORMATS · extractText
-      ../apps/web/src/runs.js                → RunManager · duongSoSuKien · docSoSuKienTuDia · evaluateStartRun · CONCURRENCY_LIMIT
+      ../apps/web/src/runs.js                → RunManager · duongSoSuKien · docSoSuKienTuDia · evaluateStartRun · CONCURRENCY_LIMIT · decideRunLiveness · processAlive · mayKillRun · readCommandLine · killRunProcess
       ../packages/harness/src/model.js       → envForCli · costMetrics · costSummary · looksLikeModelReply · authLost · AUTH_LOST_PATTERNS · CliConfigError · checkProvider · pickProvider · ClaudeCliProvider · AnthropicApiProvider · ProviderConfigError
-      ../packages/harness/src/skill-doc.js   → runDocSkill
+      ../packages/harness/src/skill-doc.js   → runDocSkill · describeCandidate
       ../packages/harness/src/trigger-catalog.js → TRIGGER_CATALOG · isValidTrigger · timTrigger · tapKichHoat
       ../apps/web/src/github.js              → repoFromPath · refNames · splitOwnerRepo · checkRepo · maskTokenInText · hasGhCli · hasGithubAccess · getCurrentPr · commentPr · mergePr · returnToDev · setCommitStatus · closePr · clearPrCache · listPrs · fetchAndRoute · classifyPr · prState · listReposForToken · cloneRepo · listBranches
       ../apps/web/src/gate.js                → appendGateLedgerEntry · countBySeverity · samePerson · outsideGateDetail · safeString · reconcileGate · MACHINE_ACTOR_NAME · renderReceipt · renderAutoVerdict · renderRuling · evaluateMergeLocal · evaluateMergeAgainstPr · evaluateRejectLocal · decideAutomation · decideRerun
       ../apps/web/src/store/db.js              → openDb · closeDb
-      ../apps/web/src/store/run-store.js         → saveMeta · saveEvents · readMeta · readEvents · listRuns · countRuns · findByPr · isPrRunning · runningCount · cleanupOrphanRuns · returnedToDev
+      ../apps/web/src/store/run-store.js         → saveMeta · saveEvents · appendEvent · readMeta · readEvents · listRuns · countRuns · findByPr · isPrRunning · runningCount · cleanupOrphanRuns · returnedToDev
       ../apps/web/src/store/ledger-store.js       → appendVerdictLedger · appendVerdictLedgerIfNew · readVerdictLedger · countVerdictLedger · inVerdictLedger · appendGateLedger · readGateLedger · prsNeedingReconcile · gateActionsOfPr · DuplicateRunError
       ../apps/web/src/store/migrate.js          → migrateAll · migrationSummary
       ⚠ Lớp kho nằm trong THƯ MỤC CON `kho/`, không nằm thẳng dưới `src/` — đây là chỗ đã làm hỏng

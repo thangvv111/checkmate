@@ -44,6 +44,7 @@ function veMeta(h: Hang): RunMeta {
     ketThuc: chu('ket_thuc'),
     repo: chu('repo'),
   };
+  if (h.pid != null) meta.pid = Number(h.pid);
   if (h.verdict != null) {
     try {
       meta.verdict = JSON.parse(String(h.verdict)) as Verdict;
@@ -72,18 +73,19 @@ export function saveMeta(m: RunMeta): void {
   openDb()
     .prepare(
       `INSERT INTO run (id, tieu_de, skill, trang_thai, bat_dau, ket_thuc, repo,
-                        pr_so, pr_head_sha, pr_tac_gia, verdict)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                        pr_so, pr_head_sha, pr_tac_gia, verdict, pid)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
        ON CONFLICT(id) DO UPDATE SET
          tieu_de=excluded.tieu_de, skill=excluded.skill, trang_thai=excluded.trang_thai,
          bat_dau=excluded.bat_dau, ket_thuc=excluded.ket_thuc, repo=excluded.repo,
          pr_so=excluded.pr_so, pr_head_sha=excluded.pr_head_sha, pr_tac_gia=excluded.pr_tac_gia,
-         verdict=excluded.verdict`,
+         verdict=excluded.verdict, pid=excluded.pid`,
     )
     .run(
       m.id, m.tieuDe, m.skill, m.trangThai, m.batDau, m.ketThuc ?? null, m.repo ?? null,
       m.pr?.so ?? null, m.pr?.headSha ?? null, m.pr?.tacGia ?? null,
       m.verdict ? JSON.stringify(m.verdict) : null,
+      m.pid ?? null,
     );
   // `m.ketQuaCong` KHÔNG được ghi ở đây và không có chỗ nào để ghi nữa (R6.26): nó là bản đọc ra từ
   // sổ. Hai vòng chấm liên tiếp bắt đúng cửa này — một lần nó đóng dấu hành động lên bề mặt trong khi
@@ -103,6 +105,19 @@ export function saveEvents(runId: string, events: StoredEvent[]): void {
     d.exec('ROLLBACK');
     throw e;
   }
+}
+
+/**
+ * Ghi THÊM một sự kiện vào cuối sổ của một lượt — khác `saveEvents` ở chỗ không xoá bản cũ.
+ *
+ * Dùng cho những dòng engine phải nói ra sau khi tiến trình chấm đã chết: lượt bị đánh dấu lỗi lúc
+ * khởi động, hoặc người vận hành huỷ. Một lượt chuyển sang `loi` mà không nói vì sao là báo thiếu
+ * bản chất — người đọc lịch sử không phân biệt được «hỏng vì code» với «người vận hành huỷ».
+ */
+export function appendEvent(runId: string, ev: StoredEvent): void {
+  const d = openDb();
+  const n = (d.prepare('SELECT COALESCE(MAX(thu_tu), -1) AS m FROM run_su_kien WHERE run_id = ?').get(runId) as { m: number }).m;
+  d.prepare('INSERT INTO run_su_kien (run_id, thu_tu, t, e) VALUES (?,?,?,?)').run(runId, n + 1, ev.t, JSON.stringify(ev.e));
 }
 
 export function readMeta(id: string): RunMeta | undefined {

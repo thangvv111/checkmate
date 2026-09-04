@@ -1187,10 +1187,31 @@ function jsTrinhDien(id: string): string {
 })();`;
 }
 
+/**
+ * Nút huỷ một lượt đang chạy.
+ *
+ * Thông điệp trả về được hiện NGUYÊN VĂN vì đánh dấu lượt và dừng tiến trình là HAI việc, và việc thứ
+ * hai có thể không làm được (pid bị hệ điều hành tái dùng nên engine chỉ kill khi xác minh được đúng
+ * tiến trình của lượt này). Nói gộp thành «đã huỷ» là báo thiếu bản chất.
+ */
+const JS_HUY = `
+(function(){
+  var b=document.getElementById('nut-huy-luot'); if(!b) return;
+  b.addEventListener('click',function(){
+    if(!confirm('Huỷ lượt chấm này? Lượt sẽ được đánh dấu LỖI và không có verdict. Muốn chấm lại thì bấm chấm mới.')) return;
+    b.disabled=true; b.textContent='đang huỷ…';
+    fetch('/api/runs/'+b.dataset.run+'/huy',{method:'POST'}).then(function(r){return r.json();}).then(function(d){
+      alert(d.ok? d.thong_diep : (d.loi||'Không huỷ được'));
+      if(d.ok) location.reload(); else { b.disabled=false; b.textContent='\u25a0 Huỷ lượt chấm'; }
+    }).catch(function(){ b.disabled=false; b.textContent='\u25a0 Huỷ lượt chấm'; });
+  });
+})();
+`;
+
 function JS_RUN(meta: RunMeta, trinhDien: boolean, daDung: number): string {
   if (trinhDien) return JS_VE + JS_CONG + jsTrinhDien(meta.id);
   if (meta.trangThai !== 'dang_chay') return JS_CONG; // tĩnh hoàn toàn — không mở luồng nào
-  return JS_VE + JS_CONG + jsLuong(meta.id, daDung);
+  return JS_VE + JS_CONG + JS_HUY + jsLuong(meta.id, daDung);
 }
 
 /** Năm bước của một lượt chấm — dùng chung cho cả đường server dựng lẫn đường luồng. */
@@ -1536,7 +1557,7 @@ ${meta.pr ? `<form method="post" action="/api/runs" style="margin:0;flex:none"><
       meta.pr?.tacGia ? ` · ${escHtml(meta.pr.tacGia)}` : ''
     } · run ${escHtml(meta.id)}</div></div>
 <div class="run-dk"><span class="run-tt">${trinhDien ? 'đang trình diễn' : xong ? (meta.trangThai === 'loi' ? 'kết thúc — lỗi' : 'đã kết thúc') : '● đang chạy'}</span>
-${xong && !trinhDien ? `<a class="btn btn-secondary" href="/runs/${escHtml(meta.id)}?trinh_dien=1">▶ Trình diễn</a>` : ''}</div></div>
+${xong && !trinhDien ? `<a class="btn btn-secondary" href="/runs/${escHtml(meta.id)}?trinh_dien=1">▶ Trình diễn</a>` : ''}${!xong && !trinhDien ? `<button type="button" class="btn btn-secondary" id="nut-huy-luot" data-run="${escHtml(meta.id)}">■ Huỷ lượt chấm</button>` : ''}</div></div>
 ${dieuKhien}${banStale}
 <div class="hr"></div>
 <div id="cac-buoc">${buocHtml}</div>

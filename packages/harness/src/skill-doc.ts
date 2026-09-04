@@ -32,6 +32,26 @@ interface UngVien {
   quotes: Array<{ quote: string; vi_tri: string }>;
 }
 
+/**
+ * Nhãn một dòng cho một ứng viên — HÀM THUẦN.
+ *
+ * Nhãn rubric đến từ một danh mục HỮU HẠN, nên hai ứng viên nhắm hai chỗ hoàn toàn khác nhau vẫn hiện
+ * ra giống hệt nếu chỉ in mã + rubric. Người đọc thấy hai dòng như nhau sẽ kết luận engine sinh trùng
+ * và tự gỡ bớt.
+ *
+ * Đo được 04/09 trên `docs/prd-phe-duyet-han-muc.md`: «D1 (mâu thuẫn nội tại) · D2 (mâu thuẫn nội tại)»
+ * — thực ra D1 bắt ví dụ để người tạo TỰ DUYỆT (dòng 49) còn D2 bắt cùng ví dụ ấy VƯỢT THẨM QUYỀN
+ * (dòng 44), và cả hai đều là finding `high`. Gỡ bớt một cái là mất một finding high.
+ *
+ * Dữ liệu để phân biệt đã có sẵn trong `quotes[].vi_tri`; đây là chuyện DÙNG nó, không phải tìm thêm.
+ */
+export function describeCandidate(u: { id: string; rubric: string; title_vi?: string; quotes?: Array<{ vi_tri?: string }> }): string {
+  const nhan = NHAN_RUBRIC[u.rubric as RubricLoai] ?? u.rubric;
+  const noi = (u.quotes ?? []).map((q) => (q?.vi_tri ?? '').trim()).find((x) => x.length > 0);
+  const cho = noi ?? (u.title_vi ?? '').trim();
+  return cho ? `${u.id} (${nhan} @ ${cho.slice(0, 48)})` : `${u.id} (${nhan})`;
+}
+
 const NHAN_RUBRIC: Record<RubricLoai, string> = {
   mau_thuan: 'mâu thuẫn nội tại',
   khong_do_duoc: 'tiêu chí không đo được',
@@ -185,7 +205,7 @@ export async function runDocSkill(model: ModelProvider, file: string, phat: Phat
     phat({ type: 'log', msg: `Loại ${sai.length} ứng viên có rubric ngoài ${rubricHopLe.size} loại: ${sai.map((u) => `${u.id}(${String(u.rubric)})`).join(', ')}` });
     ungVien = ungVien.filter((u) => rubricHopLe.has(u.rubric));
   }
-  phat({ type: 'log', msg: `${ungVien.length} ứng viên: ${ungVien.map((u) => `${u.id} (${NHAN_RUBRIC[u.rubric]})`).join(' · ')}` });
+  phat({ type: 'log', msg: `${ungVien.length} ứng viên: ${ungVien.map(describeCandidate).join(' · ')}` });
 
   phat({ type: 'stage', stage: 4, ten: 'Đối chiếu trích dẫn nguyên văn (máy kiểm) + vòng phản biện' });
   const canDoiQuote = (u: UngVien) => (CAN_HAI_VE.has(u.rubric) ? 2 : 1);
