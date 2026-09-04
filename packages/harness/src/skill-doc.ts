@@ -40,16 +40,20 @@ interface UngVien {
  * và tự gỡ bớt.
  *
  * Đo được 04/09 trên `docs/prd-phe-duyet-han-muc.md`: «D1 (mâu thuẫn nội tại) · D2 (mâu thuẫn nội tại)»
- * — thực ra D1 bắt ví dụ để người tạo TỰ DUYỆT (dòng 49) còn D2 bắt cùng ví dụ ấy VƯỢT THẨM QUYỀN
- * (dòng 44), và cả hai đều là finding `high`. Gỡ bớt một cái là mất một finding high.
+ * — thực ra D1 bắt ví dụ để người tạo TỰ DUYỆT còn D2 bắt cùng ví dụ ấy VƯỢT THẨM QUYỀN, và cả hai đều
+ * là finding `high`. Gỡ bớt một cái là mất một finding high.
  *
- * Dữ liệu để phân biệt đã có sẵn trong `quotes[].vi_tri`; đây là chuyện DÙNG nó, không phải tìm thêm.
+ * Thứ phân biệt là TIÊU ĐỀ, không phải vị trí. Bản vá đầu dùng `quotes[].vi_tri` và lượt kiểm tay cho
+ * thấy nó KHÔNG đủ: hai finding ấy cùng trỏ «dòng 80 (Mục 5 — Ví dụ minh hoạ luồng chuẩn)», nên hai
+ * dòng vẫn hiện ra giống hệt. Hai luật khác nhau bị vi phạm ở CÙNG MỘT CHỖ là chuyện bình thường —
+ * đó chính là hình dạng của một ví dụ viết sai.
  */
 export function describeCandidate(u: { id: string; rubric: string; title_vi?: string; quotes?: Array<{ vi_tri?: string }> }): string {
   const nhan = NHAN_RUBRIC[u.rubric as RubricLoai] ?? u.rubric;
+  const ten = (u.title_vi ?? '').trim();
   const noi = (u.quotes ?? []).map((q) => (q?.vi_tri ?? '').trim()).find((x) => x.length > 0);
-  const cho = noi ?? (u.title_vi ?? '').trim();
-  return cho ? `${u.id} (${nhan} @ ${cho.slice(0, 48)})` : `${u.id} (${nhan})`;
+  const cho = ten || noi || '';
+  return cho ? `${u.id} (${nhan}) ${cho.slice(0, 56)}` : `${u.id} (${nhan})`;
 }
 
 const NHAN_RUBRIC: Record<RubricLoai, string> = {

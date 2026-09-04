@@ -78,10 +78,11 @@ R-5 «danh sách ứng viên phân biệt được».
 - [x] T8.1 **ĐÃ CHẠY THẬT** — log server nói «Đánh dấu lỗi 1 lượt có tiến trình đã chết»; `dang_chay` = 0;
       cột `pid` di trú tự động trên cơ sở dữ liệu prod.
 - [x] T8.2 **ĐÃ CHẠY THẬT** — lượt mới `wmtmola1z8vxj` cho PR #7 chạy trọn và `xong`; pid 14928 ghi được.
-- [ ] T8.3 Chạy một lượt rồi bấm Huỷ: lỗi, sổ ghi ai huỷ, tiến trình dừng.
+- [x] T8.3 **ĐÃ CHẠY THẬT** — tiến trình dừng đúng; và lượt ấy tìm ra lỗi «dòng ai huỷ bị ghi đè» (D9a).
 - [x] T8.4 **ĐÃ CHẠY THẬT** — sổ kiểm nay mang `phuong_thuc: thue_bao`, `ok: true`, và thông điệp nói rõ
       «KHÔNG tiêu credit API».
-- [ ] T8.5 Một lượt doc: dòng ứng viên phân biệt được.
+- [x] T8.5 **ĐÃ CHẠY THẬT** — và tìm ra bản vá chưa đủ: `vi_tri` không phân biệt được khi hai finding
+      cùng một dòng. Sửa sang `title_vi` (D9b).
 
 ## Ca sinh ra từ mutation (không có trong kế hoạch ban đầu)
 

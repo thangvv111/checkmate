@@ -1029,7 +1029,15 @@ mà PR đã có commit mới hơn — verdict không còn nói về thứ sắp 
 Trả về dev vẫn dùng được ở đây.</div>`
       : '';
 
-  const checklist = vua.length
+  // Cổng đã khoá thì KHÔNG dựng khối tick. Nó chỉ phụ thuộc `vua.length` ở bản trước, nên một verdict
+  // FAIL vừa hiện «⛔ Merge khoá cứng» vừa hiện «PASS kèm N cảnh báo medium — tick để mở nút Merge»:
+  // hai câu đối lập nhau, ngay tại cổng merge, và bốn ô tick dẫn tới một nút không tồn tại.
+  //
+  // Không có hậu quả dữ liệu (form merge không được dựng nên tick chẳng ghi đi đâu), nhưng chữ «PASS»
+  // đứng trên màn hình của một pull request đang FAIL là loại hiểu nhầm đắt nhất mà bề mặt này gây ra
+  // được — người đọc có thể đi merge tay trên GitHub. Findings đã liệt kê đầy đủ ở verdict phía trên,
+  // nên khi cổng khoá thì khối này không còn việc gì để làm.
+  const checklist = !khoa && vua.length
     ? `<div style="font-size:13.5px;margin-bottom:2px">PASS kèm ${vua.length} cảnh báo medium — tick từng cảnh báo để mở nút Merge.
 Người tick được ghi danh vào receipt.</div>
 ${vua

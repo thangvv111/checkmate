@@ -62,6 +62,8 @@ ngân` — hai hàng khác nhau của cùng một phụ lục. Gỡ bớt bất 
 - **(2)** Thông điệp cổng nhà cung cấp phải nói **phương thức đang chọn**, và khi sổ kiểm mang phương thức
   khác cấu hình thì nói rõ là **cần kiểm lại**, không đổ cho thiếu API key.
 - **(3)** Dòng ứng viên phải mang **chỗ nhắm** của từng ứng viên, không chỉ nhãn loại.
+- **(4)** Cổng đã khoá thì bề mặt KHÔNG được nói «PASS» và KHÔNG được mời tick (PO báo 04/09, gộp vào
+  change này vì cùng họ — bề mặt nói sai. KHÔNG đổi luật cổng: cổng vẫn khoá đúng như trước).
 
 ## Non-Goals
 

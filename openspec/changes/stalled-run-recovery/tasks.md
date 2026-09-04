@@ -90,11 +90,15 @@ grep -rc "isPrRunning" apps/web/src/*.ts store/*.ts     # 7 (gom dinh nghia + co
       «Lượt chấm bị bỏ dở: không có dấu vết tiến trình…»; số hàng `dang_chay` còn lại = **0**.
 - [x] 8.2 **PO chạy lại PR #7 thành công** (04/09). Lượt mới `wmtmola1z8vxj`: `xong`, 08:17:37 →
       08:22:12, và **pid 14928 được ghi thật** — cột mới hoạt động trên hệ thống thật, không chỉ trong lưới.
-- [ ] 8.3 Chạy một lượt, bấm **Huỷ** → lượt thành lỗi, sổ ghi ai huỷ, tiến trình dừng.
+- [x] 8.3 **PO chạy thật 04/09** — tiến trình dừng đúng (pid 27516 chết). **NHƯNG lộ ra một lỗi**: dòng
+      «ai huỷ» bị `child.on('close')` ghi đè, sổ chỉ còn «Run dừng giữa chừng, mã thoát 1». 23 ca test
+      đều xanh vì không ca nào có tiến trình con thật. Sửa bằng cờ `daHuy` + ca đọc source (D9a).
 - [x] 8.4 **PO bấm Kiểm tra lại thành công** (04/09). Sổ kiểm: `ok: true`, `phuong_thuc: thue_bao`,
       thông điệp «Gói thuê bao trả lời: “OK” (model claude-opus-5) — KHÔNG tiêu credit API». Đúng đường
       thuê bao, không đụng API key.
-- [ ] 8.5 Một lượt doc → dòng ứng viên phân biệt được từng cái.
+- [x] 8.5 **PO chạy thật 04/09** — dòng ứng viên đã có chỗ nhắm. **NHƯNG lộ ra bản vá chưa đủ**: F5 và
+      F6 cùng trỏ «dòng 80 (Mục 5)», nên hai dòng vẫn giống hệt. Thứ phân biệt phải là TIÊU ĐỀ, không
+      phải vị trí. Sửa `describeCandidate` + ca cho đúng ca ấy (D9b).
 
 ## 9. Kiểm cơ học
 

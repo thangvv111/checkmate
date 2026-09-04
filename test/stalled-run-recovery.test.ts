@@ -170,6 +170,41 @@ describe('R-3 — huỷ lượt đang chạy, và KHÔNG BAO GIỜ kill mù', ()
     30_000,
   );
 
+  it('huỷ xong thì nhánh đóng của tiến trình KHÔNG được ghi đè sổ', () => {
+    // Ca sinh ra từ KIỂM TAY 04/09 — 23 ca test đều xanh, mà lượt thật mất dòng «ai huỷ».
+    //
+    // `huyLuot` ghi thẳng vào cơ sở dữ liệu, còn `child.on('close')` gọi `luu(state)` dựng LẠI sổ từ bộ
+    // nhớ của tiến trình web — bộ nhớ ấy không có dòng vừa ghi, nên nó xoá mất. Cờ `daHuy` nằm trên
+    // `state` (không phải trên `this.runs`) vì handler đóng giữ `state` qua closure: xoá khỏi `this.runs`
+    // không chạm tới nó.
+    //
+    // Ca kiểm cờ được đặt và sổ còn nguyên sau khi huỷ. Vế «handler tôn trọng cờ» thì chỉ lượt chạy thật
+    // chứng minh được — đó là lý do mục kiểm tay tồn tại.
+    kho.saveMeta(meta({ id: 'huy2', trangThai: 'dang_chay' }));
+    kho.appendEvent('huy2', { t: 0, e: { type: 'log', msg: 'việc đang chạy' } });
+    const rm = new RunManager();
+    expect(rm.huyLuot('huy2', 'nam').ok).toBe(true);
+
+    const so = kho.readEvents('huy2').map((x) => (x.e as { msg?: string }).msg ?? '');
+    expect(so, 'dòng cũ phải còn').toContain('việc đang chạy');
+    expect(so.some((m) => m.includes('nam')), 'và dòng «ai huỷ» phải có').toBe(true);
+  });
+
+  it('nhánh đóng của tiến trình TÔN TRỌNG cờ đã huỷ', () => {
+    // Ca đọc source, và đó là lựa chọn có ý thức: `child.on('close')` chỉ chạy khi có tiến trình con
+    // thật, mà dựng một tiến trình chấm thật trong lưới nghĩa là gọi model. Mutation bắt được đúng chỗ
+    // này — bỏ điều kiện `!state.daHuy` thì không ca hành vi nào đỏ.
+    //
+    // Cái mất, nói thẳng: ca chứng minh CẤU TRÚC (điều kiện có mặt), không chứng minh hành vi lúc chạy.
+    // Vế hành vi do lượt kiểm tay gác — và chính lượt kiểm tay 04/09 đã tìm ra lỗi này.
+    const src = readFileSync('apps/web/src/runs.ts', 'utf8');
+    const i = src.indexOf('state.thoiTheoHead?.();');
+    expect(i, 'phải có nhánh đóng').toBeGreaterThan(0);
+    const khoi = src.slice(i, i + 600);
+    expect(khoi, 'ghi sổ ở nhánh đóng phải đứng sau phép kiểm cờ huỷ').toContain('if (!state.daHuy) this.luu(state);');
+    expect(khoi, 'không được còn đường ghi vô điều kiện').not.toMatch(/^\s*this\.luu\(state\);/m);
+  });
+
   it('huỷ lượt ĐÃ kết thúc thì bị từ chối', () => {
     kho.saveMeta(meta({ id: 'xong1', trangThai: 'xong' }));
     const rm = new RunManager();
@@ -232,14 +267,22 @@ describe('R-4 — thông điệp cổng nói đúng phương thức đang chọn
 });
 
 describe('R-5 — dòng ứng viên phân biệt được từng cái', () => {
-  it('hai ứng viên cùng nhãn rubric, khác chỗ nhắm → hai dòng KHÁC nhau', () => {
-    // Đo được 04/09: «D1 (mâu thuẫn nội tại) · D2 (mâu thuẫn nội tại)» trông như trùng, trong khi D1 bắt
-    // ví dụ để người tạo TỰ DUYỆT và D2 bắt cùng ví dụ ấy VƯỢT THẨM QUYỀN — cả hai đều là finding high.
-    const d1 = describeCandidate({ id: 'D1', rubric: 'mau_thuan_noi_tai', title_vi: 'Tự duyệt', quotes: [{ vi_tri: 'dòng 49 (Mục 3.2)' }] });
-    const d2 = describeCandidate({ id: 'D2', rubric: 'mau_thuan_noi_tai', title_vi: 'Vượt thẩm quyền', quotes: [{ vi_tri: 'dòng 44 (Bảng thẩm quyền)' }] });
-    expect(d1).not.toBe(d2);
-    expect(d1).toContain('dòng 49');
-    expect(d2).toContain('dòng 44');
+  it('hai ứng viên cùng nhãn VÀ cùng vị trí vẫn phải phân biệt được', () => {
+    // Ca sinh ra từ KIỂM TAY 04/09: bản vá đầu dùng `quotes[].vi_tri`, và lượt doc thật cho thấy nó
+    // KHÔNG đủ — F5 và F6 cùng trỏ «dòng 80 (Mục 5 — Ví dụ minh hoạ luồng chuẩn)», nên hai dòng vẫn
+    // hiện ra giống hệt. Hai luật khác nhau bị vi phạm ở CÙNG MỘT CHỖ là chuyện bình thường; thứ phân
+    // biệt phải là TIÊU ĐỀ.
+    const cho = 'dòng 80 (Mục 5 — Ví dụ minh hoạ luồng chuẩn)';
+    const d1 = describeCandidate({ id: 'D1', rubric: 'mau_thuan_noi_tai', title_vi: 'Ví dụ mục 5: người tạo tự phê duyệt', quotes: [{ vi_tri: cho }] });
+    const d2 = describeCandidate({ id: 'D2', rubric: 'mau_thuan_noi_tai', title_vi: 'Ví dụ mục 5: chuyên viên duyệt 1 tỷ, vượt trần', quotes: [{ vi_tri: cho }] });
+    expect(d1, 'cùng nhãn + cùng vị trí vẫn phải khác nhau').not.toBe(d2);
+    expect(d1).toContain('tự phê duyệt');
+    expect(d2).toContain('vượt trần');
+  });
+
+  it('không có tiêu đề thì rơi về vị trí — vẫn nói được chỗ nhắm', () => {
+    const a = describeCandidate({ id: 'D1', rubric: 'mau_thuan_noi_tai', quotes: [{ vi_tri: 'dòng 49' }] });
+    expect(a).toContain('dòng 49');
   });
 
   it('không có trích dẫn thì rơi về tiêu đề — vẫn phân biệt được', () => {

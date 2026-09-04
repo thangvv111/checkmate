@@ -285,6 +285,27 @@ describe('cổng merge', () => {
     expect(html, 'không được còn nút merge khi đã khoá cứng').not.toContain('id="nut-merge"');
   });
 
+  it('FAIL + có medium → KHÔNG được nói «PASS», và KHÔNG hiện ô tick', () => {
+    // Lỗi PO gặp 04/09: verdict FAIL mà màn hình vẫn hiện «PASS kèm 4 cảnh báo medium — tick từng cảnh
+    // báo để mở nút Merge», cộng bốn ô tick dẫn tới một nút không tồn tại. Khối tick chỉ phụ thuộc số
+    // finding medium, không phụ thuộc trạng thái khoá.
+    //
+    // Ca «FAIL → Merge khoá cứng» ngay trên đã có từ trước và VẪN XANH suốt thời gian ấy: nó khoá vế
+    // «không còn nút merge» mà bỏ vế «không được nói PASS». Lần thứ bảy trong repo này gặp một ca đúng
+    // nhưng khoá thiếu một vế.
+    //
+    // Không có hậu quả dữ liệu (tick chẳng ghi đi đâu khi form merge không được dựng), nhưng chữ «PASS»
+    // trên màn hình một pull request đang FAIL có thể đẩy người đọc đi merge tay trên GitHub.
+    const cao = finding({ id: 'h1', severity: 'blocking', title_vi: 'Rò khoá' });
+    const med = finding({ id: 'm1', severity: 'non_blocking', title_vi: 'Thiếu test ca biên' });
+    const html = runPage(meta({ verdict: verdict({ result: 'FAIL', findings: [cao, med] }) }), false, suKien);
+    expect(html).toContain('Merge khoá cứng');
+    expect(html, 'cổng đã khoá thì KHÔNG được nói PASS').not.toContain('PASS kèm');
+    // Kiểm ô tick THẬT qua `data-fid`, không kiểm chuỗi 'tick-med': chuỗi ấy còn nằm trong JS của trang
+    // (`querySelectorAll('.tick-med')`), nên phép phủ định trên nó sẽ đỏ vĩnh viễn dù HTML đã đúng.
+    expect(html, 'và KHÔNG được mời tick cho một nút không tồn tại').not.toContain('data-fid="m1"');
+  });
+
   it('verdict stale → khoá cứng kèm lý do riêng, khác lý do finding HIGH', () => {
     const html = runPage(
       meta({ verdict: verdict({ result: 'PASS', findings: [], head_moved: { new_sha: 'fedcba9', at: 'x' } }) }),

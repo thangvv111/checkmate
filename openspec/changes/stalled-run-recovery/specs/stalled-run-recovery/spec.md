@@ -106,6 +106,30 @@ phiên Claude Code — trong khi đường ấy còn nguyên và phiên vẫn h�
 - **WHEN** cấu hình đang là phương thức API và chưa có khoá
 - **THEN** thông điệp nói thiếu khoá — đúng bản chất
 
+### Requirement: Cổng đã khoá thì bề mặt MUST NOT nói PASS, và MUST NOT mời tick
+
+Khi cổng merge bị khoá — vì có finding chặn, hoặc vì verdict đã hết hiệu lực do commit mới — bề mặt cổng
+MUST NOT hiện câu nói lượt chấm đạt, và MUST NOT dựng ô tick cảnh báo.
+
+*Vì sao: khối tick tồn tại để MỞ nút Merge. Cổng đã khoá thì không có nút nào để mở, nên khối ấy mời người
+đọc làm một thao tác vô nghĩa — và tệ hơn, câu mở đầu của nó nói lượt chấm ĐẠT. Đo được 04/09: một pull
+request FAIL hiện đồng thời «⛔ Merge khoá cứng» và «PASS kèm 4 cảnh báo medium», kèm bốn ô tick dẫn tới
+một nút không tồn tại.*
+
+*Không có hậu quả dữ liệu — không có form thì tick chẳng ghi đi đâu. Nhưng chữ «PASS» đứng trên màn hình
+của một pull request đang FAIL là loại hiểu nhầm đắt nhất bề mặt này gây ra được: người đọc có thể tin
+verdict đạt rồi đi merge tay trên GitHub, ngoài tầm cổng.*
+
+*Findings đã được liệt kê đầy đủ ở verdict phía trên, nên bỏ khối tick khi khoá không giấu thông tin nào.*
+
+#### Scenario: verdict có finding chặn, đồng thời có cảnh báo
+- **WHEN** cổng bị khoá vì finding chặn nhưng verdict cũng có cảnh báo không chặn
+- **THEN** bề mặt nói cổng khoá và lý do, KHÔNG nói lượt chấm đạt, KHÔNG hiện ô tick
+
+#### Scenario: verdict đạt và có cảnh báo
+- **WHEN** cổng không bị khoá và verdict có cảnh báo không chặn
+- **THEN** khối tick vẫn hiện như cũ — đây là đường dùng bình thường của nó
+
 ### Requirement: Danh sách ứng viên phải phân biệt được từng ứng viên
 
 Dòng liệt kê ứng viên đối kháng SHALL mang **chỗ mà từng ứng viên nhắm tới**, không chỉ nhãn phân loại.

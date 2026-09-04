@@ -181,6 +181,49 @@ tiến trình ấy phải còn sống**. Đo lại: ĐỎ. Tổng **10/10**.
 giết được tiến trình tuỳ ý trên máy chủ — đúng thứ security S0 dựng ba rào để chống, mà rào thứ nhất thì
 không ai kiểm.
 
+### D9 — Lượt KIỂM TAY tìm ra ba lỗi mà 23 ca test không thấy (ghi lúc apply)
+
+Mục «chạy thật một lượt» (tầng 2 của `test-grid-integrity`) đã trả giá của nó ngay trong change đầu tiên áp
+dụng nó. PO chạy tay bốn ô, và ba trong số đó lộ ra lỗi:
+
+**(a) Dòng «ai huỷ» bị ghi đè.** `huyLuot` ghi thẳng vào cơ sở dữ liệu, còn `child.on('close')` gọi
+`luu(state)` dựng LẠI sổ từ bộ nhớ của tiến trình web — bộ nhớ ấy không có dòng vừa ghi, nên nó xoá mất.
+Trên máy PO: lượt bị huỷ, tiến trình chết đúng, nhưng sổ chỉ còn dòng «Run dừng giữa chừng, mã thoát 1».
+23 ca test đều xanh, vì không ca nào có tiến trình con thật.
+
+Sửa bằng cờ `daHuy` trên `state` (không phải trên `this.runs` — nhánh đóng giữ `state` qua closure).
+
+**(b) `describeCandidate` chọn sai trường.** Bản đầu dùng `quotes[].vi_tri`, và lượt doc thật cho thấy nó
+không đủ: F5 («người tạo tự phê duyệt») và F6 («chuyên viên duyệt 1 tỷ, vượt trần») **cùng trỏ dòng 80,
+Mục 5**. Hai luật khác nhau bị vi phạm ở CÙNG MỘT CHỖ là chuyện bình thường — đó chính là hình dạng của một
+ví dụ viết sai. Thứ phân biệt phải là **tiêu đề**, không phải vị trí.
+
+**(c) Cổng khoá vẫn nói «PASS».** PO báo trong cùng lượt. Xem requirement thứ năm và D10.
+
+*Điều đáng ghi:* cả ba đều là lỗi **của chính bản vá này** hoặc lộ ra nhờ nó, và cả ba đều nằm ngoài tầm
+của lưới — không phải vì lưới viết ẩu, mà vì chúng cần một tiến trình con thật, một tài liệu thật, và một
+verdict thật. Mục kiểm tay không phải thủ tục cuối; nó là **tầng đo duy nhất** cho loại lỗi ấy.
+
+### D10 — Lỗi thứ tư: cổng đã khoá vẫn nói «PASS» (PO báo 04/09, gộp vào change này)
+
+`checklist` chỉ phụ thuộc số finding medium, không phụ thuộc `khoa`. Nên một verdict FAIL hiện đồng thời:
+
+```
+⛔ Merge khoá cứng. 1 finding HIGH — vá xong push lên nhánh rồi chạy kiểm lại.
+PASS kèm 4 cảnh báo medium — tick từng cảnh báo để mở nút Merge.
+[ ] [ ] [ ] [ ]          <- bốn ô tick, dẫn tới một nút KHÔNG tồn tại
+```
+
+Không có hậu quả dữ liệu (không có form thì tick chẳng ghi đi đâu). Nhưng chữ **PASS** trên màn hình một
+pull request đang FAIL là loại hiểu nhầm đắt nhất bề mặt này gây ra được — người đọc có thể tin verdict đạt
+rồi đi merge tay trên GitHub, ngoài tầm cổng.
+
+**Và ca «FAIL → Merge khoá cứng» đã có từ trước, vẫn xanh suốt thời gian ấy**: nó khoá vế «không còn nút
+merge» mà bỏ vế «không được nói PASS». Lần thứ **bảy** repo này gặp một ca đúng nhưng khoá thiếu một vế.
+
+Sửa: `checklist` chỉ dựng khi không khoá. KHÔNG đổi luật cổng — cổng vẫn khoá đúng như trước; thứ đổi là
+bề mặt thôi nói sai.
+
 ## Architecture
 
 - `store/db.ts` — thêm cột vào `run` qua khuôn `napCotThieu` (tự hết việc, không cần bước thủ công).

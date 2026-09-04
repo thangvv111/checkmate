@@ -41,6 +41,15 @@ interface RunState {
   meta: RunMeta;
   events: StoredEvent[];
   subs: Set<(ev: StoredEvent) => void>;
+  /**
+   * Lượt này đã bị người vận hành huỷ.
+   *
+   * Cờ nằm trên `state` chứ không phải trên `this.runs`, vì nhánh `child.on('close')` giữ `state` qua
+   * closure — xoá khỏi `this.runs` không chạm tới nó. Không có cờ này thì handler đóng sẽ chạy tiếp và
+   * `luu(state)` ghi đè sổ bằng bộ nhớ của nó, XOÁ MẤT dòng «ai huỷ» vừa ghi thẳng vào cơ sở dữ liệu.
+   * Đo được ở lượt kiểm tay 04/09: 23 ca test đều xanh, mà lượt thật mất dòng sổ.
+   */
+  daHuy?: boolean;
   /** Sổ sự kiện trên đĩa của lượt này — NGUỒN SỰ THẬT; bộ nhớ và cơ sở dữ liệu là bản đọc. */
   duongSo?: string;
   /** Đã đọc tới byte nào của sổ. */
@@ -192,7 +201,9 @@ export class RunManager {
         }
       }
       state.thoiTheoHead?.();
-      this.luu(state);
+      // Lượt đã bị huỷ thì sổ và trạng thái ĐÃ được ghi ở `huyLuot`. Ghi thêm ở đây là ghi đè: `luu`
+      // dựng lại sổ từ bộ nhớ của tiến trình web, mà bộ nhớ ấy không có dòng «ai huỷ».
+      if (!state.daHuy) this.luu(state);
       for (const s of state.subs) s({ t: Date.now() - t0, e: { type: 'log', msg: '__END__' } });
     });
     return id;
@@ -310,6 +321,10 @@ export class RunManager {
     const meta = kho.readMeta(id);
     if (!meta) return { ok: false, loi: 'Không có lượt chấm này.' };
     if (meta.trangThai !== 'dang_chay') return { ok: false, loi: 'Lượt chấm này đã kết thúc.' };
+    // Đặt cờ TRƯỚC khi kill: tiến trình chết sẽ kích hoạt `child.on('close')`, và nhánh ấy phải biết
+    // lượt đã được kết sổ rồi. Đặt sau thì có cửa sổ đua mà bên thua là dòng «ai huỷ».
+    const st = this.runs.get(id);
+    if (st) st.daHuy = true;
     const daDungTienTrinh = killRunProcess(meta.pid, id);
     this.ketThucLoi(
       meta,
