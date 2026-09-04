@@ -1,10 +1,26 @@
-import { shell } from './ui.js';
+import { escHtml, shell } from './ui.js';
+import { PRINCIPLES, PRINCIPLES_POSTER } from './principles.js';
 
 // Trang "Nguyên tắc làm việc" — tài liệu tự thân của checker: vì sao verdict tin được.
 // Bố cục: menu điều hướng trái (sticky + scroll-spy), nội dung phải. CSS gói riêng trong trang
 // để không đụng CSS chung của các màn nghiệp vụ.
 
 const CSS_DOCS = `
+  /* Khối chín nguyên tắc — gói design CCS §8: màn đọc, rộng tối đa 900px. */
+  .nt-poster { background:var(--color-accent); color:var(--color-bg); padding:34px 30px; margin:0 0 26px;
+    max-width:900px; }
+  .nt-poster p { font-family:var(--font-heading); font-weight:800; font-size:38px; line-height:1.12;
+    letter-spacing:-0.02em; margin:0; }
+  .nt-list { max-width:900px; margin:0 0 34px; }
+  .nt-item { display:grid; grid-template-columns:56px minmax(0,1fr); gap:0 16px; padding:16px 0;
+    border-top:1px solid var(--line); }
+  .nt-item:first-child { border-top:2px solid var(--color-divider); }
+  .nt-so { font-family:var(--font-heading); font-weight:800; font-size:30px; line-height:1;
+    color:var(--color-neutral-400); }
+  .nt-item h3 { font-family:var(--font-heading); font-weight:800; font-size:19px; margin:0 0 6px; }
+  .nt-item p { font-size:14px; line-height:1.6; margin:0 0 8px; max-width:68ch; }
+  .nt-thay-o { font-family:var(--font-mono); font-size:11.5px; color:var(--muted); }
+  .nt-thay-o a { color:var(--color-accent); }
   .docs { display:grid; grid-template-columns:218px minmax(0,1fr); gap:34px; align-items:start; }
   .docs-nav { position:sticky; top:22px; }
   .docs-nav .nhom { font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted);
@@ -57,6 +73,8 @@ const JS_SPY = `
 export function docsPage(nguoi = ''): string {
   const nav = `
   <nav class="docs-nav" aria-label="Mục lục">
+    <div class="nhom">Nguyên tắc</div>
+    <a href="#chin-nguyen-tac">Chín nguyên tắc</a>
     <div class="nhom">Nền tảng</div>
     <a href="#triet-ly">Triết lý maker–checker</a>
     <a href="#verdict">Verdict &amp; vòng đời</a>
@@ -73,6 +91,25 @@ export function docsPage(nguoi = ''): string {
     <div class="nhom">Trung thực</div>
     <a href="#gioi-han">Giới hạn nói thẳng</a>
   </nav>`;
+
+  // Chín nguyên tắc dựng TỪ DỮ LIỆU. Dòng «thấy ở:» trỏ route thật, và có lưới bắt được khi đường chết —
+  // gói design viết «giữ liên kết này khi sửa màn khác», mà một lời dặn thì trôi.
+  const chinNguyenTac = `
+  <section id="chin-nguyen-tac">
+    <div class="nt-poster"><p>${escHtml(PRINCIPLES_POSTER)}</p></div>
+    <div class="nt-list">
+      ${PRINCIPLES.map(
+        (n) => `<div class="nt-item">
+        <div class="nt-so">${escHtml(n.so)}</div>
+        <div>
+          <h3>${escHtml(n.tieuDe)}</h3>
+          <p>${escHtml(n.than)}</p>
+          <div class="nt-thay-o">thấy ở: <a href="${escHtml(n.thayO.duong)}">${escHtml(n.thayO.nhan)}</a></div>
+        </div>
+      </div>`,
+      ).join('')}
+    </div>
+  </section>`;
 
   const body = `
   <div class="docs-body">
@@ -315,6 +352,7 @@ export function docsPage(nguoi = ''): string {
     `<style>${CSS_DOCS}</style>
      <h1>Nguyên tắc làm việc</h1>
      <p class="sub">Vì sao một verdict của CheckMate đáng tin — và nó không được phép làm gì.</p>
+     ${chinNguyenTac}
      <div class="docs">${nav}${body}</div>`,
     JS_SPY,
     { muc: 'rules', nguoi },
