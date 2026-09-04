@@ -88,9 +88,12 @@ grep -rc "isPrRunning" apps/web/src/*.ts store/*.ts     # 7 (gom dinh nghia + co
 - [x] 8.1 **ĐÃ CHẠY THẬT.** Log: «Đánh dấu lỗi 1 lượt có tiến trình đã chết: wmtlc846uh8nk». Cột `pid`
       được di trú tự động (không thao tác tay); xác chuyển `dang_chay` → `loi` kèm `ket_thuc`; sổ có dòng
       «Lượt chấm bị bỏ dở: không có dấu vết tiến trình…»; số hàng `dang_chay` còn lại = **0**.
-- [ ] 8.2 Chấm lại PR #7 → **không còn 409 `pr_dang_cham`**.
+- [x] 8.2 **PO chạy lại PR #7 thành công** (04/09). Lượt mới `wmtmola1z8vxj`: `xong`, 08:17:37 →
+      08:22:12, và **pid 14928 được ghi thật** — cột mới hoạt động trên hệ thống thật, không chỉ trong lưới.
 - [ ] 8.3 Chạy một lượt, bấm **Huỷ** → lượt thành lỗi, sổ ghi ai huỷ, tiến trình dừng.
-- [ ] 8.4 Cấu hình về thuê bao, bấm Kiểm tra lại → thông điệp nói đúng phương thức, không đòi API key.
+- [x] 8.4 **PO bấm Kiểm tra lại thành công** (04/09). Sổ kiểm: `ok: true`, `phuong_thuc: thue_bao`,
+      thông điệp «Gói thuê bao trả lời: “OK” (model claude-opus-5) — KHÔNG tiêu credit API». Đúng đường
+      thuê bao, không đụng API key.
 - [ ] 8.5 Một lượt doc → dòng ứng viên phân biệt được từng cái.
 
 ## 9. Kiểm cơ học
