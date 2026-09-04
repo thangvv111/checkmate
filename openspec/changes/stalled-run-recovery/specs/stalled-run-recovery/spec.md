@@ -2,21 +2,18 @@
 
 ### Requirement: Lượt còn sống được phân biệt bằng TIẾN TRÌNH, không bằng sự tồn tại của sổ
 
-Khi khởi động lại, engine SHALL phân biệt lượt `dang_chay` còn sống với lượt đã kẹt bằng **tiến trình chấm
+Khi khởi động lại, engine SHALL phân biệt lượt `dang_chay` còn sống với lượt đã chết bằng **tiến trình chấm
 của nó**, không bằng việc sổ sự kiện có tồn tại hay không.
 
 Định danh tiến trình SHALL được lưu cùng lượt ngay khi lượt bắt đầu.
 
-Lượt không xác minh được là còn sống SHALL bị đánh dấu **kẹt**, và MUST NOT tiếp tục được tính là đang chạy
-đối với trần chạy đồng thời và phép kiểm «pull request này đang được chấm».
-
 *Vì sao phép kiểm cũ sai: sổ sự kiện là file trên đĩa, nó **tồn tại mãi** sau khi tiến trình chết. Hỏi «sổ
-có không» thì mọi lượt từng chạy đều trả lời có. Comment trong code nói ý đúng là «sổ đang **lớn dần**»,
-nhưng chưa vế nào của phép kiểm đo được điều đó.*
+có không» thì mọi lượt từng chạy đều trả lời có.*
 
-*Vì sao hệ quả nặng: một lượt kẹt vẫn tính vào `runningCount()` và vẫn làm `isPrRunning()` trả true — nên nó
-**khoá vĩnh viễn việc chấm lại đúng pull request ấy**, và hai lượt kẹt là trần đầy, chặn mọi lượt mới. Đo
-được: một xác nằm 17 giờ, khoá PR #7 của repo đích.*
+*Vì sao phải phân biệt chứ không đánh dấu lỗi hàng loạt — đo được: tiến trình chấm được spawn qua shell và
+ghi sự kiện thẳng vào **file** chứ không qua pipe, nên nó **độc lập với server**. Thí nghiệm 04/09: giết
+tiến trình cha, tiến trình cháu vẫn ghi tiếp và chạy **trọn vẹn tới hết**. Đánh dấu lỗi mọi hàng `dang_chay`
+lúc khởi động là vứt một lượt đang chạy đúng và đốt lại toàn bộ token đã tiêu cho nó.*
 
 #### Scenario: khởi động lại khi tiến trình chấm còn sống
 - **WHEN** tiến trình chấm của một lượt vẫn đang chạy
@@ -24,46 +21,67 @@ nhưng chưa vế nào của phép kiểm đo được điều đó.*
 
 #### Scenario: khởi động lại khi tiến trình chấm đã chết
 - **WHEN** tiến trình chấm không còn
-- **THEN** lượt bị đánh dấu kẹt, không còn tính vào trần chạy đồng thời và không còn khoá pull request
+- **THEN** lượt được xử theo requirement dưới
 
 #### Scenario: lượt đời cũ không có định danh tiến trình
 - **WHEN** một lượt `dang_chay` được ghi từ trước khi tính năng này có
-- **THEN** nó được coi là **kẹt** — không suy đoán là còn sống
+- **THEN** nó được coi là đã chết — không suy đoán là còn sống
 
-### Requirement: Lượt kẹt phải có đường thoát — TIẾP TỤC hoặc HUỶ
+### Requirement: Lượt có tiến trình đã chết thành LỖI ngay lúc khởi động
 
-Mỗi lượt kẹt SHALL có hai hành động trên bề mặt đọc: **tiếp tục** và **huỷ**.
+Lượt `dang_chay` mà tiến trình chấm không còn SHALL được đánh dấu **lỗi** ngay ở lượt khởi động phát hiện
+ra, kèm một dòng trong sổ sự kiện nói rõ vì sao.
 
-**Tiếp tục** SHALL đi qua đúng phép kiểm điều kiện chạy như một lượt mới — trần chạy đồng thời và pull
-request đang được chấm — và SHALL bị từ chối kèm lý do khi không đủ điều kiện.
+Engine MUST NOT giữ một trạng thái trung gian nào cho lượt ấy, và MUST NOT chờ người vận hành thao tác mới
+giải phóng nó.
 
-**Huỷ** SHALL kết thúc lượt với trạng thái lỗi và ghi lý do vào sổ sự kiện của lượt.
+*Vì sao lỗi chứ không phải một trạng thái riêng: lượt chết là lượt **không có verdict** và sẽ không bao giờ
+có. Giữ nó ở một trạng thái thứ ba chỉ tạo thêm một ô trên bề mặt mà người đọc phải học nghĩa, trong khi
+điều họ cần biết đã đủ trong một chữ: **lỗi**. Muốn chấm lại thì bấm chấm — đó là một lượt MỚI, có id mới,
+và lịch sử giữ đúng hai bản ghi cho hai lần chạy.*
 
-Khi huỷ, engine SHALL kết thúc tiến trình chấm **chỉ khi xác minh được tiến trình ấy đúng là của lượt này**;
-không xác minh được thì MUST NOT kết thúc tiến trình nào, và bề mặt phải nói rõ điều đó.
+*Vì sao phải NGAY, không chờ ai bấm: trạng thái `dang_chay` là thứ `runningCount()` đếm và `isPrRunning()`
+đọc. Một lượt chết còn mang trạng thái ấy sẽ **khoá trần chạy đồng thời** và **khoá luôn việc chấm lại đúng
+pull request đó** — đo được: một lượt chết nằm 17 giờ, khoá PR #7 của repo đích, và không có thao tác nào
+trên giao diện gỡ được. Đánh dấu lỗi ngay là giải phóng cả hai mà không cần sửa chỗ nào khác.*
 
-*Vì sao huỷ phải ghi lý do: một lượt chuyển sang lỗi mà không nói vì sao là báo thiếu bản chất — người đọc
-lịch sử sau này không phân biệt được «lượt hỏng vì code» với «người vận hành huỷ».*
+#### Scenario: khởi động sau khi một lượt chết giữa chừng
+- **WHEN** engine khởi động và thấy lượt `dang_chay` không còn tiến trình
+- **THEN** lượt thành lỗi, sổ sự kiện có dòng nói rõ nguyên nhân
+
+#### Scenario: trần và pull request được giải phóng
+- **WHEN** một lượt chết đã thành lỗi
+- **THEN** nó không còn được đếm vào trần chạy đồng thời và không còn chặn việc chấm lại pull request ấy
+
+### Requirement: Huỷ được một lượt ĐANG CHẠY, và không bao giờ kill mù
+
+Bề mặt đọc SHALL có hành động **huỷ** cho lượt đang chạy.
+
+Huỷ SHALL kết thúc lượt ở trạng thái lỗi và ghi vào sổ sự kiện **ai** đã huỷ.
+
+Engine SHALL kết thúc tiến trình chấm **chỉ khi xác minh được tiến trình ấy đúng là của lượt này**; không
+xác minh được thì MUST NOT kết thúc tiến trình nào, và bề mặt phải nói rõ là chỉ đánh dấu lượt chứ chưa dừng
+tiến trình.
+
+*Vì sao huỷ phải ghi ai làm: một lượt chuyển sang lỗi mà không nói vì sao là báo thiếu bản chất — người đọc
+lịch sử sau này không phân biệt được «lượt hỏng vì code» với «người vận hành huỷ». Cùng lý do R11.16 đóng
+băng tên tác giả vào hàng sổ cổng: một hành động không biết ai làm là hành động không đối chất được.*
 
 *Vì sao không được kill mù: định danh tiến trình bị hệ điều hành **tái dùng**. Sau khi máy khởi động lại,
-đúng con số ấy có thể là một tiến trình hoàn toàn khác — kill mù là giết một tiến trình vô can của người
-dùng, và đó là thiệt hại không đảo ngược được nằm ngoài phạm vi sản phẩm này.*
+đúng con số ấy có thể thuộc về một tiến trình hoàn toàn khác — kill mù là giết một tiến trình vô can của
+người dùng, một thiệt hại không đảo ngược nằm **ngoài phạm vi sản phẩm này**.*
 
-#### Scenario: tiếp tục một lượt kẹt khi còn chỗ
-- **WHEN** người vận hành bấm tiếp tục và điều kiện chạy còn cho phép
-- **THEN** lượt được chạy lại
-
-#### Scenario: tiếp tục khi đã chạm trần hoặc pull request đang được chấm
-- **WHEN** điều kiện chạy không cho phép
-- **THEN** yêu cầu bị từ chối kèm lý do đọc được
-
-#### Scenario: huỷ một lượt kẹt
-- **WHEN** người vận hành bấm huỷ
-- **THEN** lượt kết thúc ở trạng thái lỗi, sổ sự kiện có một dòng nói rõ là người vận hành huỷ
+#### Scenario: huỷ một lượt đang chạy
+- **WHEN** người vận hành bấm huỷ trên lượt đang chạy
+- **THEN** lượt kết thúc ở trạng thái lỗi, và sổ ghi ai đã huỷ
 
 #### Scenario: huỷ khi không xác minh được tiến trình
 - **WHEN** không xác minh được tiến trình còn lại đúng là của lượt này
-- **THEN** không tiến trình nào bị kết thúc, và bề mặt nói rõ chỉ đánh dấu lượt chứ chưa dừng tiến trình
+- **THEN** không tiến trình nào bị kết thúc, và bề mặt nói rõ điều đó
+
+#### Scenario: huỷ một lượt đã kết thúc
+- **WHEN** lượt không còn ở trạng thái đang chạy
+- **THEN** yêu cầu bị từ chối
 
 ### Requirement: Thông điệp cổng nhà cung cấp phải nói đúng phương thức đang chọn
 

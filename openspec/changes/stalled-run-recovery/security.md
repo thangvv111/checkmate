@@ -8,8 +8,8 @@ xoay quanh nó.
 
 Trước change này, không đường nào từ HTTP tới `kill`. Sau change, có. Ba rào phải cùng đứng:
 
-1. **Xác minh trước khi kill** (D1) — chỉ kết thúc tiến trình khi kiểm được nó đúng là tiến trình chấm của
-   lượt ấy. Không xác minh được thì KHÔNG kill.
+1. **Xác minh trước khi kill** (D1) — chỉ kết thúc tiến trình khi kiểm được **dòng lệnh của nó mang chính
+   run id**. Không đọc được dòng lệnh thì coi như không xác minh được, và KHÔNG kill.
 2. **Chỉ lượt của chính CheckMate** — pid lấy từ hàng `run` do chính engine ghi lúc `batDau`, không nhận pid
    từ người dùng qua tham số.
 3. **Chế độ demo không được thao tác** — cùng hạng với các route sửa cấu hình.
@@ -26,17 +26,19 @@ Bỏ rào nào cũng đủ để biến một nút giao diện thành công cụ
 
 ## S2. Danh tính, phiên, vai (R11)
 
-- ⚠️ S2.1 Hai route mới (**tiếp tục**, **huỷ**) là route **hành động**, phải nằm sau cùng cửa phiên như mọi
-  route hành động khác. Route đọc thì chỉ hiện nút; quyền thực thi nằm ở route.
+- ⚠️ S2.1 Route **huỷ** là route **hành động**, phải nằm sau cùng cửa phiên như mọi route hành động khác,
+  và **chế độ demo phải từ chối** — cùng hạng với route sửa cấu hình. Route đọc chỉ hiện nút; quyền thực thi
+  nằm ở route.
 - ⚠️ S2.2 «Huỷ» là hành động phá huỷ (kết thúc một lượt đang có). Nó phải ghi **ai bấm** vào sổ sự kiện —
   cùng lý do R11.16 đóng băng tên tác giả vào hàng sổ cổng: một hành động không biết ai làm là một hành
   động không đối chất được.
 
 ## S3. Cổng & quyền của máy (R6, R11.18)
 
-- ✅ S3.1 Không thêm đường cho máy tự merge. «Tiếp tục» chỉ chạy lại một lượt chấm, không đụng verdict cũ.
-- ⚠️ S3.2 Lượt kẹt được giải phóng **không** làm verdict cũ của nó có hiệu lực ở cổng. Lượt kẹt là lượt
-  **chưa có verdict** — giải phóng nó nghĩa là cho phép chấm lại, không phải công nhận nửa kết quả.
+- ✅ S3.1 Không thêm đường cho máy tự merge.
+- ⚠️ S3.2 Lượt chết thành lỗi **không** làm gì đó có hiệu lực ở cổng — nó là lượt **chưa có verdict** và sẽ
+  không bao giờ có. Đánh dấu lỗi nghĩa là cho phép chấm lại bằng một lượt MỚI, không phải công nhận nửa kết
+  quả của lượt cũ.
 
 ## S4. Dữ liệu không tin cậy & prompt injection (R7)
 
@@ -61,19 +63,20 @@ Bỏ rào nào cũng đủ để biến một nút giao diện thành công cụ
 
 ## S7. Fail-closed & bất biến verdict (R1, R6)
 
-- ✅ S7.1 Lượt đời cũ không có pid → coi là **kẹt** (D2). Hướng sai không đối xứng: đoán nhầm «kẹt» mất một
-  lần bấm nút; đoán nhầm «còn sống» khoá một pull request mà không ai gỡ được.
-- ✅ S7.2 «Tiếp tục» là chạy lại trọn vẹn (D3) — không có verdict «nửa vời trông như đủ».
-- ⚠️ S7.3 **Chỗ nguy hiểm nhất về mặt logic**: nếu phép nhận diện «còn sống» sai theo chiều **coi lượt đang
-  chạy là kẹt**, người vận hành có thể bấm Huỷ và giết một lượt đang chạy đúng — mất token và mất việc.
-  Đó là lý do phép nhận diện phải là **hàm thuần có ca cho từng nhánh**, không phải một biểu thức inline.
+- ✅ S7.1 Lượt đời cũ không có pid → coi là **đã chết** (D2). Hướng sai không đối xứng: đoán nhầm «chết» mất
+  một lượt phải chấm lại; đoán nhầm «còn sống» khoá một pull request mà không ai gỡ được.
+- ✅ S7.2 Chạy lại là một lượt MỚI trọn vẹn (D3) — không có verdict «nửa vời trông như đủ».
+- ⚠️ S7.3 **Chỗ nguy hiểm nhất về mặt logic**: nếu phép nhận diện sai theo chiều **coi lượt đang chạy là đã
+  chết**, engine đánh dấu lỗi một lượt đang chạy đúng — mất token và mất việc, và tiến trình vẫn chạy tiếp,
+  ghi vào một lượt đã mang trạng thái lỗi. Đó là lý do phép nhận diện phải là **hàm thuần có ca cho từng
+  nhánh**, không phải một biểu thức inline (D6 khoá luôn giả định nền của nó).
 
 ## S8. Leo quyền & cô lập (per-vector — theo change này)
 
 Mục tiêu: **dùng nút mới để làm hại máy chủ**.
 
 - ✅ S8.1 (a) gọi route huỷ với id lượt không tồn tại → không có pid, không kill gì.
-- ✅ S8.2 (b) gọi route huỷ với id của lượt ĐÃ xong → lượt không ở trạng thái chạy/kẹt, từ chối.
+- ✅ S8.2 (b) gọi route huỷ với id của lượt ĐÃ xong → lượt không còn đang chạy, từ chối.
 - ✅ S8.3 (c) sửa tay cột pid trong cơ sở dữ liệu thành pid tiến trình hệ thống → **xác minh dòng lệnh chặn**
   (dòng lệnh không mang run id). Đây chính là ca mà rào 1 tồn tại để chống.
 - ⚠️ S8.4 (d) người có quyền ghi đĩa máy chủ sửa cả pid lẫn dòng lệnh → không lưới nào chặn. Cùng hạng với

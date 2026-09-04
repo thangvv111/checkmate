@@ -54,9 +54,11 @@ ngân` — hai hàng khác nhau của cùng một phụ lục. Gỡ bớt bất 
 
 ## What Changes
 
-- **(1)** Lưu `pid` của tiến trình chấm; phân biệt lượt còn sống với lượt kẹt bằng pid, không bằng «có sổ».
-  Bề mặt lượt kẹt có **hai nút**: **Tiếp tục** (kiểm đủ điều kiện chạy tiếp rồi mới chạy) và
-  **Huỷ** (kết thúc lượt; kill tiến trình khi xác minh được đúng nó).
+- **(1)** Lưu `pid` của tiến trình chấm; phân biệt lượt còn sống với lượt đã chết bằng pid, không bằng
+  «có sổ». Lượt đã chết thành **lỗi ngay** ở lần khởi động phát hiện ra — tự giải phóng trần và pull
+  request, không cần ai bấm gì.
+- **(1b)** Nút **Huỷ** cho lượt **đang chạy thật**; kill chỉ khi xác minh được đúng tiến trình của lượt ấy.
+  KHÔNG có trạng thái trung gian, KHÔNG có nút «tiếp tục» — chạy lại là một lượt MỚI (PO chốt 04/09, D3).
 - **(2)** Thông điệp cổng nhà cung cấp phải nói **phương thức đang chọn**, và khi sổ kiểm mang phương thức
   khác cấu hình thì nói rõ là **cần kiểm lại**, không đổ cho thiếu API key.
 - **(3)** Dòng ứng viên phải mang **chỗ nhắm** của từng ứng viên, không chỉ nhãn loại.
@@ -66,11 +68,12 @@ ngân` — hai hàng khác nhau của cùng một phụ lục. Gỡ bớt bất 
 - KHÔNG đổi trần số probe / finding theo kích thước artifact — backlog **#17**.
 - KHÔNG lọc probe thư viện theo diff — backlog **#18**.
 - KHÔNG đổi luật cổng: chặn vẫn là chặn; change này chỉ làm bề mặt nói đúng và cho đường thoát.
+- KHÔNG dọn worktree sandbox của lượt bị huỷ — chỗ hở CÓ Ý THỨC, khai ở security S5.1.
 
 ## Luật chạm tới
 
 - Capability MỚI `stalled-run-recovery` (ADDED)
-- ⛔C2 — lượt kẹt không được im lặng biến mất; huỷ phải ghi lý do vào sổ
+- ⛔C2 — lượt chết không được im lặng biến mất: đánh dấu lỗi phải ghi lý do, huỷ phải ghi ai làm
 - ⛔C5 — thêm export thì khai bảng module `checkmate.yml`
 - **Đổi hình dạng dữ liệu**: thêm cột vào bảng `run` → phải có đường di trú tự động (khuôn `napCotThieu`)
 

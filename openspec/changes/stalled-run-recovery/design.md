@@ -5,7 +5,7 @@
 ```
 Ba loi, mot ho: BE MAT NOI KHONG DU DE NGUOI DOC HANH DONG DUNG
 
-(1) luot ket   noiLaiLuotDangChay: existsSync(so)  ->  xac song mai
+(1) luot chet  noiLaiLuotDangChay: existsSync(so)  ->  xac song mai
                  |  runningCount()=1 (tran 2)
                  |  isPrRunning(7)=true  -> 409 pr_dang_cham  -> KHOA PR #7 VINH VIEN
                  |  va khong co duong nao HUY: child chi la bien cuc bo
@@ -22,121 +22,153 @@ Ba loi, mot ho: BE MAT NOI KHONG DU DE NGUOI DOC HANH DONG DUNG
 ## Goals / Non-Goals
 
 **Goals**
-- Lượt kẹt không còn khoá trần và không còn khoá pull request; có đường thoát (tiếp tục / huỷ).
-- Hai thông điệp nói đúng bản chất, đủ để người đọc làm việc tiếp.
+- Lượt chết thành **lỗi ngay**, tự giải phóng trần và pull request.
+- Huỷ được một lượt đang chạy, không bao giờ kill mù.
+- Hai thông điệp nói đúng bản chất.
 
 **Non-Goals**
 - KHÔNG đổi luật cổng — chặn vẫn chặn (⛔C2).
+- KHÔNG có trạng thái trung gian nào giữa «đang chạy» và «lỗi» (D3).
+- KHÔNG có nút «tiếp tục» — chạy lại là một lượt MỚI (D3).
+- KHÔNG dọn worktree sandbox của lượt bị huỷ (security S5.1 — chỗ hở có ý thức).
 - KHÔNG đụng trần probe theo artifact (backlog #17) hay lọc thư viện theo diff (backlog #18).
-- KHÔNG dựng hàng đợi lượt chấm — «tiếp tục» là chạy lại, không phải nối tiếp phần dở.
 
 ## Decisions
 
+### D0 — Đo trước, thiết kế sau: tiến trình chấm CÓ sống sót qua cái chết của server
+
+Cả thiết kế đứng trên một sự thật mà repo này **chưa ai đo**, và có hai comment khẳng định ngược nhau về nó
+(xem D7). Nên đo trước.
+
+**Thí nghiệm (04/09):** dựng lại đúng khuôn `batDau` — `spawn(…, { shell: true, stdio: ['ignore','pipe','pipe'] })`,
+tiến trình cháu ghi «sổ» ra **file** chứ không qua pipe. Giết tiến trình cha bằng `Stop-Process -Force`
+(không `-T`, không giết cây), rồi đếm dòng trong file.
+
+| mốc | số dòng |
+|---|---|
+| trước khi giết cha | 5 |
+| sau 4 giây | **13** |
+| sau 7 giây | **40 — chạy trọn vẹn tới hết rồi tự kết thúc** |
+
+**Kết luận: cháu sống sót và làm xong việc.** Vì nó ghi file chứ không ghi qua pipe, cái chết của cha không
+chạm tới nó.
+
+Hệ quả trực tiếp cho thiết kế: **KHÔNG được đánh dấu lỗi hàng loạt mọi hàng `dang_chay` lúc khởi động** —
+làm thế là vứt một lượt đang chạy đúng và đốt lại toàn bộ token đã tiêu.
+
 ### D1 — Lưu `pid`, và KHÔNG BAO GIỜ kill theo pid trần
 
-PO chốt hướng (b): thêm cột định danh tiến trình. Một cột giải hai việc — nhận diện sống/chết, và huỷ được
-sau khi server khởi động lại (`child` trong bộ nhớ đã mất).
+PO chốt hướng (b): thêm cột định danh tiến trình. Một cột hai vai — nhận diện sống/chết lúc khởi động, và
+kill được khi bấm Huỷ sau khi server đã khởi động lại (`child` trong bộ nhớ đã mất).
 
 Nhưng pid **bị hệ điều hành tái dùng**. `process.kill(pid, 0)` chỉ trả lời «có tiến trình mang số ấy», không
-trả lời «đúng tiến trình của lượt này». Sau một lần khởi động máy, con số ấy gần như chắc chắn thuộc về
-tiến trình khác.
-
-Hai hệ quả, khác nhau về mức nguy hiểm:
+trả lời «đúng tiến trình của lượt này».
 
 | dùng pid để | nhầm thì sao |
 |---|---|
-| **nhận diện** còn sống | lượt kẹt bị coi là còn sống → vẫn khoá PR; **tệ bằng hôm nay, không tệ hơn** |
+| **nhận diện** còn sống | lượt chết bị coi là còn sống → vẫn khoá PR; **tệ bằng hôm nay, không tệ hơn** |
 | **kill** | **giết một tiến trình vô can của người dùng** — thiệt hại ngoài phạm vi sản phẩm, không đảo ngược |
 
-Nên quy tắc: **xác minh trước khi kill**. Chỉ kết thúc tiến trình khi kiểm được nó đúng là tiến trình chấm
-của lượt này (dòng lệnh mang chính run id — engine đã truyền `--events-out runs/<id>/events.jsonl`, nên run
-id có mặt trong dòng lệnh). Không xác minh được → **không kill**, chỉ đánh dấu lượt, và **nói ra**.
+Quy tắc: **xác minh trước khi kill**. Chỉ kết thúc tiến trình khi kiểm được dòng lệnh của nó mang chính run
+id — engine đã truyền `--events-out runs/<id>/events.jsonl`, nên run id **có mặt trong dòng lệnh**. Không
+xác minh được → không kill, chỉ đánh dấu lượt, và **nói ra**.
+
+Đọc dòng lệnh: Windows `Get-CimInstance Win32_Process` (đã thử trong lượt đo — trả về `CommandLine`);
+Linux `/proc/<pid>/cmdline`. Không đọc được trên nền đang chạy ⇒ coi như **không xác minh được**, tức không
+kill — hướng sai lệch về phía an toàn.
 
 Thà để một tiến trình mồ côi chạy nốt còn hơn giết nhầm thứ không phải của mình.
 
-### D2 — Lượt đời cũ không có pid ⇒ coi là KẸT, không suy đoán
+### D2 — Lượt đời cũ không có pid ⇒ coi là ĐÃ CHẾT, không suy đoán
 
-Cột mới thì mọi hàng cũ có `pid` rỗng. Hai cách đọc, và chọn cách nào là một quyết định fail-closed:
+Cột mới thì mọi hàng cũ có pid rỗng. Hai cách đọc:
 
 - coi là **còn sống** → giữ nguyên bệnh hôm nay: xác khoá PR vĩnh viễn;
-- coi là **kẹt** → giải phóng trần và PR ngay, và nếu tiến trình thật sự còn sống thì nó vẫn ghi tiếp vào sổ,
-  không mất gì — người vận hành thấy lượt kẹt, bấm tiếp tục.
+- coi là **đã chết** → thành lỗi ngay, giải phóng trần và PR. Nếu tiến trình thật sự còn sống thì nó vẫn ghi
+  tiếp vào sổ (D0) — không mất dữ liệu, chỉ mất một lượt phải chấm lại.
 
-Chọn **kẹt**. Hướng sai ở đây không đối xứng: đoán nhầm «kẹt» thì mất một lần bấm nút; đoán nhầm «còn sống»
-thì khoá một pull request mà không ai gỡ được.
+Chọn **đã chết**. Hướng sai không đối xứng: đoán nhầm «chết» thì mất một lượt chấm; đoán nhầm «còn sống» thì
+khoá một pull request mà **không ai gỡ được**.
 
-Đó cũng là lý do xác `wmtlc846uh8nk` của PO được giải phóng ngay ở lần khởi động đầu sau bản vá — không cần
-thao tác dữ liệu tay.
+Nhờ đó xác `wmtlc846uh8nk` của PO được giải phóng ngay ở lần khởi động đầu sau bản vá — không cần sửa dữ
+liệu tay.
 
-### D3 — «Tiếp tục» là CHẠY LẠI, không phải nối tiếp phần dở
+### D3 — KHÔNG có trạng thái «kẹt», KHÔNG có nút «tiếp tục» (PO chốt 04/09)
 
-Cám dỗ là nối tiếp từ chỗ dừng — thư viện probe đã có, sổ sự kiện còn đó. Không làm, vì trạng thái giữa
-chừng của một lượt chấm nằm rải ở bốn chỗ: sổ sự kiện, sandbox worktree, thư viện probe, và bộ nhớ tiến
-trình đã chết. Ba chỗ đầu còn, chỗ thứ tư mất — và chính nó giữ biết «đang ở bước nào, đã nạp gì».
+Bản đầu của change này dựng một trạng thái thứ ba («kẹt») kèm hai nút *tiếp tục* / *huỷ*. PO bác:
 
-Dựng lại trạng thái ấy từ sổ là suy đoán, và suy đoán sai cho ra một verdict trông đầy đủ mà thiếu nửa phép
-thử. Chạy lại thì tốn thêm token nhưng verdict **đúng là verdict của một lượt trọn vẹn**.
+> *«nếu tiếp tục là chạy lại thì giữ phiên review bị lỗi không còn ý nghĩa. Lỗi là báo lỗi luôn và lưu vào
+> lịch sử. Chạy là tạo phiên mới.»*
 
-*Cái mất, nói thẳng:* mất phần việc đã chạy — với lượt chết ở phút cuối thì mất gần hết. Đổi lại: không có
-loại verdict «nửa vời trông như đủ», đúng thứ ⛔C2 cấm.
+Đúng, và nó gỡ được cả một chuỗi:
 
-### D4 — «Tiếp tục» đi qua ĐÚNG cửa của một lượt mới
+| bỏ được | vì sao |
+|---|---|
+| trạng thái «kẹt» | lượt chết là **lỗi**; một trạng thái thứ ba chỉ là thêm một ô người đọc phải học nghĩa |
+| route «tiếp tục» | chạy lại = bấm chấm mới, nút ấy **đã có sẵn** trên màn pull request |
+| sửa `runningCount` / `isPrRunning` | chúng đã lọc theo `dang_chay` — đánh dấu `loi` là **tự** giải phóng |
+| cả câu hỏi «nối tiếp hay chạy lại» | tự biến mất |
 
-Không viết lại điều kiện chạy ở route mới. `evaluateStartRun` đã là hàm thuần và đã gác cả hai vế (trần,
-pull request đang chấm) — route tiếp tục gọi chính nó.
+Vế duy nhất của PO phải điều chỉnh là **«lỗi là báo lỗi luôn»** áp cho *mọi* hàng `dang_chay`: D0 đo được
+tiến trình con sống sót, nên phải phân biệt trước rồi mới đánh dấu. Ba vế còn lại giữ nguyên.
 
-Đây là bài học «cửa song sinh» bị bắt chín lần trong repo này: hai cửa cùng vai viết bằng hai biểu thức
-riêng thì sẽ lệch nhau, và không ca test nào gọi được tới quyết định.
+Nút **Huỷ** vẫn ở lại nhưng **đổi vai**: nó là «dừng một lượt đang chạy thật» (chạy quá lâu, biết chắc sai),
+không phải «dọn xác».
 
-### D5 — Thông điệp cổng: sửa ở CHỖ DỰNG THÔNG ĐIỆP, không sửa ở chỗ ghi sổ
+### D4 — Thông điệp cổng: sửa ở CHỖ DỰNG THÔNG ĐIỆP, không sửa ở chỗ ghi sổ
 
-Sổ `.ncc-verify.json` giữ **kết quả một lần kiểm đã xảy ra** — nó đúng với phương thức lúc ấy, và đó là dữ
-liệu lịch sử, không phải lỗi. Sửa sổ là viết lại quá khứ.
+Sổ `.ncc-verify.json` giữ **kết quả một lần kiểm đã xảy ra** — nó đúng với phương thức lúc ấy. Đó là dữ liệu
+lịch sử, không phải lỗi; sửa sổ là viết lại quá khứ.
 
-Chỗ sai là **bề mặt đọc**: nó trình bày một kết quả của phương thức `api` như thể nói về cấu hình `thue_bao`
-hiện tại. Nên phép so «phương thức trong sổ ≠ phương thức đang cấu hình» phải nằm ở đường dựng thông điệp,
-và khi lệch thì nói «cần kiểm lại theo phương thức đang chọn».
+Chỗ sai là **bề mặt đọc**: nó trình bày kết quả của phương thức `api` như thể nói về cấu hình `thue_bao`
+hiện tại. `checkStillValid` đã có sẵn phép so ấy (trả `null` khi lệch) nhưng **không nói vì sao null** — đó
+là chỗ thêm.
 
-`checkStillValid` đã có sẵn phép so ấy (nó trả `null` khi lệch) — nhưng nó chỉ trả `null`, không nói **vì
-sao null**. Đó là chỗ thêm.
-
-### D6 — Ba tầng của `test-grid-integrity`
+### D5 — Ba tầng của `test-grid-integrity`
 
 - **tầng 1 mutation** — bắt buộc, hai lần, kiểm chứng đã áp dụng; đột biến sống sót đi theo bảng ba đường.
-- **tầng 2 đếm bề mặt** — **ÁP DỤNG**: mục (1) đổi cách một lượt được tính là «đang chạy», và con số ấy đọc
-  ở nhiều chỗ. Phải **đếm bằng máy** mọi chỗ đọc `dang_chay` / `runningCount` / `isPrRunning` trước khi viết
-  ca, ghi lệnh đếm và con số vào tasks. Và có mục **kiểm tay chạy thật một lượt**.
+  **Chạy nền + `git diff` sạch trước commit** (`close-probe-library-spec` D6).
+- **tầng 2 đếm bề mặt** — **ÁP DỤNG**: mục (1) đổi cách một lượt được tính là «đang chạy». Lệnh đếm và con
+  số ghi ở `tasks.md` §0, chạy **trước** khi viết ca. Có mục **kiểm tay chạy thật một lượt**.
 - **tầng 3 cặp fixture** — nếu lưới dựng hàm quét `scan*` thì phải có cả fixture đối kháng lẫn đối chứng.
+
+### D6 — Giả định nền phải thành CA TEST, không để lại dạng comment
+
+D0 đo được một hành vi mà **cả hai hàm liên quan đều dựa vào**, và suốt thời gian qua nó chỉ tồn tại dưới
+dạng hai comment — trong đó một cái sai (D7).
+
+Nên hành vi ấy phải có ca: tiến trình con ghi ra file sống sót qua cái chết của cha. Ca này không cần lượt
+chấm thật; nó dựng lại đúng khuôn `spawn` bằng hai script nhỏ, như thí nghiệm ở D0.
+
+*Không có ca ấy thì lần sau ai đó đổi `spawn` (thêm `detached`, đổi `stdio`, chuyển sang ghi qua pipe) sẽ
+phá giả định nền mà không gì đỏ — và bệnh quay lại dưới dạng khác.*
 
 ### D7 — Bug này sinh ra từ HAI comment mâu thuẫn, và đó mới là thứ phải sửa
 
-Đếm bề mặt (tầng 2) làm lộ ra gốc rễ. Hai chỗ trong repo khẳng định hai điều trái nhau:
+Đếm bề mặt (tầng 2) làm lộ gốc rễ. Hai chỗ trong repo khẳng định hai điều trái nhau:
 
-| chỗ | khẳng định |
-|---|---|
-| `run-store.ts:183` | «tiến trình web là **chủ duy nhất** của các lượt nó khởi chạy — nó vừa lên thì không lượt nào của nó đang chạy, nên **mọi hàng `dang_chay` còn sót đều là XÁC**» |
-| `runs.ts:255` | «lượt còn sổ đang lớn dần là lượt còn **SỐNG**, đánh dấu nó hỏng là vứt việc đang chạy đúng» |
+| chỗ | khẳng định | phán quyết của D0 |
+|---|---|---|
+| `run-store.ts:183` | «tiến trình web là **chủ duy nhất**… mọi hàng `dang_chay` còn sót đều là **XÁC**» | **SAI** |
+| `runs.ts:255` | «lượt còn sổ đang lớn dần là lượt còn **SỐNG**» | **ĐÚNG** |
 
-`cleanupOrphanRuns` viết theo giả định thứ nhất và dọn sạch. `noiLaiLuotDangChay` thêm sau theo giả định
-thứ hai, và **vô hiệu hoá** cái trước bằng tham số `boQua`.
+`cleanupOrphanRuns` viết theo giả định thứ nhất và dọn sạch. `noiLaiLuotDangChay` thêm sau theo giả định thứ
+hai, và **vô hiệu hoá** cái trước bằng tham số `boQua`. Phép kiểm mà nó dùng (`existsSync`) lại không đo
+được điều nó khẳng định — nên nối lại cả xác.
 
-Ai đúng? Đọc `spawn`: không `detached`, `shell: true`, sự kiện ghi thẳng vào **file** chứ không qua pipe.
-Trên Windows tiến trình con không chết theo cha, và vì nó ghi file nên **vẫn ghi tiếp được**. Giả định thứ
-hai đúng — nhưng phép kiểm nó dùng (`existsSync`) không đo được điều nó khẳng định.
+Sửa đúng chỗ: **giữ giả định thứ hai** (D0 chứng minh nó đúng), **thay phép kiểm bằng thứ đo được** (pid),
+**gỡ khẳng định thứ nhất** khỏi `run-store.ts`, và **khoá giả định bằng ca test** (D6).
 
-Nên sửa đúng chỗ là: **giữ giả định thứ hai, thay phép kiểm bằng thứ đo được** (pid), và **gỡ khẳng định
-thứ nhất** khỏi `run-store.ts` vì nó đã sai từ lúc `noiLaiLuotDangChay` ra đời — nó chỉ chưa gây hại vì bị
-`boQua` vô hiệu hoá.
-
-*Đây là loại lỗi thứ tư mà `test-grid-integrity` khai: lưới đúng, luật sai. Không lưới nào đỏ suốt thời
-gian hai khẳng định ấy sống cạnh nhau, vì mỗi bên đều tự nhất quán — chỉ khi đọc cả hai mới thấy.*
+*Đây là loại lỗi thứ tư mà `test-grid-integrity` khai: lưới đúng, luật sai. Không lưới nào đỏ suốt thời gian
+hai khẳng định sống cạnh nhau, vì mỗi bên tự nhất quán — chỉ khi đọc cả hai mới thấy.*
 
 ## Architecture
 
 - `store/db.ts` — thêm cột vào `run` qua khuôn `napCotThieu` (tự hết việc, không cần bước thủ công).
-- `runs.ts` — lưu pid lúc `batDau`; hàm thuần quyết định «lượt này còn sống không»; đường huỷ có xác minh.
-- `server.ts` — hai route: tiếp tục (gọi `evaluateStartRun`), huỷ.
-- `ui.ts` — hai nút trên lượt kẹt.
+- `runs.ts` — lưu pid lúc `batDau`; **hàm thuần** quyết định «lượt này còn sống không»; đường huỷ có xác minh.
+  `noiLaiLuotDangChay` phân đôi: sống → nối lại, chết → đánh dấu lỗi + ghi sổ.
+- `server.ts` — một route: **huỷ**.
+- `ui.ts` — nút Huỷ trên lượt đang chạy.
 - `provider.ts` — thông điệp nói đúng phương thức.
 - `skill-doc.ts` — dòng ứng viên mang chỗ nhắm.
 
@@ -148,9 +180,9 @@ có (`ALTER TABLE … ADD COLUMN` khi chưa có cột), chạy lúc mở cơ s�
 
 ## Risks / Trade-offs
 
-- [Giết nhầm tiến trình vô can] → D1: xác minh dòng lệnh trước khi kill; không xác minh được thì không kill.
-- [Lượt còn sống bị coi là kẹt] → D2: mất một lần bấm nút, không mất dữ liệu; sổ vẫn được ghi tiếp.
-- [«Tiếp tục» tốn lại token] → D3: đổi lấy verdict trọn vẹn thay vì verdict nửa vời.
+- [Giết nhầm tiến trình vô can] → D1: xác minh dòng lệnh trước khi kill; không đọc được thì không kill.
+- [Lượt còn sống bị coi là chết] → D2: mất một lượt phải chấm lại, không mất dữ liệu — sổ vẫn được ghi tiếp.
+- [Kill để lại worktree sandbox] → chỗ hở CÓ Ý THỨC, khai ở security S5.1; change này không dọn.
 - [Thêm cột vào bảng đang giữ dữ liệu prod] → dùng đúng khuôn di trú đã có, không dựng lại bảng.
 
 ## Migration Plan
