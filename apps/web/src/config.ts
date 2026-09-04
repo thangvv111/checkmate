@@ -9,12 +9,51 @@ import { readVault, writeVault, readOwnToken, writeRepoToken } from './secret-va
 export const MODE: 'demo' | 'org' =
   process.argv.includes('--org') || process.env.CHECKMATE_MODE === 'org' ? 'org' : 'demo';
 
+/**
+ * Khoảng của một giá trị người vận hành chỉnh được — MỘT nguồn cho ba chỗ: nhãn hiển thị, ràng buộc của
+ * ô nhập, và phép kẹp khi đọc cấu hình.
+ *
+ * Vì sao thành hằng dùng chung chứ không chép tay — đo được: trần đầu dò từng có BỐN con số cho cùng một
+ * thứ (nhãn «2–12» · ô nhập `max="20"` · mặc định 10 · gói design 6). Không chỗ nào sai rõ ràng để sửa;
+ * mỗi con số đúng ở chỗ của nó, chỉ là bốn chỗ không nói chuyện với nhau. Sửa `max="20"` thành `max="12"`
+ * chỉ chữa triệu chứng và để nguyên nguyên nhân.
+ */
+export interface ValueRange {
+  min: number;
+  max: number;
+  mac_dinh: number;
+}
+
+/** Kẹp về biên của CHÍNH khoảng ấy; đầu vào rác về mặc định chứ không đoán. */
+export function clampToRange(tho: unknown, khoang: ValueRange): number {
+  const n = Number(tho);
+  if (!Number.isFinite(n)) return khoang.mac_dinh;
+  return Math.min(khoang.max, Math.max(khoang.min, Math.round(n)));
+}
+
+/** Số phép thử tối đa mỗi lượt chấm. Mặc định 6 — con số gói design CCS chốt. */
+export const PROBE_DEPTH: ValueRange = { min: 2, max: 12, mac_dinh: 6 };
+
+/**
+ * Trần thư viện probe, đếm theo PROBE (không theo file).
+ *
+ * ⚠ Mặc định 100 = trần ĐANG ÁP, cố ý KHÔNG hạ về 40 như gói design đề xuất. `probes-lib/` là tài sản
+ * regression tích luỹ qua từng lượt chấm; hạ trần là ĐÀO THẢI probe đang có, và đào thải là một chiều.
+ * Con số 40 đúng cho một bản cài MỚI — nên nó được BÀY RA ở hint của ô nhập, không được ÁP vào bằng mặc
+ * định. Đổi trần là quyết định của người vận hành, không phải hệ quả âm thầm của một lần deploy.
+ */
+export const LIBRARY_CAP: ValueRange = { min: 6, max: 200, mac_dinh: 100 };
+/** Con số gói design đề xuất cho bản cài mới — chỉ để HIỆN ở hint, không dùng làm mặc định. */
+export const LIBRARY_CAP_SUGGESTED = 40;
+
 export interface AgentConfig {
   /** Nhà cung cấp đang dùng để chấm — chỉ đặt được sau khi kiểm thành công */
   ncc: ProviderId;
   /** Cấu hình riêng của TỪNG nhà cung cấp, giữ lại khi đổi qua đổi lại */
   ncc_cau_hinh: Partial<Record<ProviderId, ProviderConfig>>;
   max_probe: number;
+  /** Trần thư viện probe. Thiếu trường ⇒ trần ĐANG ÁP, không phải con số gói đề xuất. */
+  tran_thu_vien?: number;
   skeptic: boolean;
   /** @deprecated giữ để đọc được config đời cũ (provider cli|api + model phẳng) */
   provider?: 'cli' | 'api';
@@ -92,7 +131,8 @@ const MAC_DINH: CheckmateConfig = {
   agent: {
     ncc: 'anthropic',
     ncc_cau_hinh: { anthropic: { phuong_thuc: 'thue_bao', model: 'claude-sonnet-5' } },
-    max_probe: 10,
+    max_probe: PROBE_DEPTH.mac_dinh,
+    tran_thu_vien: LIBRARY_CAP.mac_dinh,
     skeptic: true,
   },
   truc: { bat: false, chu_ky_giay: 300, tu_dong_comment: true, tu_dong_trang_thai: true, tu_dong_tra_ve: false },
@@ -231,7 +271,10 @@ function nangCapAgent(a?: Partial<AgentConfig>): AgentConfig {
     ncc_cau_hinh: {
       anthropic: { phuong_thuc: a.provider === 'api' ? 'api' : 'thue_bao', model: a.model ?? 'claude-sonnet-5' },
     },
-    max_probe: a.max_probe ?? 10,
+    max_probe: clampToRange(a.max_probe ?? PROBE_DEPTH.mac_dinh, PROBE_DEPTH),
+    // Cấu hình đời cũ thiếu trường ⇒ trần ĐANG ÁP. Đọc ra con số gói đề xuất ở đây sẽ đào thải probe
+    // ngay lượt nạp kế tiếp, tức một lần cập nhật xoá mất tài sản của người ta.
+    tran_thu_vien: clampToRange(a.tran_thu_vien ?? LIBRARY_CAP.mac_dinh, LIBRARY_CAP),
     skeptic: a.skeptic ?? true,
   };
 }
@@ -385,6 +428,7 @@ export function agentEnv(c: CheckmateConfig): NodeJS.ProcessEnv {
     CHECKER_PROVIDER: ncc === 'anthropic' ? (cfg.phuong_thuc === 'thue_bao' ? 'cli' : 'api') : 'api',
     CHECKER_MODEL: cfg.model,
     CHECKER_MAX_PROBE: String(c.agent.max_probe),
+    CHECKER_LIB_TRAN: String(c.agent.tran_thu_vien ?? LIBRARY_CAP.mac_dinh),
     CHECKER_SKEPTIC: c.agent.skeptic ? '1' : '0',
     ...(dungThueBao && tokenTb ? { CLAUDE_CODE_OAUTH_TOKEN: tokenTb } : {}),
     // Tên biến khoá lấy TỪ ĐỊNH NGHĨA nhà cung cấp — thêm nhà cung cấp mới không phải nhớ sửa chỗ này nữa

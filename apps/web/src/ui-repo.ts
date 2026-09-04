@@ -10,6 +10,10 @@ export interface RepoView extends RepoConfig {
   token_rieng: boolean;
   /** Máy chủ có `gh` đã đăng nhập — bậc 3 của R4.20, vẫn chấm được dù repo chưa có chìa riêng */
   co_gh: boolean;
+  /** Chìa riêng ĐÃ CHE — dùng bản che dùng chung, không tự cắt chuỗi tại chỗ (⛔C3). */
+  token_che?: string;
+  /** Mốc lượt chấm gần nhất của repo này; rỗng thì card nói «chưa chấm lần nào», KHÔNG bịa ngày. */
+  lan_cham_cuoi?: string;
 }
 
 export interface RepoSectionView {
@@ -36,19 +40,30 @@ export function repoSection(v: RepoSectionView): string {
     .map((r) => {
       const chon = r.github === v.dangChon;
       const vien = !r.co_token && !r.co_gh ? 'var(--fail-tint)' : chon ? 'var(--color-accent)' : 'var(--line)';
-      return `<div class="repo-row" style="border-color:${vien}">
-  <div style="flex:1;min-width:0">
-    <div style="font-size:13.5px;font-weight:600">${escHtml(r.github)}
-      ${chon ? `<span style="${CHIP};background:var(--color-accent-200);color:var(--color-accent-700)">đang chọn</span>` : ''}
-      ${r.truc ? `<span style="${CHIP};background:var(--pass-tint);color:var(--pass-ink)">trực</span>` : ''}
-      ${chipToken(r)}
-    </div>
-    <div class="mono" style="font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">nhánh đích ${escHtml(r.base_branch)} · ${escHtml(r.local_path)}</div>
-    ${r.co_token || r.co_gh ? '' : '<div style="font-size:11.5px;color:var(--fail);margin-top:3px">Chưa có token — repo này không đem đi chấm được. Bấm “Đặt token” để dán chìa cho nó.</div>'}
+      // Card, không phải hàng — gói design CCS khai `Card grid (330px min)`. Mỗi card tự nói đủ về một
+      // repo, nên mắt không phải chạy ngang bảng để ghép thông tin.
+      return `<div class="repo-card" style="border-color:${vien}">
+  <div style="display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap">
+    <div class="mono" style="font-size:13px;font-weight:600;flex:1;min-width:0;overflow-wrap:anywhere">${escHtml(r.github)}</div>
+    ${chon ? `<span style="${CHIP};background:var(--color-accent-200);color:var(--color-accent-700)">đang chọn</span>` : ''}
+    ${r.truc ? `<span style="${CHIP};background:var(--pass-tint);color:var(--pass-ink)">trực</span>` : ''}
   </div>
-  <button type="button" class="phu-nho nut-token-repo" data-repo="${escHtml(r.github)}" ${ro}>${r.token_rieng ? 'Đổi token' : 'Đặt token'}</button>
-  ${chon ? '' : `<button type="button" class="phu-nho nut-chon-repo" data-repo="${escHtml(r.github)}" ${ro}>Chọn</button>`}
-  <button type="button" class="phu-nho nut-go-repo" data-repo="${escHtml(r.github)}" ${ro} style="color:var(--fail);border-color:var(--fail-tint)">Gỡ</button>
+  <div style="margin-top:6px">${chipToken(r)}</div>
+  <dl class="repo-meta">
+    <dt>nhánh đích</dt><dd class="mono">${escHtml(r.base_branch)}</dd>
+    <dt>chìa riêng</dt><dd class="mono">${r.token_che ? escHtml(r.token_che) : '<span style="color:var(--muted)">chưa đặt</span>'}</dd>
+    <dt>lần chấm cuối</dt><dd class="mono">${r.lan_cham_cuoi ? escHtml(r.lan_cham_cuoi.slice(0, 16).replace('T', ' ')) : '<span style="color:var(--muted)">chưa chấm lần nào</span>'}</dd>
+  </dl>
+  ${
+    r.co_token || r.co_gh
+      ? ''
+      : `<div style="margin-top:8px;padding:8px 10px;border-left:3px solid var(--fail);background:var(--fail-tint);font-size:11.5px;color:var(--fail-ink)"><b>Thiếu chìa riêng — repo này không đem đi chấm được.</b> Bấm “Đặt token” để dán chìa cho nó.</div>`
+  }
+  <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+    <button type="button" class="phu-nho nut-token-repo" data-repo="${escHtml(r.github)}" ${ro}>${r.token_rieng ? 'Đổi token' : 'Đặt token'}</button>
+    ${chon ? '' : `<button type="button" class="phu-nho nut-chon-repo" data-repo="${escHtml(r.github)}" ${ro}>Chọn</button>`}
+    <button type="button" class="phu-nho nut-go-repo" data-repo="${escHtml(r.github)}" ${ro} style="margin-left:auto;color:var(--fail);border-color:var(--fail-tint)">Gỡ</button>
+  </div>
 </div>`;
     })
     .join('');
@@ -57,7 +72,7 @@ export function repoSection(v: RepoSectionView): string {
   return `<div class="card" style="max-width:760px;margin-bottom:14px">
   <h3>Repo đã kết nối</h3>
   <p style="font-size:12.5px;color:var(--muted)">Mỗi repo giữ chìa, nhánh đích và clone riêng. Repo đang chọn quyết định hàng đợi PR ở trang chính; lịch sử chấm lưu theo từng repo.</p>
-  ${dong || '<p class="sub">Chưa có repo nào.</p>'}
+  ${dong ? `<div class="repo-grid">${dong}</div>` : '<p class="sub">Chưa có repo nào.</p>'}
 
   <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
     <div style="font-size:13px;font-weight:600;margin-bottom:8px">Thêm repo</div>

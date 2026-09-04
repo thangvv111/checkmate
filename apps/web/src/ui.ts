@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chuanMuc } from '../../../packages/shared/src/types.js';
 import type { Finding, InsufficientBasis, InsufficientBasisKind, Verdict } from '../../../packages/shared/src/types.js';
-import { MODE, readConfig } from './config.js';
+import { LIBRARY_CAP, LIBRARY_CAP_SUGGESTED, MODE, PROBE_DEPTH, readConfig } from './config.js';
 import type { RunMeta, StoredEvent } from './runs.js';
 import { JS_PROVIDER } from './ui-provider.js';
 import { JS_REPO } from './ui-repo.js';
@@ -216,6 +216,12 @@ textarea.input { min-height:90px; resize:vertical; }
 }
 
 .mono { font-family:var(--font-mono); }
+/* Card grid cho khối Repo — gói design CCS khai: Card grid, bề rộng tối thiểu 330px. */
+.repo-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(330px, 1fr)); gap:10px; margin:8px 0; }
+.repo-card { border:1px solid var(--line); background:var(--color-bg); padding:12px 14px; }
+.repo-meta { display:grid; grid-template-columns:auto 1fr; gap:2px 10px; margin:8px 0 0; font-size:11.5px; }
+.repo-meta dt { color:var(--muted); }
+.repo-meta dd { margin:0; overflow-wrap:anywhere; }
 .repo-row { display:flex; align-items:center; gap:10px; padding:9px 12px; margin:6px 0;
   border:1px solid var(--color-divider); background:var(--color-surface); }
 .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:1px;
@@ -960,6 +966,7 @@ export interface SettingsView {
   khoiNccHtml: string; // khối nhà cung cấp (ui-ncc.ts) — dựng sẵn để trang này chỉ lắp
   khoiRepoHtml: string; // khối repo đã kết nối (ui-repo.ts)
   maxProbe: number;
+  tranThuVien: number;
   skeptic: boolean;
   trucBat: boolean;
   trucChuKy: number;
@@ -997,9 +1004,19 @@ ${v.khoiRepoHtml}
 ${v.khoiNccHtml}
 <div class="card" style="max-width:760px;margin-bottom:14px">
   <h3>Độ sâu review</h3>
-  <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px">Số phép thử tối đa mỗi lượt (2–12)</label>
-  <input name="max_probe" type="number" min="2" max="20" value="${v.maxProbe}" ${ro} style="width:90px;padding:7px 10px;border:1px solid var(--line);border-radius:var(--radius-md)">
-  <label style="display:block;font-size:12.5px;margin:10px 0 4px"><input type="checkbox" name="skeptic" value="1" ${v.skeptic ? 'checked' : ''} ${ro}> Bật vòng phản biện (skeptic) cho review tài liệu</label>
+  <label style="display:block;font-size:12.5px;font-weight:600;margin:10px 0 4px" for="o-max-probe">Số phép thử tối đa mỗi lượt (${PROBE_DEPTH.min}–${PROBE_DEPTH.max})</label>
+  <div style="display:flex;align-items:center;gap:12px">
+    <input id="o-max-probe" name="max_probe" type="range" min="${PROBE_DEPTH.min}" max="${PROBE_DEPTH.max}" step="1" value="${v.maxProbe}" ${ro} style="flex:1;max-width:320px">
+    <output id="ra-max-probe" class="mono" style="font-size:15px;font-weight:700;min-width:2ch">${v.maxProbe}</output>
+  </div>
+  <label style="display:block;font-size:12.5px;margin:14px 0 4px"><input type="checkbox" name="skeptic" value="1" ${v.skeptic ? 'checked' : ''} ${ro}> Bật vòng phản biện (skeptic) cho review tài liệu</label>
+
+  <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line)">
+    <label style="display:block;font-size:12.5px;font-weight:600;margin:0 0 4px" for="o-tran-lib">Trần thư viện probe (${LIBRARY_CAP.min}–${LIBRARY_CAP.max}, đếm theo probe không theo file)</label>
+    <input id="o-tran-lib" name="tran_thu_vien" type="number" min="${LIBRARY_CAP.min}" max="${LIBRARY_CAP.max}" value="${v.tranThuVien}" ${ro} style="width:110px;padding:7px 10px;border:1px solid var(--line)">
+    <p style="font-size:11.5px;color:var(--muted);margin:6px 0 0;max-width:62ch">Gói design đề xuất <b>${LIBRARY_CAP_SUGGESTED}</b> cho bản cài mới.
+    <b style="color:var(--medium-ink)">Hạ trần sẽ ĐÀO THẢI probe đang có</b> trong thư viện ở lượt nạp kế tiếp — mỗi probe là một phép thử đã từng chứng minh được điều gì đó, và mất rồi thì nâng trần lên lại không lấy lại được.</p>
+  </div>
 </div>
 <div class="card" style="max-width:640px;margin-bottom:14px">
   <h3>Chế độ trực (PR-bot)</h3>
@@ -1016,6 +1033,7 @@ ${v.khoiNccHtml}
     <p style="font-size:11.5px;color:var(--muted);margin:9px 0 0">Máy không bao giờ tự merge — không có công tắc nào bật được điều đó. Hành động do máy thực hiện được ghi vào sổ cổng dưới tên <code>ci-bot</code>, không mượn tên người.</p>
   </div>
 </div>
+<script>(function(){var s=document.getElementById('o-max-probe'),o=document.getElementById('ra-max-probe');if(s&&o){s.addEventListener('input',function(){o.textContent=s.value;});}})();</script>
 ${v.mode === 'org' ? '<button>Lưu cấu hình</button>' : '<p class="goiy">Bản demo public không cho sửa — self-host với cờ <code>--org</code> để mở cấu hình.</p>'}
 </form>`,
     JS_PROVIDER + JS_REPO,

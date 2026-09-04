@@ -89,6 +89,31 @@ người đọc phản hồi có thể là người đang dò. Lý do đầy đ�
 journalctl -u checkmate -f | grep Webhook
 ```
 
+## Trần thư viện probe — con số DUY NHẤT ở màn Cấu hình xoá được dữ liệu
+
+Màn Cấu hình → **Độ sâu review** → ô **Trần thư viện probe** (mặc định **100**, đếm theo probe không
+theo file). Nó điều tiết `probes-lib/` — tài sản regression tích luỹ qua từng lượt chấm, nằm trong nhóm
+**không đè khi deploy**.
+
+⚠ **Hạ trần là ĐÀO THẢI probe đang có**, ngay ở lượt nạp kế tiếp. Mỗi probe là một phép thử đã từng chứng
+minh được điều gì đó; mất rồi thì nâng trần lên lại không lấy lại được. Ô nhập nói thẳng điều này ngay tại
+chỗ, nhưng đây là chỗ ghi lại cho người vận hành đọc trước khi động vào.
+
+Gói design đề xuất **40** cho bản cài mới. Con số ấy cố ý **không** được đặt làm mặc định: mọi bản đang
+chạy đều chưa khai trường này, nên lấy 40 làm mặc định sẽ đào thải tới 60 probe của họ chỉ vì một lần cập
+nhật. Đổi trần là quyết định của người vận hành.
+
+Kiểm trần đang áp trên máy chủ:
+
+```bash
+grep -o '"tran_thu_vien":[0-9 ]*' /home/ubuntu/checkmate-app/checkmate/config.json   # trong khong co = 100
+for d in /home/ubuntu/checkmate-app/checkmate/probes-lib/*/; do
+  echo -n "$(basename $d): "; node -e "console.log(JSON.parse(require('fs').readFileSync('$d/meta.json','utf8')).probes.length)"
+done
+```
+
+Số probe của repo nào **vượt** trần mới thì phần vượt bị đào thải ở lượt chấm kế tiếp của chính repo đó.
+
 ## Bốn khác biệt so với chạy trên máy dev (đều đã xử, ghi để lần sau khỏi mò)
 
 | # | Trên máy dev | Trên server | Đã xử thế nào |

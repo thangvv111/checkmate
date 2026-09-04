@@ -73,10 +73,10 @@ export function providerSection(v: ProviderSectionView): string {
   <summary style="padding:9px 12px;cursor:pointer;font-size:13.5px;display:flex;align-items:center;gap:8px">
     <b>${escHtml(dn.ten)}</b>
     ${dangDung ? '<span style="font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;background:var(--color-accent-200);color:var(--color-accent-700);padding:2px 7px;border-radius:99px">đang dùng</span>' : ''}
-    <span style="margin-left:auto">${dn.ngung ? '<span style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;background:var(--fail-tint);color:var(--fail);padding:2px 7px;border-radius:99px">đã ngừng</span>' : huyHieu(kiem, cfg)}</span>
+    <span style="margin-left:auto">${dn.ngung ? '<span style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;background:var(--color-neutral-200);color:var(--color-neutral-700);padding:2px 7px;border-radius:99px">đã ngừng</span>' : huyHieu(kiem, cfg)}</span>
   </summary>
   <div style="padding:2px 12px 12px">
-    ${dn.ngung ? `<div class="ev" style="border-left:3px solid var(--fail);margin:0 0 10px"><b>Dịch vụ đã ngừng.</b> ${escHtml(dn.ngung)}</div>` : ''}
+    ${dn.ngung ? `<div class="ev" style="border-left:3px solid var(--color-neutral-500);margin:0 0 10px"><b>Dịch vụ đã ngừng.</b> ${escHtml(dn.ngung)}</div>` : ''}
     <p style="font-size:12px;color:var(--muted);margin:0 0 8px">${escHtml(dn.ghi_chu)}</p>
     ${dongTrangThai ? `<div style="font-size:12px;border:1px solid var(--line);border-radius:var(--radius-md);padding:7px 10px;margin-bottom:8px">${dongTrangThai}</div>` : ''}
     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
