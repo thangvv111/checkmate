@@ -2,8 +2,9 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { openDb } from './db.js';
 import { appendVerdictLedgerIfNew, appendGateLedger } from './ledger-store.js';
-import { readMeta, saveMeta, saveEvents } from './run-store.js';
+import { readEvents, readMeta, saveMeta, saveEvents } from './run-store.js';
 import type { RunMeta, StoredEvent } from '../runs.js';
+import type { InsufficientBasisKind } from '../../../../packages/shared/src/types.js';
 import { GOC } from '../../../../packages/shared/src/paths.js';
 import type { VerdictLedgerEntry } from '../ledger.js';
 
@@ -136,12 +137,77 @@ function diTruRun(): MigrationResult {
   return { buoc, daChay: true, soDong: dem, boQua: hong };
 }
 
+/** Câu mà engine đời cũ ném ra khi không đủ cơ sở. CHỈ dùng ở đây. */
+const LEGACY_ERROR_PHRASE = 'Không đủ cơ sở kết luận';
+/** Dòng log engine đời cũ ghi khi nhánh gốc không chạy được probe nào. */
+const LEGACY_BASE_SILENT_TRACE = 'nhánh gốc KHÔNG chạy được probe';
+
+/**
+ * Suy kết cục «không đủ cơ sở» của một lượt đời CŨ từ sổ sự kiện của nó — hàm thuần.
+ *
+ * ⛔ ĐÂY LÀ CHỖ DUY NHẤT trong repo được phép nhận diện kết cục này bằng cách so khớp nội dung thông
+ * điệp. Lượt sinh ra từ hôm nay mang trường có kiểu; phép so chuỗi ở đây chỉ để đọc hàng đã ghép trước
+ * khi có trường đó, tức một tập ĐÓNG không sinh thêm.
+ *
+ * Loại ở đây là SUY ĐOÁN, không phải số đo: hàng đời cũ không có dữ liệu để biết chắc. Chấp nhận
+ * được vì cái sai tối đa là hiện nhầm MỘT TRONG HAI lời văn cho một lượt đã chết — cả hai loại đều là
+ * thất bại, nên không lượt nào được nâng từ «thất bại» lên «có kết quả».
+ */
+export function inferLegacyInsufficientBasis(
+  events: readonly StoredEvent[],
+): { loai: InsufficientBasisKind; so_probe: number; ly_do: string } | undefined {
+  const ds = Array.isArray(events) ? events : [];
+  const loi = ds.find((x) => x?.e?.type === 'error' && String(x.e.msg ?? '').includes(LEGACY_ERROR_PHRASE));
+  if (!loi || loi.e.type !== 'error') return undefined;
+  const msg = String(loi.e.msg ?? '');
+  const sau = msg.slice(msg.indexOf(LEGACY_ERROR_PHRASE) + LEGACY_ERROR_PHRASE.length + 2);
+  const soProbe = Number.parseInt(sau, 10);
+  const gocKhongChay = ds.some((x) => x?.e?.type === 'log' && String(x.e.msg ?? '').includes(LEGACY_BASE_SILENT_TRACE));
+  return {
+    loai: gocKhongChay ? 'goc_khong_doi_chung' : 'khong_probe_nao_toi_noi',
+    so_probe: Number.isFinite(soProbe) && soProbe > 0 ? soProbe : 0,
+    ly_do: msg.slice(0, 600),
+  };
+}
+
+/**
+ * Điền trường `khongDuCoSo` cho hàng đời cũ.
+ *
+ * Ghi bản mới TRƯỚC, không xoá gì: câu lỗi cũ ở lại nguyên trong sổ sự kiện — nó là bản ghi lịch sử
+ * của lượt chấm, không phải bản sao thừa của trường mới.
+ *
+ * Chỉ đụng hàng `trang_thai='loi'` — hàng ĐÃ CHẾT, không ai ghi nữa. Hàng `dang_chay` không bị chạm,
+ * vì hai lượt chấm chạy song song trên prod là trạng thái BÌNH THƯỜNG chứ không phải ca hiếm.
+ */
+function migrateInsufficientBasis(): MigrationResult {
+  const buoc = 'run-khong-du-co-so';
+  if (daLam(buoc)) return { buoc, daChay: false, soDong: 0, boQua: 0 };
+  const hang = openDb()
+    .prepare("SELECT id FROM run WHERE trang_thai = 'loi' AND khong_du_co_so IS NULL")
+    .all() as Array<{ id: string }>;
+  let dem = 0;
+  let boQua = 0;
+  for (const { id } of hang) {
+    const meta = readMeta(String(id));
+    if (!meta) {
+      boQua++;
+      continue;
+    }
+    const ketCuc = inferLegacyInsufficientBasis(readEvents(String(id)));
+    if (!ketCuc) continue; // lỗi hạ tầng — không phải không-đủ-cơ-sở, để nguyên
+    saveMeta({ ...meta, khongDuCoSo: ketCuc });
+    dem++;
+  }
+  ghiNhan(buoc, dem, boQua);
+  return { buoc, daChay: true, soDong: dem, boQua };
+}
+
 /**
  * Chạy mọi bước di trú còn thiếu. Gọi ở lúc khởi động; các lần sau là không-làm-gì.
  * File gốc KHÔNG bị xoá — chúng ở lại làm bản đối chứng.
  */
 export function migrateAll(): MigrationResult[] {
-  return [diTruSoCai(), diTruSoCong(), diTruRun()];
+  return [diTruSoCai(), diTruSoCong(), diTruRun(), migrateInsufficientBasis()];
 }
 
 export function migrationSummary(kq: MigrationResult[]): string {

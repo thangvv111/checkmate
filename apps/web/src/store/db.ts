@@ -181,6 +181,11 @@ function napCotThieu(d: DatabaseSync): void {
     // file trên đĩa, nó tồn tại MÃI sau khi tiến trình chết. Hàng đời cũ có pid rỗng và được đọc là
     // ĐÃ CHẾT — fail-closed, vì đoán nhầm «còn sống» khoá một pull request mà không ai gỡ được.
     ['run', 'pid', 'INTEGER'],
+    // `insufficient-basis-verdict-state` — kết cục «không đủ cơ sở» dưới dạng JSON.
+    // Trước đó kết cục này chỉ tồn tại ở một phép so chuỗi trên thông điệp lỗi, ngay tại đường render:
+    // sửa lời văn là mất tính năng, và không đếm được, không lọc được. Hàng đời cũ có cột rỗng và được
+    // đường di trú ở `migrate.ts` điền một lần lúc khởi động.
+    ['run', 'khong_du_co_so', 'TEXT'],
   ];
   for (const [bang, cot, kieu] of them) {
     const daCo = (d.prepare(`PRAGMA table_info(${bang})`).all() as Array<{ name: string }>).some((c) => c.name === cot);

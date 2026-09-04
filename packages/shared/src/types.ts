@@ -239,6 +239,27 @@ export interface Verdict {
   finished_at: string;
 }
 
+/**
+ * Vì sao một lượt chấm không đủ cơ sở kết luận — MÃ MÁY ĐỌC ĐƯỢC, không phải một câu chữ.
+ *
+ * Hai loại vì việc người đọc phải làm khác hẳn nhau:
+ *   `khong_probe_nao_toi_noi` — probe viết sai, không phép thử nào chạy được đến nơi ⇒ đọc lại probe.
+ *   `goc_khong_doi_chung`     — nhánh gốc không chạy được probe nào (thường vì PR thêm module mới),
+ *                               và không probe nào pass trên nhánh PR ⇒ không có gì để đối chứng.
+ *
+ * Bản trước nhận diện kết cục này bằng `/không đủ cơ sở/i.test(thông_điệp_lỗi)` ở đúng đường render.
+ * Sửa lời văn là mất tính năng và không lưới nào đỏ.
+ */
+export type InsufficientBasisKind = 'khong_probe_nao_toi_noi' | 'goc_khong_doi_chung';
+
+export interface InsufficientBasis {
+  loai: InsufficientBasisKind;
+  /** Số probe đã chạy — người đọc phải biết lượt chấm thử bao nhiêu lần trước khi bỏ cuộc. */
+  so_probe: number;
+  /** Lý do vài probe đầu, ĐÃ GỘT trước khi ra khỏi engine. */
+  ly_do: string;
+}
+
 export type RunEvent =
   | { type: 'stage'; stage: number; ten: string }
   | { type: 'log'; msg: string }
@@ -250,4 +271,9 @@ export type RunEvent =
    * finding vẫn đúng với mã nguồn, nên nó còn giá trị đọc.
    */
   | { type: 'head_moved'; new_sha: string; at: string }
+  /**
+   * Lượt chấm không đủ cơ sở kết luận. Phát NGAY TRƯỚC cú ném — đường ném giữ nguyên (fail-closed),
+   * sự kiện này là DẤU VẾT máy đọc được, không phải đường thoát.
+   */
+  | { type: 'khong_du_co_so'; chi_tiet: InsufficientBasis }
   | { type: 'error'; msg: string };

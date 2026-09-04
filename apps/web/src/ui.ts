@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chuanMuc } from '../../../packages/shared/src/types.js';
-import type { Finding, Verdict } from '../../../packages/shared/src/types.js';
+import type { Finding, InsufficientBasis, InsufficientBasisKind, Verdict } from '../../../packages/shared/src/types.js';
 import { MODE, readConfig } from './config.js';
 import type { RunMeta, StoredEvent } from './runs.js';
 import { JS_PROVIDER } from './ui-provider.js';
@@ -359,6 +359,10 @@ table.runs td { padding:9px 13px; border-bottom:1px solid var(--color-divider); 
 .vd-pill { font-weight:700; }
 .vd-PASS { color:var(--pass-ink); }
 .vd-FAIL { color:var(--fail-ink); }
+/* «Không đủ cơ sở» — ĐẢO MÀU neutral-800, đúng gói design CCS. Không dùng jade/crimson/amber:
+   ba màu ấy mang nghĩa verdict, mà đây không phải một verdict — đây là lượt chấm thất bại. */
+.vd-thieu-co-so { background:var(--color-neutral-800); color:var(--color-bg); padding:1px 7px;
+  font-size:11.5px; letter-spacing:.02em; white-space:nowrap; }
 
 .err { background:var(--fail-tint); border-left:4px solid var(--fail); padding:11px 15px;
   margin:14px 0; display:none; }
@@ -1452,10 +1456,21 @@ function quanSatHtml(v: Verdict): string {
  * nó như một lỗi chung («Run dừng giữa chừng») là báo sai bản chất: người đọc cần biết lượt chấm ĐÃ
  * CHẠY nhưng KHÔNG CÓ CƠ SỞ, chứ không phải hệ thống hỏng.
  */
-function khongRaVerdictHtml(loi: string): string {
+export const INSUFFICIENT_BASIS_MESSAGE: Record<InsufficientBasisKind, string> = {
+  // Hai lời văn riêng vì VIỆC NGƯỜI ĐỌC PHẢI LÀM khác hẳn nhau: cái đầu là probe viết sai nên
+  // đọc lại probe; cái sau là PR thêm module mới nên nhánh gốc không có gì để đối chứng — chuyện bình
+  // thường của một PR mở rộng, không phải lỗi của ai.
+  khong_probe_nao_toi_noi: 'Lượt chấm không có cơ sở: không phép thử nào chạy được đến nơi.',
+  goc_khong_doi_chung:
+    'Lượt chấm không có cơ sở: nhánh gốc không chạy được, và không phép thử nào pass trên nhánh PR.',
+};
+
+function khongRaVerdictHtml(loi: string, ketCuc?: InsufficientBasis): string {
+  const cau = ketCuc ? INSUFFICIENT_BASIS_MESSAGE[ketCuc.loai] : 'không đủ cơ sở kết luận';
+  const dem = ketCuc?.so_probe ? ` · ${ketCuc.so_probe} probe đã chạy` : '';
   return `<div class="vd"><div class="vd-khoi trong">
 <div class="vd-kq">KHÔNG RA VERDICT</div>
-<div class="vd-phu">không đủ cơ sở kết luận — lượt chấm thất bại, KHÔNG phải PASS hay FAIL</div></div>
+<div class="vd-phu">${escHtml(cau)} — lượt chấm thất bại, KHÔNG phải PASS hay FAIL${escHtml(dem)}</div></div>
 <div class="vd-meta" style="grid-template-columns:1fr"><div style="font-size:13px">${escHtml(loi)}</div>
 <div class="goiy" style="margin:10px 0 0">Không ghi vào sổ cái, và cổng merge giữ nguyên trạng thái trước đó. Chạy lại sau khi sửa nguyên nhân bên trên.</div></div></div>`;
 }
@@ -1545,7 +1560,11 @@ ${meta.pr ? `<form method="post" action="/api/runs" style="margin:0;flex:none"><
   // Lượt kết thúc KHÔNG ra verdict là lượt THẤT BẠI, không phải trạng thái thứ ba. Bày nó như một lỗi
   // chung là báo sai bản chất: nó ĐÃ CHẠY nhưng không chứng minh được gì.
   const loiCuoi = suKien.filter((x) => x.e.type === 'error').map((x) => (x.e as { msg: string }).msg);
-  const khongCoSo = !v && loiCuoi.some((m) => /không đủ cơ sở/i.test(m));
+  // ĐỌC TRƯỜNG, không so khớp nội dung thông điệp lỗi. Bản trước viết
+  // `loiCuoi.some((m) => /không đủ cơ sở/i.test(m))` — sửa lời văn của thông điệp là card này biến mất,
+  // lượt chấm thất bại hiện thành lỗi hạ tầng, và không lưới nào đỏ.
+  const ketCucThieuCoSo = meta.khongDuCoSo;
+  const khongCoSo = !v && !!ketCucThieuCoSo;
 
   const dieuKhien = trinhDien
     ? `<div class="td-bar"><span class="td-nhan">Trình diễn</span>
@@ -1571,7 +1590,7 @@ ${dieuKhien}${banStale}
 <div id="cac-buoc">${buocHtml}</div>
 ${banKhongLuat}${banVungMu}
 <section id="findings">${dungSan ? dsFinding.map(findingHtml).join('') : ''}</section>
-<div id="verdict-o">${dungSan ? (v ? verdictHtml(v) : khongCoSo ? khongRaVerdictHtml(loiCuoi[0]!) : '') : ''}</div>
+<div id="verdict-o">${dungSan ? (v ? verdictHtml(v) : khongCoSo ? khongRaVerdictHtml(loiCuoi[0] ?? '', ketCucThieuCoSo) : '') : ''}</div>
 ${khoiCong(meta, trinhDien)}
 <div class="err" id="err"${dungSan && loiCuoi.length && !khongCoSo ? ' style="display:block"' : ''}>${
       dungSan && !khongCoSo ? loiCuoi.map((m) => `<div style="margin-bottom:6px"><b>LỖI:</b> ${escHtml(m)}</div>`).join('') : ''

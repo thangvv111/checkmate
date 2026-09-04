@@ -1,6 +1,6 @@
 import { openDb } from './db.js';
 import type { RunMeta, StoredEvent } from '../runs.js';
-import type { Verdict } from '../../../../packages/shared/src/types.js';
+import type { InsufficientBasis, Verdict } from '../../../../packages/shared/src/types.js';
 
 // Kho lượt chấm (specs/R9). Thay cho cách cũ: mỗi lượt một file JSON, và mỗi lần cần danh sách thì
 // đọc TOÀN BỘ thư mục rồi nạp cả dòng sự kiện lên bộ nhớ. Ở đây danh sách chỉ đụng bảng `run`,
@@ -52,6 +52,14 @@ function veMeta(h: Hang): RunMeta {
       /* verdict hỏng thì coi như chưa có — lượt chấm vẫn tra cứu được */
     }
   }
+  if (h.khong_du_co_so != null) {
+    try {
+      meta.khongDuCoSo = JSON.parse(String(h.khong_du_co_so)) as InsufficientBasis;
+    } catch {
+      // JSON rách thì coi như chưa có — MỘT hàng hỏng không được làm hỏng cả trang lịch sử. Lượt vẫn
+      // hiện là lỗi, chỉ mất phần nói rõ thất bại kiểu gì.
+    }
+  }
   if (h.pr_so != null) {
     meta.pr = { so: Number(h.pr_so), headSha: String(h.pr_head_sha ?? ''), tacGia: chu('pr_tac_gia') };
   }
@@ -73,19 +81,21 @@ export function saveMeta(m: RunMeta): void {
   openDb()
     .prepare(
       `INSERT INTO run (id, tieu_de, skill, trang_thai, bat_dau, ket_thuc, repo,
-                        pr_so, pr_head_sha, pr_tac_gia, verdict, pid)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                        pr_so, pr_head_sha, pr_tac_gia, verdict, pid, khong_du_co_so)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
        ON CONFLICT(id) DO UPDATE SET
          tieu_de=excluded.tieu_de, skill=excluded.skill, trang_thai=excluded.trang_thai,
          bat_dau=excluded.bat_dau, ket_thuc=excluded.ket_thuc, repo=excluded.repo,
          pr_so=excluded.pr_so, pr_head_sha=excluded.pr_head_sha, pr_tac_gia=excluded.pr_tac_gia,
-         verdict=excluded.verdict, pid=excluded.pid`,
+         verdict=excluded.verdict, pid=excluded.pid,
+         khong_du_co_so=excluded.khong_du_co_so`,
     )
     .run(
       m.id, m.tieuDe, m.skill, m.trangThai, m.batDau, m.ketThuc ?? null, m.repo ?? null,
       m.pr?.so ?? null, m.pr?.headSha ?? null, m.pr?.tacGia ?? null,
       m.verdict ? JSON.stringify(m.verdict) : null,
       m.pid ?? null,
+      m.khongDuCoSo ? JSON.stringify(m.khongDuCoSo) : null,
     );
   // `m.ketQuaCong` KHÔNG được ghi ở đây và không có chỗ nào để ghi nữa (R6.26): nó là bản đọc ra từ
   // sổ. Hai vòng chấm liên tiếp bắt đúng cửa này — một lần nó đóng dấu hành động lên bề mặt trong khi

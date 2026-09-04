@@ -1,4 +1,4 @@
-import { chuanMuc, type Finding, type Severity } from '../../shared/src/types.js';
+import { chuanMuc, type Finding, type InsufficientBasisKind, type Severity } from '../../shared/src/types.js';
 
 /**
  * Hợp đồng của VERDICT — bốn quyết định thuần, tách khỏi vòng chấm để khoá được bằng test.
@@ -87,4 +87,32 @@ export function hasBasis(ungVien: readonly MinimalCandidate[]): { ok: true } | {
     .map((u) => `${u?.probe?.id} (${u?.trangThai}): ${String(u?.br?.message ?? '').split('\n')[0]!.slice(0, 200)}`)
     .join('\n');
   return { ok: false, lyDo, soProbe: ds.length };
+}
+
+/**
+ * Nhánh gốc có phải ĐỐI CHỨNG HỢP LỆ không — hàm thuần, MỘT chỗ duy nhất trả lời câu này.
+ *
+ * Trước đây biểu thức `baseKq === undefined || baseKq.length === 0` nằm rời trong
+ * `retryNoticeNoEvidence`. Viết lại nó ở chỗ thứ hai là dựng CỬA SONG SINH — khuôn đã bị bắt chín
+ * lần trong repo này: hai cửa cùng vai viết bằng hai biểu thức riêng sẽ lệch nhau, và lệch trong im
+ * lặng. `Array.isArray` thay cho `=== undefined` là chỗ hai bản lệch thật: bản cũ NÉM khi nhận `null`.
+ */
+export function hasNoBaseline(baseKq: readonly unknown[] | null | undefined): boolean {
+  return !Array.isArray(baseKq) || baseKq.length === 0;
+}
+
+/**
+ * Lượt chấm không đủ cơ sở thì THUỘC LOẠI NÀO — hàm thuần.
+ *
+ * Trả `undefined` CHỈ KHI lượt chấm đủ cơ sở. Đầu vào khuyết (null, phần tử null, sai kiểu) đi qua
+ * `hasBasis` và ra `{ok:false}` — tức vẫn là lượt THẤT BẠI. Chiều nghiêng ấy là cố ý và là chỗ dễ
+ * sai nhất của hàm này: bản năng viết hàm phân loại là trả `undefined` khi không đủ dữ liệu, mà ở đây
+ * `undefined` nghĩa là lượt chấm KHÔNG được đánh dấu thất bại.
+ */
+export function classifyInsufficientBasis(
+  baseKq: readonly unknown[] | null | undefined,
+  ungVien: readonly MinimalCandidate[],
+): InsufficientBasisKind | undefined {
+  if (hasBasis(ungVien).ok) return undefined;
+  return hasNoBaseline(baseKq) ? 'goc_khong_doi_chung' : 'khong_probe_nao_toi_noi';
 }

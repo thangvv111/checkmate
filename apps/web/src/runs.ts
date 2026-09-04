@@ -2,7 +2,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { closeSync, existsSync, openSync, readFileSync, readSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
-import type { RunEvent, Verdict } from '../../../packages/shared/src/types.js';
+import type { InsufficientBasis, RunEvent, Verdict } from '../../../packages/shared/src/types.js';
 import { GOC } from '../../../packages/shared/src/paths.js';
 import { entryFromMeta } from './ledger.js';
 import * as kho from './store/run-store.js';
@@ -11,6 +11,20 @@ import { appendVerdictLedgerIfNew } from './store/ledger-store.js';
 export interface StoredEvent {
   t: number; // ms từ lúc bắt đầu run
   e: RunEvent;
+}
+
+/**
+ * Nhặt kết cục «không đủ cơ sở» từ sổ sự kiện — hàm thuần, tách khỏi I/O để khoá được bằng test.
+ *
+ * Đọc SỰ KIỆN CÓ KIỂU chứ không so khớp nội dung thông điệp lỗi. Sổ sự kiện là nguồn sự thật trên
+ * đĩa, nên dấu vết này sống sót cả khi server bị restart giữa lúc đang chấm.
+ */
+export function pickInsufficientBasis(events: readonly StoredEvent[]): InsufficientBasis | undefined {
+  const ds = Array.isArray(events) ? events : [];
+  for (const x of ds) {
+    if (x?.e?.type === 'khong_du_co_so' && x.e.chi_tiet) return x.e.chi_tiet;
+  }
+  return undefined;
 }
 
 export interface RunMeta {
@@ -28,6 +42,16 @@ export interface RunMeta {
    */
   pid?: number;
   verdict?: Verdict;
+  /**
+   * Lượt chấm kết thúc vì KHÔNG ĐỦ CƠ SỞ kết luận.
+   *
+   * `trangThai` vẫn là `'loi'`: đây là lượt chấm THẤT BẠI, không phải một kết cục thứ ba ngang hàng
+   * PASS/FAIL. Trường này trả lời câu «thất bại KIỂU GÌ», không tạo thêm một kết cục.
+   *
+   * Vì sao là trường riêng chứ không phải giá trị thứ tư của `trangThai`: `trangThai` là trường phân
+   * nhánh của cả hệ, thêm một giá trị làm mọi `else` hiện có im lặng đổi nghĩa mà không lỗi nào nổ.
+   */
+  khongDuCoSo?: InsufficientBasis;
   pr?: { so: number; headSha: string; tacGia?: string };
   /**
    * CHỈ ĐỌC — suy ra từ `so_cong` lúc đọc (R6.26). Đặt giá trị vào đây KHÔNG ghi được xuống đâu cả;
@@ -177,6 +201,9 @@ export class RunManager {
       if (state.headMoi && meta.verdict) meta.verdict.head_moved = state.headMoi;
       meta.ketThuc = new Date().toISOString();
       const daCoLoi = state.events.some((x) => x.e.type === 'error');
+      // Kết cục không-đủ-cơ-sở: nhặt từ SỰ KIỆN CÓ KIỂU, không so khớp nội dung thông điệp lỗi.
+      const ketCuc = pickInsufficientBasis(state.events);
+      if (ketCuc) meta.khongDuCoSo = ketCuc;
       if (meta.verdict) {
         meta.trangThai = 'xong';
         const muc = entryFromMeta(meta);
