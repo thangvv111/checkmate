@@ -14,6 +14,14 @@ export interface AuthorProfile {
   soPr: number; // số PR riêng biệt đã chấm
   prPassVongDau: number; // số PR mà verdict ĐẦU TIÊN là PASS
   streakPass: number; // chuỗi PASS liên tiếp tính từ verdict mới nhất
+  /**
+   * Tỉ lệ PASS = pass / SỐ VERDICT (không phải số PR — gói design khai rõ mẫu số).
+   *
+   * Một pull request chấm lại nhiều lần đóng góp nhiều verdict, nên hai mẫu số cho hai con số khác nhau.
+   * 0 verdict ⇒ tỉ lệ 0, không phải `NaN` và không phải 100%: tác giả chưa có bằng chứng nào phải nằm
+   * CUỐI bảng, không phải đầu. Nghiêng nhầm chiều ở đây là bịa ra một kết luận từ chỗ trống.
+   */
+  tiLePass: number;
   lanCuoi: string;
 }
 
@@ -40,11 +48,14 @@ export function computeProfile(soCai: VerdictLedgerEntry[]): AuthorProfile[] {
       if (sx[i].verdict === 'PASS') streak++;
       else break;
     }
+    const pass = sx.filter((m) => m.verdict === 'PASS').length;
     kq.push({
       tacGia,
       soVerdict: sx.length,
-      pass: sx.filter((m) => m.verdict === 'PASS').length,
-      fail: sx.filter((m) => m.verdict === 'FAIL').length,
+      pass,
+      // Chia cho 0 nghiêng về 0, không về 1: chưa có bằng chứng nào thì không được đứng đầu bảng.
+      tiLePass: sx.length ? pass / sx.length : 0,
+      fail: sx.length - pass,
       high: sx.reduce((t, m) => t + m.high, 0),
       medium: sx.reduce((t, m) => t + m.medium, 0),
       low: sx.reduce((t, m) => t + m.low, 0),
@@ -54,5 +65,14 @@ export function computeProfile(soCai: VerdictLedgerEntry[]): AuthorProfile[] {
       lanCuoi: sx[sx.length - 1].luc,
     });
   }
-  return kq.sort((a, b) => b.soVerdict - a.soVerdict);
+  // Sắp theo TỈ LỆ PASS giảm dần — bảng này trả lời câu «ai hay bị bắt lỗi», nên trục của nó phải là
+  // tỉ lệ chứ không phải số lượng. Bản trước sắp theo `soVerdict`, tức đưa người chấm NHIỀU pull request
+  // nhất lên đầu; người đọc lướt một bảng đã sắp xếp thì mặc định hiểu «đầu bảng đáng chú ý nhất», nên
+  // bảng nói một điều SAI về một con người bằng đúng cơ chế người đọc tin nhất là thứ tự.
+  //
+  // Hai khoá phụ để thứ tự XÁC ĐỊNH: cùng tỉ lệ thì ai nhiều bằng chứng hơn đứng trước, rồi tới tên.
+  // Thiếu khoá phụ thì hai hàng cùng tỉ lệ đổi chỗ giữa hai lần tải trang mà không ai đụng dữ liệu.
+  return kq.sort(
+    (a, b) => b.tiLePass - a.tiLePass || b.soVerdict - a.soVerdict || a.tacGia.localeCompare(b.tacGia),
+  );
 }

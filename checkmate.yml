@@ -40,8 +40,8 @@ runner:
       ../packages/harness/src/fence.js         → makeFence · FENCE_NOTICE
       ../packages/harness/src/verdict.js      → decideResult · regressionFloor · missingRegressionFindings · hasBasis · hasNoBaseline · classifyInsufficientBasis
       ../packages/harness/src/spec-units.js    → splitSpecUnits · splitAllSpecUnits · extractCodes · splitRuleRefs · resolveRule · ruleCoverage · findNewUnits · refHitsNew · MAX_UNIT_DEPTH
-      ../apps/web/src/ui.js                  → escHtml · splitSource · CSS · shell · findingHtml · verdictHtml
-      ../apps/web/src/ui-history.js          → filterRuns
+      ../apps/web/src/ui.js                  → escHtml · splitSource · CSS · shell · findingHtml · verdictHtml · artifactCell
+      ../apps/web/src/ui-history.js          → filterRuns · historyPage
       ../apps/web/src/provider.js                 → maskKey · projectValue · providerDefinition · PROVIDER_CATALOG · checkStillValid · readKey · writeKey · readProviderCheck · writeProviderCheck · validModel
       ../apps/web/src/config.js              → maskToken · maskToken2 · slugGithubRepo · findRepo · migrateRepoToken · currentConfig · readConfig · writeConfig · readSubscriptionToken · writeSubscriptionToken · agentEnv · configForReview · ProviderConfigErrorCfg · resolveRepoShape
       ../apps/web/src/secret-vault.js          → readRepoToken · readOwnToken · writeRepoToken · deleteRepoToken · hasToken · repoKey · readVault · writeVault · readWebhookSecret · writeWebhookSecret

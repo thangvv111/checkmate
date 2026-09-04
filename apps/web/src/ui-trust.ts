@@ -1,6 +1,6 @@
 import type { VerdictLedgerEntry } from './ledger.js';
 import type { AuthorProfile } from './trust.js';
-import { shell, escHtml } from './ui.js';
+import { shell, escHtml, artifactCell } from './ui.js';
 
 // Ô lọc repo dùng chung cho thang tin cậy và hồ sơ từng tác giả.
 function locRepoBox(duong: string, repos: string[], locRepo?: string): string {
@@ -21,11 +21,13 @@ export function trustPage(hoSo: AuthorProfile[], repos: string[] = [], locRepo?:
     .map(
       (h) => `<tr>
 <td><a href="/tin-cay/${encodeURIComponent(h.tacGia)}${locRepo ? `?repo=${encodeURIComponent(locRepo)}` : ''}"><b>${escHtml(h.tacGia)}</b></a></td>
+<td class="mono">${h.soVerdict}</td>
 <td class="mono">${h.soPr}</td>
-<td class="mono">${h.soVerdict} (${h.pass}P/${h.fail}F)</td>
+<td class="mono"><b>${Math.round(h.tiLePass * 100)}%</b></td>
+<td class="mono">${h.pass}P / ${h.fail}F</td>
 <td class="mono">${h.soPr ? Math.round((h.prPassVongDau / h.soPr) * 100) : 0}% (${h.prPassVongDau}/${h.soPr})</td>
-<td class="mono">${h.high}H · ${h.medium}M · ${h.low}L</td>
 <td class="mono">${h.streakPass > 0 ? `✓×${h.streakPass}` : '—'}</td>
+<td class="mono" style="color:${h.high ? 'var(--fail)' : 'var(--muted)'}">${h.high}</td>
 <td class="mono" style="font-size:12px">${h.lanCuoi.slice(0, 16).replace('T', ' ')}</td>
 </tr>`,
     )
@@ -33,11 +35,11 @@ export function trustPage(hoSo: AuthorProfile[], repos: string[] = [], locRepo?:
   return shell(
     'Thang tin cậy tác giả — CheckMate',
     `<h1>Thang tin cậy tác giả</h1>
-<p class="sub">Track record tính từ <a href="/ledger">sổ cái verdict</a> — máy đếm, không tự khai.${
+<p class="sub">Track record tính từ <a href="/ledger">sổ cái verdict</a> — máy đếm, không tự khai. Sắp theo <b>tỉ lệ PASS giảm dần</b>.${
       locRepo ? ` Đang xem riêng <b>${escHtml(locRepo)}</b>.` : ' Đang gộp mọi repo — lọc lại nếu muốn xem riêng một repo.'
     } <a href="/">← về trang chính</a></p>
 ${locRepoBox('/tin-cay', repos, locRepo)}
-${hoSo.length ? `<table class="runs"><tr><th>Tác giả</th><th>PR</th><th>Verdict</th><th>PASS vòng đầu</th><th>Finding tích luỹ</th><th>Streak PASS</th><th>Gần nhất</th></tr>${rows}</table>` : '<p class="sub">Chưa có verdict nào gắn tác giả (run tự động / chạy qua PR mới có tác giả).</p>'}
+${hoSo.length ? `<table class="runs"><tr><th>Tác giả</th><th>Verdict</th><th>PR</th><th title="pass / tổng verdict — trục sắp xếp của bảng này">Tỉ lệ PASS</th><th>PASS/FAIL</th><th>PASS vòng đầu</th><th>Streak PASS</th><th title="số finding mức high bị bắt">High bị bắt</th><th>Gần nhất</th></tr>${rows}</table>` : '<p class="sub">Chưa có verdict nào gắn tác giả (run tự động / chạy qua PR mới có tác giả).</p>'}
 <div class="card" style="max-width:640px;margin-top:16px"><b>Nguyên tắc:</b> điểm tin cậy KHÔNG nới lỏng cổng — PR của ai cũng bị chấm như nhau. Hồ sơ dùng để nhìn sức khoẻ đội và (về sau) xếp thứ tự ưu tiên chấm tự động.</div>`,
     '',
     { muc: 'trust', nguoi },
@@ -57,8 +59,7 @@ export function authorProfilePage(tacGia: string, hoSo: AuthorProfile | undefine
     .sort((a, b) => b.luc.localeCompare(a.luc))
     .map(
       (m) => `<tr><td class="mono" style="font-size:12px">${m.luc.slice(0, 16).replace('T', ' ')}</td>
-<td><a href="/runs/${m.run_id}">PR #${m.pr} · ${m.artifact.replace(/^PR #\d+ · /, '')}</a></td>
-<td class="mono">${m.sha.slice(0, 7)}</td>
+<td>${artifactCell({ ten: m.artifact.replace(/^PR #\d+ · /, ''), duong: `/runs/${m.run_id}`, repo: m.repo, pr: m.pr, sha: m.sha })}</td>
 <td><span class="vd-pill vd-${m.verdict}">${m.verdict}</span></td>
 <td class="mono">${m.high}H · ${m.medium}M · ${m.low}L</td></tr>`,
     )
@@ -73,7 +74,7 @@ export function authorProfilePage(tacGia: string, hoSo: AuthorProfile | undefine
   <div style="background:var(--surface);padding:12px 14px"><b style="font-size:20px;color:var(--fail)">${hoSo.high}</b><br><span style="font-size:11.5px;color:var(--muted)">finding HIGH tích luỹ</span></div>
   <div style="background:var(--surface);padding:12px 14px"><b style="font-size:20px;color:var(--pass-ink)">${hoSo.streakPass}</b><br><span style="font-size:11.5px;color:var(--muted)">streak PASS hiện tại</span></div>
 </div>
-<table class="runs"><tr><th>Lúc</th><th>Artifact</th><th>Commit</th><th>Verdict</th><th>Finding</th></tr>${rows}</table>`,
+<table class="runs"><tr><th>Lúc</th><th>Artifact</th><th>Verdict</th><th>Finding</th></tr>${rows}</table>`,
     '',
     { muc: 'trust', nguoi },
   );

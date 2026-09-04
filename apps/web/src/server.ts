@@ -345,6 +345,8 @@ app.get('/lich-su', (req, res) => {
     skill: q.skill || undefined,
     ncc: q.ncc || undefined,
     q: q.q || undefined,
+    tu: q.tu || undefined,
+    den: q.den || undefined,
     trang: Math.max(1, Number(q.trang) || 1),
   };
   const c = readConfig();
