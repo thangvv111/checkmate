@@ -1,8 +1,8 @@
-import { shell, escHtml, tokenField, splitSource } from './ui.js';
+import { shell, escHtml, tokenField, splitSource, artifactCell } from './ui.js';
 import type { RunMeta } from './runs.js';
 
 // Trang Lịch sử chạy — tách khỏi trang chính vì danh sách lớn dần theo thời gian và theo số repo.
-// Lọc bằng query string (server-side): repo · verdict · skill · nhà cung cấp · tìm chữ. Phân trang 25 dòng.
+// Lọc bằng query string (server-side): repo · verdict · skill · nhà cung cấp · ngày · tìm chữ. Phân trang 8 dòng.
 
 export interface HistoryFilter {
   repo?: string;
@@ -17,10 +17,17 @@ export interface HistoryFilter {
   skill?: string; // code | doc
   ncc?: string; // claude-cli | anthropic-api | google-gemini | openai | github-models
   q?: string;
+  /** Lọc theo KHOẢNG ngày, so trên chuỗi ISO cắt 10 ký tự đầu — `batDau` đã là ISO UTC. */
+  tu?: string;
+  den?: string;
   trang: number;
 }
 
-const MOI_TRANG = 25;
+/**
+ * Số dòng mỗi trang. Gói design CCS ghi thẳng «Phân trang thống nhất 8 dòng — con số chốt cho cả code».
+ * Đổi ở đây là đổi cho cả màn; đừng rải con số này ra chỗ khác.
+ */
+const MOI_TRANG = 8;
 
 function thoiGian(batDau: string, ketThuc?: string): string {
   if (!ketThuc) return '';
@@ -43,6 +50,12 @@ export function filterRuns(runs: RunMeta[], loc: HistoryFilter): RunMeta[] {
       if ((r.verdict?.result ?? '') !== loc.verdict) return false;
     }
     if (loc.ncc && splitSource(r.verdict?.model).nguonMa !== loc.ncc) return false;
+    // So trên chuỗi ISO cắt 10 ký tự, KHÔNG dựng `Date`: `batDau` đã là ISO UTC nên so chuỗi cho
+    // đúng thứ tự, và không kéo múi giờ vào một phép lọc. Hai vế độc lập — chỉ có «từ» thì lọc một
+    // phía; khoảng đảo ngược tự nhiên cho tập rỗng, không cần nhánh riêng.
+    const ngay = r.batDau.slice(0, 10);
+    if (loc.tu && ngay < loc.tu) return false;
+    if (loc.den && ngay > loc.den) return false;
     if (q) {
       const trong = `${r.tieuDe} ${r.verdict?.artifact_ref.sha_or_hash ?? ''} ${r.pr?.so ?? ''}`.toLowerCase();
       if (!trong.includes(q)) return false;
@@ -78,8 +91,7 @@ export function historyPage(runs: RunMeta[], loc: HistoryFilter, repos: string[]
               ? '<span class="vd-pill vd-thieu-co-so" title="lượt chấm chạy xong nhưng không chứng minh được gì — khác với lỗi hạ tầng">Không đủ cơ sở</span>'
               : '<span style="color:var(--fail)">lỗi</span>';
       return `<tr>
-<td><a href="/runs/${r.id}">${escHtml(r.tieuDe)}</a></td>
-<td class="mono" style="font-size:11.5px;color:var(--muted)">${escHtml(r.repo ?? '—')}</td>
+<td>${artifactCell({ ten: r.tieuDe, duong: `/runs/${r.id}`, repo: r.repo, pr: r.pr?.so, sha: r.verdict?.artifact_ref.sha_or_hash ?? r.pr?.headSha })}</td>
 <td>${r.skill}</td>
 <td>${kq}${tg ? ` <span style="color:var(--muted);font-size:12px">· ${tg}</span>` : ''}</td>
 <td style="font-size:12.5px">${n.nguon === '—' ? '<span style="color:var(--muted)">—</span>' : escHtml(n.nguon)}</td>
@@ -122,16 +134,20 @@ export function historyPage(runs: RunMeta[], loc: HistoryFilter, repos: string[]
     ],
     loc.ncc,
   )}
+  <label style="font-size:12px;font-weight:600;color:var(--muted)">Từ ngày<br>
+    <input name="tu" type="date" value="${escHtml(loc.tu ?? '')}" style="margin-top:3px;padding:6px 9px;border:1px solid var(--line);font-size:13px"></label>
+  <label style="font-size:12px;font-weight:600;color:var(--muted)">Đến ngày<br>
+    <input name="den" type="date" value="${escHtml(loc.den ?? '')}" style="margin-top:3px;padding:6px 9px;border:1px solid var(--line);font-size:13px"></label>
   <label style="font-size:12px;font-weight:600;color:var(--muted);flex:1;min-width:180px">Tìm (tiêu đề · SHA · số PR)<br>
     <input name="q" value="${escHtml(loc.q ?? '')}" placeholder="vd: PR #8 hoặc e711ced" style="margin-top:3px;width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius-md);font-size:13px"></label>
   <button style="margin-bottom:1px">Lọc</button>
-  ${loc.repo || loc.verdict || loc.skill || loc.ncc || loc.q ? '<a class="btn phu" href="/lich-su" style="margin-bottom:1px">Bỏ lọc</a>' : ''}
+  ${loc.repo || loc.verdict || loc.skill || loc.ncc || loc.q || loc.tu || loc.den ? '<a class="btn phu" href="/lich-su" style="margin-bottom:1px">Bỏ lọc</a>' : ''}
 </form>
 
 ${
   cua.length
     ? `<div style="overflow-x:auto"><table class="runs">
-<tr><th>Artifact</th><th>Repo</th><th>Loại</th><th>Kết quả</th><th>Provider</th><th>Model</th><th>Token (vào/ra)</th><th>Bắt đầu</th><th>Kết thúc</th></tr>
+<tr><th>Artifact</th><th>Loại</th><th>Kết quả</th><th>Provider</th><th>Model</th><th>Token (vào/ra)</th><th>Bắt đầu</th><th>Kết thúc</th></tr>
 ${rows}</table></div>
 ${
   soTrang > 1

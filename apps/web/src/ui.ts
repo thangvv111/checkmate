@@ -561,6 +561,50 @@ table.runs td { padding:9px 13px; border-bottom:1px solid var(--color-divider); 
 `;
 
 // W8: mọi chuỗi ngoại lai (PR title từ GitHub, tên file upload, finding do model viết) phải qua đây trước khi vào DOM
+/** Một ô định danh artifact, dùng chung cho cả ba bảng. */
+export interface ArtifactRef {
+  /** Tên hiện ở dòng chính — tiêu đề pull request hoặc tên tài liệu. */
+  ten: string;
+  /** Đường dẫn mở lượt chấm; rỗng thì ô không thành liên kết. */
+  duong?: string;
+  repo?: string;
+  pr?: number;
+  sha?: string;
+  /** Ghi chú nhỏ sau tên (ví dụ «backfill»). */
+  ghiChu?: string;
+}
+
+/**
+ * Định danh artifact — MỘT khuôn cho cả ba bảng: tên đậm ở dòng chính, `repo#PR @ SHA` ở dòng phụ mono.
+ *
+ * Vì sao một khuôn: trước change này ba bảng bày cùng một thứ theo BA kiểu — Lịch sử tách `Repo` thành
+ * cột, Sổ cái tách cả `Repo` lẫn `Commit`, bảng hồ sơ tác giả lại khác nữa. Mắt phải học lại cách đọc ở
+ * mỗi màn, và mỗi kiểu là một chỗ để lệch.
+ *
+ * Vì sao repo và SHA KHÔNG là cột riêng: chúng là phần định danh của CÙNG một artifact, không phải hai
+ * thuộc tính độc lập. Tách ra thì bảng rộng thêm hai cột mà mắt vẫn phải ghép ba ô mới biết một hàng nói
+ * về cái gì.
+ *
+ * ⛔ Mọi trường ở đây là DỮ LIỆU NGOÀI: tên artifact là tiêu đề pull request (ai mở PR cũng đặt được) hoặc
+ * tên file người dùng tải lên. Tất cả phải qua `escHtml` — đây là bề mặt dựng HTML dùng chung cho ba màn,
+ * nên một lỗ thoát HTML ở đây rò ra cả ba cùng lúc.
+ */
+export function artifactCell(a: ArtifactRef): string {
+  const ten = escHtml(a?.ten ?? '—');
+  const chinh = a?.duong ? `<a href="${escHtml(a.duong)}"><b>${ten}</b></a>` : `<b>${ten}</b>`;
+  // Dòng phụ ghép từ những mảnh CÓ THẬT. Thiếu mảnh nào thì bỏ mảnh ấy — không in ô rỗng, vì một dấu
+  // gạch ngang ở chỗ định danh trông giống một giá trị chứ không giống một chỗ trống.
+  const manh = [
+    a?.repo ? escHtml(a.repo) + (typeof a?.pr === 'number' && a.pr > 0 ? `#${a.pr}` : '') : '',
+    a?.sha ? `@ ${escHtml(String(a.sha).startsWith('sha256:') ? a.sha : String(a.sha).slice(0, 7))}` : '',
+  ].filter(Boolean);
+  const phu = manh.length
+    ? `<div class="mono" style="font-size:11px;color:var(--muted)">${manh.join(' ')}</div>`
+    : '';
+  const ghi = a?.ghiChu ? ` <span style="font-size:10.5px;color:var(--muted)">(${escHtml(a.ghiChu)})</span>` : '';
+  return `${chinh}${ghi}${phu}`;
+}
+
 export function escHtml(s: unknown): string {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 }
