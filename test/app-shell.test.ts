@@ -176,7 +176,15 @@ describe('mọi trang thật render được qua vỏ mới', () => {
     ['tin cậy', () => trustPage([], ['a/b'])],
     ['cấu hình', () => settingsPage(cauHinh)],
     ['nguyên tắc', () => docsPage()],
-    ['thư viện probe', () => probesPage()],
+    [
+      'thư viện probe',
+      () =>
+        probesPage({
+          repoFull: 'a/one',
+          index: { probes: [], tran: 100, trang_thai: 'rong' },
+          removals: { ban_ghi: [], dong_hong: 0, ton_tai: false },
+        }),
+    ],
   ];
 
   for (const [ten, dung] of trang) {

@@ -24,6 +24,7 @@ import { readWebhookSecret } from './secret-vault.js';
 import { attachSecretGuard } from './response-secret-guard.js';
 import { loginPage, type LoginState } from './ui-login.js';
 import { probesPage } from './ui-probes.js';
+import { readLibraryIndex, readProbeCode, readRemovalLog, repoSlug } from '../../../packages/harness/src/probe-library.js';
 
 import { type CauHinhCoRepo, LIBRARY_CAP, MODE, PROBE_DEPTH, ProviderConfigErrorCfg, clampToRange, coRepo, laRepoDaKhai, configForReview, currentConfig, maskToken, maskToken2, readConfig, migrateRepoToken, readSubscriptionToken, agentEnv, writeConfig, writeSubscriptionToken } from './config.js';
 import { PROVIDER_CATALOG, providerDefinition, validModel, readProviderCheck, writeKey, checkStillValid, type ProviderConfig, type ProviderId, type Method } from './provider.js';
@@ -357,8 +358,46 @@ app.get('/docs', (req, res) => {
   res.send(docsPage(ai(req)));
 });
 
+/**
+ * Trần thư viện ĐANG CÓ HIỆU LỰC, tính ở tầng web.
+ *
+ * `readLibraryIndex().tran` đọc `CHECKER_LIB_TRAN` — biến môi trường mà tiến trình web **không** đặt cho
+ * chính nó (nó chỉ truyền xuống CLI qua `agentEnv`). Dùng thẳng số ấy thì màn luôn hiện mặc định dù người
+ * vận hành đã đổi trần, và nó sai đúng vào lúc con số này quan trọng nhất: trần quyết định probe nào bị
+ * đào thải. Ở tầng web, nguồn sự thật là cấu hình.
+ */
+function effectiveLibraryCap(): number {
+  return clampToRange(readConfig().agent.tran_thu_vien, LIBRARY_CAP);
+}
+
+/** Ba đường của màn thư viện đọc CÙNG một chỗ — hai chỗ đọc là hai chỗ sẽ lệch nhau. */
+function readLibraryForScreen(cfg: CauHinhCoRepo) {
+  const slug = repoSlug(cfg.repo.local_path);
+  return { slug, index: { ...readLibraryIndex(slug), tran: effectiveLibraryCap() }, removals: readRemovalLog(slug) };
+}
+
 app.get('/probes', (req, res) => {
-  res.send(probesPage(ai(req)));
+  const cfg = readConfig();
+  if (!coRepo(cfg)) return res.send(probesPage({ repoFull: '', index: null, removals: { ban_ghi: [], dong_hong: 0, ton_tai: false }, nguoi: ai(req) }));
+  const { index, removals } = readLibraryForScreen(cfg);
+  res.send(probesPage({ repoFull: cfg.repo.github, index, removals, nguoi: ai(req) }));
+});
+
+app.get('/api/probes', (_req, res) => {
+  const cfg = readConfig();
+  if (!coRepo(cfg)) return res.status(409).json({ loi: 'Chưa kết nối repo nào — thư viện probe dựng theo repo.' });
+  const { index, removals } = readLibraryForScreen(cfg);
+  // KHÔNG trả `slug` hay `local_path`: đường dẫn trên máy chủ là thông tin hạ tầng, màn không cần.
+  res.json({ repo: cfg.repo.github, ...index, removals });
+});
+
+app.get('/api/probes/code', (req, res) => {
+  const cfg = readConfig();
+  if (!coRepo(cfg)) return res.status(409).json({ loi: 'Chưa kết nối repo nào.' });
+  const code = readProbeCode(repoSlug(cfg.repo.local_path), (req.query as Record<string, unknown>).ten);
+  // Lý do từ chối KHÔNG vọng lại đường dẫn đã thử: in đường dẫn ra là vẽ bản đồ đĩa cho người hỏi.
+  if (code === null) return res.status(404).json({ loi: 'Probe không có trong thư viện của repo này.' });
+  res.json({ code });
 });
 
 app.get('/lich-su', (req, res) => {

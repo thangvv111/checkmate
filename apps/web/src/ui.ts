@@ -199,6 +199,9 @@ textarea.input { min-height:90px; resize:vertical; }
   --pass:       #0E9F7E;  --pass-ink:   #08655A;  --pass-tint:   #E2F3EE;
   --fail:       #D0342C;  --fail-ink:   #A3271F;  --fail-tint:   #F9E4E2;
   --medium:     #C77A16;  --medium-ink: #8F5810;  --medium-tint: #F7ECDA;
+  /* Amber NHẠT — gói design CCS §5b dùng riêng cho «nghi vấn» trên dải hành vi: nghi vấn nhẹ hơn
+     ngoài-phạm-vi một bậc, và hai bậc ấy phải phân biệt được bằng mắt trong một dải 14px. */
+  --medium-soft: #E8B463;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -502,6 +505,61 @@ table.runs td { padding:9px 13px; border-bottom:1px solid var(--color-divider); 
 .vd-hang > .k { color:color-mix(in srgb, var(--color-text) 55%, transparent); }
 .vd-hang > .v { font-family:var(--font-mono); font-size:12px; text-align:right; }
 .vd-hang.xam > .v { color:var(--medium-ink); }
+
+/* ---- Màn Thư viện probe (gói design CCS §5b) ---- */
+.tv-dau { display:flex; align-items:center; gap:14px; margin-top:8px; flex-wrap:wrap; }
+.tv-dem { font-family:var(--font-mono); font-size:13px; font-weight:600; }
+.tv-dem-hong { color:var(--medium-ink); }
+.tv-ghi { font-family:var(--font-mono); font-size:12px; color:var(--color-neutral-600); }
+.tv-ditru { flex-basis:100%; border-left:6px solid var(--medium); background:var(--medium-tint);
+  color:var(--medium-ink); padding:12px 16px; font-size:13px; line-height:1.65; }
+
+/* Dải hành vi — ĐẦU TƯ THỊ GIÁC CHÍNH của màn. Ô 14px, gap 3px, mới nhất bên phải. */
+.hv-dai { display:flex; gap:3px; flex-wrap:wrap; }
+.hv-o { width:14px; height:14px; flex:none; background:var(--o);
+  /* Ô neutral cần viền TRONG để không biến mất trên nền sáng — nó là một phép đo thật, không phải chỗ trống */
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--color-text) 22%, transparent); }
+.hv-trong { font-family:var(--font-mono); font-size:11.5px; color:var(--color-neutral-600); }
+.hv-chugiai { display:flex; gap:18px; flex-wrap:wrap; margin-top:16px; padding-bottom:10px;
+  border-bottom:2px solid var(--color-divider); }
+.hv-chu { display:flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:11px;
+  color:var(--color-neutral-700); }
+
+.probe-dong { border-bottom:1px solid var(--color-divider); padding:14px 0; }
+.probe-grid { display:grid; grid-template-columns:minmax(300px,1.35fr) minmax(280px,1fr) auto;
+  gap:20px; align-items:start; }
+.probe-ten-hang { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.probe-ten { font-family:var(--font-mono); font-size:13px; font-weight:600; overflow-wrap:anywhere; }
+.probe-tag { font-family:var(--font-mono); font-size:10.5px; font-weight:600; padding:1px 6px;
+  background:var(--color-neutral-200); color:var(--color-neutral-800); }
+.probe-tag-trong { background:transparent; color:var(--color-neutral-600); font-weight:400; }
+.probe-mucdich { font-size:13.5px; margin-top:6px; max-width:60ch; text-wrap:pretty; }
+.probe-meta, .probe-nhan-dai, .probe-tomtat { font-family:var(--font-mono); font-size:11px;
+  color:var(--color-neutral-600); }
+.probe-meta { margin-top:6px; }
+.probe-nhan-dai { letter-spacing:0.08em; text-transform:uppercase; margin-bottom:6px; }
+.probe-tomtat { margin-top:6px; }
+.probe-nut-code { font-size:12.5px; padding:6px 12px; white-space:nowrap; }
+/* Code probe: khối tối theo gói, và CUỘN TRONG CHÍNH NÓ — một probe dòng dài không được đẩy cả trang
+   sang ngang. Nội dung đặt bằng textContent, không bao giờ bằng innerHTML. */
+.probe-code { margin:12px 0 0; background:var(--color-neutral-900); color:var(--color-neutral-300); padding:14px 16px;
+  overflow-x:auto; font-family:var(--font-mono); font-size:12px; line-height:1.7; white-space:pre; }
+
+.probe-khu { margin-top:30px; }
+.go-dau, .go-hang { display:grid; grid-template-columns:1.2fr 1.2fr 1.3fr 1.6fr; gap:12px; }
+.go-dau { padding:8px; border-bottom:2px solid var(--color-divider); margin-top:12px; font-size:11px;
+  letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-600); }
+.go-hang { align-items:start; padding:9px 8px; border-bottom:1px solid var(--color-divider);
+  font-size:12.5px; }
+.go-ten { font-family:var(--font-mono); font-size:12px; color:var(--fail-ink); overflow-wrap:anywhere; }
+.go-trong { color:var(--color-neutral-600); }
+.go-bc { font-family:var(--font-mono); font-size:11.5px; color:var(--color-neutral-700); line-height:1.6;
+  overflow-wrap:anywhere; }
+@media (max-width: 900px) {
+  .probe-grid { grid-template-columns:1fr; }
+  .go-dau { display:none; }
+  .go-hang { grid-template-columns:1fr; gap:2px; }
+}
 
 /* Thư viện — nối liền dưới verdict */
 .thu-vien { border:2px solid var(--color-divider); border-top:none; background:var(--color-bg);
