@@ -76,15 +76,40 @@ sau**: lớp ngoài đã gỡ mà rào trong chưa chứng minh được là đa
 
 ## § Đo được ở §7 (06/09, prod)
 
+Đo trên máy chủ, qua `127.0.0.1:4001`, tên tài khoản KHÔNG tồn tại (để không khoá tài khoản thật —
+`verifyPassword` vẫn băm với muối giả cho tên không tồn tại, nên thời gian so sánh được).
 
+```
+gác tài khoản — cùng một tên, sai liên tiếp:
+  lần 1-3    83 / 52 / 48 ms   ?sai=1     <- scrypt CHAY
+  lần 4-16    1 -  2 ms        ?cho=1     <- scrypt KHONG chay   (~40x nhanh hon)
 
-**Tụt từ ~50 ms xuống 1–2 ms là bằng chứng gác đứng TRƯỚC phép băm** — thứ ca test đơn vị không
-chứng minh được trên máy thật.
+gác IP — quét nhiều tên khác nhau từ MỘT ip:
+  lần 1-11   47 - 56 ms        ?sai=1
+  lần 12+     1 -  2 ms        ?cho=900   <- chan IP 15 phut
+
+hết hạn phạt:
+  ngay sau khi bị phạt    1 ms   ?cho=1
+  sau khi chờ 2 giây     47 ms   ?sai=1   <- bam chay lai, nguoi that vao duoc
+
+đường thoát:  systemctl restart  ->  lần thử kế 80 ms ?sai=1  (trạng thái đã xoá)
+log:          «rào đăng nhập: chặn 1 lượt · tài khoản d008e82c · nguồn 198.51.100.77»
+              tên đã CHE; không tên thô nào lọt ra log
+dữ liệu prod: so_cai 3->3 · run 5->5 · probes-lib 8->8 · runs 8->8 · quyền DB 600
+bind:         127.0.0.1:4001  (tiền đề của X-Real-IP còn nguyên)
+```
+
+**Tụt từ ~50 ms xuống 1–2 ms là bằng chứng gác đứng TRƯỚC phép băm** — thứ ca test đơn vị không chứng
+minh được trên máy thật.
+
+**Giới hạn của rào, nói thẳng ra:** kẻ tấn công vẫn đốt được **11 lượt scrypt cho mỗi IP mỗi 15 phút**
+(~0,55 giây CPU). Một mạng khoảng **27 IP** trở lên là giữ được một lõi bận liên tục. Rào này cắt chi phí
+xuống hai bậc độ lớn, **không** đưa nó về không — ai đọc số ở trên nên biết cả điều đó.
 
 ⚠ **Đo được một chỗ CHƯA TỐT, ghi lại thay vì bỏ qua:** 13 lượt bị chặn mà log chỉ ghi «chặn 1 lượt».
- báo số dồn ở lần phát KẾ TIẾP, nên một đợt tấn công ngắn hơn 60 giây kết thúc bằng đúng một
-dòng nói «1». Không sai về luật (trần tần suất vẫn đúng như spec đòi) nhưng **con số làm người vận hành
-ước lượng thấp đi**. Xem nợ N2.
+Hàm chặn-tần-suất-ghi-sổ báo số dồn ở lần phát **kế tiếp**, nên một đợt ngắn hơn 60 giây kết thúc bằng
+đúng một dòng nói «1». Không sai về luật — trần tần suất vẫn đúng như spec đòi — nhưng **con số làm người
+vận hành ước lượng thấp đi**. Xem nợ N2.
 
 ## 8. Deploy BƯỚC HAI — gỡ Basic Auth (⛔ CHỜ PO CHỐT, tin riêng)
 
