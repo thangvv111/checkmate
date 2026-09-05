@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { readTrackedText, scanBlindness } from './tracked-files.js';
 
 /**
  * Lưới «không con trỏ mồ côi» — change `retire-r-rules`.
@@ -113,10 +114,15 @@ describe('không con trỏ mồ côi — mọi mã R trích trong repo có hàng
       .split('\n')
       .map((x) => x.trim())
       .filter((p) => p && /\.(ts|js|md|yml|yaml|json|txt)$/i.test(p) && !KHONG_QUET.some((re) => re.test(p)));
+    // `openspec archive` DỜI thư mục change; giữa lúc dời và lúc commit, chỉ mục git còn trỏ đường cũ.
+    // Đọc thẳng thì nổ ENOENT giữa một lượt test đang xanh — đã gãy BA lần trong ngày 05/09.
+    // `readTrackedText` bỏ qua file vắng mặt và ĐẾM; `scanBlindness` giữ cho việc bỏ qua ấy không âm thầm
+    // biến lưới thành «xanh mà không quét gì». Chi tiết: test/tracked-files.ts.
+    const daQuet = readTrackedText(files, (p) => readFileSync(join(GOC, p), 'utf8'));
+    expect(scanBlindness(daQuet), 'phép quét mã R mồ côi đang mù').toEqual([]);
     const moCoi: string[] = [];
-    for (const p of files) {
-      const lines = readFileSync(join(GOC, p), 'utf8').split(/\r?\n/);
-      lines.forEach((l, i) => {
+    for (const { p, text } of daQuet.daDoc) {
+      text.split(/\r?\n/).forEach((l, i) => {
         for (const m of l.matchAll(RE_CODE)) if (!co.has(m[0])) moCoi.push(`${p}:${i + 1} ${m[0]}`);
       });
     }
