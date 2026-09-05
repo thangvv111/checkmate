@@ -217,6 +217,39 @@ chúng chứng minh PR làm đúng, không chứng minh probe canh được gì.
 — một con số nay không bao giờ khác 0. Đã gỡ, và ca T4.3 khoá cả hai vế (không còn đường sinh, không còn
 nhắc trong log). Không lưới nào bắt được nó; thứ bắt được là **chạy thật rồi ĐỌC output**.
 
+#### Đo thời gian: KHÔNG kết luận được, và đây là lý do
+
+Nhiệm vụ 7.3 đòi «đo thời gian lượt chấm so với trước». Em đo, và **phép đo không cô lập được biến cần
+đo**. Ghi ra thay vì chọn con số đẹp:
+
+| lượt | cấu hình | thư viện | thời gian | ghi chú |
+|---|---|---|---|---|
+| 10:18 (trước change) | max_probe 12 | **có** (7 probe) | 210s | |
+| 12:16 (trước change) | max_probe 12 | **có** (7 probe) | 234s | |
+| 22:30 (sau change) | max_probe 6 | không | **170s** | 6 probe, không sinh lại |
+| 22:34 (sau change) | max_probe 12 | không | **397s** | 11 probe, **có một lượt SINH LẠI** |
+
+Lượt 22:34 chậm hơn hẳn, và nguyên nhân **không phải** thư viện: bộ probe đầu tiên hỏng — `0/11 pass` trên
+**cả hai nhánh** — nên engine kích hoạt đường sinh lại (lưới «>50% probe mới hỏng»), tức chạy **hai vòng
+sandbox trên hai nhánh** thay vì một. Lần hai cho `10/11` trên nhánh PR.
+
+Ba biến cùng đổi giữa các lượt: **số probe** (6 · 11 · 12), **có sinh lại hay không**, và **model sinh ra
+bộ probe khác nhau mỗi lượt**. Thư viện chỉ là biến thứ tư. Với bốn điểm dữ liệu và ba biến nhiễu, một
+con số «nhanh hơn X%» rút ra từ đây sẽ là con số bịa.
+
+**Thứ nói được chắc chắn, vì nó là số học chứ không phải suy đoán:** mỗi lượt chấm nay chạy **ít hơn 7
+probe × 2 nhánh = 14 lượt thực thi test**, và con số ấy **thôi tăng theo thời gian**. Trước change nó tăng
+tới trần 100 probe, tức tối đa 200 lượt thực thi mỗi lượt chấm, không liên quan gì tới PR đang xét. Phần
+tiết kiệm quy ra bao nhiêu giây thì tuỳ bộ test của repo đích nhanh hay chậm — và đó là câu chỉ đo được
+trên chính repo ấy, không phải trên repo demo.
+
+*(Lượt 22:34 vẫn in `0 nghi lỗi có sẵn (thư viện)` vì prod đang chạy bản trước bản sửa dòng log — bản sửa
+ấy nằm ở commit sau lần deploy này.)*
+
+⚠ **Một quan sát ngoài lề, đáng giữ:** đường sinh lại đã chạy đúng khi cần — bộ probe hỏng toàn tập bị
+phát hiện và sinh lại thay vì cho ra một verdict dựa trên 11 probe vô nghĩa. Không có nó, lượt ấy sẽ báo
+«9 ngoài phạm vi» rồi PASS trong im lặng.
+
 ## § Sau-merge — nợ có tên
 
 - [ ] N1 **Cửa đột biến mạnh hơn**: phủ định khẳng định là điều kiện CẦN, không ĐỦ — `expect(1).toBe(1)`
