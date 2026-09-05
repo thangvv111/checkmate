@@ -140,3 +140,12 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       (`button.user-btn`), cả hai có mép phải 685. Sidebar 210px cố định cũng góp phần.
       *Vì sao tách riêng:* nó là lỗi của VỎ, chạm mọi màn, và sửa nó là một lượt rà responsive toàn app —
       không phải phần đuôi của một fix bố cục một màn. Khối lọc đã tự nó không tràn (mép phải 343 < 375).
+
+- [ ] 24. **Rà mọi chỗ dùng `.card` bằng MẮT** (từ `history-filter-layout` §6.3, 05/09). Lưới đã chặn ca
+      «`.card` + `display:flex` nội tuyến mà quên `flex-direction`», nhưng một card KHÔNG khai
+      `display:flex` vẫn có thể đang xếp dọc oan mà không lưới nào thấy. Việc này đọc từng màn trên trình
+      duyệt, không quét được bằng chuỗi.
+
+- [ ] 25. **Đặt bí mật webhook trên prod** (PO quyết, không phải việc kỹ thuật). Chưa đặt thì PR mở phải
+      đợi chu kỳ trực 300s thay vì chấm ngay. Quy trình ở `DEPLOY.md` › «Đặt bí mật». Ghi vào đây để nó
+      không rơi khỏi tầm nhìn — cái giá của việc chưa đặt chỉ là độ trễ, không mất gì.
