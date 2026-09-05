@@ -48,7 +48,7 @@ runner:
       ../apps/web/src/config.js              → maskToken · maskToken2 · slugGithubRepo · findRepo · migrateRepoToken · currentConfig · readConfig · writeConfig · readSubscriptionToken · writeSubscriptionToken · agentEnv · configForReview · ProviderConfigErrorCfg · resolveRepoShape · coRepo · laRepoDaKhai · timRepoDaKhai · clampToRange · PROBE_DEPTH · LIBRARY_CAP · LIBRARY_CAP_SUGGESTED
       ../apps/web/src/secret-vault.js          → readRepoToken · readOwnToken · writeRepoToken · deleteRepoToken · hasToken · repoKey · readVault · writeVault · readWebhookSecret · writeWebhookSecret
       ../apps/web/src/identity.js           → getIdentity · identityIfAny · verifyPassword · createSession · deleteSession · cleanupExpiredSessions · createAccount · changePassword · changeRole · deleteAccount · listAccounts · hasAnyAccount · validName · readCookie · canOperateGate · requireGateRole · canOperate · IdentityError · SESSION_COOKIE_NAME · canRunReview · canEditConfig
-      ../apps/web/src/ui-login.js            → loginPage
+      ../apps/web/src/ui-login.js            → loginPage · describeWaitTime
       ../apps/web/src/ui-probes.js           → probesPage
       ../apps/web/src/principles.js          → PRINCIPLES · PRINCIPLES_POSTER
       ../apps/web/src/ledger.js              → entryFromMeta · appendVerdictLedger · readVerdictLedger · backfillVerdictLedger

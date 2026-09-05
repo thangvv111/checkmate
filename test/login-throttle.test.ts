@@ -21,7 +21,7 @@ import {
   runLoginAttempt,
   type ThrottleState,
 } from '../apps/web/src/login-throttle.js';
-import { loginPage } from '../apps/web/src/ui-login.js';
+import { loginPage, describeWaitTime } from '../apps/web/src/ui-login.js';
 
 /**
  * Lưới cho capability `login-throttle` — rào chống dò mật khẩu ở `/login`.
@@ -417,6 +417,29 @@ describe('thông điệp cho người bị chặn (T8)', () => {
     }
     // Không nêu tên gác, không nêu số lần còn lại — chỉ nêu thời gian chờ.
     expect(trang(8)).not.toMatch(/x-real-ip|IP_FAIL_CAP|còn \d+ lần/i);
+  });
+
+  it('T8.5 [kiểm tay prod 06/09] số lớn hiện bằng PHÚT, không bắt người đọc tự chia', () => {
+    // Gác IP chặn 900 giây và trang từng hiện «Chờ khoảng 900 giây» — đúng số, nhưng bắt người đọc làm
+    // phép chia giữa lúc họ đang không vào được hệ thống. Hai gác có hai thang khác hẳn nhau
+    // (tài khoản 1–60 giây · IP 900 giây) nên một đơn vị không phục vụ được cả hai.
+    expect(describeWaitTime(900)).toBe('15 phút');
+    expect(trang(900)).toContain('Chờ khoảng 15 phút');
+    expect(trang(900)).not.toContain('900 giây');
+  });
+
+  it('T8.6 số nhỏ vẫn hiện bằng GIÂY — lùi dần theo tài khoản đo bằng giây', () => {
+    for (const g of [1, 2, 8, 60, 89]) expect(describeWaitTime(g)).toBe(`${g} giây`);
+    expect(trang(4)).toContain('Chờ khoảng 4 giây');
+  });
+
+  it('T8.7 [biên trùng ngưỡng] 89 → giây · 90 → phút, và luôn làm tròn LÊN', () => {
+    expect(describeWaitTime(89)).toBe('89 giây');
+    expect(describeWaitTime(90)).toBe('2 phút');
+    // Làm tròn lên: nói ngắn hơn thực tế thì người ta thử lại sớm rồi lại bị chặn.
+    expect(describeWaitTime(61)).toBe('61 giây');
+    expect(describeWaitTime(119)).toBe('2 phút');
+    expect(describeWaitTime(899)).toBe('15 phút');
   });
 
   it('T8.3 [biên] thiếu số giây · số vô nghĩa → vẫn ra câu chờ, không ném', () => {

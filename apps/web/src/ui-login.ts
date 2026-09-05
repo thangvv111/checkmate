@@ -75,13 +75,26 @@ const CSS_LOGIN = `
  * Nhưng nó KHÔNG được nói gác nào đang chặn, cũng không nói còn mấy lần nữa thì bị chặn: hai thứ đó biến
  * trang này thành bảng điều khiển cho người đang dò.
  */
+/**
+ * Đổi số giây thành cụm người đọc hiểu ngay.
+ *
+ * Bắt được lúc kiểm tay trên prod 06/09: gác IP chặn 900 giây, và trang hiện «Chờ khoảng 900 giây» —
+ * đúng số, nhưng bắt người đọc tự chia cho 60 giữa lúc họ đang không vào được hệ thống. Hai gác có hai
+ * thang khác hẳn nhau (tài khoản 1–60 giây · IP 900 giây) nên một đơn vị không phục vụ được cả hai.
+ */
+export function describeWaitTime(giay: number): string {
+  if (giay < 90) return `${giay} giây`;
+  const phut = Math.ceil(giay / 60);
+  return `${phut} phút`;
+}
+
 function throttleBanner(giay?: number): { nen: string; chu: string; loi: string } {
   const s = Number.isFinite(giay) && (giay as number) > 0 ? Math.ceil(giay as number) : null;
   return {
     nen: 'var(--medium-tint)',
     chu: 'var(--medium-ink)',
     loi: s
-      ? `Quá nhiều lần thử. Chờ khoảng ${s} giây rồi đăng nhập lại — mật khẩu của bạn không bị đổi.`
+      ? `Quá nhiều lần thử. Chờ khoảng ${describeWaitTime(s)} rồi đăng nhập lại — mật khẩu của bạn không bị đổi.`
       : 'Quá nhiều lần thử. Chờ một lát rồi đăng nhập lại — mật khẩu của bạn không bị đổi.',
   };
 }
