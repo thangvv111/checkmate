@@ -67,6 +67,11 @@ sai», và người đọc verdict không có cách nào biết điều đó.*
 Repo đích MAY không có `checkmate.yml`; khi đó engine SHALL dùng đường chạy test mặc định thay vì từ chối
 chấm.
 
+Khối `runner` MAY khai thêm **ảnh chạy** cho môi trường cô lập. Không khai thì dùng ảnh mặc định ghim
+phiên bản cụ thể; MUST NOT dùng thẻ trôi. Cùng luật đọc như `test_cmd`: giá trị lấy từ bản trên đĩa của
+clone (nhánh gốc), MUST NOT lấy từ nhánh pull request — pull request không được chọn môi trường mà chính
+code của nó sẽ chạy.
+
 Khai khối `runner` mà thiếu lệnh chạy test SHALL được coi như **không khai runner** — cấu hình nửa vời
 không được dùng.
 

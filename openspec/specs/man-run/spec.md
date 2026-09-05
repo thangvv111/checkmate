@@ -79,6 +79,15 @@ vì repo không có luật nào đọc được. Cái đó không hiện ra ở 
 - **WHEN** không probe nào rơi vào bốn nhóm trên
 - **THEN** bảng vẫn khai các mục đó ở giá trị không — im lặng và số không là hai điều khác nhau
 
+#### Scenario: bảng số liệu bày mức cô lập
+- **WHEN** đọc bảng số liệu của một verdict
+- **THEN** nó bày mức cô lập của lượt chạy; lượt chạy KHÔNG cô lập phải đọc ra được ngay, không phải suy
+  từ chỗ khác
+
+#### Scenario: verdict đời cũ không có trường mức cô lập
+- **WHEN** mở một verdict ghi trước khi có phép đo này
+- **THEN** bảng khai **không đo được**, MUST NOT khai là đã cô lập và MUST NOT khai là không cô lập
+
 #### Scenario: lượt chấm có probe bị cách ly
 - **WHEN** một lượt chấm loại probe vì lỗi nạp rồi chạy tiếp
 - **THEN** bảng số liệu hiện số probe bị cách ly, cạnh các số vùng xám khác — một lượt chấm mất phép thử

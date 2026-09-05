@@ -27,7 +27,12 @@ gồm cả vùng chưa kết luận được: nghi vấn, bỏ qua, thất lạc
 cách ly** trong lượt. Số thất lạc SHALL tính trên **mọi** probe đã đưa vào chạy, kể cả probe thư viện —
 một nhóm probe chạy mà không được đếm ở đâu là một lỗ đúng bằng kích thước nhóm ấy. `PASS` với 0
 probe chạy được không phải `PASS` có giá trị, và người đọc phải thấy điều đó ngay trong dữ liệu verdict,
-không phải suy từ lời văn. Việc BÀY RA những số này thuộc `man-run`; ở đây là yêu cầu chúng **có mặt**.
+không phải suy từ lời văn. Verdict SHALL kèm **mức cô lập** của lượt chạy: môi trường mà code artifact thực sự đã chạy trong đó.
+Giá trị ấy SHALL phản ánh thứ **thực tế đã dùng**, không phải cấu hình mong muốn — «đã cấu hình để cô lập»
+và «đã cô lập» là hai câu khác nhau, và chỉ câu thứ hai đáng ghi vào verdict. VẮNG trường ấy nghĩa là bản
+ghi có trước phép đo này, KHÔNG có nghĩa là không cô lập.
+
+Việc BÀY RA những số này thuộc `man-run`; ở đây là yêu cầu chúng **có mặt**.
 
 #### Scenario: có finding mức high
 - **WHEN** danh sách finding có ít nhất một mức `high`
@@ -40,6 +45,14 @@ không phải suy từ lời văn. Việc BÀY RA những số này thuộc `man
 #### Scenario: không có finding chặn
 - **WHEN** mọi finding đều ở mức `medium` hoặc `low`, hoặc không có finding nào
 - **THEN** kết quả là `PASS`, và `probe_stats` vẫn có mặt với số kế hoạch, số ghi nhận và vùng xám
+
+#### Scenario: lượt chạy trong môi trường cô lập
+- **WHEN** probe chạy trong môi trường cô lập
+- **THEN** verdict khai mức cô lập ấy kèm runtime đã dùng
+
+#### Scenario: lượt chạy trên nền không cô lập được
+- **WHEN** nền đang chạy không có runtime cô lập
+- **THEN** verdict khai rõ là chạy KHÔNG cô lập — không vắng mặt, không để người đọc suy
 
 #### Scenario: lượt chấm phải cách ly probe để chạy được
 - **WHEN** engine loại một số probe vì lỗi nạp rồi chạy tiếp
