@@ -237,14 +237,32 @@ main.wrap { padding-top:26px; padding-bottom:64px; }
 .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:var(--space-3); }
 /* — vỏ ứng dụng: header 2px rule dưới · sidebar 210px 2px rule phải · main 1240 — */
 body.app { display:flex; flex-direction:column; min-height:100vh; }
+/*
+ * Header CHO XUỐNG DÒNG. Đo được ở 375px: các con tổng 612px trong một khung 375px, và vì .nav là
+ * flex nowrap nên chúng đẩy cả TÀI LIỆU ra 685px — mọi màn cuộn ngang, không riêng màn nào.
+ */
 .app-hd { background:var(--color-bg); position:sticky; top:0; z-index:40; gap:14px;
-  view-transition-name:cm-hd; }
+  flex-wrap:wrap; view-transition-name:cm-hd; }
 .wordmark { font-family:var(--font-heading); font-weight:var(--font-heading-weight);
   font-size:18px; letter-spacing:-0.015em; color:var(--color-text); text-decoration:none; }
 .wordmark .mate { color:var(--color-accent); }
 .hd-space { flex:1; }
 .hd-menu { position:relative; }
-.repo-btn { font-family:var(--font-mono); font-weight:500; font-size:13px; white-space:nowrap; }
+/*
+ * Trần bề rộng — vì bề rộng nút này do TÊN REPO quyết định, tức do dữ liệu người dùng.
+ *
+ * Đo được: một tên owner/repo bình thường làm nút rộng 288px, và đó là thứ đẩy header vỡ. Một phần tử
+ * mà người khác quyết định bề rộng thì phải có trần; không có trần thì bố cục của mình phụ thuộc vào
+ * chuỗi người khác gõ.
+ *
+ * Cắt bằng ellipsis chứ không bỏ nowrap: một tên owner/repo gãy làm hai dòng đọc còn khó hơn. Tên đầy
+ * đủ vẫn ở thuộc tính title và trong danh sách xổ xuống.
+ *
+ * ⛔ Đây KHÔNG phải một phép che. ⛔C3 đòi bản che phân biệt được hai giá trị khác nhau; ellipsis không
+ * đạt điều đó, nên nó không được dùng lại cho token hay giá trị người dùng gõ vào ô cấu hình.
+ */
+.repo-btn { font-family:var(--font-mono); font-weight:500; font-size:13px; white-space:nowrap;
+  max-width:46vw; overflow:hidden; text-overflow:ellipsis; }
 .user-btn { gap:8px; font-size:13px; }
 .ava { width:22px; height:22px; flex:none; background:var(--color-text); color:var(--color-bg);
   display:inline-grid; place-items:center; font-family:var(--font-mono); font-size:10px; }
@@ -276,6 +294,32 @@ body.app { display:flex; flex-direction:column; min-height:100vh; }
 .app-nav-chan { font-family:var(--font-mono); font-size:10px; color:var(--color-neutral-500);
   padding:0 10px; }
 .app-main { flex:1; min-width:0; max-width:1240px; padding:26px 32px 64px; }
+
+/*
+ * Vỏ ở màn hẹp — cột 210px cộng viewport 375px để lại cột nội dung 165px (màn có bảng: 64px), và một
+ * cột 165px thì không đọc được. Nên sidebar đổi HÌNH, không chỉ co lại.
+ *
+ * Dải XUỐNG DÒNG chứ không cuộn ngang: bảy mục ngắn xếp hai hàng ở 375px, mọi mục nhìn thấy CÙNG LÚC —
+ * mục đang mở không phải cuộn đi tìm. Đổi lại là một hàng dọc, và ở màn hẹp chiều dọc là thứ rẻ nhất.
+ *
+ * KHÔNG dùng menu bật/tắt: nó gọn hơn nhưng đòi JavaScript, mà vỏ này chạy được khi JS tắt. Đổi tính
+ * chất ấy lấy một bố cục gọn hơn là một cái giá không ai xin phép trả.
+ *
+ * KHÔNG ẩn bớt mục nào để hết tràn: cổng merge và màn Cấu hình nằm sau điều hướng, nên giấu một mục là
+ * lấy mất đường tới đúng thứ người vận hành cần lúc gấp.
+ */
+@media (max-width: 720px) {
+  .app-body { flex-direction:column; }
+  .app-nav { width:auto; flex-direction:row; flex-wrap:wrap; gap:4px; padding:10px 12px;
+    border-right:0; border-bottom:2px solid var(--color-divider); }
+  .app-nav a { padding:6px 10px; font-size:13px; }
+  /* Khoảng đệm đẩy chân trang xuống chỉ có nghĩa ở bố cục CỘT — ở dải ngang nó làm dải cao vống. */
+  .app-nav-day { display:none; }
+  .app-nav-chan { width:100%; padding:2px 10px 0; }
+  .app-main { padding:18px 16px 48px; }
+  .app-hd { gap:8px; padding:10px 12px; }
+  .repo-btn { max-width:60vw; }
+}
 
 /* Chuyển cảnh — hai khai báo tĩnh, không thư viện. Trình duyệt chưa hỗ trợ bỏ qua cả khối này và
    trang chạy y như cũ: mất hiệu ứng, không mất nội dung. Header và sidebar mang tên riêng để chúng
@@ -818,7 +862,7 @@ export function shell(tieuDe: string, than: string, js = '', opts: ShellOpts = {
 
   const repoHtml = repoNhan
     ? `<div class="hd-menu" id="repo-sw">
-<button type="button" class="btn btn-secondary repo-btn" aria-haspopup="true" aria-expanded="false">${escHtml(repoNhan)} ▾</button>
+<button type="button" class="btn btn-secondary repo-btn" aria-haspopup="true" aria-expanded="false" title="${escHtml(repoNhan)}">${escHtml(repoNhan)} ▾</button>
 <div class="hd-drop" hidden>${
         repoKhac.length
           ? repoKhac.map((g) => `<button type="button" data-repo="${escHtml(g)}">${escHtml(g)}</button>`).join('')
