@@ -134,3 +134,9 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       không export — tách ra là đổi hình dạng đường chạy chấm.
       *Hại nếu sai:* tốn tối đa hai lượt sandbox thừa mỗi lượt chấm, không sai kết quả. Nên nó là nợ chứ
       không phải chặn.
+
+- [ ] 23. **Vỏ app cuộn ngang ở màn hẹp (≤375px)** (đo 05/09 khi sửa khối lọc màn Lịch sử). Header đẩy
+      tài liệu ra **685px** trên viewport 375px — thủ phạm đo được: `div.hd-menu` và nút tài khoản
+      (`button.user-btn`), cả hai có mép phải 685. Sidebar 210px cố định cũng góp phần.
+      *Vì sao tách riêng:* nó là lỗi của VỎ, chạm mọi màn, và sửa nó là một lượt rà responsive toàn app —
+      không phải phần đuôi của một fix bố cục một màn. Khối lọc đã tự nó không tràn (mép phải 343 < 375).

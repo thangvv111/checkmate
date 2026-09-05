@@ -506,6 +506,34 @@ table.runs td { padding:9px 13px; border-bottom:1px solid var(--color-divider); 
 .vd-hang > .v { font-family:var(--font-mono); font-size:12px; text-align:right; }
 .vd-hang.xam > .v { color:var(--medium-ink); }
 
+/* ---- Khối lọc của các màn bảng (Lịch sử · Sổ cái · Tin cậy) ---- */
+/*
+ * Khai hướng THẲNG, không dựa vào .card rồi ghi đè.
+ *
+ * .card ép flex-direction:column. Khối lọc trước đây mang class="card" cộng một chuỗi style nội tuyến
+ * khai display:flex mà QUÊN khai hướng — nên nó thừa hưởng column, align-items:flex-end thành dồn PHẢI
+ * thay vì căn đáy, và flex:1 của ô tìm kiếm nở theo chiều DỌC. Ba thuộc tính viết cho một hàng ngang,
+ * chạy trong một cột dọc: màn vỡ, và không lưới nào đỏ.
+ *
+ * (Backtick trong comment CSS đóng luôn template literal của TypeScript — đã tốn một lượt biên dịch ở
+ * đây, nên khối này cố ý không có dấu nào như thế.)
+ */
+.loc-bar { display:flex; flex-direction:row; flex-wrap:wrap; align-items:flex-end;
+  gap:14px; padding:var(--space-3); background:var(--color-surface); margin-bottom:14px; }
+.loc-bar label { font-size:12px; font-weight:600; color:var(--muted); }
+.loc-bar input, .loc-bar select { margin-top:3px; padding:6px 9px; border:1px solid var(--line);
+  font-size:13px; }
+.loc-bar .loc-tim { flex:1; min-width:180px; }
+.loc-bar .loc-tim input { width:100%; padding:6px 10px; border-radius:var(--radius-md); }
+/* Không bù 1px như bố cục cũ: align-items:flex-end đã căn mép đáy, và một margin bù trừ ở đây
+   chính là thứ làm nút lệch 1px khỏi ô tìm bên cạnh. */
+.loc-bar button, .loc-bar .btn { align-self:flex-end; }
+/* Hẹp màn thì xếp DỌC — và đó là một quyết định khai ra, không phải một tai nạn thừa kế. */
+@media (max-width: 720px) {
+  .loc-bar { flex-direction:column; align-items:stretch; gap:10px; }
+  .loc-bar .loc-tim { min-width:0; }
+}
+
 /* ---- Màn Thư viện probe (gói design CCS §5b) ---- */
 .tv-dau { display:flex; align-items:center; gap:14px; margin-top:8px; flex-wrap:wrap; }
 .tv-dem { font-family:var(--font-mono); font-size:13px; font-weight:600; }
