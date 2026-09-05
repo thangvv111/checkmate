@@ -223,22 +223,76 @@ describe('trần bảng & phép loại bỏ (T3)', () => {
   });
 });
 
-describe('trần tần suất ghi sổ (T4)', () => {
-  it('T4.1 nhiều lần chặn liên tiếp → nhiều nhất một dòng mỗi khoảng', () => {
-    // Ghi một dòng mỗi lần thử biến một trận dò thành một trận làm đầy đĩa: rào đẻ ra đường DoS thứ hai.
+describe('ghi sổ — có trần, và con số phải TRUNG THỰC (T4)', () => {
+  /** Chạy `n` lượt chặn dồn dập trong một đợt; trả về các lần phát. */
+  function motDot(n: number, buoc = 1): { donLai: number; tongDot: number }[] {
     const st = newState();
-    let ghi = 0;
-    for (let i = 0; i < 1_000; i++) if (shouldLog(st, i).ghi) ghi++;
-    expect(ghi).toBe(1);
+    const phat: { donLai: number; tongDot: number }[] = [];
+    for (let i = 0; i < n; i++) {
+      const r = shouldLog(st, i * buoc);
+      if (r.ghi) phat.push({ donLai: r.donLai, tongDot: r.tongDot });
+    }
+    return phat;
+  }
+
+  it('T4.1 ⛔ [ca đo được trên prod] đợt 13 lượt KHÔNG còn chỉ ghi «1 lượt»', () => {
+    // 06/09 trên prod: 13 lượt bị chặn, log ghi đúng một dòng «chặn 1 lượt». Đúng luật trần tần suất,
+    // nhưng sai sự thật — người vận hành ước lượng thấp đi một bậc độ lớn.
+    const phat = motDot(13);
+    expect(phat.length).toBeGreaterThan(1);
+    expect(Math.max(...phat.map((p) => p.tongDot)), 'phải cho thấy đợt lớn hơn 1').toBeGreaterThanOrEqual(10);
   });
 
-  it('T4.2 qua khoảng thì ghi tiếp, và nói số lần đã dồn', () => {
+  it('T4.2 mốc luỹ tiến: phát ở lượt 1, 10, 100, 1000', () => {
+    expect(motDot(1_500).map((p) => p.tongDot)).toEqual([1, 10, 100, 1_000]);
+  });
+
+  it('T4.3 ⛔ [trần vẫn còn] đợt rất lớn → số dòng theo bậc logarit, không theo số lượt', () => {
+    // Vế đối trọng của T4.1: thêm tín hiệu KHÔNG được mở lại đường làm đầy đĩa.
+    //
+    // Trần là TỔNG của hai điều kiện phát, không phải chỉ mốc — chỗ này lần đầu viết đã tính thiếu:
+    //   mốc  ≤ log10(N) + 1        (1, 10, 100, … )
+    //   thời gian ≤ khoảng-đợt / LOG_MIN_INTERVAL_MS + 1
+    const N = 200_000;
+    const buoc = 1;
+    const tranMoc = Math.floor(Math.log10(N)) + 1;
+    const tranThoiGian = Math.ceil(((N - 1) * buoc) / LOG_MIN_INTERVAL_MS) + 1;
+
+    const phat = motDot(N, buoc);
+    expect(phat.length).toBeLessThanOrEqual(tranMoc + tranThoiGian);
+    // Và điều thật sự quan trọng: ít hơn số lượt bốn bậc độ lớn.
+    expect(phat.length * 10_000).toBeLessThan(N);
+  });
+
+  it('T4.4 hai con số trả lời hai câu khác nhau', () => {
+    const phat = motDot(100);
+    const cuoi = phat.at(-1)!;
+    expect(cuoi.tongDot).toBe(100); // cả đợt
+    expect(cuoi.donLai).toBe(90); // từ lần phát trước (lượt 10 → lượt 100)
+  });
+
+  it('T4.5 đợt kéo dài không chạm mốc mới → trần THỜI GIAN vẫn cho nhịp đều', () => {
     const st = newState();
-    shouldLog(st, 0);
-    for (let i = 0; i < 41; i++) shouldLog(st, 1);
-    const r = shouldLog(st, LOG_MIN_INTERVAL_MS + 1);
-    expect(r.ghi).toBe(true);
-    expect(r.donLai).toBe(42);
+    let ghi = 0;
+    // 30 lượt rải đều, mỗi lượt cách nhau nửa khoảng: không chạm mốc 100, nhưng vẫn phải có nhịp.
+    for (let i = 0; i < 30; i++) if (shouldLog(st, i * (LOG_MIN_INTERVAL_MS / 2)).ghi) ghi++;
+    expect(ghi).toBeGreaterThan(2);
+    expect(ghi).toBeLessThan(30);
+  });
+
+  it('T4.6 im lặng trọn một khoảng → ĐỢT MỚI, đếm lại từ đầu', () => {
+    // Không thì đợt hôm nay thừa hưởng con số của đợt hôm qua, và mốc không bao giờ chạm nữa.
+    const st = newState();
+    for (let i = 0; i < 50; i++) shouldLog(st, i);
+    const sau = shouldLog(st, 50 + LOG_MIN_INTERVAL_MS * 2);
+    expect(sau.ghi).toBe(true);
+    expect(sau.tongDot, 'đợt mới bắt đầu lại từ 1').toBe(1);
+  });
+
+  it('T4.7 [đầu vào khuyết] state null · now NaN → không ném', () => {
+    expect(() => shouldLog(null as never, 0)).not.toThrow();
+    expect(shouldLog(null as never, 0)).toEqual({ ghi: false, donLai: 0, tongDot: 0 });
+    expect(() => shouldLog(newState(), NaN)).not.toThrow();
   });
 });
 

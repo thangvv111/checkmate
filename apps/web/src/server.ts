@@ -153,7 +153,12 @@ app.post('/login', (req, res) => {
       // Tên đã CHE (⛔C3): ô tên là chỗ người ta gõ nhầm mật khẩu vào, nên ghi nguyên văn là ghi mật khẩu
       // vào log. Bản che vẫn phân biệt được hai tên khác nhau, nếu không thì mất luôn khả năng thấy
       // «một tên bị dò nhiều lần» khác «nhiều tên bị thử một lần».
-      console.error(`rào đăng nhập: chặn ${nhipLog.donLai} lượt · tài khoản ${accountKey} · nguồn ${ipKey}`);
+      // HAI con số vì chúng trả lời hai câu khác nhau: «vừa rồi có gì mới» và «đợt này lớn cỡ nào».
+      // Bản đầu chỉ có con số thứ nhất, và đo trên prod 06/09 cho thấy nó NÓI DỐI về độ lớn: 13 lượt bị
+      // chặn, log ghi «chặn 1 lượt».
+      console.error(
+        `rào đăng nhập: chặn ${nhipLog.donLai} lượt (đợt này ${nhipLog.tongDot}) · tài khoản ${accountKey} · nguồn ${ipKey}`,
+      );
     }
     return res.redirect(303, `/login?cho=${kq.choGiay}${tiepRao ? `&tiep=${encodeURIComponent(tiepRao)}` : ''}`);
   }
