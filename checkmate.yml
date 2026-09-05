@@ -28,6 +28,7 @@ runner:
       ../packages/shared/src/message-egress.js → redactMessage · redactSlot
       ../apps/web/src/session-gate.js      → evaluateSessionGate · buildSessionCookie · OPEN_PATHS
       ../apps/web/src/webhook.js           → verifyWebhookSignature · decideWebhookAction
+      ../apps/web/src/probe-gate.js        → evaluatePurgeRequest
       ../apps/web/src/response-secret-guard.js → collectSecrets · findSecret · blockMessage · attachSecretGuard · MIN_SECRET_LENGTH
       ../packages/harness/src/runner.js      → parseJUnit · readRunnerCfg · readReviewCfg · readSourcesCfg · diffIgnorePatterns
       ../packages/harness/src/sources.js     → readSources · describeSources · matchPattern · globToRegExp · skipReason · SPEC_CANDIDATES · API_DOC_CANDIDATES · TEST_SAMPLE_CANDIDATES · MAX_SOURCE_BYTES
