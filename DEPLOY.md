@@ -193,30 +193,47 @@ người đọc phản hồi có thể là người đang dò. Lý do đầy đ�
 journalctl -u checkmate -f | grep Webhook
 ```
 
-## Trần thư viện probe — con số DUY NHẤT ở màn Cấu hình xoá được dữ liệu
+## `probes-lib/` — thư mục KHÔNG AI ĐỌC NỮA, và vẫn không được xoá
 
-Màn Cấu hình → **Độ sâu review** → ô **Trần thư viện probe** (mặc định **100**, đếm theo probe không
-theo file). Nó điều tiết `probes-lib/` — tài sản regression tích luỹ qua từng lượt chấm, nằm trong nhóm
-**không đè khi deploy**.
+> Mục này trước đây tên là «Trần thư viện probe — con số DUY NHẤT ở màn Cấu hình xoá được dữ liệu». Ô
+> trần ấy **không còn tồn tại**. Mục được **viết lại chứ không xoá**: nó là chỗ người vận hành đọc để
+> hiểu vì sao trên máy chủ có một thư mục dữ liệu mà không phần mềm nào chạm tới.
 
-⚠ **Hạ trần là ĐÀO THẢI probe đang có**, ngay ở lượt nạp kế tiếp. Mỗi probe là một phép thử đã từng chứng
-minh được điều gì đó; mất rồi thì nâng trần lên lại không lấy lại được. Ô nhập nói thẳng điều này ngay tại
-chỗ, nhưng đây là chỗ ghi lại cho người vận hành đọc trước khi động vào.
+Từ change `probe-handover-replaces-library` (06/09/2026), CheckMate **không đọc và không ghi**
+`probes-lib/` nữa. Probe là **đầu dò dùng một lần**: nó chạy trong lượt chấm sinh ra nó, trả lời câu hỏi
+của lượt ấy, rồi bị vứt. Probe đủ bằng chứng thì đi ra ngoài dưới dạng **đề xuất giao cho repo đích** (màn
+**Hàng đợi giao**), chứ không ở lại trong một kho engine tự đọc lại.
 
-Gói design đề xuất **40** cho bản cài mới. Con số ấy cố ý **không** được đặt làm mặc định: mọi bản đang
-chạy đều chưa khai trường này, nên lấy 40 làm mặc định sẽ đào thải tới 60 probe của họ chỉ vì một lần cập
-nhật. Đổi trần là quyết định của người vận hành.
+**Vì sao gỡ** — đo được trên chính máy chủ này ngày 06/09:
 
-Kiểm trần đang áp trên máy chủ:
+| | |
+|---|---|
+| `probes-lib/demo-credit-approval` | 7 probe · 5 lượt chạy |
+| probe **từng bắt hồi quy** | **0 / 7** |
+| trần cũ (mặc định) | 100 ⇒ cho phép **200 lượt thực thi test** mỗi lượt chấm |
+
+Tiêu chí nạp cũ là «probe **xanh** trên nhánh gốc» — tức giữ probe vì nó **không nổ**. Luật lưới của chính
+sản phẩm nói một ca xanh chưa chứng minh được gì. Và thứ được tích luỹ vốn là **test hồi quy của repo
+đích**: chỗ đúng của nó là bộ test repo ấy, nơi nó chạy ở mọi commit, chạy **một** lần thay vì hai, và có
+người trông khi nó mục.
+
+⛔ **Thư mục vẫn nằm nguyên trên đĩa, và vẫn trong nhóm KHÔNG ĐÈ khi deploy.** Ba lý do:
+
+1. Xoá dữ liệu prod là việc **một chiều**; gỡ code thì lùi được bằng một lần revert.
+2. Nếu quyết định này về sau tỏ ra sai, 7 probe ấy là dữ liệu duy nhất còn lại để đo.
+3. Chính luật bị gỡ trong change này (`probe-quarantine`) nói: *«máy được phép đánh dấu vì việc đó đảo
+   ngược được; xoá thì chỉ người mới làm»*. **Gỡ một luật không có nghĩa là được phép làm ngược nó.**
+
+**Kiểm sau mỗi lần deploy** — phép kiểm quan trọng nhất của lượt deploy gỡ thư viện:
 
 ```bash
-grep -o '"tran_thu_vien":[0-9 ]*' /home/ubuntu/checkmate-app/checkmate/config.json   # trong khong co = 100
-for d in /home/ubuntu/checkmate-app/checkmate/probes-lib/*/; do
-  echo -n "$(basename $d): "; node -e "console.log(JSON.parse(require('fs').readFileSync('$d/meta.json','utf8')).probes.length)"
-done
+ls /home/ubuntu/checkmate-app/checkmate/probes-lib/demo-credit-approval/ | wc -l   # phai con 8 (7 probe + meta.json)
 ```
 
-Số probe của repo nào **vượt** trần mới thì phần vượt bị đào thải ở lượt chấm kế tiếp của chính repo đó.
+Con số nhỏ đi nghĩa là đã mất dữ liệu — khôi phục ngay từ `~/checkmate-backup-<mốc>`.
+
+Muốn dọn thư mục ấy thì đó là **quyết định của chủ máy**, làm bằng tay, sau khi đã chắc không cần lùi nữa.
+Không quy trình tự động nào được đụng vào.
 
 ## Bốn khác biệt so với chạy trên máy dev (đều đã xử, ghi để lần sau khỏi mò)
 

@@ -143,12 +143,23 @@ export interface Verdict {
     luat_da_phu?: string[];
     luat_tong?: number;
     ngoai_pham_vi: number; // fail cả hai nhánh cùng nguyên nhân — không quy tội PR
-    nghi_loi_co_san: number; // probe THƯ VIỆN fail cả hai nhánh — đã chứng minh contract nên nghi lỗi có sẵn/spec đổi
+    /**
+     * ĐỜI CŨ — không còn được sinh ra từ `probe-handover-replaces-library`.
+     *
+     * Nhãn này do đúng một dòng trong `skill-code.ts` sinh ra, gác bằng `nguon === 'thu_vien'`, và chưa
+     * bao giờ được khai trong spec `probe-classification`. Gỡ thư viện làm nó không tới được nữa.
+     *
+     * GIỮ trong kiểu vì `web-runs/` và `runs/` trên prod có bản ghi mang nó — gỡ khỏi kiểu là làm bản
+     * ghi đời cũ không đọc được. VẮNG nghĩa là bản ghi đời MỚI, không phải «bằng 0».
+     */
+    nghi_loi_co_san?: number;
     nghi_van: number;
     cai_thien: number;
     bo_qua: number;
-    that_lac: string[]; // id probe ĐÃ ĐƯA VÀO CHẠY nhưng không thấy kết quả — kể cả probe thư viện
+    that_lac: string[]; // id probe ĐÃ ĐƯA VÀO CHẠY nhưng không thấy kết quả
     /**
+     * ĐỜI CŨ — không còn được sinh ra từ `probe-handover-replaces-library` (cách ly gỡ cùng thư viện).
+     *
      * Số probe thư viện bị CÁCH LY trong lượt này — không nạp được trên nhánh gốc, nên bị loại ra để
      * lượt chấm chạy tiếp được.
      *
@@ -196,6 +207,35 @@ export interface Verdict {
    * Vắng trường này nghĩa là KHÔNG BIẾT (bản ghi đời cũ), không phải «không có vùng mù».
    */
   diff_blind_spots?: Array<{ file: string; reason: string }>;
+  /**
+   * Đề xuất GIAO cho repo đích — thay cho việc âm thầm nạp probe vào một kho tích luỹ
+   * (change `probe-handover-replaces-library`).
+   *
+   * Probe là đầu dò DÙNG MỘT LẦN. Thứ đáng giữ đi ra ngoài ở đây, để đội repo đích thêm vào bộ test
+   * của họ — nơi nó chạy ở MỌI commit, chạy MỘT lần (không phải hai nhánh), và có người trông khi nó
+   * mục. Cùng test ấy nằm trong CheckMate thì chỉ chạy khi CheckMate chấm, chạy hai lần, và không ai
+   * biết nó tồn tại.
+   *
+   * `hang` là CHẤT LƯỢNG BẰNG CHỨNG, không phải mức ưu tiên:
+   *   1 — probe ĐÃ NỔ trong lượt này (`hoi_quy`/`vi_pham_luat_moi`). Bằng chứng bằng quan sát.
+   *   2 — probe xanh cả hai nhánh nhưng canh một luật PR mới thêm mà test repo chưa phủ; đã qua cửa
+   *       đột biến (đảo khẳng định thì nó ĐỎ).
+   *
+   * ⛔ Máy KHÔNG tự đưa test vào repo đích (⛔C1). Đây là ĐỀ XUẤT; người quyết.
+   *
+   * Vắng trường này nghĩa là bản ghi đời cũ HOẶC lượt này không có gì đủ bằng chứng — hai thứ khác
+   * nhau, và bề mặt đọc phải phân biệt bằng việc lượt ấy có chạy hay không.
+   */
+  handover?: Array<{ probe_id: string; spec_rule?: string; hang: 1 | 2; ly_do: string; code: string }>;
+
+  /**
+   * Probe ĐỦ BẰNG CHỨNG mà vẫn KHÔNG giao được — kèm lý do.
+   *
+   * Hai ca: tách không thành file độc lập (cú pháp ngoài khuôn), và trượt cửa đột biến. Cả hai phải hiện
+   * ra chứ không biến mất im lặng: một probe đã bắt được lỗi thật mà không giao được là một mất mát
+   * người vận hành cần biết, và nó chỉ ra chỗ máy tách hoặc cửa đột biến cần sửa.
+   */
+  handover_bo_qua?: Array<{ probe_id: string; ly_do: string }>;
   /**
    * Quyết định làm THAY ĐỔI TÀI SẢN regression trong lượt này.
    * `not_admitted` — probe mới bị bỏ, tức không thêm tài sản.

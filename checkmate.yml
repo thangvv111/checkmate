@@ -35,9 +35,9 @@ runner:
       ../packages/harness/src/sources.js     → readSources · describeSources · matchPattern · globToRegExp · skipReason · SPEC_CANDIDATES · API_DOC_CANDIDATES · TEST_SAMPLE_CANDIDATES · MAX_SOURCE_BYTES
       ../packages/shared/src/spec-source.js  → readSourcesCfg · matchPattern · globToRegExp · loiCuPhapAnToan · isProcessDocDir · SPEC_CANDIDATES · API_DOC_CANDIDATES · TEST_SAMPLE_CANDIDATES · PROCESS_DOC_DIRS · PROCESS_DOC_EXTS
       ../packages/harness/src/sandbox.js     → fileLoadError · detectLoadFailures · Sandbox · envSandbox · buildContainerArgs · detectIsolation · safeImageName · DEFAULT_IMAGE · MEMORY_CAP · CPU_CAP · PIDS_CAP
-      ../packages/harness/src/probe-library.js    → admitToLibrary · pickEvictionVictim · readProbeLibrary · withLibraryLock · repoSlug · splitOneProbe · cutTestBlock · hasTestBlock · checkBalanced · splitRule · updateHistory · findAndDropBehaviorDuplicates · readLibraryIndex · readProbeCode · readRemovalLog · recordRemoval · quarantineProbes · unquarantineProbe · removeProbeByOperator · purgeLibrary · chooseQuarantineTargets
+      ../packages/harness/src/probe-split.js         → splitOneProbe · hasTestBlock · cutTestBlock · checkBalanced
+      ../packages/harness/src/probe-handover.js      → rankProbe · negateAssertions · mutationGate · buildProposal · FIRED_STATES
       ../packages/harness/src/trigger-examples.js   → getCodeExamples · getDocExamples · knowledgeByTrigger · TRIGGER_EXAMPLES · EXAMPLE_CAP · EXAMPLES_PER_TRIGGER
-      ../packages/harness/src/dedup-probe.js → splitRule · findRerunDuplicate · findSuspectedDuplicate · applyRuling · promptDuplicateRuling
       ../packages/harness/src/jsonx.js       → unwrapJson · unwrapCode · ModelUsedToolError · callJson · callCode
       ../packages/harness/src/fence.js         → makeFence · FENCE_NOTICE
       ../packages/harness/src/verdict.js      → decideResult · regressionFloor · missingRegressionFindings · hasBasis · hasNoBaseline · classifyInsufficientBasis
@@ -45,11 +45,11 @@ runner:
       ../apps/web/src/ui.js                  → escHtml · splitSource · CSS · shell · findingHtml · verdictHtml · artifactCell
       ../apps/web/src/ui-history.js          → filterRuns · historyPage
       ../apps/web/src/provider.js                 → maskKey · projectValue · providerDefinition · PROVIDER_CATALOG · checkStillValid · readKey · writeKey · readProviderCheck · writeProviderCheck · validModel
-      ../apps/web/src/config.js              → maskToken · maskToken2 · slugGithubRepo · findRepo · migrateRepoToken · currentConfig · readConfig · writeConfig · readSubscriptionToken · writeSubscriptionToken · agentEnv · configForReview · ProviderConfigErrorCfg · resolveRepoShape · coRepo · laRepoDaKhai · timRepoDaKhai · clampToRange · PROBE_DEPTH · LIBRARY_CAP · LIBRARY_CAP_SUGGESTED
+      ../apps/web/src/config.js              → maskToken · maskToken2 · slugGithubRepo · findRepo · migrateRepoToken · currentConfig · readConfig · writeConfig · readSubscriptionToken · writeSubscriptionToken · agentEnv · configForReview · ProviderConfigErrorCfg · resolveRepoShape · coRepo · laRepoDaKhai · timRepoDaKhai · clampToRange · PROBE_DEPTH
       ../apps/web/src/secret-vault.js          → readRepoToken · readOwnToken · writeRepoToken · deleteRepoToken · hasToken · repoKey · readVault · writeVault · readWebhookSecret · writeWebhookSecret
       ../apps/web/src/identity.js           → getIdentity · identityIfAny · verifyPassword · createSession · deleteSession · cleanupExpiredSessions · createAccount · changePassword · changeRole · deleteAccount · listAccounts · hasAnyAccount · validName · readCookie · canOperateGate · requireGateRole · canOperate · IdentityError · SESSION_COOKIE_NAME · canRunReview · canEditConfig
       ../apps/web/src/ui-login.js            → loginPage · describeWaitTime
-      ../apps/web/src/ui-probes.js           → probesPage
+      ../apps/web/src/ui-probes.js           → probesPage · tierTone · emptyState
       ../apps/web/src/principles.js          → PRINCIPLES · PRINCIPLES_POSTER
       ../apps/web/src/ledger.js              → entryFromMeta · appendVerdictLedger · readVerdictLedger · backfillVerdictLedger
       ../apps/web/src/trust.js              → computeProfile
@@ -107,8 +107,6 @@ runner:
     Mỗi probe phải có ÍT NHẤT một expect() thật trên giá trị hàm trả về — file không assert gì sẽ bị
     lưới chống probe-rỗng loại và bạn mất một lượt sinh.
     Cần file tạm thì dùng mkdtempSync vào thư mục tạm của hệ, dọn trong afterAll.
-    Thư viện probe đọc thư mục qua biến môi trường CHECKER_LIB_DIR — đặt biến này trước khi import
-    probe-library.js nếu probe cần ghi vào thư viện giả.
 
 review:
   # Ngoài bộ mẫu sinh-tự-động mặc định (lockfile, dist/, nhị phân) — luật diff-visibility (mã cũ R7, tra docs/r-rules-map.md)
