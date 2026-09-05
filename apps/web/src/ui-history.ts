@@ -71,8 +71,8 @@ export function historyPage(runs: RunMeta[], loc: HistoryFilter, repos: string[]
   const cua = daLoc.slice((trang - 1) * MOI_TRANG, trang * MOI_TRANG);
 
   const chon = (ten: string, nhan: string, ds: Array<[string, string]>, dangChon?: string) =>
-    `<label style="font-size:12px;font-weight:600;color:var(--muted)">${nhan}<br>
-      <select name="${ten}" style="margin-top:3px;padding:6px 9px;border:1px solid var(--line);border-radius:var(--radius-md);font-size:13px">
+    `<label>${nhan}<br>
+      <select name="${ten}">
         <option value="">tất cả</option>
         ${ds.map(([g, n]) => `<option value="${escHtml(g)}" ${dangChon === g ? 'selected' : ''}>${escHtml(n)}</option>`).join('')}
       </select></label>`;
@@ -119,7 +119,7 @@ export function historyPage(runs: RunMeta[], loc: HistoryFilter, repos: string[]
     `<h1>Lịch sử chạy</h1>
 <p class="sub">${daLoc.length} lượt chấm${daLoc.length !== runs.length ? ` (lọc từ ${runs.length})` : ''} · <a href="/">← về trang chính</a></p>
 
-<form method="get" action="/lich-su" class="card" style="max-width:100%;margin-bottom:14px;display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+<form method="get" action="/lich-su" class="loc-bar">
   ${chon('repo', 'Repo', repos.map((r) => [r, r] as [string, string]), loc.repo)}
   ${chon('verdict', 'Kết quả', [['PASS', 'PASS'], ['FAIL', 'FAIL'], ['khong_du_co_so', 'Không đủ cơ sở'], ['loi', 'lỗi hạ tầng']], loc.verdict)}
   ${chon('skill', 'Loại', [['code', 'code'], ['doc', 'tài liệu']], loc.skill)}
@@ -134,14 +134,12 @@ export function historyPage(runs: RunMeta[], loc: HistoryFilter, repos: string[]
     ],
     loc.ncc,
   )}
-  <label style="font-size:12px;font-weight:600;color:var(--muted)">Từ ngày<br>
-    <input name="tu" type="date" value="${escHtml(loc.tu ?? '')}" style="margin-top:3px;padding:6px 9px;border:1px solid var(--line);font-size:13px"></label>
-  <label style="font-size:12px;font-weight:600;color:var(--muted)">Đến ngày<br>
-    <input name="den" type="date" value="${escHtml(loc.den ?? '')}" style="margin-top:3px;padding:6px 9px;border:1px solid var(--line);font-size:13px"></label>
-  <label style="font-size:12px;font-weight:600;color:var(--muted);flex:1;min-width:180px">Tìm (tiêu đề · SHA · số PR)<br>
-    <input name="q" value="${escHtml(loc.q ?? '')}" placeholder="vd: PR #8 hoặc e711ced" style="margin-top:3px;width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius-md);font-size:13px"></label>
-  <button style="margin-bottom:1px">Lọc</button>
-  ${loc.repo || loc.verdict || loc.skill || loc.ncc || loc.q || loc.tu || loc.den ? '<a class="btn phu" href="/lich-su" style="margin-bottom:1px">Bỏ lọc</a>' : ''}
+  <label>Từ ngày<br><input name="tu" type="date" value="${escHtml(loc.tu ?? '')}"></label>
+  <label>Đến ngày<br><input name="den" type="date" value="${escHtml(loc.den ?? '')}"></label>
+  <label class="loc-tim">Tìm (tiêu đề · SHA · số PR)<br>
+    <input name="q" value="${escHtml(loc.q ?? '')}" placeholder="vd: PR #8 hoặc e711ced"></label>
+  <button>Lọc</button>
+  ${loc.repo || loc.verdict || loc.skill || loc.ncc || loc.q || loc.tu || loc.den ? '<a class="btn phu" href="/lich-su">Bỏ lọc</a>' : ''}
 </form>
 
 ${
