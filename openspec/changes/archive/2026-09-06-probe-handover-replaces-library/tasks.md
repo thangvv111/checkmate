@@ -109,11 +109,70 @@ Sau khi bổ sung 8 ca còn thiếu ở lượt rà cuối: **1217**.
 
 ## 7. Deploy
 
-- [ ] 7.1 Deploy theo 4 bước `DEPLOY.md`.
-- [ ] 7.2 ⛔ **Đối chiếu: `probes-lib/` trên máy chủ còn NGUYÊN 7 file + `meta.json` sau deploy.** Đây là
+- [x] 7.1 Deploy theo 4 bước `DEPLOY.md`.
+- [x] 7.2 ⛔ **Đối chiếu: `probes-lib/` trên máy chủ còn NGUYÊN 7 file + `meta.json` sau deploy.** Đây là
       phép kiểm quan trọng nhất của lượt deploy này — gỡ code đọc mà lỡ xoá dữ liệu là việc một chiều.
-- [ ] 7.3 Chạy một lượt chấm thật trên repo demo: xác nhận **không probe thư viện nào chạy**, và đo thời
-      gian lượt chấm so với trước.
+- [ ] 7.3 ⛔ **CHƯA CHẠY ĐƯỢC — và lý do KHÔNG phải change này.** Xác thực Claude CLI trên máy chủ đã mất
+      từ **16:52**, tức TRƯỚC deploy 5 tiếng (bốn lượt chấm hỏng liên tiếp, tất cả chết ở bước 3). Chi tiết
+      và bằng chứng ở «§ Đo được ở §7» bên trên. Việc còn lại: chạy một lượt chấm thật trên repo demo, xác
+      nhận **không probe thư viện nào chạy** và đo thời gian so với trước — **làm sau khi khôi phục xác
+      thực** (`claude login` bằng đúng user chạy dịch vụ, hoặc chuyển Provider sang Anthropic API).
+
+## § Đo được ở §7 (06/09, prod)
+
+```
+DU LIEU — doi chieu truoc/sau deploy:
+  probes-lib/demo-credit-approval   8 -> 8   (7 probe + meta.json)  <- phep kiem QUAN TRONG NHAT
+  so_cai · so_cong · run            3·4·7 -> 3·4·7
+  nguoi_dung · phien                1·9 -> 1·9
+  runs/                             10 -> 10
+  quyen DB                          600 ca ba file
+  HTTP noi bo                       303 (chuyen ve /login)
+
+MA NGUON DANG CHAY tren prod:
+  route probe con lai   2, ca hai deu GET  (/probes · /api/probes)
+  ba duong PHA HUY cu   da di  (remove · unquarantine · purge)
+  doc probes-lib        0 loi goi — 2 cho khop grep deu la CHU THICH giai thich
+```
+
+⛔ **`tar` KHÔNG xoá file đã gỡ.** `probe-library.ts` và `dedup-probe.ts` vẫn nằm trên máy chủ sau khi giải
+nén — không ai import (đã kiểm bằng `grep` trước khi xoá), nhưng code chết trông như code sống. Đã xoá tay.
+Đây là bẫy đã có tiền lệ trong `DEPLOY.md` («DỌN MỘT LẦN»), và nó sẽ lặp lại ở mọi change có gỡ file.
+
+⚠ Log khởi động báo `config.json có khoá KHÔNG được hỗ trợ: tran_thu_vien`. Đó là **hành vi đúng** — khoá
+ấy nay vô tác dụng, và cảnh báo chính là thứ nói cho người vận hành biết nên bỏ nó. Không sửa cấu hình prod
+cho gọn log: đó là dữ liệu của chủ máy.
+
+### ⛔ T9.2 (chạy một lượt chấm thật) KHÔNG chạy được — và lý do KHÔNG phải change này
+
+Lượt chấm thật dừng ở bước 3 với: *«Claude Code CLI mất xác thực trên máy này»*. Kiểm trực tiếp, không suy:
+
+```
+claude -p "..."   ->  Not logged in · Please run /login
+~/.claude/        ->  KHONG co file chung thuc
+config: agent.ncc = anthropic, phuong_thuc = thue_bao   (dung goi CLI, khong dung API key)
+```
+
+**Mốc thời gian cho thấy nó có TRƯỚC deploy khoảng 5 tiếng:**
+
+| giờ | lượt | kết quả |
+|---|---|---|
+| 12:16 | PR #7 · code | **xong** — lượt chấm thành công gần nhất |
+| 16:52 | PR #70 · code | **lỗi** — chết ở bước 3, chỗ gọi model lần đầu |
+| 18:06 | PR #71 · code | lỗi |
+| 18:23 | PR #72 · code | lỗi |
+| 21:21 | PR #74 · code | lỗi |
+| **21:47** | — | **deploy change này** |
+
+Bốn lượt hỏng liên tiếp, tất cả chết ở đúng bước 3. Deploy đẩy file nguồn, không đụng `~/.claude/`.
+
+⚠ **Đây là thứ đáng lo hơn cả change:** từ 16:52 CheckMate **không chấm được PR nào**, và bốn lượt hỏng ấy
+chỉ nằm ở trạng thái `loi` trên màn chủ chứ không có ai/cái gì gọi ra. Cần `claude login` bằng đúng user
+chạy dịch vụ, hoặc chuyển Provider sang Anthropic API ở màn Cấu hình.
+
+**Hệ quả cho change này:** ba phép kiểm dữ liệu và mã nguồn đã xong; phép kiểm HÀNH VI (không probe thư
+viện nào chạy, và lượt chấm nhanh hơn bao nhiêu) **chưa đo được**, và nó ở lại là việc phải làm sau khi
+xác thực được khôi phục. Không tick nó.
 
 ## § Sau-merge — nợ có tên
 

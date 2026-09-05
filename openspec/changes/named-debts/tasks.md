@@ -165,3 +165,15 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
 - [ ] 25. **Đặt bí mật webhook trên prod** (PO quyết, không phải việc kỹ thuật). Chưa đặt thì PR mở phải
       đợi chu kỳ trực 300s thay vì chấm ngay. Quy trình ở `DEPLOY.md` › «Đặt bí mật». Ghi vào đây để nó
       không rơi khỏi tầm nhìn — cái giá của việc chưa đặt chỉ là độ trễ, không mất gì.
+
+- [ ] 26. ⛔ **Xác thực model trên prod hỏng ÂM THẦM — phát hiện 06/09 lúc deploy.** Từ 16:52 ngày 05/09,
+      phiên Claude Code CLI trên máy chủ hết hạn (`claude -p` trả `Not logged in`; không có file chứng thực
+      trong `~/.claude/`). Bốn lượt chấm liên tiếp — PR #70, #71, #72, #74 — chết ở **đúng bước 3**, chỗ gọi
+      model lần đầu, và **không có gì gọi ra ngoài**: chúng chỉ nằm ở trạng thái `loi` trên màn chủ.
+      *Cái mất khi chưa làm:* CheckMate ngừng chấm được PR nào trong nhiều giờ mà người vận hành không biết,
+      và mỗi PR không được chấm là một PR đi thẳng vào trunk không qua checker.
+      *Hai việc, đừng gộp:* (a) **khôi phục ngay** — `claude login` bằng đúng user chạy dịch vụ, hoặc chuyển
+      Provider sang Anthropic API ở màn Cấu hình; (b) quan trọng hơn: **một lượt chấm hỏng vì XÁC THỰC phải
+      ồn ào hơn một lượt hỏng vì code**. Hai thứ ấy hiện đọc như nhau, mà chúng khác hẳn nhau về bản chất —
+      mất xác thực là hỏng *hạ tầng chấm*, không phải một kết luận về artifact. Đây là hình dạng ⛔C2 ở tầng
+      vận hành: hệ thống không chứng minh được gì mà cũng không kêu.
