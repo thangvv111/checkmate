@@ -160,6 +160,16 @@ export interface Verdict {
      */
     cach_ly?: number;
     /**
+     * Mức cô lập THỰC TẾ của môi trường mà code artifact đã chạy trong đó.
+     *
+     * `container` — chạy trong môi trường cô lập dùng-một-lần. `none` — nền không cô lập được (thiếu
+     * runtime, hệ điều hành không hỗ trợ), lượt chấm vẫn chạy nhưng KHAI RA điều đó.
+     *
+     * VẮNG trường này nghĩa là bản ghi có TRƯỚC phép đo này — **không** có nghĩa là không cô lập. Bản ghi
+     * cũ có thể đã chạy ở bất kỳ đâu; không biết là một trạng thái riêng, và bề mặt đọc phải nói vậy.
+     */
+    co_lap?: { muc: 'container' | 'none'; runtime?: string; ly_do_khong?: string };
+    /**
      * Phân bố probe theo trigger — CHỈ bề mặt người xem (màn cấu hình thuật toán sẽ đọc).
      * TUYỆT ĐỐI không phát ngược vào prompt và không có chỉ tiêu «phủ đủ trigger»: trần probe đã
      * từng biến thành chỉ tiêu (ke_hoach = trần ở 14/14 lượt đo được), và probe chiếu lệ rải đều

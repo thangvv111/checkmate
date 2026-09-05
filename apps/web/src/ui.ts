@@ -1530,6 +1530,19 @@ export function verdictHtml(v: Verdict): string {
     // VẮNG trường ≠ `0`. Verdict đời cũ chạy trước khi có phép đo này, và ghi `0` cho chúng là khai
     // rằng đã đếm và không có gì — đúng loại nói dối mà cả bảng này tồn tại để chống.
     ps ? hangMeta('◍ cách ly', ps.cach_ly === undefined ? 'không đo được' : String(ps.cach_ly), true) : '',
+    // Mức cô lập của môi trường chạy. VẮNG ≠ «không cô lập»: bản ghi cũ có thể đã chạy ở bất kỳ đâu, và
+    // không biết là một trạng thái RIÊNG. Suy vắng thành «không cô lập» là bịa ra một phép đo chưa từng có.
+    ps
+      ? hangMeta(
+          '◍ môi trường chạy',
+          ps.co_lap === undefined
+            ? 'không đo được'
+            : ps.co_lap.muc === 'container'
+              ? `cô lập · ${escHtml(ps.co_lap.runtime ?? 'container')}`
+              : `KHÔNG cô lập — ${escHtml(ps.co_lap.ly_do_khong ?? 'không rõ lý do')}`,
+          true,
+        )
+      : '',
     hangMeta('Nguồn model', ng.nguon),
     hangMeta('Model', ng.ten),
     cp ? hangMeta('Token vào/ra', `${cp.uoc_tinh ? '~' : ''}${kk(cp.token_vao)} / ${cp.uoc_tinh ? '~' : ''}${kk(cp.token_ra)}`) : '',
