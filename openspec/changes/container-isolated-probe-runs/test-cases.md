@@ -71,8 +71,9 @@ change này nó nguy hiểm nhất, vì một lưới xanh có thể đứng c�
 
 - [x] T7.1 **Sáu phép đo ở §0 chạy lại TỪ TRONG container** — kho khoá, cấu hình, sổ cái, thư viện probe,
       `authorized_keys`, mạng. Cả sáu phải đổi chiều. *(Đây là phép chứng minh của cả change.)*
-- [ ] T7.2 **[chờ deploy]** Lượt chấm thật trên repo demo → ra verdict, mức khai `container`.
-- [ ] T7.3 **[chờ deploy]** Gỡ runtime tạm → vẫn ra verdict, mức khai `none` kèm lý do, bảng số liệu bày ra.
+- [x] T7.2 `Sandbox` thật + `chayVitest` thật trên bản clone thật, code đã deploy: `container`, không
+      `.git`, `ok:true tongTest:2`, dọn sạch.
+- [x] T7.3 PATH không podman → khai `none` kèm lý do, và **vẫn chạy ra kết quả**.
 - [x] T7.4 Probe cố ghi `probes-lib/` → thất bại; thư viện sau lượt còn nguyên.
 - [x] T7.5 Đo chi phí: dung lượng cài · RAM một lượt · thời gian dựng+huỷ so với hôm nay.
 
@@ -81,9 +82,9 @@ change này nó nguy hiểm nhất, vì một lưới xanh có thể đứng c�
 `npx tsc --noEmit` sạch · `npm test` **70 tệp / 1242 ca xanh** · mutation **6/6 bị bắt** hai lượt · sáu
 phép đo chạy lại từ trong container: **cả sáu đổi chiều** · đường ống chạy trọn trên prod (2.04s).
 
-Hai ô còn trống (T7.2 · T7.3) đòi code đã lên prod — làm ngay sau deploy, trước khi archive. **Không tick
-khống.**
+T7.2 · T7.3 đã chạy SAU deploy, trên prod, bằng code đã deploy — và T7.2 bắt được một lỗi thật (quyền thư
+mục lượt chạy) mà lượt thăm dò tay đã che bằng một `chmod 755` tiện tay. Chi tiết ở `tasks.md` §13.
 
-Ba ca sinh ra TỪ kiểm tay, không có trong bản đầu: T1.10 (cờ đổi-chủ-sở-hữu, và vì sao không chọn
-`keep-id`) · T5.3 (dọn qua podman, và thứ tự phải đúng) · và vế `--cpus` trong T1.2 suýt bị bỏ vì cgroup
-chưa uỷ quyền.
+**Bốn** ca sinh ra TỪ kiểm tay, không có trong bản đầu: T1.10 (cờ đổi-chủ-sở-hữu, và vì sao không chọn
+`keep-id`) · T5.3 (dọn qua podman, và thứ tự phải đúng) · **T5.4 (trả quyền sở hữu trước khi đọc kết quả)**
+· và vế `--cpus` trong T1.2 suýt bị bỏ vì cgroup chưa uỷ quyền.

@@ -276,7 +276,9 @@ export class Sandbox {
         anh: this.anh,
         lenh,
       });
-      return spawnSync('podman', argv, { encoding: 'utf8', timeout: timeoutMs, env: envSandbox() });
+      const kq = spawnSync('podman', argv, { encoding: 'utf8', timeout: timeoutMs, env: envSandbox() });
+      this.traLaiQuyenSoHuu();
+      return kq;
     }
     // Không cô lập được: chạy như trước. `shell: true` chỉ còn ở đường này, và đường này đã tự khai `none`.
     return spawnSync(lenh[0]!, lenh.slice(1), {
@@ -396,6 +398,25 @@ export class Sandbox {
       loiThu: tong > 0 ? '' : `Không thu thập được test nào từ JUnit XML${loiNap.length ? ` — ${loiNap.length} file không nạp được` : ''}`,
       loiNap,
     };
+  }
+
+  /**
+   * Trả quyền sở hữu thư mục lượt chạy về tài khoản chạy engine, SAU mỗi lượt chạy container.
+   *
+   * ⛔ Không có bước này thì engine KHÔNG ĐỌC LẠI ĐƯỢC kết quả của chính nó. `mkdtempSync` tạo thư mục
+   * mode 0700, còn cờ `U` chuyển quyền sở hữu sang subuid của container — cộng lại thành một thư mục mà
+   * tài khoản engine không đi vào được. Triệu chứng đo được trên prod: container báo «JSON report
+   * written», mà engine trả `ok:false, tongTest:0` vì `existsSync(outFile)` sai. Một lượt chấm chết vì
+   * quyền thư mục, và thông điệp lỗi nói về vitest — báo sai hẳn bản chất.
+   *
+   * Cách khác là `chmod 755` thư mục lượt chạy: một dòng, không tốn tiến trình, nhưng nới quyền đọc mã
+   * nguồn pull request cho mọi tài khoản trên máy. Không đáng đổi lấy 0.3s.
+   *
+   * Trong `podman unshare`, uid của host hiện ra là 0 — nên `chown 0:0` chính là trả về tài khoản host.
+   */
+  private traLaiQuyenSoHuu(): void {
+    const r = spawnSync('podman', ['unshare', 'chown', '-R', '0:0', this.dir], { encoding: 'utf8', timeout: 60_000 });
+    if (r.status !== 0) console.error(`không trả lại quyền thư mục lượt chạy ${this.dir}: ${(r.stderr || '').slice(0, 200)}`);
   }
 
   /**

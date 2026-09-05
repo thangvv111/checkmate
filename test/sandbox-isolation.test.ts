@@ -141,6 +141,19 @@ describe('đối số dựng môi trường — ba cơ chế cô lập (T1)', ()
     expect(than.indexOf('unshare'), 'dọn qua podman phải chạy TRƯỚC rmSync').toBeLessThan(than.indexOf('rmSync'));
   });
 
+  it('T5.4 — trả lại quyền sở hữu SAU mỗi lượt container, TRƯỚC khi đọc kết quả', () => {
+    // Đo được trên prod: thiếu bước này thì container báo «JSON report written» còn engine trả
+    // `ok:false, tongTest:0` — `mkdtempSync` cho mode 0700, cờ `U` chuyển sở hữu sang subuid, cộng lại
+    // thành thư mục mà chính engine không đi vào được. Lượt chấm chết vì quyền thư mục, và thông điệp
+    // lỗi lại nói về vitest: báo sai hẳn bản chất.
+    const i = SANDBOX_SRC.indexOf('private chayTrongSandbox');
+    const than = SANDBOX_SRC.slice(i, SANDBOX_SRC.indexOf(NL + '  }', i));
+    expect(than).toContain('traLaiQuyenSoHuu()');
+    expect(than.indexOf('traLaiQuyenSoHuu()'), 'phải trả quyền TRƯỚC khi trả kết quả về').toBeLessThan(than.lastIndexOf('return kq;'));
+    const j = SANDBOX_SRC.indexOf('private traLaiQuyenSoHuu');
+    expect(SANDBOX_SRC.slice(j, SANDBOX_SRC.indexOf(NL + '  }', j))).toContain("'chown', '-R', '0:0'");
+  });
+
   it('T1.9 — không có phụ thuộc thì không bind gì thêm', () => {
     const argv2 = buildContainerArgs(spec({ thuMucPhuThuoc: undefined }));
     expect(binds(argv2)).toHaveLength(1);

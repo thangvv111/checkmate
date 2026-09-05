@@ -79,8 +79,11 @@ RAM 1910MB (con 1090MB) · 2 nhan · dia con 49G
 ## 8. Kiểm tay — CHẠY THẬT (KHÔNG tick trước khi chạy)
 
 - [x] 8.1 **Sáu phép đo ở §0 chạy lại TỪ TRONG container** — cả sáu đổi chiều.
-- [ ] 8.2 **[chờ deploy]** Một lượt chấm thật trên repo demo: ra verdict, mức cô lập khai `container`.
-- [ ] 8.3 **[chờ deploy]** Gỡ runtime tạm → lượt chấm vẫn chạy, verdict khai `none` kèm lý do, bảng số liệu bày ra.
+- [x] 8.2 Dựng `Sandbox` THẬT trên bản clone thật bằng code ĐÃ DEPLOY: `container` · không `.git` ·
+      `ok:true tongTest:2` (P1+P2 passed) · dọn sạch · 3.36s. *(Đường model không chạy — nó không thêm gì
+      cho tính chất đang chứng minh, và tốn một lượt gọi thật.)*
+- [x] 8.3 PATH không có podman → `{"muc":"none","ly_do_khong":"không gọi được podman: spawnSync podman
+      ENOENT"}`, và **vẫn ra kết quả** (`ok:true`). Fail-closed = không giấu, không phải không chạy.
 - [x] 8.4 Probe cố ghi `probes-lib/` → thất bại, thư viện sau lượt còn nguyên.
 - [x] 8.5 Đo chi phí (§0.2) và ghi số vào tài liệu.
 
@@ -151,3 +154,23 @@ lặng và thư mục ở lại mãi. Cả ba đều đã thành ca test.
 
 §8.2 (lượt chấm thật ra verdict khai `container`) và §8.3 (gỡ runtime → khai `none`) đòi code đã lên prod.
 Trình PO ở PR; làm ngay sau deploy, TRƯỚC khi archive.
+
+## 13. §8.2 bắt được một lỗi THẬT mà lượt thăm dò tay đã che
+
+Lượt chạy đầu bằng code đã deploy trả `ok:false, tongTest:0` trong khi container báo «JSON report written».
+
+Nguyên nhân: `mkdtempSync` tạo thư mục mode **0700**, còn cờ `U` chuyển quyền sở hữu sang subuid của
+container — cộng lại thành một thư mục mà **chính engine không đi vào được**. Lượt chấm chết vì quyền thư
+mục, và thông điệp lỗi lại nói về vitest: **báo sai hẳn bản chất**.
+
+Lượt thăm dò tay trước đó **không lộ ra** vì em có `chmod 755` thư mục thử — một dòng tiện tay đã che mất
+đúng lỗi mà bước kiểm tay sinh ra để tìm.
+
+Sửa: trả quyền sở hữu về tài khoản engine ngay sau mỗi lượt container (`podman unshare chown -R 0:0` —
+trong `unshare`, uid host hiện ra là 0). Cân nhắc `chmod 755` thư mục lượt chạy: **bác** — một dòng, không
+tốn tiến trình, nhưng nới quyền đọc mã nguồn pull request cho mọi tài khoản trên máy; không đáng đổi lấy
+0.3s. Đã thành ca T5.4.
+
+Và một chỗ nữa đáng ghi vì nó suýt làm em đổ lỗi nhầm cho sản phẩm: lượt chạy lại sau khi vá vẫn đỏ, lần
+này vì **script thử của em** — nháy đơn trong `from 'vitest'` bị vỏ ssh nuốt nên file probe thành
+`from vitest;`. Lỗi của phép đo, không phải của thứ đang đo.
