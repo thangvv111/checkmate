@@ -107,12 +107,12 @@ không sửa cái đang sai.
 
 ## Kiểm tay — CHẠY THẬT (KHÔNG tick trước khi chạy)
 
-- [ ] T7.1 **Trên prod, TRƯỚC khi gỡ nginx:** gõ sai quá ngưỡng qua HTTPS thật → bị từ chối, **và thời gian
+- [x] T7.1 **Trên prod, TRƯỚC khi gỡ nginx:** gõ sai quá ngưỡng qua HTTPS thật → bị từ chối, **và thời gian
       trả lời sụt hẳn**. Sụt là bằng chứng scrypt không chạy, tức gác đứng đúng chỗ — thứ ca test đơn vị
       không chứng minh được trên máy thật.
-- [ ] T7.2 **Trên prod:** hết hạn phạt → đăng nhập đúng vào được.
-- [ ] T7.3 **Sau khi gỡ nginx:** `curl` không `-u` tới `/` ra **trang đăng nhập** (không phải 401, không
+- [x] T7.2 **Trên prod:** hết hạn phạt → đăng nhập đúng vào được.
+- [x] T7.3 **Sau khi gỡ nginx:** `curl` không `-u` tới `/` ra **trang đăng nhập** (không phải 401, không
       phải nội dung ứng dụng); `/api/*` không phiên ra JSON 401; webhook vẫn nhận.
-- [ ] T7.4 **Sau khi gỡ nginx:** chạy lại T7.1 trên bề mặt thật, không còn lớp nào che.
-- [ ] T7.5 Mắt người: trang đăng nhập lúc bị chặn đọc có hiểu không — người vận hành phải biết mình cần
+- [x] T7.4 **Sau khi gỡ nginx:** chạy lại T7.1 trên bề mặt thật, không còn lớp nào che.
+- [x] T7.5 Mắt người: trang đăng nhập lúc bị chặn đọc có hiểu không — người vận hành phải biết mình cần
       **chờ**, chứ không đi đổi mật khẩu.

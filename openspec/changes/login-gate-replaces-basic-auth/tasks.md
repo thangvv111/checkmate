@@ -131,14 +131,61 @@ thấp đi một bậc độ lớn**, tức sổ thành thứ đọc xong tin nh
 
 ## 8. Deploy BƯỚC HAI — gỡ Basic Auth (⛔ CHỜ PO CHỐT, tin riêng)
 
-- [ ] 8.1 Trình PO: §7.2 đã đo xong, kết quả cụ thể. Gỡ lớp ngoài là thay đổi **hướng ra Internet** trên
+- [x] 8.1 Trình PO: §7.2 đã đo xong, kết quả cụ thể. Gỡ lớp ngoài là thay đổi **hướng ra Internet** trên
       máy dùng chung với tingpos.vn — PO quyết, agent không tự bấm.
-- [ ] 8.2 Comment `auth_basic` + `auth_basic_user_file` ở `location /`; gỡ hai dòng `auth_basic off` đã
+- [x] 8.2 Comment `auth_basic` + `auth_basic_user_file` ở `location /`; gỡ hai dòng `auth_basic off` đã
       thành thừa. Giữ nguyên `location ^~ /.well-known/acme-challenge/` — certbot cần nó.
-- [ ] 8.3 `sudo nginx -t` trước khi reload. Cấu hình sai + reload = mất cả site, không chỉ mất Basic Auth.
-- [ ] 8.4 Kiểm sau khi gỡ: `curl` **không** `-u` tới `/` phải ra trang đăng nhập (không phải 401, cũng
+- [x] 8.3 `sudo nginx -t` trước khi reload. Cấu hình sai + reload = mất cả site, không chỉ mất Basic Auth.
+- [x] 8.4 Kiểm sau khi gỡ: `curl` **không** `-u` tới `/` phải ra trang đăng nhập (không phải 401, cũng
       không phải nội dung ứng dụng); `/api/*` không phiên phải ra JSON 401; webhook vẫn nhận.
-- [ ] 8.5 Kiểm rào **một lần nữa** sau khi gỡ — lần này là bề mặt thật, không còn lớp nào che.
+- [x] 8.5 Kiểm rào **một lần nữa** sau khi gỡ — lần này là bề mặt thật, không còn lớp nào che.
+
+## § Đo được ở §8 (06/09, sau khi gỡ nginx)
+
+Ba phép kiểm bắt buộc, trên bề mặt thật, không kèm `-u`:
+
+```
+GET  /              303 -> /login       (khong 401, khong noi dung ung dung)
+                    khong con header WWW-Authenticate  <- Basic Auth thuc su da di
+GET  /api/runs      401  {"loi":"Chua dang nhap hoac phien da het han.","can_dang_nhap":true}
+POST /api/webhook/  401  Content-Type: application/json  {"ok":false}
+```
+
+⛔ **401 của webhook phải phân biệt được nguồn, không được đoán.** Nó mang `application/json` +
+`{"ok":false}` ⇒ đó là **gác HMAC của ứng dụng**, không phải Basic Auth — Basic Auth trả HTML kèm header
+`WWW-Authenticate`. Hai thứ cùng mã 401 mà nghĩa ngược nhau: một cái là gác đang chạy, cái kia là gác chưa
+gỡ xong.
+
+### ⛔ Điều §7 KHÔNG chứng minh được, và §8 mới chứng minh: nginx GHI ĐÈ `X-Real-IP`
+
+Cả thiết kế đứng trên mệnh đề «`X-Real-IP` client không giả được». Trước §8 nó mới chỉ được **suy từ cấu
+hình** (`proxy_set_header` là ghi đè). Sau khi gỡ Basic Auth thì đo thẳng được — gửi 14 request qua HTTPS
+thật, **mỗi request một `X-Real-IP` giả khác nhau**:
+
+```
+lan 1-11   10.1.1.1 … 10.11.11.11   200-250 ms   ?sai=1
+lan 12+    10.12.12.12 …            153-170 ms   ?cho=900   <- CHAN
+```
+
+Mười bốn IP giả khác nhau mà vẫn rơi vào **cùng một xô** ⇒ nginx đã ghi đè, client không chèn được. Nếu
+code đọc `X-Forwarded-For` thì 14 request thành 14 xô và rào **không bao giờ** chặn — đúng đường hỏng mà
+D4 mô tả, nay đã đo được là bị bịt.
+
+*(Chênh lệch thời gian ở đây nhỏ hơn con số ~40× đo ở §7 vì độ trễ mạng tới Singapore ~150 ms lấn át. Hai
+lần đo hai thứ khác nhau: §7 đo chi phí CPU trên máy chủ, §8 đo hành vi qua cả đường mạng.)*
+
+### Kiểm tay T7.5 — và một chỗ nó bắt được
+
+Trang bị chặn hiện «Chờ khoảng **900 giây**» — đúng số, nhưng bắt người đọc tự chia 60 đúng lúc họ đang
+không vào được hệ thống. Đã sửa (PR #73): dưới 90 giây nói giây, từ đó trở lên nói phút, **làm tròn lên**.
+
+```
+?cho=900  ->  «Chờ khoảng 15 phút rồi đăng nhập lại — mật khẩu của bạn không bị đổi.»
+?cho=4    ->  «Chờ khoảng 4 giây …»
+```
+
+Đây là thứ **chỉ mắt người thấy được**: mọi ca test đều xanh với «900 giây», vì chúng kiểm câu có đúng số
+không chứ không kiểm câu có đọc được không.
 
 ## § Sau-merge — nợ có tên
 

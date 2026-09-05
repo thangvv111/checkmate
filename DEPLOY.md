@@ -82,14 +82,37 @@ sudo nano /etc/nginx/.htpasswd-checkmate                    # sửa thành  chec
 sudo systemctl reload nginx
 ```
 
-**Kiểm sau khi gỡ** (ba phép, làm cả ba):
+**Kiểm sau khi gỡ** (ba phép, làm cả ba — kết quả thật đo 06/09/2026 ghi bên phải):
 ```bash
-curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' https://checkmate.botswain.net/   # 303 -> /login  (KHONG 401)
+curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' https://checkmate.botswain.net/   # 303 -> /login
+curl -s -D - -o /dev/null https://checkmate.botswain.net/ | grep -ci www-authenticate      # 0  <- Basic Auth da di that
 curl -s https://checkmate.botswain.net/api/runs | head -c 120                              # JSON 401, khong phai HTML
-curl -s -o /dev/null -w '%{http_code}\n' -X POST https://checkmate.botswain.net/api/webhook/github  # webhook van nhan
+curl -s -o /dev/null -w '%{http_code}\n' -X POST https://checkmate.botswain.net/api/webhook/github  # 401 CUA APP
 ```
 `401` ở phép thứ nhất nghĩa là chưa gỡ xong; **nội dung ứng dụng** ở đó nghĩa là cửa phiên đang hỏng —
 dừng lại và lùi ngay.
+
+⛔ **Phép thứ tư: 401 nào cũng phải hỏi «của ai».** Webhook không chữ ký bị từ chối bằng 401 — và Basic
+Auth chưa gỡ cũng trả 401. Hai thứ cùng mã, nghĩa ngược nhau. Phân biệt bằng **thân và header**:
+
+| nguồn | Content-Type | thân | `WWW-Authenticate` |
+|---|---|---|---|
+| gác HMAC của app (ĐÚNG) | `application/json` | `{"ok":false}` | không có |
+| Basic Auth chưa gỡ (SAI) | `text/html` | trang lỗi nginx | **có** |
+
+⛔ **Kiểm thứ năm — nginx có THẬT SỰ ghi đè `X-Real-IP` không.** Cả rào đăng nhập đứng trên mệnh đề này,
+và đọc cấu hình chỉ là *suy*; đây là cách *đo*:
+
+```bash
+for i in $(seq 1 14); do
+  curl -s -o /dev/null -w '%{redirect_url}\n' -X POST https://checkmate.botswain.net/login \
+    -H "X-Real-IP: 10.$i.$i.$i" --data-urlencode "ten=khong-ton-tai-$i" --data-urlencode 'mk=sai'
+done
+```
+Mười bốn IP giả **khác nhau** mà vẫn bị chặn (`?cho=900` từ khoảng lượt 12) ⇒ nginx đã ghi đè, client
+không chèn được. Nếu KHÔNG lượt nào bị chặn thì header client đang lọt qua và **rào đã mất hiệu lực** —
+kiểm ngay dòng `proxy_set_header X-Real-IP $remote_addr;` trong `location /`.
+Chạy xong thì `sudo systemctl restart checkmate` để xoá án phạt vừa tự tạo.
 
 ## Webhook GitHub — chấm ngay khi PR mở, thay vì đợi chu kỳ trực
 
