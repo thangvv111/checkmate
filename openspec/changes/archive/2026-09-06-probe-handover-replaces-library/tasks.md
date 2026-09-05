@@ -112,11 +112,10 @@ Sau khi bổ sung 8 ca còn thiếu ở lượt rà cuối: **1217**.
 - [x] 7.1 Deploy theo 4 bước `DEPLOY.md`.
 - [x] 7.2 ⛔ **Đối chiếu: `probes-lib/` trên máy chủ còn NGUYÊN 7 file + `meta.json` sau deploy.** Đây là
       phép kiểm quan trọng nhất của lượt deploy này — gỡ code đọc mà lỡ xoá dữ liệu là việc một chiều.
-- [ ] 7.3 ⛔ **CHƯA CHẠY ĐƯỢC — và lý do KHÔNG phải change này.** Xác thực Claude CLI trên máy chủ đã mất
-      từ **16:52**, tức TRƯỚC deploy 5 tiếng (bốn lượt chấm hỏng liên tiếp, tất cả chết ở bước 3). Chi tiết
-      và bằng chứng ở «§ Đo được ở §7» bên trên. Việc còn lại: chạy một lượt chấm thật trên repo demo, xác
-      nhận **không probe thư viện nào chạy** và đo thời gian so với trước — **làm sau khi khôi phục xác
-      thực** (`claude login` bằng đúng user chạy dịch vụ, hoặc chuyển Provider sang Anthropic API).
+- [ ] 7.3 ⛔ **CHƯA CHẠY ĐƯỢC.** Prod KHÔNG có sự cố nào cản — chẩn đoán «mất xác thực» ở bản đầu của mục
+      này là SAI, xem «§ Đo được ở §7». Chạy một lượt chấm thật trên repo demo: xác nhận **không probe thư
+      viện nào chạy**, và đo thời gian so với trước. Chạy khi **không có lượt nào đang chấm** và **không
+      deploy chen vào** — restart giết lượt đang chạy (đo được 4 lần).
 
 ## § Đo được ở §7 (06/09, prod)
 
@@ -143,36 +142,48 @@ nén — không ai import (đã kiểm bằng `grep` trước khi xoá), nhưng 
 ấy nay vô tác dụng, và cảnh báo chính là thứ nói cho người vận hành biết nên bỏ nó. Không sửa cấu hình prod
 cho gọn log: đó là dữ liệu của chủ máy.
 
-### ⛔ T9.2 (chạy một lượt chấm thật) KHÔNG chạy được — và lý do KHÔNG phải change này
+### ⛔ T9.2 (chạy một lượt chấm thật) chưa chạy được — và bản ĐẦU của mục này CHẨN ĐOÁN SAI
 
-Lượt chấm thật dừng ở bước 3 với: *«Claude Code CLI mất xác thực trên máy này»*. Kiểm trực tiếp, không suy:
+**Bản đầu viết:** *«xác thực Claude CLI trên máy chủ đã mất từ 16:52»*, kèm bảng bốn lượt chấm hỏng làm
+bằng chứng, và một nợ có tên về một sự cố xác thực.
+
+**Sai. PO bác bỏ bằng một điều em không hỏi:** *«anh nhớ là đã đăng nhập bằng token, có đặt thời gian dài»*.
+Kiểm lại thì token có thật và **vẫn hợp lệ**:
 
 ```
-claude -p "..."   ->  Not logged in · Please run /login
-~/.claude/        ->  KHONG co file chung thuc
-config: agent.ncc = anthropic, phuong_thuc = thue_bao   (dung goi CLI, khong dung API key)
+.secrets.json          ->  claude_code_oauth_token, 108 ky tu, tien to sk-ant-oat01…
+agentEnv()             ->  CO truyen CLAUDE_CODE_OAUTH_TOKEN khi phuong_thuc = thue_bao
+claude -p (voi token)  ->  "OK"        <- CLI nhan token, khong het han
 ```
 
-**Mốc thời gian cho thấy nó có TRƯỚC deploy khoảng 5 tiếng:**
+**Nguyên nhân thật, đo được:** bốn lượt chấm ấy bị **chính deploy của em giết**. Mỗi lượt bắt đầu ngay
+trước một lần `systemctl restart`:
 
-| giờ | lượt | kết quả |
+| lượt bắt đầu | restart | cách nhau |
 |---|---|---|
-| 12:16 | PR #7 · code | **xong** — lượt chấm thành công gần nhất |
-| 16:52 | PR #70 · code | **lỗi** — chết ở bước 3, chỗ gọi model lần đầu |
-| 18:06 | PR #71 · code | lỗi |
-| 18:23 | PR #72 · code | lỗi |
-| 21:21 | PR #74 · code | lỗi |
-| **21:47** | — | **deploy change này** |
+| 16:52:08 | 16:54:31 | 2 phút |
+| 18:06:14 | 18:09:03 | 3 phút |
+| 18:23:52 | 18:24:10 | **18 giây** |
+| 21:21:16 | 21:47:55 | 26 phút (PR 34 file, còn đang chạy) |
 
-Bốn lượt hỏng liên tiếp, tất cả chết ở đúng bước 3. Deploy đẩy file nguồn, không đụng `~/.claude/`.
+`checkmate.log` có **đúng bốn** dòng `Đánh dấu lỗi 1 lượt có tiến trình đã chết: <id>` — khớp một-một.
+Lượt chấm của riêng em thì hỏng vì lý do khác hẳn: shell SSH nạp `/etc/checkmate.env`, mà token thuê bao
+**không nằm ở đó** — nó nằm trong kho khoá `.secrets.json` và chỉ được `agentEnv()` bơm vào tiến trình con.
 
-⚠ **Đây là thứ đáng lo hơn cả change:** từ 16:52 CheckMate **không chấm được PR nào**, và bốn lượt hỏng ấy
-chỉ nằm ở trạng thái `loi` trên màn chủ chứ không có ai/cái gì gọi ra. Cần `claude login` bằng đúng user
-chạy dịch vụ, hoặc chuyển Provider sang Anthropic API ở màn Cấu hình.
+**Ba bài học, ghi vì cái giá đã trả:**
 
-**Hệ quả cho change này:** ba phép kiểm dữ liệu và mã nguồn đã xong; phép kiểm HÀNH VI (không probe thư
-viện nào chạy, và lượt chấm nhanh hơn bao nhiêu) **chưa đo được**, và nó ở lại là việc phải làm sau khi
-xác thực được khôi phục. Không tick nó.
+1. **Em suy từ MỘT lượt hỏng của mình sang BỐN lượt hỏng của dịch vụ**, dù hai môi trường khác nhau ở đúng
+   biến quyết định. Thông điệp lỗi giống nhau nên em coi nguyên nhân là một.
+2. **«Bốn lượt hỏng liên tiếp» trông như một xu hướng**, nên em đọc nó thành một sự cố hệ thống thay vì
+   hỏi *cái gì xảy ra ngay trước mỗi lượt*. Bảng mốc thời gian trả lời trong ba mươi giây, và em có nó
+   sẵn — em chỉ không đặt hai cột cạnh nhau.
+3. **`DEPLOY.md` hứa sai và em tin nó**: nó viết *«restart giữa lúc đang chấm nay không còn mất lượt»*, nên
+   em loại bỏ giả thuyết «restart giết lượt» trước cả khi xét. Câu ấy nay đã sửa — sổ sự kiện cứu được
+   **sự kiện**, không cứu **lượt chấm**.
+
+**Việc còn lại (không tick):** chạy một lượt chấm thật trên repo demo — xác nhận không probe thư viện nào
+chạy, và đo thời gian so với trước. Chạy khi **không có lượt nào đang chấm** và **không deploy chen vào**.
+Prod hiện KHÔNG có sự cố nào cản việc đó.
 
 ## § Sau-merge — nợ có tên
 

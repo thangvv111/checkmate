@@ -381,10 +381,38 @@ người ta sẽ bỏ qua. Nên phần này là kiểm tay, và đây là chỗ 
 
 > ⚠ **`runs/` nay là DỮ LIỆU ĐANG SỐNG, không còn chỉ là kết xuất cuối.** Mỗi lượt chấm ghi sổ sự kiện
 > chỉ-ghi-thêm vào `runs/<id>/events.jsonl` **ngay khi sự kiện sinh ra**, và tiến trình web đọc file đó
-> chứ không đọc đường ống. Hệ quả cho việc deploy: `systemctl restart checkmate` **giữa lúc đang chấm**
-> nay không còn mất lượt — web sống lại là nối tiếp đúng chỗ đang dở. Đổi lại, **xoá `runs/` là giết
-> mọi lượt đang chạy**, không chỉ mất lịch sử. Nó nằm trong nhóm không-đè cùng `web-runs/` và
-> `probes-lib/`.
+> chứ không đọc đường ống. **Xoá `runs/` là giết mọi lượt đang chạy**, không chỉ mất lịch sử. Nó nằm
+> trong nhóm không-đè cùng `web-runs/` và `probes-lib/`.
+
+> ⛔ **`systemctl restart` GIỮA LÚC ĐANG CHẤM VẪN GIẾT LƯỢT ẤY — đo được 4 lần ngày 05/09.**
+>
+> Bản trước của mục này viết: *«restart giữa lúc đang chấm nay không còn mất lượt — web sống lại là nối
+> tiếp đúng chỗ đang dở»*. Câu ấy **sai**, và nó sai theo hướng nguy hiểm: người deploy đọc xong sẽ restart
+> mà không nhìn hàng đợi.
+>
+> Thứ sổ sự kiện cứu được là **SỰ KIỆN**, không phải **LƯỢT CHẤM**. Tiến trình engine là con của dịch vụ,
+> nằm cùng cgroup systemd, nên `restart` giết nó theo. Web sống lại đọc được mọi sự kiện đã ghi, rồi
+> **đánh dấu lượt ấy là `loi`** — log ghi `Đánh dấu lỗi 1 lượt có tiến trình đã chết: <id>`.
+>
+> Đo được 05/09, bốn lượt, mỗi lượt bắt đầu ngay trước một lần deploy:
+>
+> | lượt bắt đầu | restart | cách nhau |
+> |---|---|---|
+> | 16:52:08 | 16:54:31 | 2 phút |
+> | 18:06:14 | 18:09:03 | 3 phút |
+> | 18:23:52 | 18:24:10 | **18 giây** |
+> | 21:21:16 | 21:47:55 | 26 phút (PR 34 file, còn đang chạy) |
+>
+> **Trước khi deploy, xem hàng đợi có lượt nào đang chạy không:**
+> ```bash
+> curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:4001/    # tren may chu
+> # hoac doc thang:
+> cd ~/checkmate-app/checkmate && node -e "const {DatabaseSync}=require('node:sqlite');
+>   const d=new DatabaseSync('web-runs/checkmate.db',{readOnly:true});
+>   console.log(d.prepare(\"select count(*) c from run where trang_thai='dang_chay'\").get().c)"
+> ```
+> Khác 0 thì **chờ nó xong rồi hãy deploy**, hoặc chấp nhận mất lượt ấy và chấm lại sau — mất một lượt
+> chấm không phải mất dữ liệu, nhưng nó là một PR tạm thời không có checker đứng sau.
 
 **Bước 1 — sao lưu trên server TRƯỚC (không có bước này thì không có đường lùi):**
 ```
