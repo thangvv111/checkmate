@@ -11,6 +11,24 @@ NOT ra verdict.
 Lỗi nạp SHALL được phân biệt với **test fail**: một probe chạy được và không đạt là bằng chứng về code
 đích; một probe không nạp được thì không nói gì về code đích cả. Engine MUST NOT coi lỗi nạp là finding.
 
+⛔ **Danh sách ĐÓNG — chỉ LỖI NẠP mới kích hoạt cách ly.** Cách ly SHALL chỉ được kích hoạt bởi việc một
+file probe **không nạp được** (không import/parse được, nên không đóng góp phép thử nào). MUST NOT có
+nguyên nhân nào khác kích hoạt nó, kể cả:
+
+| tình trạng | vì sao KHÔNG cách ly |
+|---|---|
+| probe **chạy lâu / làm treo lệnh test** | đó là bằng chứng về code đích — đường `treo` đã có finding riêng của nó |
+| probe **fail** | đó là bằng chứng, có thể chính là hồi quy cần bắt |
+| probe **flaky** | đã có đường đào thải theo điểm; nó cân nhắc cả thành tích, cách ly thì không |
+| probe làm verdict **xấu đi** | không phải một tình trạng kỹ thuật — đó là một mong muốn |
+
+Danh sách này SHALL đóng: nới nó là hạ tiêu chuẩn của cổng, và phải đi qua một change khai rõ điều đó.
+
+*Vì sao phải khai thành danh sách đóng thay vì mô tả: change này dạy hệ thống phản xạ «gặp trở ngại thì bỏ
+bớt phép thử rồi đi tiếp». Mỗi lần nới thêm một nguyên nhân đều có vẻ hợp lý một mình — bỏ probe chạy lâu
+cho nhanh, bỏ probe flaky cho đỡ nhiễu — và điểm đến là một cổng chỉ chạy những phép thử dễ. Ranh giới
+không giữ được bằng thiện chí; nó phải là một danh sách đếm được, có lưới gác.*
+
 ⛔ **Chỉ probe không nạp được trên NHÁNH GỐC mới được cách ly.** Probe nạp được trên nhánh gốc mà không
 nạp được trên nhánh PR SHALL KHÔNG bị cách ly: đó là bằng chứng về **PR**, không phải dấu hiệu probe mục.
 Nó SHALL đi đường phân loại bình thường như một probe không chạy được trên nhánh PR.
@@ -37,6 +55,15 @@ của chính CheckMate, và tài sản mục nát của mình không được th
 #### Scenario: probe chạy được nhưng không đạt
 - **WHEN** một probe nạp được, chạy, và fail
 - **THEN** nó đi đường phân loại bình thường, KHÔNG bị coi là lỗi nạp và KHÔNG bị cách ly
+
+#### Scenario: probe làm TREO lệnh test
+- **WHEN** bộ probe không kết thúc trong thời hạn
+- **THEN** đường xử lý treo đã có giữ nguyên, và KHÔNG probe nào bị cách ly — «chạy lâu» không phải
+  «không nạp được»
+
+#### Scenario: probe flaky hoặc làm verdict xấu đi
+- **WHEN** một probe không tất định, hoặc là probe duy nhất khiến verdict thành FAIL
+- **THEN** nó KHÔNG bị cách ly — hai tình trạng ấy nằm ngoài danh sách đóng
 
 #### Scenario: probe nạp được trên nhánh gốc, KHÔNG nạp được trên nhánh PR
 - **WHEN** một probe thư viện chạy được trên nhánh gốc nhưng không nạp được trên nhánh PR

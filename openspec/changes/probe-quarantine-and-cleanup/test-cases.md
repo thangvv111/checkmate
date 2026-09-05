@@ -13,6 +13,11 @@ change (sau: **3**) · `that_lac` hôm nay tính TRÊN `keHoach`.
       **KHÔNG** vào `loiNap`. *(Lẫn hai thứ này là biến một bằng chứng về code đích thành một dòng bảo trì.)*
 - [ ] T1.3 [Biên] Mục có `assertionResults` rỗng nhưng KHÔNG có `message` (file test rỗng) → không vào
       `loiNap`.
+- [ ] T1.6 **[Danh sách ĐÓNG — PO chốt 05/09]** Chỉ lỗi NẠP kích hoạt cách ly. Bốn ca đối kháng, mỗi ca
+      một dòng của bảng: probe **treo** (timeout) · probe **fail** · probe **flaky** · probe là thủ phạm
+      duy nhất làm verdict FAIL → **KHÔNG** ca nào bị cách ly.
+- [ ] T1.7 [Lưới gác danh sách đóng] Quét source: chỉ đúng MỘT chỗ kích hoạt cách ly, và nó đọc từ danh
+      sách lỗi nạp — không nhánh nào cách ly từ `treo`, từ `status: failed`, hay từ `flaky_diem`.
 - [ ] T1.4 [Đối kháng] Nhận diện KHÔNG được dựa vào lời văn lỗi: đổi `message` sang tiếng khác / phiên bản
       vitest khác vẫn nhận ra.
 - [ ] T1.5 [Hỏng] `outFile` không tồn tại → `loiNap` rỗng và lượt chấm thất bại như cũ; MUST NOT đoán bừa
@@ -87,6 +92,9 @@ change (sau: **3**) · `that_lac` hôm nay tính TRÊN `keHoach`.
 - [ ] T8.5 Bỏ kiểm vai ở một route → T_cong ĐỎ.
 - [ ] T8.6 `purge` thôi đòi gõ tên repo → ca xác nhận ĐỎ.
 - [ ] T8.7 Nhận diện lỗi nạp đổi sang bắt chuỗi lời văn → T1.4 ĐỎ.
+- [ ] T8.9 **Nới danh sách đóng: cách ly thêm cả probe TREO** → T1.6 ĐỎ. *(Chiều này canh đúng ranh giới
+      PO chốt — nó là chiều dễ trượt nhất vì «treo» cũng làm lượt chấm không chạy được.)*
+- [ ] T8.10 Nới danh sách đóng: cách ly cả probe flaky → T1.6 ĐỎ.
 - [ ] T8.8 Đột biến sống sót → bảng ba đường, ghi rõ rơi vào hàng nào.
 
 ## Kiểm tay — CHẠY THẬT (KHÔNG tick trước khi chạy)

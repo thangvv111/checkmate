@@ -33,6 +33,10 @@ grep -c "app.post('/api/probes"          apps/web/src/server.ts               # 
       + có `message`), KHÔNG bắt chuỗi lời văn lỗi.
 - [ ] 3.2 `outFile` không tồn tại → không quy được về file → giữ hành vi cũ (lượt chấm thất bại).
 - [ ] 3.3 Ca khoá: probe **chạy được mà fail** KHÔNG bao giờ vào `loiNap`.
+- [ ] 3.4 ⛔ **Danh sách ĐÓNG (PO chốt 05/09):** chỉ lỗi NẠP kích hoạt cách ly. Đường `treo` (timeout)
+      giữ NGUYÊN hành vi cũ — «chạy lâu» không phải «không nạp được», và nó đã có finding riêng.
+- [ ] 3.5 Lưới gác: quét source đòi đúng MỘT chỗ kích hoạt cách ly, đọc từ danh sách lỗi nạp; không nhánh
+      nào cách ly từ `treo` · `status: failed` · `flaky_diem`. Cặp fixture.
 
 ## 4. Engine — vòng cách ly
 
@@ -80,6 +84,8 @@ grep -c "app.post('/api/probes"          apps/web/src/server.ts               # 
 - [ ] 9.5 Bỏ kiểm vai ở một trong ba route → ca ĐỎ.
 - [ ] 9.6 `purge` thôi đòi gõ tên repo → ca ĐỎ.
 - [ ] 9.7 Nhận diện lỗi nạp đổi sang bắt chuỗi lời văn → ca ĐỎ.
+- [ ] 9.9 Nới danh sách đóng — cách ly thêm probe TREO → ca ĐỎ *(ranh giới PO chốt)*.
+- [ ] 9.10 Nới danh sách đóng — cách ly thêm probe flaky → ca ĐỎ.
 - [ ] 9.8 Đột biến sống sót → bảng ba đường. Không im lặng khai bừa.
 
 ## 10. Kiểm tay — CHẠY THẬT (KHÔNG tick trước khi chạy)
