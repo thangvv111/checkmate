@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { LIBRARY_CAP, LIBRARY_CAP_SUGGESTED, PROBE_DEPTH, clampToRange } from '../apps/web/src/config.js';
+import { PROBE_DEPTH, clampToRange } from '../apps/web/src/config.js';
 import { repoSection } from '../apps/web/src/ui-repo.js';
 
 /**
@@ -11,7 +11,6 @@ import { repoSection } from '../apps/web/src/ui-repo.js';
  */
 
 const UI = readFileSync('apps/web/src/ui.ts', 'utf8');
-const LIB = readFileSync('packages/harness/src/probe-library.ts', 'utf8');
 
 describe('MỘT nguồn cho một khoảng giá trị', () => {
   it('T1.1 nhãn và ràng buộc ô nhập đều suy TỪ hằng, không chép tay chữ số', () => {
@@ -23,7 +22,7 @@ describe('MỘT nguồn cho một khoảng giá trị', () => {
   });
 
   it('T1.2 mặc định nằm TRONG khoảng — cả hai khoảng', () => {
-    for (const [ten, k] of [['PROBE_DEPTH', PROBE_DEPTH], ['LIBRARY_CAP', LIBRARY_CAP]] as const) {
+    for (const [ten, k] of [['PROBE_DEPTH', PROBE_DEPTH]] as const) {
       expect(k.mac_dinh, `${ten}: mặc định dưới min`).toBeGreaterThanOrEqual(k.min);
       expect(k.mac_dinh, `${ten}: mặc định trên max`).toBeLessThanOrEqual(k.max);
       expect(k.min).toBeLessThan(k.max);
@@ -33,8 +32,8 @@ describe('MỘT nguồn cho một khoảng giá trị', () => {
   it('T1.3 kẹp về biên của CHÍNH khoảng ấy', () => {
     expect(clampToRange(99, PROBE_DEPTH)).toBe(PROBE_DEPTH.max);
     expect(clampToRange(1, PROBE_DEPTH)).toBe(PROBE_DEPTH.min);
-    expect(clampToRange(999, LIBRARY_CAP)).toBe(LIBRARY_CAP.max);
-    expect(clampToRange(1, LIBRARY_CAP)).toBe(LIBRARY_CAP.min);
+    expect(clampToRange(999, PROBE_DEPTH)).toBe(PROBE_DEPTH.max);
+    expect(clampToRange(1, PROBE_DEPTH)).toBe(PROBE_DEPTH.min);
     // Vế đối chứng: giá trị hợp lệ đi qua nguyên vẹn.
     expect(clampToRange(7, PROBE_DEPTH)).toBe(7);
   });
@@ -52,12 +51,13 @@ describe('MỘT nguồn cho một khoảng giá trị', () => {
 /**
  * Mỗi trường phải kẹp bằng KHOẢNG CỦA CHÍNH NÓ.
  *
- * Kẹp `max_probe` bằng `LIBRARY_CAP` vẫn cho ra một số hợp lệ trông bình thường — chỉ là sai khoảng, nên
+ * Kẹp `max_probe` bằng một khoảng KHÁC vẫn cho ra một số hợp lệ trông bình thường — chỉ là sai khoảng, nên
  * không gì nổ và không ai thấy. Đột biến 6.5 đã SỐNG SÓT qua bản đầu của lưới này vì ca cũ chỉ kiểm
  * HÀM kẹp, không kiểm ĐƯỜNG ĐỌC dùng khoảng nào.
  */
 export function scanRangeMismatch(src: string): string[] {
-  const DUNG: Record<string, string> = { max_probe: 'PROBE_DEPTH', tran_thu_vien: 'LIBRARY_CAP' };
+  // `tran_thu_vien` đã gỡ cùng thư viện probe; bảng còn một trường, và luật vẫn y nguyên.
+  const DUNG: Record<string, string> = { max_probe: 'PROBE_DEPTH' };
   const loi: string[] = [];
   for (const m of String(src ?? '').matchAll(/(\w+):\s*clampToRange\([^,]+,\s*(\w+)\)/g)) {
     const mong = DUNG[m[1]!];
@@ -74,58 +74,22 @@ describe('Mỗi trường kẹp bằng khoảng CỦA CHÍNH NÓ', () => {
   });
 
   it('phép quét BẮT được cái sai — fixture đối kháng', () => {
-    expect(scanRangeMismatch('max_probe: clampToRange(a.max_probe, LIBRARY_CAP),')).toHaveLength(1);
-    expect(scanRangeMismatch('tran_thu_vien: clampToRange(b.tran_thu_vien, PROBE_DEPTH),')).toHaveLength(1);
+    expect(scanRangeMismatch('max_probe: clampToRange(a.max_probe, MOT_KHOANG_KHAC),')).toHaveLength(1);
+    expect(scanRangeMismatch('max_probe: clampToRange(b.max_probe, LIBRARY_CAP),'), 'kể cả một khoảng ĐÃ GỠ').toHaveLength(1);
   });
 
   it('cặp đúng thì XANH — fixture đối chứng', () => {
     expect(scanRangeMismatch('max_probe: clampToRange(a.max_probe, PROBE_DEPTH),')).toEqual([]);
-    expect(scanRangeMismatch('tran_thu_vien: clampToRange(b.tran_thu_vien, LIBRARY_CAP),')).toEqual([]);
     expect(scanRangeMismatch('gi_do_khac: clampToRange(x, MOT_KHOANG_LA),'), 'trường lạ thì không xét').toEqual([]);
     expect(scanRangeMismatch('')).toEqual([]);
   });
 });
 
-describe('Trần thư viện probe — ô chỉnh được TÀI SẢN prod', () => {
-  it('T2.1 cấu hình đời cũ thiếu trường ⇒ trần ĐANG ÁP, KHÔNG phải con số gói đề xuất', async () => {
-    // Ca giữ cho một lần cập nhật không đào thải probe. Đọc ra 40 ở đây sẽ xoá tới 60 probe ngay lượt
-    // nạp kế tiếp — hại một chiều, nâng trần lên lại không lấy lại được.
-    expect(LIBRARY_CAP.mac_dinh).toBe(100);
-    expect(LIBRARY_CAP.mac_dinh, 'mặc định KHÔNG được là con số gói đề xuất').not.toBe(LIBRARY_CAP_SUGGESTED);
-    const { readConfig } = await import('../apps/web/src/config.js');
-    expect(typeof readConfig).toBe('function');
-  });
+// ⛔ Khối «Trần thư viện probe» (T2.1–T2.4, T3.1 — 5 ca) ĐÃ GỠ cùng thư viện probe
+// (change probe-handover-replaces-library). Không còn kho thì không có trần để đặt, và không có ô
+// cấu hình để kiểm. Luật «mỗi trường kẹp bằng khoảng CỦA CHÍNH NÓ» ở khối trên thì VẪN SỐNG — nó chỉ
+// mất ví dụ thứ hai, nên fixture của nó được viết lại chứ không xoá.
 
-  it('T2.2 đọc rồi ghi lại cấu hình đời cũ KHÔNG đổi trần đang áp', () => {
-    // `configForReview`/`readConfig` chuẩn hoá trong BỘ NHỚ; change không ghi vào `config.json` lúc khởi
-    // động. Một lần deploy không được sửa file cấu hình của người ta, kể cả để «chuẩn hoá».
-    const src = readFileSync('apps/web/src/config.ts', 'utf8');
-    expect(src).toContain('tran_thu_vien: clampToRange(a.tran_thu_vien ?? LIBRARY_CAP.mac_dinh, LIBRARY_CAP)');
-    expect(readFileSync('apps/web/src/server.ts', 'utf8'), 'không tự ghi cấu hình lúc khởi động').not.toMatch(
-      /app\.listen[\s\S]{0,1200}writeConfig\(/,
-    );
-  });
-
-  it('T2.3 agentEnv phát CHECKER_LIB_TRAN', () => {
-    const src = readFileSync('apps/web/src/config.ts', 'utf8');
-    expect(src).toContain('CHECKER_LIB_TRAN: String(c.agent.tran_thu_vien');
-  });
-
-  it('T2.4 engine kẹp đúng biên LIBRARY_CAP, và env rác → mặc định chứ không đoán', () => {
-    // Engine không import được từ lớp web (ranh giới gói), nên hai chỗ khớp bằng LƯỚI chứ không bằng
-    // lời hứa. Env rỗng cho Number('')=0 rồi kẹp về min → đào thải hàng loạt; 'abc' cho NaN làm
-    // `while (len > NaN)` luôn false → trần vô hiệu. Cả hai đều âm thầm.
-    expect(LIB, 'biên dưới lệch').toContain(`Math.max(${LIBRARY_CAP.min},`);
-    expect(LIB, 'biên trên lệch').toContain(`Math.min(${LIBRARY_CAP.max},`);
-    expect(LIB, 'mặc định lệch').toContain(`return ${LIBRARY_CAP.mac_dinh};`);
-    expect(LIB, 'env phải là số nguyên sạch mới được nhận').toContain("test(tho)");
-  });
-
-  it('T3.1 ô trần nói CẢ HAI vế: con số gói đề xuất, và cái mất khi hạ', () => {
-    expect(UI, 'thiếu con số gói đề xuất').toContain('${LIBRARY_CAP_SUGGESTED}');
-    expect(UI, 'thiếu vế «hạ trần thì mất gì»').toContain('ĐÀO THẢI probe đang có');
-  });
-});
 
 describe('Giao diện theo gói', () => {
   it('T3.2 slider độ sâu, có chỗ hiện số', () => {

@@ -34,17 +34,6 @@ export function clampToRange(tho: unknown, khoang: ValueRange): number {
 /** Số phép thử tối đa mỗi lượt chấm. Mặc định 6 — con số gói design CCS chốt. */
 export const PROBE_DEPTH: ValueRange = { min: 2, max: 12, mac_dinh: 6 };
 
-/**
- * Trần thư viện probe, đếm theo PROBE (không theo file).
- *
- * ⚠ Mặc định 100 = trần ĐANG ÁP, cố ý KHÔNG hạ về 40 như gói design đề xuất. `probes-lib/` là tài sản
- * regression tích luỹ qua từng lượt chấm; hạ trần là ĐÀO THẢI probe đang có, và đào thải là một chiều.
- * Con số 40 đúng cho một bản cài MỚI — nên nó được BÀY RA ở hint của ô nhập, không được ÁP vào bằng mặc
- * định. Đổi trần là quyết định của người vận hành, không phải hệ quả âm thầm của một lần deploy.
- */
-export const LIBRARY_CAP: ValueRange = { min: 6, max: 200, mac_dinh: 100 };
-/** Con số gói design đề xuất cho bản cài mới — chỉ để HIỆN ở hint, không dùng làm mặc định. */
-export const LIBRARY_CAP_SUGGESTED = 40;
 
 export interface AgentConfig {
   /** Nhà cung cấp đang dùng để chấm — chỉ đặt được sau khi kiểm thành công */
@@ -52,7 +41,12 @@ export interface AgentConfig {
   /** Cấu hình riêng của TỪNG nhà cung cấp, giữ lại khi đổi qua đổi lại */
   ncc_cau_hinh: Partial<Record<ProviderId, ProviderConfig>>;
   max_probe: number;
-  /** Trần thư viện probe. Thiếu trường ⇒ trần ĐANG ÁP, không phải con số gói đề xuất. */
+  /**
+   * ĐỜI CŨ — trần thư viện probe, gỡ cùng thư viện (change `probe-handover-replaces-library`).
+   *
+   * GIỮ trong kiểu vì `config.json` trên máy chủ có trường này; gỡ khỏi kiểu là làm cấu hình đang chạy
+   * không đọc được. Không ai ghi nó nữa, và không ai đọc giá trị của nó nữa.
+   */
   tran_thu_vien?: number;
   skeptic: boolean;
   /** @deprecated giữ để đọc được config đời cũ (provider cli|api + model phẳng) */
@@ -135,7 +129,6 @@ const MAC_DINH: CheckmateConfig = {
     ncc: 'anthropic',
     ncc_cau_hinh: { anthropic: { phuong_thuc: 'thue_bao', model: 'claude-sonnet-5' } },
     max_probe: PROBE_DEPTH.mac_dinh,
-    tran_thu_vien: LIBRARY_CAP.mac_dinh,
     skeptic: true,
   },
   truc: { bat: false, chu_ky_giay: 300, tu_dong_comment: true, tu_dong_trang_thai: true, tu_dong_tra_ve: false },
@@ -347,7 +340,6 @@ function nangCapAgent(a?: Partial<AgentConfig>): AgentConfig {
     max_probe: clampToRange(a.max_probe ?? PROBE_DEPTH.mac_dinh, PROBE_DEPTH),
     // Cấu hình đời cũ thiếu trường ⇒ trần ĐANG ÁP. Đọc ra con số gói đề xuất ở đây sẽ đào thải probe
     // ngay lượt nạp kế tiếp, tức một lần cập nhật xoá mất tài sản của người ta.
-    tran_thu_vien: clampToRange(a.tran_thu_vien ?? LIBRARY_CAP.mac_dinh, LIBRARY_CAP),
     skeptic: a.skeptic ?? true,
   };
 }
@@ -501,7 +493,6 @@ export function agentEnv(c: CheckmateConfig): NodeJS.ProcessEnv {
     CHECKER_PROVIDER: ncc === 'anthropic' ? (cfg.phuong_thuc === 'thue_bao' ? 'cli' : 'api') : 'api',
     CHECKER_MODEL: cfg.model,
     CHECKER_MAX_PROBE: String(c.agent.max_probe),
-    CHECKER_LIB_TRAN: String(c.agent.tran_thu_vien ?? LIBRARY_CAP.mac_dinh),
     CHECKER_SKEPTIC: c.agent.skeptic ? '1' : '0',
     ...(dungThueBao && tokenTb ? { CLAUDE_CODE_OAUTH_TOKEN: tokenTb } : {}),
     // Tên biến khoá lấy TỪ ĐỊNH NGHĨA nhà cung cấp — thêm nhà cung cấp mới không phải nhớ sửa chỗ này nữa

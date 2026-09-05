@@ -1,93 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { applyRuling, splitRule, findSuspectedDuplicate, findRerunDuplicate, type RulingCandidate } from '../packages/harness/src/dedup-probe.js';
-import { splitOneProbe, cutTestBlock, hasTestBlock, checkBalanced, type LibraryProbe } from '../packages/harness/src/probe-library.js';
-import type { ProbePlan } from '../packages/harness/src/skill-code.js';
+import { splitOneProbe, cutTestBlock, hasTestBlock, checkBalanced } from '../packages/harness/src/probe-split.js';
 
-// Ba tầng đầu của luật xử trùng lặp (specs/R10.6–R10.8) + máy tách file per-probe (R10.2).
-// Luật xương sống: mọi đường mờ đều nghiêng về GIỮ — loại nhầm là mất tài sản regression trong im lặng.
-
-const plan = (id: string, rule = 'R1'): ProbePlan => ({ id, ten: `thử ${id}`, muc_dich: 'm', spec_rule: rule, ky_vong: 'k' });
-const mucLib = (ten: string, id: string, rule: string, sha: string): LibraryProbe => ({
-  ten,
-  sha_sinh: sha,
-  luc: '2026-08-20T01:00:00.000Z',
-  hash: 'h',
-  plan: plan(id, rule),
-  lich_su: [],
-  code: `it('${id}: x', () => {});`,
-});
-
-describe('splitRule — chuẩn hoá chuỗi luật trước khi so', () => {
-  it('nhận đủ các kiểu viết thật đã gặp trong thư viện: R1,R2 · R3+R4 · R3, R4', () => {
-    expect(splitRule('R1,R2')).toEqual(['R1', 'R2']);
-    expect(splitRule('R3+R4')).toEqual(['R3', 'R4']);
-    expect(splitRule('R3, R4')).toEqual(['R3', 'R4']);
-    expect(splitRule('R7, R4, R5')).toEqual(['R7', 'R4', 'R5']);
-  });
-
-  it('rỗng và undefined ra tập rỗng, không ném', () => {
-    expect(splitRule('')).toEqual([]);
-    expect(splitRule(undefined)).toEqual([]);
-  });
-});
-
-describe('tầng 1 — bản chạy-lại cùng commit', () => {
-  const lib = [mucLib('lib_a.ts', 'P1', 'R2', 'abc1234')];
-
-  it('trùng cả sha + id + luật thì bắt', () => {
-    expect(findRerunDuplicate(lib, plan('P1', 'R2'), 'abc1234')?.ten).toBe('lib_a.ts');
-  });
-
-  it('chỉ cần lệch MỘT trong ba là không phải bản chạy-lại', () => {
-    expect(findRerunDuplicate(lib, plan('P1', 'R2'), 'khac999')).toBeNull();
-    expect(findRerunDuplicate(lib, plan('P2', 'R2'), 'abc1234')).toBeNull();
-    expect(findRerunDuplicate(lib, plan('P1', 'R5'), 'abc1234')).toBeNull();
-  });
-});
-
-describe('tầng 2 — diện nghi', () => {
-  const lib = [mucLib('lib_r2.ts', 'P1', 'R2', 'sha_a'), mucLib('lib_r7.ts', 'P2', 'R7', 'sha_b')];
-
-  it('luật giao nhau thì vào diện nghi, kể cả chuỗi ghép R2+R9', () => {
-    expect(findSuspectedDuplicate(lib, plan('P5', 'R2'), 'sha_moi').map((m) => m.ten)).toEqual(['lib_r2.ts']);
-    expect(findSuspectedDuplicate(lib, plan('P5', 'R2+R9'), 'sha_moi').map((m) => m.ten)).toEqual(['lib_r2.ts']);
-  });
-
-  it('cùng commit sinh cũng vào diện nghi dù luật khác hẳn', () => {
-    expect(findSuspectedDuplicate(lib, plan('P5', 'R9'), 'sha_b').map((m) => m.ten)).toEqual(['lib_r7.ts']);
-  });
-
-  it('không giao gì thì diện nghi rỗng — nạp thẳng, không tốn model', () => {
-    expect(findSuspectedDuplicate(lib, plan('P5', 'R9'), 'sha_moi')).toEqual([]);
-  });
-});
-
-describe('tầng 3 — áp phán xử của model, nghiêng về GIỮ', () => {
-  const ung: RulingCandidate[] = [
-    { ma: 'N1', moi: { plan: plan('P1', 'R2'), code: 'x' }, nghi: [mucLib('lib_a.ts', 'P9', 'R2', 's')] },
-    { ma: 'N2', moi: { plan: plan('P2', 'R2'), code: 'y' }, nghi: [mucLib('lib_b.ts', 'P8', 'R2', 's')] },
-  ];
-
-  it('chỉ bỏ khi trung VÀ chắc chắn VÀ trỏ đúng tên trong diện nghi', () => {
-    const q = applyRuling(ung, [
-      { ma: 'N1', trung: true, chac_chan: true, voi: 'lib_a.ts', ly_do: 'cùng biên' },
-      { ma: 'N2', trung: true, chac_chan: false, voi: 'lib_b.ts' },
-    ]);
-    expect(q.get('N1')).toMatchObject({ bo: true, voi: 'lib_a.ts' });
-    expect(q.get('N2')).toMatchObject({ bo: false }); // không chắc chắn = giữ
-  });
-
-  it('model trỏ tên KHÔNG nằm trong diện nghi thì không tin — giữ', () => {
-    const q = applyRuling(ung, [{ ma: 'N1', trung: true, chac_chan: true, voi: 'lib_la_hoac.ts' }]);
-    expect(q.get('N1')).toMatchObject({ bo: false });
-  });
-
-  it('model trả thiếu ứng viên thì ứng viên đó được giữ', () => {
-    const q = applyRuling(ung, []);
-    expect(q.get('N1')).toMatchObject({ bo: false });
-    expect(q.get('N2')).toMatchObject({ bo: false });
-  });
-});
+/**
+ * Lưới cho MÁY TÁCH — `packages/harness/src/probe-split.ts`.
+ *
+ * Các ca dưới đây CHUYỂN NHÀ nguyên văn từ `test/dedup-probe.test.ts` khi change
+ * `probe-handover-replaces-library` gỡ thư viện probe. Luật chúng khoá **vẫn còn hiệu lực**, chỉ đổi
+ * việc: trước tách probe ra để NẠP VÀO KHO, nay tách ra để GIAO CHO REPO ĐÍCH.
+ *
+ * ⛔ Đây đúng chỗ mà `tasks.md §0.2` cảnh báo: file cũ chứa CẢ ca dedup (chết cùng kho) LẪN ca máy tách
+ * (còn sống). Xoá cả file là mất 13 ca đang khoá một luật vẫn thi hành — và nó **sẽ không làm gì đỏ**.
+ *
+ * Tách sai thì thứ giao cho repo đích là code KHÔNG CHẠY ĐƯỢC — hỏng uy tín cơ chế giao ở lần đầu.
+ */
 
 describe('tách file per-probe', () => {
   const boVitest = `import { it, expect } from 'vitest';
@@ -219,16 +144,5 @@ it('P2: biên trên', () => {
     expect(ra).toContain('HELPER = ');
     expect(ra).toContain('def test_P2_b');
     expect(ra).not.toContain('def test_P1_a');
-  });
-});
-
-describe('phán xử mơ hồ — model tự mâu thuẫn', () => {
-  it('model trả CÙNG một mã hai lần thì probe được GIỮ, không lấy bản đầu', () => {
-    const ung: RulingCandidate[] = [{ ma: 'N1', moi: { plan: plan('P1', 'R2'), code: 'x' }, nghi: [mucLib('lib_a.ts', 'P9', 'R2', 's')] }];
-    const q = applyRuling(ung, [
-      { ma: 'N1', trung: true, chac_chan: true, voi: 'lib_a.ts' },
-      { ma: 'N1', trung: false, chac_chan: true, ly_do: 'xem lại: hai biên khác nhau' },
-    ]);
-    expect(q.get('N1')).toMatchObject({ bo: false });
   });
 });

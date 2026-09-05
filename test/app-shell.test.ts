@@ -177,13 +177,8 @@ describe('mọi trang thật render được qua vỏ mới', () => {
     ['cấu hình', () => settingsPage(cauHinh)],
     ['nguyên tắc', () => docsPage()],
     [
-      'thư viện probe',
-      () =>
-        probesPage({
-          repoFull: 'a/one',
-          index: { probes: [], tran: 100, trang_thai: 'rong' },
-          removals: { ban_ghi: [], dong_hong: 0, ton_tai: false },
-        }),
+      'hàng đợi giao',
+      () => probesPage({ repoFull: 'a/one', queue: [], soLuot: 3 }),
     ],
   ];
 

@@ -32,10 +32,9 @@ import { verifyWebhookSignature, decideWebhookAction } from './webhook.js';
 import { readWebhookSecret } from './secret-vault.js';
 import { attachSecretGuard } from './response-secret-guard.js';
 import { loginPage, type LoginState } from './ui-login.js';
-import { probesPage } from './ui-probes.js';
-import { readLibraryIndex, readProbeCode, readRemovalLog, removeProbeByOperator, purgeLibrary, unquarantineProbe, repoSlug } from '../../../packages/harness/src/probe-library.js';
+import { probesPage, type QueueItem, type SkippedItem } from './ui-probes.js';
 
-import { type CauHinhCoRepo, LIBRARY_CAP, MODE, PROBE_DEPTH, ProviderConfigErrorCfg, clampToRange, coRepo, laRepoDaKhai, configForReview, currentConfig, maskToken, maskToken2, readConfig, migrateRepoToken, readSubscriptionToken, agentEnv, writeConfig, writeSubscriptionToken } from './config.js';
+import { type CauHinhCoRepo, MODE, PROBE_DEPTH, ProviderConfigErrorCfg, clampToRange, coRepo, laRepoDaKhai, configForReview, currentConfig, maskToken, maskToken2, readConfig, migrateRepoToken, readSubscriptionToken, agentEnv, writeConfig, writeSubscriptionToken } from './config.js';
 import { PROVIDER_CATALOG, providerDefinition, validModel, readProviderCheck, writeKey, checkStillValid, type ProviderConfig, type ProviderId, type Method } from './provider.js';
 import { REPO_ROOT, slugGithubRepo, findRepo, type RepoConfig } from './config.js';
 import { existsSync as coFile } from 'node:fs';
@@ -423,119 +422,49 @@ app.get('/docs', (req, res) => {
 });
 
 /**
- * Trần thư viện ĐANG CÓ HIỆU LỰC, tính ở tầng web.
+ * Hàng đợi giao — dựng TỪ VERDICT của các lượt chấm, không từ một kho.
  *
- * `readLibraryIndex().tran` đọc `CHECKER_LIB_TRAN` — biến môi trường mà tiến trình web **không** đặt cho
- * chính nó (nó chỉ truyền xuống CLI qua `agentEnv`). Dùng thẳng số ấy thì màn luôn hiện mặc định dù người
- * vận hành đã đổi trần, và nó sai đúng vào lúc con số này quan trọng nhất: trần quyết định probe nào bị
- * đào thải. Ở tầng web, nguồn sự thật là cấu hình.
+ * Change `probe-handover-replaces-library` gỡ `probes-lib/`. Nguồn sự thật của màn này nay là chính sổ
+ * lượt chấm: mỗi verdict mang `handover` — những probe đủ bằng chứng để đề nghị repo đích giữ lại.
+ *
+ * Ba đường phá huỷ cũ (xoá probe · bỏ cách ly · dọn thư viện) **đã gỡ cùng cái kho**: không còn kho thì
+ * không có gì để xoá. Đó cũng là lý do màn này không còn cần vai thao tác — nó chỉ đọc.
+ *
+ * ⛔ KHÔNG có trần cho hàng đợi. Nó rỗng dần vì repo đích NHẬN, không vì đụng trần rồi bị loại.
  */
-function effectiveLibraryCap(): number {
-  return clampToRange(readConfig().agent.tran_thu_vien, LIBRARY_CAP);
-}
-
-/** Ba đường của màn thư viện đọc CÙNG một chỗ — hai chỗ đọc là hai chỗ sẽ lệch nhau. */
-function readLibraryForScreen(cfg: CauHinhCoRepo) {
-  const slug = repoSlug(cfg.repo.local_path);
-  return { slug, index: { ...readLibraryIndex(slug), tran: effectiveLibraryCap() }, removals: readRemovalLog(slug) };
+function readHandoverQueue(cfg: CauHinhCoRepo): { queue: QueueItem[]; boQua: SkippedItem[]; soLuot: number; loiDoc?: string } {
+  try {
+    const runs = rm.danhSach({ repo: cfg.repo.github });
+    const queue: QueueItem[] = [];
+    const boQua: SkippedItem[] = [];
+    for (const r of runs) {
+      for (const dx of r.verdict?.handover ?? []) {
+        queue.push({ de_xuat: dx, run_id: r.id, luc: r.batDau ?? '', artifact: r.verdict?.artifact_ref?.name ?? '' });
+      }
+      for (const b of r.verdict?.handover_bo_qua ?? []) boQua.push({ ...b, run_id: r.id });
+    }
+    return { queue, boQua, soLuot: runs.length };
+  } catch (e) {
+    // «Không đọc được» KHÁC «không có gì»: trả lý do thay vì một mảng rỗng nói dối.
+    return { queue: [], boQua: [], soLuot: 0, loiDoc: (e as Error).message.slice(0, 200) };
+  }
 }
 
 app.get('/probes', (req, res) => {
   const cfg = readConfig();
-  if (!coRepo(cfg)) return res.send(probesPage({ repoFull: '', index: null, removals: { ban_ghi: [], dong_hong: 0, ton_tai: false }, nguoi: ai(req) }));
-  const { index, removals } = readLibraryForScreen(cfg);
-  res.send(probesPage({ repoFull: cfg.repo.github, index, removals, nguoi: ai(req) }));
+  if (!coRepo(cfg)) return res.send(probesPage({ repoFull: '', queue: null, soLuot: 0, nguoi: ai(req) }));
+  const q = readHandoverQueue(cfg);
+  res.send(probesPage({ repoFull: cfg.repo.github, queue: q.queue, boQua: q.boQua, soLuot: q.soLuot, loiDoc: q.loiDoc, nguoi: ai(req) }));
 });
 
 app.get('/api/probes', (_req, res) => {
   const cfg = readConfig();
-  if (!coRepo(cfg)) return res.status(409).json({ loi: 'Chưa kết nối repo nào — thư viện probe dựng theo repo.' });
-  const { index, removals } = readLibraryForScreen(cfg);
-  // KHÔNG trả `slug` hay `local_path`: đường dẫn trên máy chủ là thông tin hạ tầng, màn không cần.
-  res.json({ repo: cfg.repo.github, ...index, removals });
+  if (!coRepo(cfg)) return res.status(409).json({ loi: 'Chưa kết nối repo nào — hàng đợi giao dựng theo repo.' });
+  const q = readHandoverQueue(cfg);
+  // KHÔNG trả `local_path`: đường dẫn trên máy chủ là thông tin hạ tầng, màn không cần.
+  res.json({ repo: cfg.repo.github, so_luot: q.soLuot, de_xuat: q.queue, bo_qua: q.boQua, loi_doc: q.loiDoc });
 });
 
-/**
- * Danh tính + vai THAO TÁC cho ba đường phá huỷ của thư viện probe.
- *
- * Vai `tu_dong` (tác nhân máy) bị chặn ở `canOperate` — CÙNG cơ chế đã chặn nó ở cổng merge, không phải
- * một phép kiểm mới ai đó phải nhớ viết. Đây là lần đầu màn Thư viện probe có nút phá huỷ, nên chỗ này
- * là ranh giới ⛔C1 của change: máy không bao giờ xoá theo yêu cầu.
- *
- * Tên người lấy TỪ PHIÊN, không bao giờ từ thân yêu cầu — nhận `boi` từ client là để bất kỳ ai cũng ký
- * tên người khác vào một hành động một chiều.
- */
-function readOperatorIdentity(req: import('express').Request): IdentityCheck {
-  try {
-    const dt = getIdentity(req);
-    if (!canOperate(dt)) {
-      throw new IdentityError(`Tài khoản «${dt.ten}» mang vai ${dt.vai}, không được thao tác lên thư viện probe.`, 'khong_du_quyen');
-    }
-    return { ok: true, ten: dt.ten };
-  } catch (e) {
-    return {
-      ok: false,
-      status: e instanceof IdentityError && e.ma === 'khong_du_quyen' ? 403 : 401,
-      message: (e as Error).message,
-    };
-  }
-}
-
-/** Gom ba bước mở đầu giống hệt nhau của ba đường: có repo · đủ vai · lấy slug. Một chỗ, không ba chỗ. */
-function openLibraryRoute(req: import('express').Request, res: import('express').Response): { slug: string; repo: string; boi: string } | null {
-  const cfg = readConfig();
-  if (!coRepo(cfg)) {
-    res.status(409).json({ loi: 'Chưa kết nối repo nào — thư viện probe dựng theo repo.' });
-    return null;
-  }
-  const dt = readOperatorIdentity(req);
-  if (!dt.ok) {
-    res.status(dt.status).json({ loi: dt.message });
-    return null;
-  }
-  return { slug: repoSlug(cfg.repo.local_path), repo: cfg.repo.github, boi: dt.ten };
-}
-
-app.post('/api/probes/remove', (req, res) => {
-  const g = openLibraryRoute(req, res);
-  if (!g) return;
-  const ten = String((req.body as Record<string, unknown>).ten ?? '');
-  // Sổ gỡ ghi TRƯỚC, file xoá SAU — luật ấy nằm trong `removeProbeByOperator`, không lặp lại ở đây.
-  if (!removeProbeByOperator(g.slug, ten, g.boi)) {
-    return res.status(404).json({ loi: 'Probe không có trong thư viện của repo này.' });
-  }
-  res.json({ ok: true });
-});
-
-app.post('/api/probes/unquarantine', (req, res) => {
-  const g = openLibraryRoute(req, res);
-  if (!g) return;
-  const ten = String((req.body as Record<string, unknown>).ten ?? '');
-  // Đường ĐẢO NGƯỢC — không xoá gì, nên không cần bước xác nhận. Đây cũng chính là lý do cách ly được
-  // phép do máy quyết: nó có một đường về.
-  if (!unquarantineProbe(g.slug, ten)) {
-    return res.status(404).json({ loi: 'Probe không có trong thư viện, hoặc không đang bị cách ly.' });
-  }
-  res.json({ ok: true });
-});
-
-app.post('/api/probes/purge', (req, res) => {
-  const g = openLibraryRoute(req, res);
-  if (!g) return;
-  // ⛔ Xác nhận bằng cách GÕ LẠI tên repo — quyết định nằm ở HÀM THUẦN, không ở route.
-  const q = evaluatePurgeRequest({ xacNhan: (req.body as Record<string, unknown>).xac_nhan, repo: g.repo });
-  if (!q.ok) return res.status(q.status).json({ loi: q.loi });
-  res.json({ ok: true, da_xoa: purgeLibrary(g.slug, g.boi) });
-});
-
-app.get('/api/probes/code', (req, res) => {
-  const cfg = readConfig();
-  if (!coRepo(cfg)) return res.status(409).json({ loi: 'Chưa kết nối repo nào.' });
-  const code = readProbeCode(repoSlug(cfg.repo.local_path), (req.query as Record<string, unknown>).ten);
-  // Lý do từ chối KHÔNG vọng lại đường dẫn đã thử: in đường dẫn ra là vẽ bản đồ đĩa cho người hỏi.
-  if (code === null) return res.status(404).json({ loi: 'Probe không có trong thư viện của repo này.' });
-  res.json({ code });
-});
 
 app.get('/lich-su', (req, res) => {
   const q = req.query as Record<string, string | undefined>;
@@ -636,7 +565,6 @@ app.get('/settings', (req, res) => {
         moKhoa: MODE === 'org',
       }),
       maxProbe: c.agent.max_probe,
-      tranThuVien: c.agent.tran_thu_vien ?? LIBRARY_CAP.mac_dinh,
       skeptic: c.agent.skeptic,
       trucBat: c.truc.bat,
       trucChuKy: c.truc.chu_ky_giay,
@@ -704,7 +632,6 @@ app.post('/settings', (req, res) => {
       })(),
       // Kẹp bằng CHÍNH khoảng đã khai — chép tay biên ở đây là cách bốn con số cũ sinh ra.
       max_probe: clampToRange(b.max_probe, PROBE_DEPTH),
-      tran_thu_vien: clampToRange(b.tran_thu_vien, LIBRARY_CAP),
       skeptic: b.skeptic === '1',
     },
     truc: {

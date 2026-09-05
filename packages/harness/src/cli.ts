@@ -57,7 +57,8 @@ function phat(e: RunEvent): void {
       );
     }
     for (const q of v.quan_sat_ngoai_pr ?? []) {
-      console.log(` ⚠ Ngoài phạm vi PR${q.loai === 'nghi_loi_co_san' ? ' (NGHI LỖI CÓ SẴN — probe thư viện đã chứng minh contract)' : ''}: ${q.probe_id} (${q.spec_rule}) — ${q.ten}`);
+      // Nhãn `nghi_loi_co_san` chỉ còn ở bản ghi ĐỜI CŨ — nó do thư viện probe sinh ra, và thư viện đã gỡ.
+      console.log(` ⚠ Ngoài phạm vi PR${q.loai === 'nghi_loi_co_san' ? ' (nghi lỗi có sẵn — bản ghi đời cũ)' : ''}: ${q.probe_id} (${q.spec_rule}) — ${q.ten}`);
     }
     console.log(`════════════════════════════════════════`);
   } else if (e.type === 'error') console.error(`✗ LỖI: ${e.msg}`);
@@ -138,7 +139,8 @@ async function main(): Promise<void> {
     let probeStats: Verdict['probe_stats'];
     let quanSat: Verdict['quan_sat_ngoai_pr'];
     let diffBlindSpots: Verdict['diff_blind_spots'];
-    let libraryChanges: Verdict['library_changes'];
+    let handover: Verdict['handover'];
+    let handoverBoQua: Verdict['handover_bo_qua'];
     let noBaseline: Verdict['no_baseline'];
     let probeCompare: Verdict['probe_compare'];
     let specSource: Verdict['spec_source'];
@@ -150,7 +152,8 @@ async function main(): Promise<void> {
       // Rỗng thì để VẮNG hẳn, đừng ghi `[]`: bản ghi đời cũ cũng vắng, nên hai bên đọc như nhau và
       // giao diện chỉ phải nhớ MỘT luật — vắng thì không bày khối đó.
       diffBlindSpots = kq.diffBlindSpots.length > 0 ? kq.diffBlindSpots : undefined;
-      libraryChanges = kq.libraryChanges.length > 0 ? kq.libraryChanges : undefined;
+      handover = kq.handover.length > 0 ? kq.handover : undefined;
+      handoverBoQua = kq.handoverBoQua.length > 0 ? kq.handoverBoQua : undefined;
       noBaseline = kq.noBaseline ? true : undefined;
       probeCompare = kq.probeCompare.rows.length || kq.probeCompare.pass_both ? kq.probeCompare : undefined;
       // Luôn ghi, kể cả 0 đơn vị: «không có luật» là một khẳng định phải bày ra, không phải thiếu dữ liệu.
@@ -184,7 +187,8 @@ async function main(): Promise<void> {
       chi_phi: costMetrics(),
       quan_sat_ngoai_pr: quanSat,
       diff_blind_spots: diffBlindSpots,
-      library_changes: libraryChanges,
+      handover,
+      handover_bo_qua: handoverBoQua,
       no_baseline: noBaseline,
       probe_compare: probeCompare,
       spec_source: specSource,

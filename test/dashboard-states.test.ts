@@ -135,36 +135,50 @@ describe('Dashboard — bố cục theo gói', () => {
  * đảo chiều: cấm ngược lại tấm biển «chưa dựng», và bắt hai trạng thái rỗng nói hai câu khác nhau.
  * Luật không đổi; thứ đổi là sự thật mà nó áp lên.
  */
-describe('Thư viện probe — hai trạng thái rỗng nói hai câu khác nhau', () => {
-  const rong: RemovalLog = { ban_ghi: [], dong_hong: 0, ton_tai: false };
+describe('Hàng đợi giao — BA trạng thái rỗng nói BA câu khác nhau', () => {
+  // Change `probe-handover-replaces-library` đổi màn này từ «thư viện» sang «hàng đợi giao». Luật KHÔNG
+  // đổi — trạng thái rỗng phải nói đúng câu — nhưng số trạng thái tăng từ hai lên BA, vì sau change có
+  // thêm một câu, và nó là câu THƯỜNG GẶP NHẤT: «đã chấm N lượt mà chưa probe nào đủ bằng chứng».
 
-  it('repo đã kết nối nhưng thư viện trống → «thư viện dựng dần», và KHÔNG còn tấm biển chưa-dựng', () => {
-    const html = probesPage({
-      repoFull: 'a/one',
-      index: { probes: [], tran: 100, trang_thai: 'rong' },
-      removals: rong,
-    });
-    expect(html).toContain('thư viện dựng dần');
-    expect(html).not.toMatch(/đường đọc dữ liệu chưa dựng|chưa có API/i);
-    expect(html.toLowerCase()).not.toContain('coming soon');
-  });
-
-  it('CHƯA KẾT NỐI REPO NÀO → câu khác hẳn, không mượn câu của thư viện trống', () => {
-    // Chưa có gì để tra ≠ đã tra mà không có gì. Gộp hai câu là để người dùng ngồi đợi thứ không tới.
-    const html = probesPage({ repoFull: '', index: null, removals: rong });
+  it('chưa kết nối repo nào → câu riêng, không mượn câu của hàng đợi rỗng', () => {
+    const html = probesPage({ repoFull: '', queue: null, soLuot: 0 });
     expect(html).toContain('Chưa kết nối repo nào');
-    expect(html).not.toContain('thư viện dựng dần');
+    expect(html).not.toContain('Hàng đợi dựng dần');
     expect(html).toContain('/settings');
   });
 
-  it('không dùng màu FAIL cho trạng thái rỗng — vừa cài xong không phải là hỏng', () => {
-    // Cắt khối <style> TRƯỚC khi quét. Bản đầu của ca này quét cả trang và đỏ ngay: bảng CSS chung của
-    // vỏ dĩ nhiên có `var(--fail)` vì mọi màn dùng chung một bảng. Đó là lỗi lưới loại 3 — ca đỏ trên hệ
-    // thống đang đúng — và thứ bắt được nó là đọc thông điệp lỗi, không phải chạy lại.
+  it('đã kết nối nhưng CHƯA CHẤM lượt nào → «hàng đợi dựng dần»', () => {
+    const html = probesPage({ repoFull: 'a/one', queue: [], soLuot: 0 });
+    expect(html).toContain('Hàng đợi dựng dần');
+    expect(html).not.toContain('Chưa kết nối repo nào');
+  });
+
+  it('⛔ đã chấm N lượt mà chưa đủ bằng chứng → nói KÈM SỐ, và nói rõ đây là BÌNH THƯỜNG', () => {
+    // Câu mới, và là chỗ dễ đọc nhầm nhất: hạng 1 hiếm theo cấu tạo (đo trên prod trước change: 0/7
+    // probe từng nổ), nên im lặng kéo dài là bình thường. Im lặng TRƠ sẽ bị đọc thành «cơ chế hỏng»,
+    // nên con số lượt là bắt buộc — nó biến im lặng thành thứ đọc được.
+    const html = probesPage({ repoFull: 'a/one', queue: [], soLuot: 12 });
+    expect(html).toContain('Đã chấm 12 lượt');
+    expect(html).toContain('BÌNH THƯỜNG');
+    expect(html).not.toContain('Hàng đợi dựng dần');
+  });
+
+  it('KHÔNG ĐỌC ĐƯỢC khác hẳn KHÔNG CÓ GÌ', () => {
+    const html = probesPage({ repoFull: 'a/one', queue: [], soLuot: 5, loiDoc: 'sổ lượt chấm rách' });
+    expect(html).toContain('Không đọc được');
+    expect(html).toContain('sổ lượt chấm rách');
+    expect(html, 'không được rơi về câu «chưa đủ bằng chứng»').not.toContain('Đã chấm 5 lượt');
+  });
+
+  it('không dùng màu FAIL cho trạng thái rỗng — chưa có gì để giao không phải là hỏng', () => {
+    // Cắt khối style TRƯỚC khi quét: bảng CSS chung của vỏ dĩ nhiên mang biến màu fail vì mọi màn dùng
+    // chung một bảng. Bản đầu của ca này quét cả trang và đỏ ngay — lỗi lưới loại 3, ca đỏ trên hệ
+    // thống đang đúng, và thứ bắt được nó là đọc thông điệp lỗi chứ không phải chạy lại.
     const than = (h: string) => h.replace(/<style>[\s\S]*?<\/style>/g, '');
     for (const html of [
-      probesPage({ repoFull: 'a/one', index: { probes: [], tran: 100, trang_thai: 'rong' }, removals: rong }),
-      probesPage({ repoFull: '', index: null, removals: rong }),
+      probesPage({ repoFull: 'a/one', queue: [], soLuot: 0 }),
+      probesPage({ repoFull: '', queue: null, soLuot: 0 }),
+      probesPage({ repoFull: 'a/one', queue: [], soLuot: 12 }),
     ]) {
       expect(than(html)).not.toContain('var(--fail)');
       expect(than(html)).not.toContain('vd-fail');

@@ -15,74 +15,97 @@ for f in probe-library probe-library-screen probe-quarantine thu-vien dedup-prob
 grep -rn "nghi_loi_co_san" packages/ apps/ --include=*.ts | grep -v test   # 1 duong SINH: skill-code.ts:737
 ```
 
-- [ ] 0.1 Ghi số thật vào đây trước khi sửa dòng nào.
-- [ ] 0.2 ⛔ Với **mỗi** trong 155 ca: quyết **xoá** hay **chuyển nhà**, ghi lý do một dòng. Không xoá cả
+- [x] 0.1 Ghi số thật vào đây trước khi sửa dòng nào.
+- [x] 0.2 ⛔ Với **mỗi** trong 155 ca: quyết **xoá** hay **chuyển nhà**, ghi lý do một dòng. Không xoá cả
       file rồi tính sau — đó là cách mất một luật còn sống mà không ai thấy.
 
 ## 1. Luật (capability)
 
-- [ ] 1.1 `probe-handover` — capability MỚI, 6 requirement ADDED. Lưới: `test/probe-handover.test.ts`.
-- [ ] 1.2 `probe-library` — 11 REMOVED (kèm Reason + Migration) · 1 MODIFIED (máy tách **chuyển nhà**).
-- [ ] 1.3 `probe-quarantine` — 3 REMOVED. Cái mất phải khai: probe **sinh mới** không nạp được vẫn phải
+- [x] 1.1 `probe-handover` — capability MỚI, 6 requirement ADDED. Lưới: `test/probe-handover.test.ts`.
+- [x] 1.2 `probe-library` — 11 REMOVED (kèm Reason + Migration) · 1 MODIFIED (máy tách **chuyển nhà**).
+- [x] 1.3 `probe-quarantine` — 3 REMOVED. Cái mất phải khai: probe **sinh mới** không nạp được vẫn phải
       được xử qua nhãn `khong_chay`, thứ bị gỡ là cách ly probe **cũ**.
-- [ ] 1.4 `probe-library-screen` — 4 MODIFIED (đổi đối tượng, giữ nguyên tinh thần).
-- [ ] 1.5 `probe-classification` — **KHÔNG delta**. `nghi_loi_co_san` chưa bao giờ được spec khai; gỡ thư
+- [x] 1.4 `probe-library-screen` — 4 MODIFIED (đổi đối tượng, giữ nguyên tinh thần).
+- [x] 1.5 `probe-classification` — **KHÔNG delta**. `nghi_loi_co_san` chưa bao giờ được spec khai; gỡ thư
       viện làm code thôi làm một việc spec không cho phép ⇒ spec **đúng hơn**, không cần sửa.
-- [ ] 1.6 `docs/r-rules-map.md` — mã R10.* trỏ `probe-library` đổi rổ sang `obsolete` hoặc đổi nhà sang
+- [x] 1.6a `docs/r-rules-map.md` — 26 hàng `housed` trỏ cơ chế của kho đã đổi rổ sang `obsolete` kèm lý do
+      (đo được: 0/7 probe từng bắt hồi quy).
+- [x] 1.6b ⛔ **LÚC ARCHIVE, không sớm hơn:** hàng «Máy tách phải hiểu regex literal» phải dời sang
+      `probe-handover › Tách một probe ra khỏi file nhiều probe phải hiểu regex literal`. Dời TRƯỚC archive
+      thì lưới `r-rules-map` đỏ vì capability chưa tồn tại trong `openspec/specs/`; dời SAU thì nó đỏ vì
+      requirement cũ đã bị archive gỡ. Đúng một khoảnh khắc để làm, và nó nằm trong bước archive.
+- [x] 1.6c `docs/r-rules-map.md` — mã R10.* trỏ `probe-library` đổi rổ sang `obsolete` hoặc đổi nhà sang
       `probe-handover`. Lưới `r-rules-map` đỏ nếu còn mã trích mà không có hàng.
 
 ## 2. Kiểu & hợp đồng
 
-- [ ] 2.1 `packages/shared/src/types.ts` — thêm `handover?: Array<{ probe_id, spec_rule, hang, ly_do, code }>`.
-- [ ] 2.2 ⛔ **GIỮ optional, KHÔNG xoá khỏi kiểu**: `library_changes` · `probe_stats.cach_ly` ·
+- [x] 2.1 `packages/shared/src/types.ts` — thêm `handover?: Array<{ probe_id, spec_rule, hang, ly_do, code }>`.
+- [x] 2.2 ⛔ **GIỮ optional, KHÔNG xoá khỏi kiểu**: `library_changes` · `probe_stats.cach_ly` ·
       `probe_stats.nghi_loi_co_san`. Bản ghi cũ trên prod mang chúng; xoá khỏi kiểu là làm bản ghi đời cũ
       không đọc được. Vắng trường = **KHÔNG BIẾT**, không phải «bằng 0» — cùng ranh giới `diff_blind_spots`.
-- [ ] 2.3 ⛔C5 — `checkmate.yml`: gỡ hàng `probe-library.js` và `dedup-probe.js`, thêm module xếp hạng mới,
+- [x] 2.3 ⛔C5 — `checkmate.yml`: gỡ hàng `probe-library.js` và `dedup-probe.js`, thêm module xếp hạng mới,
       cập nhật hàng `ui-probes.js` và `config.js` (bỏ `LIBRARY_CAP*`).
 
 ## 3. Engine (packages/harness)
 
-- [ ] 3.1 `skill-code.ts` — gỡ `readProbeLibrary` (dòng 533) và việc trộn `nguon: 'thu_vien'` vào bộ chạy
+- [x] 3.1 `skill-code.ts` — gỡ `readProbeLibrary` (dòng 533) và việc trộn `nguon: 'thu_vien'` vào bộ chạy
       (dòng 725). Đây là chỗ chi phí thật nằm.
-- [ ] 3.2 `skill-code.ts` — gỡ toàn bộ khối nạp B1–B5 (~dòng 957–1070) và khối cách ly.
-- [ ] 3.3 `skill-code.ts:737` — gỡ dòng `nguon === 'thu_vien' → nghi_loi_co_san` (D4).
-- [ ] 3.4 **MỚI** — xếp hạng theo bằng chứng: hạng 1 (`hoi_quy`/`vi_pham_luat_moi`) · hạng 2 (xanh hai
+- [x] 3.2 `skill-code.ts` — gỡ toàn bộ khối nạp B1–B5 (~dòng 957–1070) và khối cách ly.
+- [x] 3.3 `skill-code.ts:737` — gỡ dòng `nguon === 'thu_vien' → nghi_loi_co_san` (D4).
+- [x] 3.4 **MỚI** — xếp hạng theo bằng chứng: hạng 1 (`hoi_quy`/`vi_pham_luat_moi`) · hạng 2 (xanh hai
       nhánh + `refHitsNew` + chưa được `ruleCoverage` phủ) · hạng 3 (còn lại). Danh sách **đóng**.
-- [ ] 3.5 **MỚI** — cửa đột biến hạng 2: phủ định từng khẳng định trong probe, chạy lại, probe **phải đỏ**.
+- [x] 3.5 **MỚI** — cửa đột biến hạng 2: phủ định từng khẳng định trong probe, chạy lại, probe **phải đỏ**.
       Không đỏ ⇒ vứt, nói lý do.
-- [ ] 3.6 Giữ `splitOneProbe` + `checkBalanced` — **chuyển nhà** sang đường giao, không xoá.
-- [ ] 3.7 Gỡ `probe-library.ts` (973 dòng) và `dedup-probe.ts` (122 dòng).
+- [x] 3.6 Giữ `splitOneProbe` + `checkBalanced` — **chuyển nhà** sang đường giao, không xoá.
+- [x] 3.7 Gỡ `probe-library.ts` (973 dòng) và `dedup-probe.ts` (122 dòng).
 
 ## 4. Web (apps/web)
 
-- [ ] 4.1 `ui-probes.ts` — đổi vai sang **hàng đợi giao**. Giữ ba luật giao diện đã có, đổi đối tượng.
-- [ ] 4.2 ⛔ Mã probe vẫn chèn bằng `textContent`, KHÔNG `innerHTML` (⛔C4) — nay quan trọng hơn vì mã ấy
+- [x] 4.1 `ui-probes.ts` — đổi vai sang **hàng đợi giao**. Giữ ba luật giao diện đã có, đổi đối tượng.
+- [x] 4.2 ⛔ Mã probe vẫn chèn bằng `textContent`, KHÔNG `innerHTML` (⛔C4) — nay quan trọng hơn vì mã ấy
       sắp được copy sang một repo khác.
-- [ ] 4.3 `config.ts` — gỡ `LIBRARY_CAP`, `LIBRARY_CAP_SUGGESTED`, và ô cấu hình trần thư viện ở màn Cấu hình.
-- [ ] 4.4 `server.ts` — gỡ route thư viện/cách ly/bỏ-cách-ly/dọn; thêm route hàng đợi giao.
-- [ ] 4.5 ⛔ Hàng đợi giao **KHÔNG có trần** (D6). Đề xuất rỗng dần vì repo nhận, không vì bị loại.
-- [ ] 4.6 Trạng thái rỗng nói **đã chấm bao nhiêu lượt mà chưa đủ bằng chứng** — im lặng phải có số đo đi kèm.
+- [x] 4.3 `config.ts` — gỡ `LIBRARY_CAP`, `LIBRARY_CAP_SUGGESTED`, và ô cấu hình trần thư viện ở màn Cấu hình.
+- [x] 4.4 `server.ts` — gỡ route thư viện/cách ly/bỏ-cách-ly/dọn; thêm route hàng đợi giao.
+- [x] 4.5 ⛔ Hàng đợi giao **KHÔNG có trần** (D6). Đề xuất rỗng dần vì repo nhận, không vì bị loại.
+- [x] 4.6 Trạng thái rỗng nói **đã chấm bao nhiêu lượt mà chưa đủ bằng chứng** — im lặng phải có số đo đi kèm.
 
 ## 5. Test
 
-- [ ] 5.1 `test/probe-handover.test.ts` — ca khoá cho 6 requirement mới.
-- [ ] 5.2 ⛔ **Ca khoá danh sách hạng ĐÓNG** — probe không thuộc hạng 1/2 thì phải là hạng 3, không có
+- [x] 5.1 `test/probe-handover.test.ts` — ca khoá cho 6 requirement mới.
+- [x] 5.2 ⛔ **Ca khoá danh sách hạng ĐÓNG** — probe không thuộc hạng 1/2 thì phải là hạng 3, không có
       nhánh «giữ tạm». Đây là ca giữ cho việc giữ probe không trôi về tích luỹ mặc định.
-- [ ] 5.3 ⛔ **Ca khoá: hạng 1 KHÔNG chạy đột biến** — đếm số lần cửa đột biến được gọi, phải là 0.
-- [ ] 5.4 ⛔ **Ca khoá: lượt chấm mới KHÔNG nạp probe nào từ lượt trước** — quét source, không có lời gọi
+- [x] 5.3 ⛔ **Ca khoá: hạng 1 KHÔNG chạy đột biến** — đếm số lần cửa đột biến được gọi, phải là 0.
+- [x] 5.4 ⛔ **Ca khoá: lượt chấm mới KHÔNG nạp probe nào từ lượt trước** — quét source, không có lời gọi
       đọc `probes-lib/`. Cặp fixture bắt buộc (lưới tầng 3).
-- [ ] 5.5 Ca khoá cái mất: verdict PASS phải nói rõ phạm vi đã dò, không khẳng định toàn repo còn nguyên.
-- [ ] 5.6 Ca đời cũ: bản ghi mang `library_changes`/`cach_ly`/`nghi_loi_co_san` vẫn đọc được.
-- [ ] 5.7 155 ca cũ — xử theo quyết định ở §0.2.
-- [ ] 5.8 Mutation mỗi chiều HAI lượt, kiểm chứng đột biến đã tới đĩa.
-- [ ] 5.9 `npx tsc --noEmit` sạch + `npm test` xanh **toàn bộ**.
+- [x] 5.5 Ca khoá cái mất: verdict PASS phải nói rõ phạm vi đã dò, không khẳng định toàn repo còn nguyên.
+- [x] 5.6 Ca đời cũ: bản ghi mang `library_changes`/`cach_ly`/`nghi_loi_co_san` vẫn đọc được.
+- [x] 5.7 155 ca cũ — xử theo quyết định ở §0.2.
+- [x] 5.8 Mutation mỗi chiều HAI lượt, kiểm chứng đột biến đã tới đĩa.
+- [x] 5.9 `npx tsc --noEmit` sạch + `npm test` xanh **toàn bộ**.
 
 ## 6. Tài liệu
 
-- [ ] 6.1 `DEPLOY.md` — mục «Trần thư viện probe» không còn đối tượng: **viết lại**, không xoá. Nó là chỗ
+- [x] 6.1 `DEPLOY.md` — mục «Trần thư viện probe» không còn đối tượng: **viết lại**, không xoá. Nó là chỗ
       người sau đọc để hiểu vì sao `probes-lib/` vẫn nằm trên đĩa mà không ai đọc.
-- [ ] 6.2 `DEPLOY.md` — `probes-lib/` vẫn trong nhóm không-đè khi deploy (D3), ghi rõ lý do mới.
-- [ ] 6.3 Đóng nợ #18 («thư viện chạy toàn bộ mỗi lượt») — change này làm nó không còn đối tượng.
+- [x] 6.2 `DEPLOY.md` — `probes-lib/` vẫn trong nhóm không-đè khi deploy (D3), ghi rõ lý do mới.
+- [x] 6.3 Đóng nợ #18 («thư viện chạy toàn bộ mỗi lượt») — change này làm nó không còn đối tượng.
+
+## § Phân loại 155 ca (§0.2) — quyết TỪNG ca, kết quả
+
+| lưới | ca | quyết | vì sao |
+|---|---|---|---|
+| `probe-library` | 15 | **xoá** | cơ chế của kho: đặt tên file, khoá, nạp, trần env, ghi atomic |
+| `thu-vien` | 30 | **xoá** | cơ chế của kho: đào thải bốn nấc, lịch sử, di trú, khoá |
+| `probe-quarantine` | 37 | **xoá** | cách ly hết đối tượng — probe không sống qua lượt thì không mục |
+| `dedup-probe` | 26 | **13 xoá · 13 CHUYỂN NHÀ** | ⛔ file chứa CẢ dedup (chết) LẪN máy tách (sống) |
+| `probe-library-screen` | 47 | **33 xoá · 14 viết lại** | ⛔C4/⛔C3/⛔C1 + đầu vào khuyết còn sống, đổi đối tượng |
+| `operator-settings` | 5 | **xoá** | ô trần thư viện; luật «kẹp đúng khoảng» GIỮ, fixture viết lại |
+
+⛔ **`dedup-probe` là chỗ nợ cảnh báo trúng.** Xoá cả file là mất 13 ca đang khoá máy tách — một luật
+**vẫn thi hành** — và việc đó **sẽ không làm gì đỏ**. Chỉ đọc tên từng ca mới thấy.
+
+**Đối chiếu tổng (T7.6):** 1309 − 138 (cố ý xoá) + 38 (mới + chuyển nhà) = **1209**, khớp số đo được.
+Sau khi bổ sung 8 ca còn thiếu ở lượt rà cuối: **1217**.
 
 ## 7. Deploy
 

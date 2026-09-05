@@ -94,7 +94,10 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       *Cái mất khi chưa làm:* artifact lớn bị chấm nông mà không có tín hiệu nào nói ra — người đọc verdict
       không phân biệt được «tài liệu sạch» với «đã chạm trần».
 
-- [ ] 18. **Thư viện probe chạy TOÀN BỘ mỗi lượt, không lọc theo diff** (PO 04/09 — ghi backlog). Đo được:
+- [x] 18. ✅ XONG 06/09 — **không còn đối tượng**: change `probe-handover-replaces-library` gỡ hẳn thư
+      viện. Nợ này hỏi «lọc theo diff thế nào»; câu trả lời hoá ra là «không giữ probe qua lượt nữa», nên
+      không có gì để lọc. PO chất vấn tiền đề, em đo: 0/7 probe trên prod từng bắt hồi quy.
+      ~~**Thư viện probe chạy TOÀN BỘ mỗi lượt, không lọc theo diff**~~ (PO 04/09 — ghi backlog). Đo được:
       một lượt chạy 36 probe thư viện dù PR chỉ đổi 3 file. Không sai kết quả (mọi probe vẫn so hai nhánh),
       nhưng là chi phí thời gian tuyến tính theo kích thước thư viện — trần thư viện mặc định 100.
       *Cẩn thận khi làm:* lọc theo diff là đánh đổi phủ lấy tốc độ, và probe không khớp diff vẫn có thể bắt
