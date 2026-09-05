@@ -1,2 +1,11 @@
 schema: checkmate
 created: 2026-09-06
+
+# `probe-library` và `probe-quarantine` mất TOÀN BỘ requirement trong change này, nên hai capability ấy
+# ngừng tồn tại chứ không ở lại dưới dạng vỏ rỗng. Khai ra bằng cờ này thay vì để archive tự đoán:
+# một capability rỗng nằm trong `openspec/specs/` là một lời hứa không còn nội dung, và người sau đọc
+# sẽ tưởng nó vẫn đang có hiệu lực.
+#
+# `probe-library-screen` KHÔNG bị retire — nó REMOVED 4 requirement cũ và ADDED 4 requirement mới cho
+# hàng đợi giao, tức đổi đối tượng chứ không biến mất.
+retire_capabilities: true

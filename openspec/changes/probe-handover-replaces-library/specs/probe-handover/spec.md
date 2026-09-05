@@ -125,6 +125,42 @@ khác nhau, và trước đây lớp thư viện làm chúng trông giống nhau
 - **WHEN** verdict không nói gì về phạm vi đã dò
 - **THEN** đó là vi phạm: người đọc sẽ hiểu PASS rộng hơn thứ nó thật sự chứng minh
 
+### Requirement: Danh sách lý do VỨT probe là danh sách ĐÓNG
+
+Probe SHALL chỉ bị loại khỏi diện đề xuất vì **thiếu bằng chứng** — nghĩa là đúng ba lý do, và không lý do
+nào khác:
+
+| lý do được phép vứt | vì sao |
+|---|---|
+| **hạng 3** — không nổ, và không canh luật mới nào chưa phủ | không có gì để chứng minh |
+| **trượt cửa đột biến** (hạng 2) | đảo hết khẳng định mà vẫn xanh ⇒ không phải phép thử |
+| **không tách được** thành file độc lập | giao code không chạy được còn tệ hơn không giao |
+
+Danh sách này SHALL đóng. MUST NOT vứt probe vì bất kỳ lý do nào sau đây, dù mỗi cái nghe hợp lý một mình:
+
+| tình trạng | vì sao KHÔNG được vứt |
+|---|---|
+| probe **chạy lâu** | đó là bằng chứng về code đích — đường `treo` đã có finding riêng của nó |
+| probe làm **hàng đợi dài** | hàng đợi không có trần; dài là vì repo đích chưa nhận, không phải vì rác |
+| probe **trùng** một probe đã giao trước đó | trùng lặp là việc của người nhận; máy vứt hộ là quyết định thay họ |
+| probe làm verdict **xấu đi** | không phải một tình trạng kỹ thuật — đó là một mong muốn |
+
+*Vì sao khai thành danh sách đóng thay vì mô tả:* đây là **yêu cầu duy nhất trong capability này CHUYỂN
+NHÀ nguyên tinh thần từ `probe-quarantine`**, và nó chuyển sang vì thứ nó gác không phải cách ly mà là một
+**phản xạ**: «gặp trở ngại thì bỏ bớt phép thử rồi đi tiếp». Phản xạ ấy không chết cùng cái kho — nó chỉ
+đổi chỗ bám. Mỗi lần nới thêm một lý do vứt đều có vẻ hợp lý một mình, và điểm đến là một cổng chỉ giữ
+những phép thử dễ. Ranh giới không giữ được bằng thiện chí; nó phải là một danh sách đếm được, có lưới gác.
+
+#### Scenario: probe chạy lâu
+
+- **WHEN** một probe đủ bằng chứng nhưng chạy lâu
+- **THEN** nó VẪN được đề xuất giao — «chạy lâu» không nằm trong ba lý do được phép vứt
+
+#### Scenario: đường sai — nới danh sách vì tiện
+
+- **WHEN** hiện thực thêm một lý do vứt ngoài ba lý do trên
+- **THEN** đó là vi phạm, và phải đi qua một change khai rõ mình đang hạ tiêu chuẩn của cổng
+
 ### Requirement: Tách một probe ra khỏi file nhiều probe phải hiểu regex literal
 
 Để giao được một probe, máy SHALL tách được **đúng khối code của riêng nó** ra khỏi file chứa nhiều probe,

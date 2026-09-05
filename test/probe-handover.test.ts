@@ -175,6 +175,38 @@ describe('đề xuất giao (T3)', () => {
   });
 });
 
+describe('danh sách lý do VỨT probe là danh sách ĐÓNG (T6)', () => {
+  const SKILL = readFileSync('packages/harness/src/skill-code.ts', 'utf8');
+  /** Thân khối xếp hạng — nơi duy nhất được phép bỏ một probe khỏi diện đề xuất. */
+  const KHOI = SKILL.slice(SKILL.indexOf('Xếp hạng probe theo BẰNG CHỨNG'), SKILL.indexOf('Quan sát ngoài phạm vi PR'));
+
+  it('T6.1 ⛔ đúng BA lối `continue` — mỗi lối là một lý do vứt, và cả ba đều là THIẾU BẰNG CHỨNG', () => {
+    // Yêu cầu này chuyển nhà từ `probe-quarantine`, và nó gác một PHẢN XẠ chứ không một cơ chế:
+    // «gặp trở ngại thì bỏ bớt phép thử rồi đi tiếp». Mỗi lần nới thêm một lý do vứt đều hợp lý một
+    // mình, và điểm đến là một cổng chỉ giữ những phép thử dễ.
+    // Đếm MỌI `continue`, kể cả loại viết gọn giữa dòng (`if (…) continue;`) — bản đầu của ca này chỉ
+    // bắt loại đứng đầu dòng và đếm ra 2, tức nó sẽ không thấy một lối vứt thứ tư viết gọn.
+    const soContinue = (KHOI.match(/\bcontinue;/g) ?? []).length;
+    expect(soContinue, 'thêm một lối vứt là nới danh sách đóng — phải đi qua change khai rõ').toBe(3);
+  });
+
+  it('T6.2 ⛔ «probe chạy lâu» KHÔNG nằm trong lý do vứt — ranh giới PO chốt 05/09', () => {
+    // Đúng ranh giới đã chốt ở `probe-quarantine`: chỉ bỏ probe NẠP LỖI, không bỏ probe CHẠY LÂU. Nó
+    // chuyển nhà sang đây vì cơ chế cũ mất, còn phản xạ nó gác thì không.
+    for (const cam of ['treo', 'chạy lâu', 'timeout', 'qua_lau']) {
+      expect(KHOI.toLowerCase(), `khối xếp hạng nhắc «${cam}» — có thể đang vứt vì tốc độ`).not.toContain(cam);
+    }
+  });
+
+  it('T6.3 ⛔ hàng đợi không bị cắt bởi bất kỳ trần nào trong khối xếp hạng', () => {
+    // `handover.length > 0` là gác GHI LOG, không phải trần — nên chỉ cấm hai hình dạng thật sự cắt:
+    // `slice` trên hàng đợi, và một điều kiện chặn `push` khi đã đủ số.
+    expect(KHOI).not.toMatch(/handover\s*\.\s*slice\(/);
+    expect(KHOI).not.toMatch(/handover\.length\s*[<>]=?\s*\d+\s*\)\s*\{[\s\S]{0,80}push/);
+    expect(KHOI).not.toMatch(/TRAN|MAX_HANDOVER|tranGiao/);
+  });
+});
+
 describe('bản ghi ĐỜI CŨ trên prod vẫn đọc được (T5)', () => {
   const TYPES = readFileSync('packages/shared/src/types.ts', 'utf8');
 

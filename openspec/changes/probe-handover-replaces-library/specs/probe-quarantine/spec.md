@@ -25,6 +25,18 @@ lượt.
 **Migration**: probe sinh mới không nạp được vẫn bị loại **trong lượt** và nói ra qua nhãn `khong_chay`
 (`probe-classification`); không có «lượt sau» để loại khỏi.
 
+⛔ **Bảng ranh giới đóng bên trong yêu cầu này KHÔNG chết theo nó.** Bảng ấy (PO chốt 05/09: «chỉ bỏ probe
+nạp lỗi, không phải bỏ probe chạy lâu») gác một **phản xạ**, không gác một cơ chế: *«gặp trở ngại thì bỏ
+bớt phép thử rồi đi tiếp»*. Phản xạ ấy không mất cùng cái kho — nó chỉ đổi chỗ bám, từ «lý do cách ly» sang
+«lý do vứt probe khỏi diện đề xuất».
+**Chuyển nhà nguyên tinh thần** sang `probe-handover › Danh sách lý do VỨT probe là danh sách ĐÓNG`, với ba
+lý do được phép và bốn lý do bị cấm — trong đó **«probe chạy lâu» vẫn nằm ở cột cấm**, đúng ranh giới PO
+đã chốt.
+
+*Ghi lại vì sao suýt mất:* cổng archive của OpenSpec **từ chối** xoá capability này với lý do «spec giữ nội
+dung mà việc gộp không tính được, và xoá file sẽ mang nó đi theo». Nếu không có cổng ấy, bảng ranh giới sẽ
+biến mất im lặng cùng một file — đúng loại mất mát mà cả change này được viết để tránh.
+
 ### Requirement: Cô lập làm lượt chấm YẾU ĐI, và điều đó phải hiện ra
 **Reason**: đếm số probe bị cách ly ở verdict — không còn cách ly thì không còn số ấy.
 **Migration**: nguyên tắc «lượt chấm yếu đi thì phải hiện ra» **chuyển nhà** sang `probe-handover` ở dạng
