@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import type { ProbePlan } from './skill-code.js';
 
@@ -483,6 +483,88 @@ function napMeta(slug: string): MetaLib {
   });
 }
 
+// ---- Sổ gỡ: mỗi lần một probe ĐÃ CÓ rời thư viện ----
+
+/**
+ * Một lần gỡ một probe **đã nằm trong** thư viện.
+ *
+ * `trung_lap` — gỡ vì trùng hành vi với một probe khác; `giu` là probe được giữ lại.
+ * `dao_thai`  — loại vì vượt trần; không có probe nào thay thế nó, nên không có `giu`.
+ *
+ * Probe MỚI bị từ chối nạp KHÔNG thuộc sổ này: không nạp và đã gỡ là hai chuyện, và gộp chúng lại
+ * làm người đọc tưởng thư viện vừa mất một thứ nó chưa từng có.
+ */
+export interface RemovalRecord {
+  luc: string;
+  loai: 'trung_lap' | 'dao_thai';
+  go: string;
+  ly_do: string;
+  giu?: string;
+  bang_chung?: string;
+}
+
+/** Sổ gỡ đọc ra — kèm những gì KHÔNG đọc được, vì im lặng ở đây làm sổ hỏng trông như sổ trống. */
+export interface RemovalLog {
+  ban_ghi: RemovalRecord[];
+  /** Số dòng không phân tích được. Nói ra, không nuốt. */
+  dong_hong: number;
+  /** Sổ đã có trên đĩa chưa — «chưa gỡ lần nào» khác «sổ hỏng». */
+  ton_tai: boolean;
+}
+
+const TEN_SO_GO = 'removals.jsonl';
+
+/**
+ * Ghi MỘT lần gỡ vào sổ. **Phải gọi khi ĐANG GIỮ khoá thư viện.**
+ *
+ * Chỉ ghi thêm một dòng — không đọc lại, không ghi đè. Đó là lý do sổ nằm ở file riêng chứ không phải
+ * một mảng trong `meta.json`: `meta.json` bị đọc-và-ghi-lại TOÀN BỘ ở mỗi lần nạp, nên một sổ chỉ lớn
+ * lên nằm trong đó sẽ tính tiền theo tuổi của thư viện, ngay trong khoá.
+ *
+ * Không dùng ghi-tạm-rồi-rename như `ghiMeta` vì ở đây không có chuỗi đọc-sửa-ghi nào để mất. Rủi ro
+ * còn lại là dòng cuối cụt khi tiến trình chết giữa chừng, và `readRemovalLog` chịu được nó.
+ */
+export function recordRemoval(slug: string, ban: RemovalRecord): void {
+  try {
+    mkdirSync(join(GOC_LIB, slug), { recursive: true });
+    appendFileSync(join(GOC_LIB, slug, TEN_SO_GO), `${JSON.stringify(ban)}${String.fromCharCode(10)}`, 'utf8');
+  } catch (e) {
+    // Ghi sổ hỏng KHÔNG được kéo theo lượt nạp: probe đã bị gỡ khỏi meta rồi, ném ở đây để lại thư
+    // viện đúng nhưng lượt chấm chết. Mất một dòng sổ là thiệt hại nhỏ hơn hẳn, và nó ồn ào ở log.
+    console.error(`Thư viện ${slug}: không ghi được sổ gỡ cho «${ban.go}» — ${String(e)}`);
+  }
+}
+
+/**
+ * Đọc sổ gỡ.
+ *
+ * Dòng không phân tích được thì BỎ và ĐẾM. Nuốt trong im lặng thì một sổ hỏng dần trông y hệt một sổ
+ * trống — cùng lỗi mà luật «rỗng không phải hỏng» cấm, chỉ khác chỗ xảy ra.
+ */
+export function readRemovalLog(slug: string): RemovalLog {
+  const f = join(GOC_LIB, slug, TEN_SO_GO);
+  if (!existsSync(f)) return { ban_ghi: [], dong_hong: 0, ton_tai: false };
+  let tho = '';
+  try {
+    tho = readFileSync(f, 'utf8');
+  } catch {
+    return { ban_ghi: [], dong_hong: 0, ton_tai: false };
+  }
+  const ban_ghi: RemovalRecord[] = [];
+  let dong_hong = 0;
+  for (const d of tho.split(String.fromCharCode(10))) {
+    if (!d.trim()) continue;
+    try {
+      const o = JSON.parse(d) as RemovalRecord;
+      if (o && typeof o.go === 'string' && (o.loai === 'trung_lap' || o.loai === 'dao_thai')) ban_ghi.push(o);
+      else dong_hong++;
+    } catch {
+      dong_hong++;
+    }
+  }
+  return { ban_ghi, dong_hong, ton_tai: true };
+}
+
 // ---- API ----
 
 export function readProbeLibrary(slug: string): LibraryProbe[] {
@@ -498,6 +580,73 @@ export function readProbeLibrary(slug: string): LibraryProbe[] {
     }
   }
   return kq;
+}
+
+/** Trạng thái đọc thư viện — bốn ca phân biệt được, vì `0 probe` không được nói thay cho ba ca kia. */
+export type LibraryReadState = 'ok' | 'rong' | 'doi_cu' | 'khong_doc_duoc';
+
+export interface LibraryIndex {
+  probes: ProbeLibEntry[];
+  /** Trần đang có hiệu lực — màn đọc số này, KHÔNG hard-code. */
+  tran: number;
+  trang_thai: LibraryReadState;
+  /** Ghi chú lượt di trú bộ→probe, nếu có. */
+  di_tru?: string;
+}
+
+/**
+ * Chỉ mục thư viện cho tầng giao diện — KHÔNG kèm code.
+ *
+ * Vì sao không dùng `readProbeLibrary`: hàm đó đọc code của MỌI probe. Một lần mở trang là tới hàng
+ * trăm lượt đọc file và cả trăm KB mã nguồn nhồi vào một trang HTML, trong khi người dùng thường chỉ
+ * mở một probe. Đường chấm vẫn cần toàn bộ code nên hàm cũ giữ nguyên.
+ *
+ * Vì sao tự phân loại thay vì gọi thẳng `napMeta`: nhánh «meta rách» của `napMeta` đổi tên file rồi
+ * coi thư viện như RỖNG — đúng cho đường chấm (một file rách không được giết lượt chấm), sai cho màn
+ * đọc, vì ở đó `0 probe` là một câu khẳng định đã đếm. Màn phải nói **không đọc được**. Và một màn
+ * chỉ-đọc thì không được đổi tên file của ai.
+ */
+export function readLibraryIndex(slug: string): LibraryIndex {
+  const f = join(GOC_LIB, slug, 'meta.json');
+  if (!existsSync(f)) return { probes: [], tran: TRAN_PROBE, trang_thai: 'rong' };
+  let raw: Record<string, unknown>;
+  try {
+    raw = JSON.parse(readFileSync(f, 'utf8')) as Record<string, unknown>;
+  } catch {
+    return { probes: [], tran: TRAN_PROBE, trang_thai: 'khong_doc_duoc' };
+  }
+  // Đời cũ (theo bộ) được di trú ở lần ĐỌC ĐẦU của đường chấm. Màn nói ra trạng thái ấy chứ không tự
+  // di trú: di trú là một lượt GHI, và đây là màn đọc.
+  if (!Array.isArray(raw.probes)) {
+    if (Array.isArray(raw.files)) return { probes: [], tran: TRAN_PROBE, trang_thai: 'doi_cu' };
+    return { probes: [], tran: TRAN_PROBE, trang_thai: 'khong_doc_duoc' };
+  }
+  const meta = raw as unknown as MetaLib;
+  const probes = (meta.probes ?? []).filter((m): m is ProbeLibEntry => !!m && typeof m.ten === 'string');
+  return {
+    probes,
+    tran: TRAN_PROBE,
+    trang_thai: probes.length ? 'ok' : 'rong',
+    ...(typeof meta.di_tru === 'string' ? { di_tru: meta.di_tru } : {}),
+  };
+}
+
+/**
+ * Code của MỘT probe, tra theo tên.
+ *
+ * Tên đi vào đây đến từ tham số của một yêu cầu HTTP. Nó KHÔNG BAO GIỜ được ghép thẳng vào đường dẫn:
+ * sổ là nguồn sự thật, và tên không có trong sổ thì trả `null` trước khi chạm đĩa. Một phép kiểm ấy
+ * đóng cả bốn đường cùng lúc — `..`, đường tuyệt đối, tên của slug khác, và tên có trên đĩa mà không
+ * có trong sổ. Chặn riêng `..` là vá một đường trong bốn.
+ */
+export function readProbeCode(slug: string, ten: unknown): string | null {
+  const muc = readLibraryIndex(slug).probes.find((m) => m.ten === ten);
+  if (!muc) return null;
+  try {
+    return readFileSync(join(GOC_LIB, slug, muc.ten), 'utf8');
+  } catch {
+    return null; // file vừa bị lượt song song dọn — mục sổ sẽ hết ở lượt đọc sau
+  }
 }
 
 export interface AdmitResult {
@@ -528,6 +677,11 @@ export function admitToLibrary(slug: string, code: string, plan: ProbePlan, shaS
       const { i, ly_do } = pickEvictionVictim(meta.probes, ten);
       const cu = meta.probes.splice(i, 1)[0];
       console.log(`[thu-vien] đào thải «${cu.ten}»: ${ly_do}`);
+      // Ghi NGAY tại chỗ probe biến mất, không ở tầng gọi: tầng gọi chỉ nhận `{ ten }` của probe vừa
+      // nạp và không hề biết cái gì vừa bị loại. Trước đây dấu vết duy nhất của một lần đào thải là
+      // dòng log ngay trên — verdict không mang nó, nên thư viện tụt từ 89 xuống 40 mà không ai biết
+      // cái gì đã đi.
+      recordRemoval(slug, { luc: new Date().toISOString(), loai: 'dao_thai', go: cu.ten, ly_do });
       try {
         rmSync(join(GOC_LIB, slug, cu.ten));
       } catch {
@@ -637,6 +791,16 @@ export function findAndDropBehaviorDuplicates(slug: string): BehaviorDuplicateDr
         } catch {
           /* file đã mất thì thôi */
         }
+        // Verdict của lượt chấm chỉ giữ `probe_id · action · reason` — mất đúng vế «giữ cái nào» và
+        // mất bằng chứng, tức mất hai thứ cần để phản bác một lần gỡ sai sáu tháng sau.
+        recordRemoval(slug, {
+          luc: new Date().toISOString(),
+          loai: 'trung_lap',
+          go: g.go,
+          giu: g.giu,
+          ly_do: 'hành vi trùng đo được',
+          bang_chung: g.bangChung,
+        });
       }
       ghiMeta(slug, meta);
     }

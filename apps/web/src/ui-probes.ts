@@ -1,43 +1,264 @@
-import { shell } from './ui.js';
+import type { HistoryEntry, LibraryIndex, ProbeLibEntry, RemovalLog } from '../../../packages/harness/src/probe-library.js';
+import { shell, escHtml } from './ui.js';
 
 /**
- * Thư viện probe — màn CÓ thiết kế, CHƯA có đường đọc dữ liệu.
+ * Thư viện probe — màn đọc tài sản regression của repo đang chọn.
  *
- * Gói design CCS vẽ màn này đầy đủ (dải hành vi 20 ô, bộ lọc, trạng thái rỗng). Thứ chưa có là API:
- * README của gói ghi rõ backend làm sau khi chốt design.
+ * Bản trước của file này là một tấm biển «chưa dựng», và nó đúng ở thời điểm ấy: dữ liệu có thật trong
+ * `probes-lib/` nhưng chưa có đường đọc nào lên tới đây. Nay có.
  *
- * Vì sao KHÔNG dựng màn thật rồi cho nó hiện trạng thái rỗng của gói («thư viện dựng dần từ các
- * lượt chấm trên repo này»): câu đó nghĩa là ĐÃ TRA, CHƯA CÓ GÌ. Sự thật ở đây là CHƯA HỀ TRA — thư
- * viện đang tích luỹ thật trong `probes-lib/` qua từng lượt chấm, chỉ là chưa có đường đưa nó lên
- * màn hình. Mượn trạng thái rỗng để khoả lấp chỗ chưa dựng đúng là thứ mà luật «rỗng ≠ hỏng» của
- * chính sản phẩm này cấm; làm thế thì lưới của mình mất nghĩa.
+ * Hai điều phải giữ trong đầu suốt file này:
+ *
+ * 1. **Mọi trường ở đây là dữ liệu ngoài** (⛔C4). Probe do model sinh từ nội dung repo đích — tên file,
+ *    mục đích, luật spec, và nhất là CODE. Code là thứ dài nhất, giống «code của mình» nhất, nên là thứ
+ *    dễ được miễn thoát nhất. Nó không được miễn.
+ * 2. **Không đo được ≠ không có.** Thư viện rỗng, thư viện đời cũ chưa di trú, và `meta.json` rách là BA
+ *    câu khác nhau. Cả ba đều không phải `0 probe`.
  */
-export function probesPage(nguoi = ''): string {
-  return shell(
-    'Thư viện probe — CheckMate',
-    `<h1>Thư viện probe</h1>
-<p class="sub">Màn này chưa dựng xong — và đây là lý do, không phải một trang chờ.</p>
 
-<div class="card" style="max-width:720px;border-left:4px solid var(--medium);background:var(--medium-tint)">
-  <div class="card-kicker" style="color:var(--medium-ink)">Chưa dựng</div>
-  <p style="margin:0 0 10px"><b>Vì sao:</b> giao diện đã có thiết kế đầy đủ trong gói design, nhưng
-  <b>đường đọc dữ liệu chưa dựng</b> — chưa có API trả thư viện probe ra cho trang web. Không có nguồn
-  thì không có gì để bày.</p>
-  <p style="margin:0">Trang này cố ý <b>không</b> bày một danh sách rỗng. Danh sách rỗng nghĩa là
-  đã tra và thư viện không có gì; sự thật là chưa tra lần nào. Một màn rỗng trông giống một màn chưa
-  dựng là chỗ người dùng ngồi đợi thứ không bao giờ tới.</p>
-</div>
+/** Năm sắc thái của dải hành vi — gói design CCS §5b, và mỗi cái có NHÃN CHỮ vì màu không được là kênh duy nhất. */
+const TONE_BY_STATE: Record<string, { mau: string; nhan: string }> = {
+  pass: { mau: 'var(--pass)', nhan: 'pass' },
+  hoi_quy: { mau: 'var(--fail)', nhan: 'hồi quy' },
+  vi_pham_luat_moi: { mau: 'var(--fail)', nhan: 'vi phạm luật mới' },
+  cai_thien: { mau: 'var(--pass)', nhan: 'cải thiện' },
+  ngoai_pham_vi: { mau: 'var(--medium)', nhan: 'ngoài phạm vi' },
+  nghi_van: { mau: 'var(--medium-soft)', nhan: 'nghi vấn' },
+  nghi_loi_co_san: { mau: 'var(--medium-soft)', nhan: 'nghi lỗi có sẵn' },
+  bo_qua: { mau: 'var(--color-neutral-300)', nhan: 'bỏ qua' },
+  khong_chay: { mau: 'var(--color-neutral-300)', nhan: 'không chạy' },
+};
 
-<div class="card" style="max-width:720px;margin-top:14px">
-  <div class="card-kicker">Trong lúc chờ</div>
-  <p style="margin:0">Thư viện <b>vẫn đang tích luỹ thật</b> sau mỗi lượt chấm — probe được giữ lại
-  nằm trong thư mục <code>probes-lib/</code> trên máy chủ, tách theo repo. Nó không mất đi vì màn này
-  chưa có; chỉ là chưa có cửa sổ nhìn vào.</p>
-</div>
+/** Trạng thái lạ (sổ sửa tay, nhãn engine đời sau) vẫn phải vẽ được — và phải nói ra là nó lạ. */
+export function behaviorTone(trangThai: unknown): { mau: string; nhan: string } {
+  const k = typeof trangThai === 'string' ? trangThai : '';
+  return TONE_BY_STATE[k] ?? { mau: 'var(--color-neutral-400)', nhan: k ? `trạng thái lạ: ${k}` : 'không rõ' };
+}
 
-<p class="goiy" style="margin-top:14px">Xem <a href="/lich-su">lịch sử chạy</a> để biết probe nào đã
-chạy trong từng lượt chấm.</p>`,
-    '',
-    { muc: 'probes', nguoi },
-  );
+/**
+ * Dòng tóm tắt BẰNG CHỮ dưới dải hành vi.
+ *
+ * Đây là chỗ màn trả lời câu người vận hành thật sự hỏi — «probe này có đáng giữ không» — nên nó phải
+ * nói cả khi câu trả lời khó nghe. Ba câu, không gộp:
+ *   - từng bắt hồi quy  → nói SỐ LẦN, vì một lần và mười lần không cùng một thứ
+ *   - fail cả hai nhánh → **lỗi có sẵn**, KHÔNG được đếm thành thành tích bắt hồi quy
+ *   - im lặng suốt      → nói thẳng «chưa bắt được hồi quy nào», không để trống
+ *
+ * Vế thứ ba là vế dễ bị bỏ nhất và cũng là vế quan trọng nhất: một probe im lặng có thể đang canh đúng
+ * một biên chưa ai phá (giữ), hoặc đang vô dụng (bỏ). Màn không quyết hộ, nhưng phải nói ra.
+ */
+export function summarizeBehavior(lichSu: readonly HistoryEntry[] | null | undefined): string {
+  const ls = Array.isArray(lichSu) ? lichSu.filter((h) => h && typeof h.trang_thai === 'string') : [];
+  if (!ls.length) return 'chưa chạy lượt nào — probe mới nạp';
+  const hoiQuy = ls.filter((h) => h.trang_thai === 'hoi_quy' || h.trang_thai === 'vi_pham_luat_moi').length;
+  if (hoiQuy) return `${hoiQuy} lần bắt được hồi quy`;
+  const coSan = ls.filter((h) => h.trang_thai === 'nghi_loi_co_san' || h.trang_thai === 'khong_chay').length;
+  if (coSan >= 3 && coSan >= ls.length - 1) return 'fail cả hai nhánh — lỗi có sẵn, không phải hồi quy';
+  return 'chưa bắt được hồi quy nào';
+}
+
+/**
+ * Dải hành vi — vẽ ĐÚNG số lượt đã có, KHÔNG đệm cho đủ 20 ô.
+ *
+ * Ô xám trong gói design mang nghĩa `không chạy` — một trạng thái THẬT của probe ở một lượt THẬT. Đệm
+ * cho đủ khung là vẽ ra những phép đo chưa từng xảy ra, và dùng đúng ký hiệu của «đã đo, probe không
+ * chạy được» để nói «chưa đo lần nào». Đó là cặp mà cả sản phẩm này tồn tại để tách.
+ */
+function behaviorStrip(lichSu: readonly HistoryEntry[] | null | undefined): string {
+  const ls = Array.isArray(lichSu) ? lichSu.filter((h) => !!h) : [];
+  if (!ls.length) return '<span class="hv-trong">chưa có lượt nào</span>';
+  return ls
+    .map((h) => {
+      const t = behaviorTone(h.trang_thai);
+      const sha = typeof h.sha === 'string' ? h.sha.slice(0, 7) : '?';
+      const luc = typeof h.luc === 'string' ? h.luc.slice(0, 10) : '?';
+      return `<span class="hv-o" style="--o:${t.mau}" title="${escHtml(`${sha} · ${luc} · ${t.nhan}`)}"></span>`;
+    })
+    .join('');
+}
+
+function ruleTags(specRule: unknown): string {
+  const tho = typeof specRule === 'string' ? specRule : '';
+  const ds = tho
+    .split(/[,;|]/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+  if (!ds.length) return '<span class="probe-tag probe-tag-trong">không neo luật nào</span>';
+  return ds.map((r) => `<span class="probe-tag">${escHtml(r)}</span>`).join('');
+}
+
+/** Trần lịch sử của engine — dải chỉ «gần nhất» khi đã chạm trần; dưới trần thì nó là TOÀN BỘ. */
+const TRAN_LICH_SU = 20;
+
+/**
+ * Nhãn của dải: «gần nhất» ngụ ý có lượt cũ hơn đã bị cắt. Với probe mới chạy 7 lượt thì 7 ấy là TẤT
+ * CẢ những gì nó từng chạy, và gọi đó là «7 lượt gần nhất» làm người đọc tưởng còn lịch sử ở đâu đó.
+ * Sai nhỏ, nhưng đúng loại sai mà màn này tồn tại để chống.
+ */
+function stripLabel(n: number): string {
+  if (!n) return 'chưa có lượt nào';
+  return n >= TRAN_LICH_SU ? `${n} lượt gần nhất — mới nhất bên phải` : `${n} lượt · mới nhất bên phải`;
+}
+
+function probeRow(m: ProbeLibEntry): string {
+  const plan = m.plan ?? ({} as ProbeLibEntry['plan']);
+  const ten = escHtml(m.ten);
+  return `<div class="probe-dong">
+  <div class="probe-grid">
+    <div style="min-width:0">
+      <div class="probe-ten-hang"><span class="probe-ten">${ten}</span>${ruleTags(plan.spec_rule)}</div>
+      <div class="probe-mucdich">${escHtml(plan.muc_dich ?? '(probe không khai mục đích)')}</div>
+      <div class="probe-meta">sinh tại ${escHtml(String(m.sha_sinh ?? '?').slice(0, 7))} · nạp ${escHtml(String(m.luc ?? '').slice(0, 10) || '?')}${
+        m.da_bat_hoi_quy ? ' · <b>đã bắt hồi quy</b>' : ''
+      }${(m.flaky_diem ?? 0) >= 2 ? ` · flaky ${m.flaky_diem}` : ''}</div>
+    </div>
+    <div>
+      <div class="probe-nhan-dai">${stripLabel((m.lich_su ?? []).length)}</div>
+      <div class="hv-dai">${behaviorStrip(m.lich_su)}</div>
+      <div class="probe-tomtat">${escHtml(summarizeBehavior(m.lich_su))}</div>
+    </div>
+    <button class="btn phu probe-nut-code" data-ten="${ten}" type="button">Xem code probe</button>
+  </div>
+  <pre class="probe-code" hidden></pre>
+</div>`;
+}
+
+function removalsBlock(so: RemovalLog): string {
+  if (!so.ton_tai && !so.dong_hong) {
+    return `<section class="probe-khu"><h4 style="margin:0 0 2px">Probe đã gỡ</h4>
+<p class="sub" style="margin:0">Chưa có lần gỡ nào được ghi trên repo này. Sổ gỡ bắt đầu từ lần gỡ đầu tiên sau khi tính năng này có mặt — trước đó, đào thải vì trần chỉ để lại một dòng log trên máy chủ.</p></section>`;
+  }
+  const hang = so.ban_ghi
+    .slice()
+    .reverse()
+    .map(
+      (b) => `<div class="go-hang">
+<span class="go-ten">${escHtml(b.go)}</span>
+<span class="mono">${b.giu ? escHtml(b.giu) : '<span class="go-trong">— không có probe thay thế</span>'}</span>
+<span>${escHtml(b.loai === 'trung_lap' ? 'gỡ vì trùng lặp' : 'đào thải vì vượt trần')} · ${escHtml(b.ly_do ?? '')}</span>
+<span class="go-bc">${escHtml(b.bang_chung ?? '—')}</span>
+</div>`,
+    )
+    .join('');
+  return `<section class="probe-khu">
+<h4 style="margin:0 0 2px">Probe đã gỡ</h4>
+<p class="sub" style="margin:0 0 10px">Chỉ đọc, chỉ ghi thêm. <b>Hai lý do khác nhau</b>: gỡ vì trùng lặp có probe được giữ thay; đào thải vì vượt trần thì không có gì thay nó.</p>
+${so.dong_hong ? `<div class="card" style="border-left:4px solid var(--medium);background:var(--medium-tint);margin-bottom:10px"><b>${so.dong_hong} dòng trong sổ gỡ không đọc được</b> — đã bỏ qua. Sổ ghi bằng cách nối thêm dòng, nên một tiến trình chết giữa chừng để lại dòng cụt. Con số này hiện ra thay vì bị nuốt: một sổ hỏng dần trông y hệt một sổ trống.</div>` : ''}
+<div class="go-dau"><span>Gỡ</span><span>Giữ</span><span>Lý do</span><span>Bằng chứng</span></div>
+${hang || '<p class="sub">Sổ có mặt nhưng chưa dòng nào đọc được.</p>'}
+</section>`;
+}
+
+const CODE_PANEL_JS = `
+document.addEventListener('click', async (e) => {
+  const nut = e.target.closest('.probe-nut-code');
+  if (!nut) return;
+  const o = nut.closest('.probe-dong').querySelector('.probe-code');
+  if (!o.hidden) { o.hidden = true; nut.textContent = 'Xem code probe'; return; }
+  nut.disabled = true;
+  try {
+    const r = await fetch('/api/probes/code?ten=' + encodeURIComponent(nut.dataset.ten));
+    const d = await r.json();
+    // textContent, KHONG innerHTML: code probe do model sinh tu repo dich la du lieu ngoai (C4).
+    // Dat bang textContent thi trinh duyet khong bao gio phan tich no thanh phan tu — day la rao,
+    // khong phai mot lua chon phong cach.
+    o.textContent = r.ok ? d.code : (d.loi || 'không đọc được probe này');
+  } catch (err) {
+    o.textContent = 'không gọi được máy chủ: ' + err;
+  }
+  o.hidden = false;
+  nut.disabled = false;
+  nut.textContent = 'Ẩn code';
+});`;
+
+const LEGEND = ['pass', 'hoi_quy', 'ngoai_pham_vi', 'nghi_van', 'khong_chay']
+  .map((k) => {
+    const t = behaviorTone(k);
+    return `<span class="hv-chu"><span class="hv-o" style="--o:${t.mau}"></span>${escHtml(t.nhan)}</span>`;
+  })
+  .join('');
+
+export interface ProbesPageData {
+  /** repo đang chọn; rỗng nghĩa là CHƯA KẾT NỐI REPO NÀO — câu khác hẳn «thư viện trống». */
+  repoFull: string;
+  index: LibraryIndex | null;
+  removals: RemovalLog;
+  nguoi?: string;
+}
+
+export function probesPage(d: ProbesPageData): string {
+  const than = !d.repoFull || !d.index ? noRepoBody() : libraryBody(d.repoFull, d.index, d.removals);
+  return shell('Thư viện probe — CheckMate', than, d.repoFull && d.index ? CODE_PANEL_JS : '', {
+    muc: 'probes',
+    nguoi: d.nguoi ?? '',
+  });
+}
+
+/** Chưa kết nối repo nào — KHÔNG nói «thư viện trống»: chưa có gì để tra khác với đã tra mà không có gì. */
+function noRepoBody(): string {
+  return `<h1>Thư viện probe</h1>
+<p class="sub">Tài sản regression tích luỹ theo từng repo.</p>
+<div class="card" style="max-width:720px">
+  <div class="card-kicker">Chưa kết nối repo nào</div>
+  <p style="margin:0 0 10px">Thư viện probe dựng theo repo, nên chưa có repo thì chưa có thư viện nào để mở —
+  đây không phải một thư viện trống.</p>
+  <a class="btn btn-primary" href="/settings">Vào Cấu hình</a>
+</div>`;
+}
+
+/**
+ * `chuGiai`: chỉ vẽ chú giải màu KHI CÓ dải để giải. Bảng chú giải cho một dải không tồn tại là trang trí,
+ * và trang trí ở một màn rỗng làm nó trông như đang hỏng — đúng thứ luật «rỗng ≠ hỏng» cấm. Nó cũng là chỗ
+ * DUY NHẤT của màn hợp lệ mang sắc FAIL, nên để nó lọt vào nhánh rỗng là để trạng thái rỗng mặc màu hỏng.
+ */
+function screenHeader(repoFull: string, ix: LibraryIndex, chuGiai: boolean): string {
+  const dem =
+    ix.trang_thai === 'khong_doc_duoc'
+      ? '<span class="tv-dem tv-dem-hong">không đo được</span>'
+      : `<span class="tv-dem">${ix.probes.length}/${ix.tran} probe</span>`;
+  return `<h6 style="color:var(--color-accent);margin:0 0 2px">${escHtml(repoFull)} · tài sản regression tích luỹ</h6>
+<h1 style="margin:0">Thư viện probe</h1>
+<div class="tv-dau">${dem}<span class="tv-ghi">trần đếm theo probe</span>${
+    ix.di_tru ? '<button class="btn phu" type="button" onclick="this.nextElementSibling.hidden=!this.nextElementSibling.hidden">+ ghi chú di trú</button><div class="tv-ditru" hidden>' + escHtml(ix.di_tru) + '</div>' : ''
+  }</div>
+${chuGiai ? `<div class="hv-chugiai">${LEGEND}</div>` : ''}`;
+}
+
+function libraryBody(repoFull: string, ix: LibraryIndex, so: RemovalLog): string {
+  const dau = screenHeader(repoFull, ix, ix.trang_thai === 'ok');
+
+  if (ix.trang_thai === 'khong_doc_duoc') {
+    // KHÔNG hiện «0 probe»: `0` là một khẳng định ĐÃ ĐẾM. Ở đây phép đếm không chạy được.
+    return `${dau}
+<div class="card" style="max-width:760px;border-left:4px solid var(--medium);background:var(--medium-tint)">
+  <div class="card-kicker" style="color:var(--medium-ink)">Không đọc được sổ thư viện</div>
+  <p style="margin:0"><code>probes-lib/&lt;repo&gt;/meta.json</code> không phân tích được. Màn này cố ý
+  <b>không</b> hiện «0 probe»: số không nghĩa là đã đếm và thư viện trống, còn ở đây phép đếm không chạy
+  được. Probe trên đĩa có thể vẫn nguyên.</p>
+</div>`;
+  }
+
+  if (ix.trang_thai === 'doi_cu') {
+    return `${dau}
+<div class="card" style="max-width:760px;border-left:4px solid var(--medium);background:var(--medium-tint)">
+  <div class="card-kicker" style="color:var(--medium-ink)">Thư viện còn ở định dạng đời cũ</div>
+  <p style="margin:0">Thư viện này lưu theo <b>bộ</b> (mỗi lượt chấm một file), chưa tách theo probe. Nó sẽ
+  được di trú tự động ở <b>lượt chấm kế tiếp</b>. Màn này không tự di trú — di trú là một lượt ghi, còn đây
+  là màn đọc.</p>
+</div>`;
+  }
+
+  if (!ix.probes.length) {
+    return `${dau}
+<p class="mono" style="padding:36px 0;color:var(--color-neutral-600)">Chưa có probe nào — thư viện dựng dần
+từ các lượt chấm trên repo này.</p>
+${removalsBlock(so)}`;
+  }
+
+  const dong = ix.probes
+    .slice()
+    .sort((a, b) => String(b.luc ?? '').localeCompare(String(a.luc ?? '')))
+    .map(probeRow)
+    .join('');
+  return `${dau}${dong}${removalsBlock(so)}`;
 }
