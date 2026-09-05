@@ -124,6 +124,13 @@ không làm mỗi lượt chấm phải chạy hàng nghìn probe.*
 
 Đường đọc thư viện SHALL bỏ qua mục nào có file đã mất, và MUST NOT làm đổ lượt chấm.
 
+Đường đọc thư viện **cho một lượt chấm** SHALL bỏ qua mục nào mang **dấu cách ly**. Dấu ấy MUST NOT làm
+mục biến mất khỏi các đường đọc khác — bề mặt đọc của người vận hành vẫn phải thấy nó, kèm lý do.
+
+*Vì sao tách hai đường đọc: probe bị cách ly là probe **không chạy được**, nên để nó vào lượt chấm là lặp
+lại đúng lỗi đã làm chết năm lượt trên prod. Nhưng giấu nó khỏi màn thư viện thì người vận hành mất đúng
+thứ họ cần để sửa — và một probe biến mất không lời giải thích là thứ change trước vừa mất công đóng lại.*
+
 *Vì sao: đọc diễn ra ngoài khoá, nên giữa lúc đọc sổ và lúc đọc file, một lượt song song có thể đã đào thải
 đúng probe ấy. Mất một probe thư viện ở lượt này là thiệt hại nhỏ và tự khỏi — lượt sau đọc sổ mới sẽ không
 còn mục đó. Đổ cả lượt chấm vì một file vừa bị dọn là biến một cuộc đua bình thường thành một lượt chấm
@@ -271,6 +278,10 @@ chắn vừa trỏ đúng một ứng viên trong diện nghi.
 Mỗi quyết định **gỡ một probe đã có** SHALL để lại một bản ghi trong sổ thư viện, mang đủ: probe bị gỡ,
 probe được giữ, lý do, bằng chứng, và thời điểm. Sổ ấy SHALL **chỉ ghi thêm** — bản ghi cũ MUST NOT bị sửa
 hay xoá khi thư viện thay đổi, kể cả khi probe được giữ về sau bị đào thải.
+
+Gỡ **do người vận hành** SHALL ghi vào cùng sổ ấy, mang loại riêng và **tên người thao tác**. Ba loại gỡ —
+đào thải vì trần, gỡ vì trùng lặp, gỡ do người — SHALL phân biệt được khi đọc; chỉ loại thứ ba mới có người
+chịu trách nhiệm, và đó là thông tin không được mất.
 
 *Vì sao cơ học đứng trước: hai tầng đầu không tốn lời gọi model nào và đã loại phần lớn ca. Hỏi model cho
 mọi cặp là trả tiền cho một câu trả lời mà phép so chuỗi đã biết.*

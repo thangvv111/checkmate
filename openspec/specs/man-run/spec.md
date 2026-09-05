@@ -56,8 +56,8 @@ người khác, mà đó đúng là lúc một cú bấm nhầm gây hậu quả
 
 ### Requirement: Verdict phải khai cả phần yếu của chính lượt chấm
 
-Bảng số liệu của verdict SHALL hiện **vùng xám probe** — số probe nghi vấn, bỏ qua, thất lạc và nghi
-lỗi có sẵn — bên cạnh các số thuận lợi (kế hoạch, ghi nhận, pass, hồi quy).
+Bảng số liệu của verdict SHALL hiện **vùng xám probe** — số probe nghi vấn, bỏ qua, thất lạc, nghi
+lỗi có sẵn, và **bị cách ly** — bên cạnh các số thuận lợi (kế hoạch, ghi nhận, pass, hồi quy).
 
 Bốn số đó nói lượt chấm này **không nhìn thấy gì**. Giấu chúng đi thì một verdict PASS mỏng trông
 giống hệt một verdict PASS dày, và người đọc mất đúng thông tin cần để biết nên tin đến đâu.
@@ -78,6 +78,11 @@ vì repo không có luật nào đọc được. Cái đó không hiện ra ở 
 #### Scenario: vùng xám bằng không
 - **WHEN** không probe nào rơi vào bốn nhóm trên
 - **THEN** bảng vẫn khai các mục đó ở giá trị không — im lặng và số không là hai điều khác nhau
+
+#### Scenario: lượt chấm có probe bị cách ly
+- **WHEN** một lượt chấm loại probe vì lỗi nạp rồi chạy tiếp
+- **THEN** bảng số liệu hiện số probe bị cách ly, cạnh các số vùng xám khác — một lượt chấm mất phép thử
+  không được trông giống một lượt chấm đủ phép thử
 
 #### Scenario: lượt chấm không có luật đối chiếu
 - **WHEN** engine không đọc được đơn vị luật nào từ repo đích

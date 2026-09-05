@@ -16,6 +16,17 @@ với probe có thành tích. Probe **fail ở cả hai nhánh** SHALL được 
 Màu SHALL KHÔNG là kênh duy nhất mang một trạng thái: mỗi ô hành vi phải đọc được bằng chữ khi rê chuột, và
 dòng tóm tắt phải nói cùng điều ấy bằng chữ.
 
+Probe đang bị **cách ly** SHALL hiện rõ là đang cách ly, kèm lý do và thời điểm, và SHALL phân biệt được với
+probe đang chạy bình thường. Nó MUST NOT bị ẩn khỏi màn.
+
+Hành động **phá huỷ** trên màn (gỡ một probe, xoá cả thư viện của một repo) SHALL nói trước **cái mất** —
+đây là gì, mất đi thì mất những gì — và SHALL đòi một bước xác nhận tách khỏi cú bấm đầu. Xoá cả thư viện
+SHALL đòi người dùng gõ lại đúng tên repo.
+
+*Vì sao bước xác nhận phải đòi gõ tay: thư viện probe là tài sản tích luỹ qua nhiều tháng chấm, và xoá nó là
+một chiều. Một hộp thoại «có/không» ở cạnh một nút bấm nhầm không phải một quyết định — nó là một cú bấm
+thứ hai.*
+
 *Vì sao: thư viện là tài sản người vận hành phải QUYẾT ĐỊNH trên nó — giữ hay bỏ, tin hay nghi. Một màn chỉ
 đếm «89 probe» làm mọi probe trông ngang giá nhau, trong khi 20 cái trong đó có thể đang chết. Bày số đẹp
 và giấu chỗ yếu là đúng thứ mà luật «verdict phải khai vùng xám của chính nó» (`man-run`) đã cấm ở một màn
