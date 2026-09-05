@@ -19,6 +19,14 @@ export interface RunnerCfg {
   probe_file?: string; // tên file probe đầy đủ (Java cần trùng tên class, vd CheckerProbeTest.java)
   timeout_s: number;
   huong_dan_probe?: string; // ghi chú repo-specific cho model (cách dựng app, fixture, dải dữ liệu...)
+  /**
+   * Ảnh chạy cho môi trường cô lập. Repo đích tự khai bộ công cụ của nó — engine không phải đoán.
+   *
+   * ⛔ Đọc từ bản trên ĐĨA của clone (nhánh gốc), KHÔNG từ nhánh pull request — cùng luật đã áp cho
+   * `test_cmd` và `sources.specs`. Không có vế ấy thì pull request tự chọn được môi trường mà chính code
+   * của nó sẽ chạy. Giá trị được kiểm hình dạng ở `anhHopLe`; rác thì rơi về ảnh mặc định.
+   */
+  image?: string;
 }
 
 // C6: tri thức nghiệp vụ per-repo — repo khai khuôn lỗi ưu tiên + thang severity của CHÍNH NÓ.
@@ -111,6 +119,7 @@ export function readRunnerCfg(repoPath: string): RunnerCfg | null {
     probe_file: r.probe_file,
     timeout_s: Math.min(1800, Math.max(30, Number(r.timeout_s) || 300)),
     huong_dan_probe: r.huong_dan_probe,
+    image: typeof r.image === 'string' ? r.image : undefined,
   };
 }
 

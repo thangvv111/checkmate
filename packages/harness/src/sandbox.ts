@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync, readFileSync, rmSync, rmdirSync, existsSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -111,22 +111,181 @@ export function detectLoadFailures(testResults: unknown): LoadFailure[] {
   return ra;
 }
 
+
+// ---- Cô lập lượt chạy (capability `sandbox-isolation`) ----
+
+/**
+ * Ảnh mặc định, GHIM THEO DIGEST.
+ *
+ * Thẻ trôi (`node:latest`, kể cả `node:22`) làm hai lượt chấm cùng một commit chạy trong hai môi trường
+ * khác nhau — tức phá tính tái lập mà cả sản phẩm này đứng trên, và phá trong im lặng. Digest thì không
+ * trôi được. Đổi ảnh là một change, không phải một lần `pull`.
+ */
+export const DEFAULT_IMAGE =
+  'docker.io/library/node@sha256:2fa754a9ba4d7adbd2a51d182eaabbe355c82b673624035a38c0d42b08724854';
+
+/** Trần tài nguyên một lượt chạy. Namespace KHÔNG tự giới hạn gì — ba con số này là thứ giới hạn. */
+export const MEMORY_CAP = '512m';
+export const CPU_CAP = '1';
+export const PIDS_CAP = 128;
+
+export type IsolationLevel = 'container' | 'none';
+
+/**
+ * Mức cô lập THỰC TẾ của một lượt chạy — không phải cấu hình mong muốn.
+ *
+ * «Đã cấu hình để cô lập» và «đã cô lập» là hai câu khác nhau, và chỉ câu thứ hai đáng ghi vào verdict.
+ * Dán nhãn `container` lên một lượt chạy không cô lập tệ hơn không dán gì.
+ */
+export interface IsolationInfo {
+  muc: IsolationLevel;
+  runtime?: string;
+  ly_do_khong?: string;
+}
+
+/** Tên ảnh OCI hợp lệ — kiểm HÌNH DẠNG trước khi đưa vào dòng lệnh runtime. */
+const IMAGE_NAME_SHAPE = /^[a-z0-9]+([._-][a-z0-9]+)*(\.[a-z0-9-]+)*(:[0-9]+)?(\/[a-z0-9]+([._-][a-z0-9]+)*)*(:[\w][\w.-]{0,127}|@sha256:[a-f0-9]{64})?$/;
+
+/**
+ * Tên ảnh đến từ `checkmate.yml` của repo đích — dữ liệu ngoài (⛔C4).
+ *
+ * Kiểm hình dạng rồi mới dùng, và KHÔNG BAO GIỜ ghép vào một chuỗi shell: nó đi vào mảng đối số. Tên rác
+ * thì rơi về ảnh mặc định chứ không ném — cùng chiều fail-safe mà `readRunnerCfg` đã chọn.
+ */
+export function safeImageName(tho: unknown): string {
+  const s = typeof tho === 'string' ? tho.trim() : '';
+  return s && s.length <= 300 && IMAGE_NAME_SHAPE.test(s) ? s : DEFAULT_IMAGE;
+}
+
+export interface ContainerSpec {
+  /** thư mục lượt chạy trên host — thứ DUY NHẤT được ghi */
+  thuMucChay: string;
+  /** node_modules của bản clone; đưa vào thì CHỈ ĐỌC */
+  thuMucPhuThuoc?: string;
+  anh: string;
+  lenh: string[];
+}
+
+/**
+ * Dựng đối số cho runtime — hàm THUẦN, và là chỗ luật của change này sống.
+ *
+ * ⛔ Container KHÔNG chặn gì nếu vẫn bind ghi được ra ngoài. Hai thứ nặng nhất — thư viện probe và sổ cái
+ * verdict — chỉ được bảo vệ bởi việc chúng **không có mặt** trong cây, chứ không bởi cái container. Nên
+ * danh sách `-v` ở đây là bề mặt cần soi, không phải cờ `--network`.
+ *
+ * Ba trần tài nguyên đi cùng nhau: namespace không giới hạn gì, và một lượt chấm ngốn hết RAM là sự cố
+ * của sản phẩm KHÁC đang chạy cùng máy.
+ */
+export function buildContainerArgs(spec: ContainerSpec): string[] {
+  const a = [
+    'run', '--rm',
+    '--network=none',
+    `--memory=${MEMORY_CAP}`,
+    `--cpus=${CPU_CAP}`,
+    `--pids-limit=${PIDS_CAP}`,
+    '--user', '1000:1000',
+    '--security-opt', 'no-new-privileges',
+    '--read-only',
+    '--tmpfs', '/tmp',
+    // `U` = podman đổi chủ sở hữu thư mục lượt chạy sang SUBUID của container.
+    //
+    // Không có nó thì `--user 1000:1000` ánh xạ sang subuid, và thư mục do tài khoản dịch vụ sở hữu lại
+    // KHÔNG ghi được — đo được: vitest không ghi nổi `vitest-out.json`, cả lượt chấm chết.
+    //
+    // Hướng khác là `--userns=keep-id` (ánh xạ uid host vào container). Nó chạy được và dọn dẹp dễ hơn,
+    // nhưng đổi lại uid trong container thành CHÍNH tài khoản dịch vụ — thoát container là thoát ra
+    // thành tài khoản ấy. Với `U`, thoát ra rơi vào một subuid không đặc quyền. Đo được cả hai đường
+    // ~0.35s nên giá như nhau; chọn đường có hậu quả nhẹ hơn khi hỏng.
+    '-v', `${spec.thuMucChay}:/work:Z,U`,
+  ];
+  if (spec.thuMucPhuThuoc) a.push('-v', `${spec.thuMucPhuThuoc}:/work/node_modules:ro,Z`);
+  a.push('-w', '/work', safeImageName(spec.anh), ...spec.lenh);
+  return a;
+}
+
+/**
+ * Runtime cô lập có dùng được không — hỏi bằng cách CHẠY, không bằng cách kiểm tên file.
+ *
+ * `podman` có mặt trên PATH không chứng minh nó chạy được rootless trên nền này (thiếu uỷ quyền cgroup,
+ * thiếu subuid, kernel cấm user namespace). Hỏi sai câu ở đây thì mức cô lập khai ra là mức MONG MUỐN.
+ */
+export function detectIsolation(chay = spawnSync): IsolationInfo {
+  const r = chay('podman', ['--version'], { encoding: 'utf8', timeout: 20_000 });
+  if (r.error || r.status !== 0) {
+    return { muc: 'none', ly_do_khong: `không gọi được podman: ${r.error?.message ?? `mã thoát ${r.status}`}` };
+  }
+  return { muc: 'container', runtime: (r.stdout ?? '').trim() || 'podman' };
+}
+
 export class Sandbox {
   readonly dir: string;
+
+  /** Mức cô lập THỰC TẾ của sandbox này — đo một lần lúc dựng, không đoán lại. */
+  readonly coLap: IsolationInfo;
+  private readonly phuThuoc: string | null;
 
   constructor(
     private readonly repo: string,
     sha: string,
+    private readonly anh: string = DEFAULT_IMAGE,
   ) {
     this.dir = mkdtempSync(join(tmpdir(), 'checker-sb-'));
-    git(repo, ['worktree', 'add', '--detach', this.dir, sha]);
+    this.coLap = detectIsolation();
+
+    // ⛔ `git archive`, KHÔNG `git worktree`.
+    //
+    // `worktree add` để lại một file `.git` trong thư mục chạy, trỏ ngược vào `<clone>/.git/worktrees/…`
+    // — tức một đường GHI vào git dir của bản clone. Code chạy trong đó cài được hook (`post-checkout`,
+    // `post-merge`), và hook ấy chạy ở những lượt SAU, không cần pull request nào nữa. Đường bền vững.
+    //
+    // `archive` trải ra một cây sạch: không `.git`, không đường về. Mất khả năng chạy lệnh `git` trong
+    // sandbox — chưa probe nào cần, và nếu cần thì đó là một quyết định phải xin riêng.
+    const TEN_TAR = '.checkmate-src.tar';
+    git(repo, ['archive', '--format=tar', '-o', join(this.dir, TEN_TAR), sha]);
+    // Chạy tar với `cwd` và tên TƯƠNG ĐỐI, không đưa đường dẫn tuyệt đối vào đối số.
+    // GNU tar đọc `C:\...` thành đặc tả máy-từ-xa (`host:path`) và trả «Cannot connect to C» — bẫy chỉ
+    // lộ trên Windows. `--force-local` chữa được cho GNU tar nhưng bsdtar (tar sẵn có của Windows) không
+    // hiểu cờ ấy, nên nó đổi một lỗi lấy một lỗi khác tuỳ máy. Đường tương đối thì cả hai đều hiểu.
+    const bung = spawnSync('tar', ['-xf', TEN_TAR], { cwd: this.dir, encoding: 'utf8', timeout: 120_000 });
+    try { unlinkSync(join(this.dir, TEN_TAR)); } catch { /* không sao */ }
+    if (bung.status !== 0) throw new Error(`không bung được mã nguồn của ${sha.slice(0, 7)}: ${(bung.stderr || '').slice(0, 300)}`);
     // Dùng chung node_modules của repo đích qua junction (repo không phải Node thì bỏ qua).
     // ⚠ ĐÍCH PHẢI TUYỆT ĐỐI. Gọi checker với `--repo .` thì đích thành 'node_modules' tương đối, và
     // junction trỏ ngược vào chính thư mục sandbox — hỏng mà KHÔNG báo lỗi. Hậu quả rất khó lần: npx
     // vẫn chạy được vitest (nó tự tải về cache) nên nhìn như đang chạy bình thường, nhưng mọi `import`
     // gói từ trong worktree đều "Cannot find package", cả file probe lẫn file cấu hình của repo.
     const nm = resolve(repo, 'node_modules');
-    if (existsSync(nm)) symlinkSync(nm, join(this.dir, 'node_modules'), 'junction');
+    this.phuThuoc = existsSync(nm) ? nm : null;
+    // Đường KHÔNG cô lập được (máy dev Windows) vẫn dùng junction như trước — nó là hành vi cũ, và nó
+    // được KHAI RA là `none` chứ không giấu. Đường container bind cùng thư mục ấy ở chế độ CHỈ ĐỌC.
+    if (this.phuThuoc && this.coLap.muc === 'none') symlinkSync(this.phuThuoc, join(this.dir, 'node_modules'), 'junction');
+  }
+
+  /**
+   * Chạy một lệnh trong sandbox — qua container nếu cô lập được, chạy thẳng nếu không.
+   *
+   * Hai đường phải nhận CÙNG mức cô lập: repo khai `runner.test_cmd` và repo không khai đi qua đúng hàm
+   * này. Hai cửa cùng vai viết bằng hai biểu thức riêng sẽ lệch nhau, và khuôn ấy đã bị bắt chín lần ở
+   * repo này.
+   */
+  private chayTrongSandbox(lenh: string[], timeoutMs: number): SpawnSyncReturns<string> {
+    if (this.coLap.muc === 'container') {
+      const argv = buildContainerArgs({
+        thuMucChay: this.dir,
+        thuMucPhuThuoc: this.phuThuoc ?? undefined,
+        anh: this.anh,
+        lenh,
+      });
+      return spawnSync('podman', argv, { encoding: 'utf8', timeout: timeoutMs, env: envSandbox() });
+    }
+    // Không cô lập được: chạy như trước. `shell: true` chỉ còn ở đường này, và đường này đã tự khai `none`.
+    return spawnSync(lenh[0]!, lenh.slice(1), {
+      cwd: this.dir,
+      shell: true,
+      encoding: 'utf8',
+      timeout: timeoutMs,
+      env: envSandbox(),
+    });
   }
 
   ghiProbe(code: string, ten = 'checker.probe.test.ts', thuMuc = 'test'): string {
@@ -139,13 +298,9 @@ export class Sandbox {
   chayVitest(testFilesRel: string | string[]): VitestResult {
     const files = (Array.isArray(testFilesRel) ? testFilesRel : [testFilesRel]).map((f) => f.replace(/\\/g, '/'));
     const outFile = join(this.dir, 'vitest-out.json');
-    const kq = spawnSync('npx', ['vitest', 'run', ...files, '--reporter=json', `--outputFile="${outFile}"`], {
-      cwd: this.dir,
-      shell: true,
-      encoding: 'utf8',
-      timeout: 300_000,
-      env: envSandbox(),
-    });
+    // Đường ghi kết quả phải là đường TRONG môi trường chạy: trong container là `/work`, ngoài là host.
+    const outArg = this.coLap.muc === 'container' ? '/work/vitest-out.json' : `"${outFile}"`;
+    const kq = this.chayTrongSandbox(['npx', 'vitest', 'run', ...files, '--reporter=json', `--outputFile=${outArg}`], 300_000);
     if ((kq.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT' || kq.signal) {
       donCayTienTrinh(kq.pid);
       // ⛔ Đường TREO trả về KHÔNG kèm `loiNap` — có chủ đích, và đây là ranh giới PO chốt 05/09.
@@ -205,14 +360,11 @@ export class Sandbox {
       const out = join(this.dir, `junit-${probes.length}-${Date.now()}.xml`);
       // L7: path chứa dấu cách (username Windows) phải được quote khi thế vào template shell
       const quote = (x: string) => (/\s/.test(x) ? `"${x}"` : x);
-      const lenh = cfg.test_cmd.replaceAll('{files}', quote(relSach)).replaceAll('{out}', quote(out));
-      const kq = spawnSync(lenh, {
-        cwd: this.dir,
-        shell: true,
-        encoding: 'utf8',
-        timeout: cfg.timeout_s * 1000,
-        env: envSandbox(),
-      });
+      // Trong container, đường dẫn là đường của container; shell nằm BÊN TRONG container chứ không
+      // trên host — đó là khác biệt đáng kể, không phải một chi tiết viết lại.
+      const outTrong = this.coLap.muc === 'container' ? `/work/${out.slice(this.dir.length + 1).replace(/\\/g, '/')}` : out;
+      const lenh = cfg.test_cmd.replaceAll('{files}', quote(relSach)).replaceAll('{out}', quote(outTrong));
+      const kq = this.chayTrongSandbox(this.coLap.muc === 'container' ? ['sh', '-c', lenh] : [lenh], cfg.timeout_s * 1000);
       if ((kq.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT' || kq.signal) {
         donCayTienTrinh(kq.pid);
         // Cùng ranh giới với `chayVitest`: treo KHÔNG sinh `loiNap`.
@@ -246,14 +398,23 @@ export class Sandbox {
     };
   }
 
+  /**
+   * Huỷ môi trường lượt chạy.
+   *
+   * Không còn worktree để gỡ (nguồn mã nay là cây trải ra từ `git archive`), nên đây chỉ còn là xoá thư
+   * mục. Junction `node_modules` phải gỡ TRƯỚC khi xoá đệ quy, kẻo `rmSync` đi xuyên qua nó và xoá vào
+   * `node_modules` THẬT của bản clone.
+   */
   huy(): void {
     const nm = join(this.dir, 'node_modules');
-    try { if (existsSync(nm)) rmdirSync(nm); } catch { /* junction có thể đã gỡ */ }
-    try { unlinkSync(join(this.dir, 'vitest-out.json')); } catch { /* không sao */ }
-    try {
-      git(this.repo, ['worktree', 'remove', '--force', this.dir]);
-    } catch {
-      try { rmSync(this.dir, { recursive: true, force: true }); git(this.repo, ['worktree', 'prune']); } catch { /* bỏ qua */ }
+    try { if (existsSync(nm)) rmdirSync(nm); } catch { /* junction có thể đã gỡ, hoặc là thư mục thật */ }
+    // Sau `:U`, thư mục lượt chạy thuộc SUBUID của container — tài khoản dịch vụ không xoá nổi nó
+    // (đo được: `rm -rf` thất bại, thư mục còn lại). Dọn qua `podman unshare` là đường duy nhất, và nó
+    // phải chạy TRƯỚC `rmSync` chứ không phải sau: `rmSync` thất bại im lặng rồi thư mục ở lại mãi.
+    if (this.coLap.muc === 'container') {
+      const don = spawnSync('podman', ['unshare', 'rm', '-rf', this.dir], { encoding: 'utf8', timeout: 60_000 });
+      if (don.status !== 0) console.error(`không dọn được thư mục lượt chạy ${this.dir}: ${(don.stderr || '').slice(0, 200)}`);
     }
+    try { rmSync(this.dir, { recursive: true, force: true }); } catch { /* bỏ qua — thư mục tạm */ }
   }
 }

@@ -7,7 +7,7 @@ import { describeSources } from './sources.js';
 import { redactMessage } from '../../shared/src/message-egress.js';
 import { refHitsNew, ruleCoverage } from './spec-units.js';
 import { classifyInsufficientBasis, hasBasis, hasNoBaseline, missingRegressionFindings, regressionFloor } from './verdict.js';
-import { Sandbox, type LoadFailure, type ProbeResult } from './sandbox.js';
+import { Sandbox, type IsolationInfo, type LoadFailure, type ProbeResult } from './sandbox.js';
 import { updateHistory, readProbeLibrary, admitToLibrary, repoSlug, splitOneProbe, findAndDropBehaviorDuplicates, quarantineProbes, chooseQuarantineTargets } from './probe-library.js';
 import { getCodeExamples, knowledgeByTrigger } from './trigger-examples.js';
 import { isValidTrigger, type TriggerId } from './trigger-catalog.js';
@@ -533,6 +533,8 @@ export async function runCodeSkill(
   const library = readProbeLibrary(slug);
   /** Probe bị cách ly TRONG lượt này — ghi dấu vào sổ sau khi lượt chấm kết thúc, không ghi giữa chừng. */
   const cachLyTrongLuot: { ten: string; ly_do: string; sha_goc: string }[] = [];
+  /** Mức cô lập THỰC TẾ, ghi lại từ sandbox đã dựng — không phải mức mong muốn từ cấu hình. */
+  let coLapThucTe: IsolationInfo = { muc: 'none', ly_do_khong: 'chưa dựng sandbox nào' };
   const runner = readRunnerCfg(repo);
   const rao = makeFence();
   if (review) phat({ type: 'log', msg: `Tri thức nghiệp vụ per-repo từ checkmate.yml: ${review.khuon_loi?.length ?? 0} khuôn lỗi${review.severity_map ? ' + thang severity riêng' : ''}` });
@@ -574,7 +576,8 @@ export async function runCodeSkill(
     const boQua = new Set<string>();
     const tenThuVien = new Set(library.map((f) => f.ten));
     const chay = (sha: string): { probes: ProbeResult[]; ok: boolean; loiThu: string; treo?: boolean; loiNap?: LoadFailure[] } => {
-      const sb = new Sandbox(repo, sha);
+      const sb = new Sandbox(repo, sha, runner?.image);
+      coLapThucTe = sb.coLap;
       try {
         const files = [
           sb.ghiProbe(codeMoi, fileProbeMoi, runner?.probe_dir ?? 'test'),
@@ -653,7 +656,7 @@ export async function runCodeSkill(
 
   // gom ứng viên + phân loại máy; retry sinh lại 1 lần nếu file mới lỗi thu thập HOẶC >50% probe mới hỏng
   let ungVienTatCa: UngVien[] = [];
-  const thongKe = { ke_hoach: keHoach.length, ghi_nhan: 0, pass: 0, hoi_quy: 0, vi_pham_luat_moi: 0, ngoai_pham_vi: 0, nghi_loi_co_san: 0, nghi_van: 0, cai_thien: 0, bo_qua: 0, that_lac: [] as string[], cach_ly: 0, luat_da_phu: undefined as string[] | undefined, luat_tong: undefined as number | undefined, trigger_distribution: {} as Record<string, number> };
+  const thongKe = { ke_hoach: keHoach.length, ghi_nhan: 0, pass: 0, hoi_quy: 0, vi_pham_luat_moi: 0, ngoai_pham_vi: 0, nghi_loi_co_san: 0, nghi_van: 0, cai_thien: 0, bo_qua: 0, that_lac: [] as string[], cach_ly: 0, co_lap: undefined as IsolationInfo | undefined, luat_da_phu: undefined as string[] | undefined, luat_tong: undefined as number | undefined, trigger_distribution: {} as Record<string, number> };
   for (let lan = 1; lan <= 2; lan++) {
     const { branchKq, baseKq, loiThu, treoBranch } = chayCaHaiNhanh(code);
     if (treoBranch) {
@@ -787,6 +790,8 @@ export async function runCodeSkill(
     ].filter(Boolean);
     thongKe.that_lac = [...new Set(idChoDoi)].filter((id) => !idGhiNhan.has(id));
     thongKe.cach_ly = cachLyTrongLuot.length;
+    // Mức THỰC TẾ, không phải mức mong muốn: cấu hình bật mà runtime lỗi lúc dựng thì đây là `none`.
+    thongKe.co_lap = coLapThucTe;
     if (thongKe.that_lac.length > 0) {
       phat({ type: 'log', msg: `C5: probe đã đưa vào chạy nhưng KHÔNG thấy kết quả (thất lạc): ${thongKe.that_lac.join(', ')}` });
     }
