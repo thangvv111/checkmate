@@ -43,13 +43,34 @@ describe('hình dạng cấu hình repo (R4.1 · R4.2 · R4.3 · R4.4)', () => {
     expect(ra.repo.github).toBe('a/one');
   });
 
-  it('R4.4 — cấu hình khuyết vẫn ra được thứ dùng được, không ném', () => {
+  /**
+   * Ca này ĐỔI cùng change `empty-repo-list-is-a-real-state`, và nó đỏ là Ý MUỐN.
+   *
+   * Bản trước đòi `repos.length > 0` với MỌI cấu hình khuyết — tức khoá đúng hành vi «không biết repo nào
+   * thì đoán lấy một», thứ đã tự khởi hai lượt chấm trên repo ma ngay sau khi người vận hành dọn sạch
+   * prod. Vế «KHÔNG được để trống» của R4.4 sinh ra để chống **màn hình chết vì trỏ nhầm** khi danh sách
+   * còn phần tử khác, không phải để cấm trạng thái «chưa kết nối repo nào»; biên ấy nay khai rõ ở
+   * capability `repo-history`.
+   *
+   * Giữ nguyên vế vẫn đúng và là vế thật sự load-bearing: **không ném**. Cấu hình khuyết vẫn phải đọc
+   * được — nếu không thì màn Cấu hình, đúng cái lối thoát duy nhất để thêm repo, cũng chết theo.
+   */
+  it('R4.4 — cấu hình khuyết đọc được, KHÔNG ném, và không đoán ra repo nào', () => {
     for (const luu of [{}, { repos: [] }, { repo_dang_chon: 'x/y' }]) {
       expect(() => resolveRepoShape(luu as never)).not.toThrow();
       const ra = resolveRepoShape(luu as never);
-      expect(ra.repos.length).toBeGreaterThan(0);
-      expect(ra.repo).toBeTruthy();
+      expect(ra.repos).toEqual([]);
+      expect(ra.repo).toBeUndefined();
+      expect(ra.repo_dang_chon).toBe('');
     }
+  });
+
+  it('R4.4 — khuyết trường danh sách nhưng CÓ repo đời cũ thì vẫn dùng được ngay', () => {
+    // Chiều hại ngược của ca trên: nghiêng quá tay thì người dùng đời cũ mở lên thấy trắng trơn.
+    const ra = resolveRepoShape({ repo: repoGia('cu/doi-cu'), repo_dang_chon: 'x/y' } as never);
+    expect(ra.repos).toHaveLength(1);
+    expect(ra.repo?.github).toBe('cu/doi-cu');
+    expect(ra.repo_dang_chon).toBe('cu/doi-cu');
   });
 });
 

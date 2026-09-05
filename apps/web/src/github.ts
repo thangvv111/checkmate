@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import type { CheckmateConfig } from './config.js';
+import type { CauHinhCoRepo, CheckmateConfig } from './config.js';
 import { readRepoToken } from './secret-vault.js';
 // Hợp đồng nguồn spec ở TẦNG NỀN: app không được import engine (lưới kien-truc-tang) — web và engine
 // chỉ nói chuyện qua tiến trình CLI. Một glob, một cửa đọc `sources` cho cả router lẫn engine.
@@ -109,7 +109,7 @@ export interface CurrentPr {
   tacGia?: string;
 }
 
-export async function getCurrentPr(cfg: CheckmateConfig, so: number): Promise<CurrentPr> {
+export async function getCurrentPr(cfg: CauHinhCoRepo, so: number): Promise<CurrentPr> {
   const p = (await goiApi(cfg, `/repos/${cfg.repo.github}/pulls/${so}`)) as {
     head: { sha: string };
     state: string;
@@ -126,7 +126,7 @@ export async function getCurrentPr(cfg: CheckmateConfig, so: number): Promise<Cu
  * verdict hết hiệu lực; cái này hỏi «chuyện gì đã xảy ra với PR» để biết sổ có đang im lặng không.
  */
 export async function prState(
-  cfg: CheckmateConfig,
+  cfg: CauHinhCoRepo,
   so: number,
   repoGithub?: string,
 ): Promise<{ trang_thai: 'mo' | 'merged' | 'dong'; nguoi_merge?: string; tac_gia?: string }> {
@@ -144,11 +144,11 @@ export async function prState(
   return { trang_thai, nguoi_merge: p.merged_by?.login ?? undefined, tac_gia: p.user?.login };
 }
 
-export async function commentPr(cfg: CheckmateConfig, so: number, body: string): Promise<void> {
+export async function commentPr(cfg: CauHinhCoRepo, so: number, body: string): Promise<void> {
   await goiApiGhi(cfg, 'POST', `/repos/${cfg.repo.github}/issues/${so}/comments`, { body });
 }
 
-export async function mergePr(cfg: CheckmateConfig, so: number, tieuDe: string, moTa: string, sha?: string): Promise<void> {
+export async function mergePr(cfg: CauHinhCoRepo, so: number, tieuDe: string, moTa: string, sha?: string): Promise<void> {
   await goiApiGhi(cfg, 'PUT', `/repos/${cfg.repo.github}/pulls/${so}/merge`, {
     merge_method: 'merge',
     commit_title: tieuDe,
@@ -160,7 +160,7 @@ export async function mergePr(cfg: CheckmateConfig, so: number, tieuDe: string, 
 }
 
 // Trả về dev: thử review Request-changes; GitHub cấm author tự request-changes PR của mình → fallback comment
-export async function returnToDev(cfg: CheckmateConfig, so: number, body: string): Promise<'review' | 'comment'> {
+export async function returnToDev(cfg: CauHinhCoRepo, so: number, body: string): Promise<'review' | 'comment'> {
   try {
     await goiApiGhi(cfg, 'POST', `/repos/${cfg.repo.github}/pulls/${so}/reviews`, {
       event: 'REQUEST_CHANGES',
@@ -175,7 +175,7 @@ export async function returnToDev(cfg: CheckmateConfig, so: number, body: string
 
 // Chế độ trực (B4.3): gắn check status lên commit — PR hiện dấu xanh/đỏ của CheckMate
 export async function setCommitStatus(
-  cfg: CheckmateConfig,
+  cfg: CauHinhCoRepo,
   sha: string,
   state: 'success' | 'failure' | 'pending',
   moTa: string,
@@ -187,7 +187,7 @@ export async function setCommitStatus(
   });
 }
 
-export async function closePr(cfg: CheckmateConfig, so: number): Promise<void> {
+export async function closePr(cfg: CauHinhCoRepo, so: number): Promise<void> {
   await goiApiGhi(cfg, 'PATCH', `/repos/${cfg.repo.github}/pulls/${so}`, { state: 'closed' });
   clearPrCache();
 }
@@ -231,7 +231,7 @@ async function goiApi(_cfg: CheckmateConfig | null, path: string, tokenEp?: stri
 let cachePr: { key: string; luc: number; data: PrSummary[] } | null = null;
 export function clearPrCache(): void { cachePr = null; }
 
-export async function listPrs(cfg: CheckmateConfig): Promise<PrSummary[]> {
+export async function listPrs(cfg: CauHinhCoRepo): Promise<PrSummary[]> {
   const key = cfg.repo.github;
   if (cachePr && cachePr.key === key && Date.now() - cachePr.luc < 30_000) return cachePr.data;
   const data = (await goiApi(
@@ -422,7 +422,7 @@ export function refNames(so: number): { headRef: string; baseRef: string } {
 }
 
 // Fetch PR + nhánh đích về ref local rồi ROUTER theo loại file đã đổi (specs/R13).
-export function fetchAndRoute(cfg: CheckmateConfig, so: number): FetchedPr {
+export function fetchAndRoute(cfg: CauHinhCoRepo, so: number): FetchedPr {
   const lp = cfg.repo.local_path;
   const { headRef, baseRef } = refNames(so);
   git(lp, ['fetch', '-f', nguonFetch(cfg.repo.github), `+refs/pull/${so}/head:${headRef}`, `+refs/heads/${cfg.repo.base_branch}:${baseRef}`]);
