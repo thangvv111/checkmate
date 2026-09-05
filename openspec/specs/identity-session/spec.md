@@ -36,8 +36,19 @@ sổ có đủ hàng mà không trả lời được câu duy nhất nó sinh ra
 
 ### Requirement: Không phiên hợp lệ thì chặn tất cả, kể cả khi lớp xác thực bên ngoài đã cho qua
 
-Không có phiên hợp lệ thì mọi hành động SHALL bị từ chối (gốc: R11.2), **kể cả khi** một lớp xác thực bên
-ngoài (Basic Auth ở proxy) đã cho request đi qua. Lớp ngoài trả lời «có ai đó được vào», không trả lời «ai».
+Không có phiên hợp lệ thì mọi hành động SHALL bị từ chối (gốc: R11.2). Gác này MUST NOT tựa vào bất kỳ lớp
+xác thực nào bên ngoài ứng dụng.
+
+**Change `login-gate-replaces-basic-auth` đổi lớp này từ «lớp thứ hai» thành «lớp duy nhất».** Trước đó
+prod còn HTTP Basic Auth ở nginx; luật cũ viết «kể cả khi lớp ngoài đã cho qua» — tức lớp trong được thiết
+kế để không tựa vào lớp ngoài, nhưng thực tế vẫn có lớp ngoài đứng đó. Nay không còn. Điều này KHÔNG đổi
+hành vi của gác — nó đổi **hậu quả của một lỗi trong gác**: trước, một lỗ ở đây còn một lớp nữa che; sau,
+một lỗ ở đây là một lỗ ra thẳng Internet. Ghi ra vì người sửa sau này cần biết mình đang sửa cái gì.
+
+Lý do lớp ngoài bị gỡ chứ không được giữ làm lớp phòng thủ thứ hai: Basic Auth trả lời «có ai đó được vào»
+chứ không trả lời «ai», nên nó không phân vai, không ghi sổ, không hết hạn, và mật khẩu của nó dùng chung
+cho mọi người. Nó cũng đã phải bị đục thủng cho webhook GitHub. Một lớp không phân biệt được người và đã có
+lỗ sẵn thì giá trị phòng thủ của nó thấp hơn cái giá nó gây ra: một cửa mở mà không ai theo dõi.
 
 Đường không cần phiên SHALL được khai bằng **danh sách CHO PHÉP** đóng, không bằng danh sách chặn. Nới danh
 sách ấy là mở một cửa vào hệ thống, nên nó phải là thay đổi nhìn thấy được và có lưới khoá.
@@ -50,7 +61,7 @@ của nó không có người bấm trong hệ này — ranh giới ấy thuộc
 
 #### Scenario: request không phiên tới đường thường
 - **WHEN** một request không mang phiên hợp lệ tới đường không nằm trong danh sách cho phép
-- **THEN** bị chặn, không được đi tiếp, dù lớp xác thực ngoài đã cho qua
+- **THEN** bị chặn, không được đi tiếp
 
 #### Scenario: đường trong danh sách cho phép
 - **WHEN** request tới `/login`, `/logout` hoặc `/health`
@@ -59,6 +70,10 @@ của nó không có người bấm trong hệ này — ranh giới ấy thuộc
 #### Scenario: hình dạng từ chối theo bề mặt
 - **WHEN** đường bị chặn bắt đầu bằng `/api/`
 - **THEN** trả JSON kèm mã lỗi, KHÔNG trả HTML chuyển hướng
+
+#### Scenario: không còn lớp ngoài để dựa
+- **WHEN** một đường được thêm vào danh sách cho phép
+- **THEN** nó phải tự đứng được trước Internet — không được biện minh bằng «đã có lớp xác thực ngoài»
 
 ### Requirement: Tài khoản sống trong cơ sở dữ liệu, tên ép khuôn tại nguồn, quản trị bằng lệnh trên máy chủ
 
@@ -92,6 +107,13 @@ Sai mật khẩu SHALL trả về **cùng một thông điệp** với sai tên 
 nhau là một cửa dò: kẻ tấn công thử một danh sách tên và biết tên nào có thật, rồi mới dồn sức đoán mật khẩu
 của đúng những tên đó.
 
+**Từ chối vì tần suất là một trạng thái KHÁC, và nó được phép nói ra** (`login-throttle`). Luật trên giấu
+*tài khoản nào có thật*; thông điệp tần suất chỉ nói về *hành vi của chính người đang gõ*, thứ họ đã biết.
+Gộp hai trạng thái làm một thì người vận hành gõ sai vài lần sẽ thấy mật khẩu đúng bị báo là sai, và đi đổi
+mật khẩu — hỏng một thứ đang không hỏng. Đổi lại, thông điệp tần suất MUST NOT phụ thuộc vào việc tên ấy có
+thật hay không: rào SHALL đếm tên không tồn tại y như tên có thật, không thì chính nó thành cửa dò mà luật
+này vừa đóng.
+
 #### Scenario: sai mật khẩu và tên không tồn tại
 - **WHEN** đăng nhập với mật khẩu sai, và đăng nhập với một tên không tồn tại
 - **THEN** hai lần đều trả cùng một kết quả — không lần nào xác nhận tài khoản nào có thật
@@ -99,6 +121,10 @@ của đúng những tên đó.
 #### Scenario: mật khẩu trong cơ sở dữ liệu
 - **WHEN** đọc thẳng bảng tài khoản
 - **THEN** không tìm thấy mật khẩu ở dạng đọc được
+
+#### Scenario: tên không tồn tại bị dò nhiều lần
+- **WHEN** một tên KHÔNG tồn tại bị thử sai nhiều lần liên tiếp, và một tên CÓ thật cũng vậy
+- **THEN** hai bên bị lùi dần y như nhau — hành vi của rào không tố cáo tên nào có thật
 
 ### Requirement: Phiên có token ngẫu nhiên chỉ lưu hash, có hạn, và chết thật khi đăng xuất hoặc gỡ tài khoản
 

@@ -12,7 +12,7 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       HMAC-SHA256 trên raw body (so timing-safe) và repo phải nằm trong danh sách đã khai. `security.md` viết
       riêng trước khi có dòng code nào, đúng yêu cầu của mục nợ này. nginx miễn Basic Auth cho ĐÚNG một đường
       bằng `location =`; đường anh em vẫn ăn 401 của nginx (đã đo từ ngoài Internet). Nguồn: `man-run-va-cong-merge`.
-- [ ] 4. Bỏ Basic Auth ở nginx — gói ba việc, **rào `/login` (giới hạn tần suất / khoá tạm) đi trước**, rồi mới
+- [x] 4. ✅ XONG 06/09 — change `login-gate-replaces-basic-auth` (PR #71 rào · #72 sửa log · #73 thông điệp). Rào lên trước, đo trên prod, rồi mới gỡ nginx — đúng thứ tự PO chốt. Bỏ Basic Auth ở nginx — gói ba việc, **rào `/login` (giới hạn tần suất / khoá tạm) đi trước**, rồi mới
       bỏ lớp ngoài. Nguồn: `man-run-va-cong-merge`.
 - [x] 5. ✅ XONG 05/09 — cả năm màn về khớp gói design CCS qua ba change:
       **Lịch sử · Sổ cái · Tin cậy** (`data-table-screens-ccs`) · **Cấu hình** (`settings-screen-ccs`) ·
