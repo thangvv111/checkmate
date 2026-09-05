@@ -68,11 +68,23 @@ sau**: lớp ngoài đã gỡ mà rào trong chưa chứng minh được là đa
 
 ## 7. Deploy BƯỚC MỘT — rào lên trước, nginx GIỮ NGUYÊN
 
-- [ ] 7.1 Deploy theo 4 bước `DEPLOY.md` (sao lưu → pack → giải nén + cài → đối chiếu số).
-- [ ] 7.2 ⛔ **Kiểm rào chạy THẬT trên prod, không suy từ ca test.** Gõ sai `POST /login` quá ngưỡng qua
+- [x] 7.1 Deploy theo 4 bước `DEPLOY.md` (sao lưu → pack → giải nén + cài → đối chiếu số).
+- [x] 7.2 ⛔ **Kiểm rào chạy THẬT trên prod, không suy từ ca test.** Gõ sai `POST /login` quá ngưỡng qua
       HTTPS thật (vẫn còn Basic Auth nên phải kèm `-u`), xác nhận bị từ chối và **thời gian trả lời sụt
       hẳn** — sụt là bằng chứng scrypt không chạy, tức gác đứng đúng chỗ.
-- [ ] 7.3 Xác nhận đăng nhập đúng vẫn vào được sau khi hết hạn phạt.
+- [x] 7.3 Xác nhận đăng nhập đúng vẫn vào được sau khi hết hạn phạt.
+
+## § Đo được ở §7 (06/09, prod)
+
+
+
+**Tụt từ ~50 ms xuống 1–2 ms là bằng chứng gác đứng TRƯỚC phép băm** — thứ ca test đơn vị không
+chứng minh được trên máy thật.
+
+⚠ **Đo được một chỗ CHƯA TỐT, ghi lại thay vì bỏ qua:** 13 lượt bị chặn mà log chỉ ghi «chặn 1 lượt».
+ báo số dồn ở lần phát KẾ TIẾP, nên một đợt tấn công ngắn hơn 60 giây kết thúc bằng đúng một
+dòng nói «1». Không sai về luật (trần tần suất vẫn đúng như spec đòi) nhưng **con số làm người vận hành
+ước lượng thấp đi**. Xem nợ N2.
 
 ## 8. Deploy BƯỚC HAI — gỡ Basic Auth (⛔ CHỜ PO CHỐT, tin riêng)
 
@@ -87,6 +99,9 @@ sau**: lớp ngoài đã gỡ mà rào trong chưa chứng minh được là đa
 
 ## § Sau-merge — nợ có tên
 
+- [ ] N2 **Log của rào báo số thấp hơn thực tế ở đợt ngắn** (đo 06/09 §7): 13 lượt chặn → log ghi «chặn
+      1 lượt». Hướng sửa: phát theo MỐC luỹ tiến (lần 1, 10, 100, 1000…) BÊN CẠNH trần thời gian — vừa
+      có tín hiệu ngay vừa có độ lớn, mà không mở lại đường làm đầy đĩa.
 - [ ] N1 **Soi được trạng thái rào ở màn Cấu hình** (đang chặn IP nào, tài khoản nào đang lùi). Biến cơ chế
       vô hình thành thứ nhìn được. Không làm trong change này: nó là bề mặt UI mới, trộn vào đây là trộn
       hai hồ sơ rủi ro trong một lần duyệt. Mở nếu PO thấy cần.
