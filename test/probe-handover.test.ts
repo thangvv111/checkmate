@@ -263,6 +263,10 @@ describe('thư viện probe thật sự ĐÃ ĐI RỒI (T4)', () => {
     // Nhãn này do đúng một dòng sinh ra, gác bằng `nguon === 'thu_vien'`, và chưa bao giờ được khai
     // trong spec `probe-classification`. Gỡ thư viện làm code thôi làm một việc spec không cho phép.
     expect(SKILL).not.toMatch(/trangThai = 'nghi_loi_co_san'/);
+    // Và DÒNG LOG tóm tắt cũng thôi nhắc nhãn ấy. Một con số không bao giờ khác 0 mà vẫn in ra ở mọi lượt
+    // là con số trang trí — nó dạy người đọc lướt qua chính dòng log mang các số thật.
+    // Bắt được khi chạy thật trên prod 06/09: log vẫn in «0 nghi lỗi có sẵn (thư viện)».
+    expect(SKILL).not.toContain('nghi lỗi có sẵn');
   });
 
   it('T4.5 ⛔C2 — CÁI MẤT hiện ra: lượt chấm khai PHẠM VI đã dò', () => {

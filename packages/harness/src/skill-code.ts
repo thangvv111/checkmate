@@ -714,7 +714,7 @@ export async function runCodeSkill(
     const tomTat = (loai: ProbeState) => ungVienTatCa.filter((u) => u.trangThai === loai);
     phat({
       type: 'log',
-      msg: `Phân loại máy: ${tomTat('pass').length} pass · ${tomTat('hoi_quy').length} hồi quy · ${tomTat('vi_pham_luat_moi').length} vi phạm luật mới · ${tomTat('ngoai_pham_vi').length} ngoài phạm vi (fail cả 2 nhánh) · ${tomTat('nghi_loi_co_san').length} nghi lỗi có sẵn (thư viện) · ${tomTat('nghi_van').length} nghi vấn · ${tomTat('cai_thien').length} cải thiện · ${tomTat('bo_qua').length} bỏ qua (skip)`,
+      msg: `Phân loại máy: ${tomTat('pass').length} pass · ${tomTat('hoi_quy').length} hồi quy · ${tomTat('vi_pham_luat_moi').length} vi phạm luật mới · ${tomTat('ngoai_pham_vi').length} ngoài phạm vi (fail cả 2 nhánh) · ${tomTat('nghi_van').length} nghi vấn · ${tomTat('cai_thien').length} cải thiện · ${tomTat('bo_qua').length} bỏ qua (skip)`,
     });
     // C5: thống kê độ phủ đưa vào verdict + truy vết probe thất lạc
     thongKe.ghi_nhan = ungVienTatCa.length;
