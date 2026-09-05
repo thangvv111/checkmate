@@ -10,15 +10,17 @@ import { CSS, escHtml } from './ui.js';
  * cách chắc chắn để một bên trôi đi mà không ai thấy.
  */
 
-export type LoginState = 'moi' | 'sai_mat_khau' | 'phien_het_han' | 'chua_co_tai_khoan';
+export type LoginState = 'moi' | 'sai_mat_khau' | 'phien_het_han' | 'chua_co_tai_khoan' | 'bi_chan_tan_suat';
 
 export interface LoginView {
   trangThai: LoginState;
   /** đường quay lại sau khi đăng nhập — chỉ nhận đường nội bộ */
   tiep?: string;
+  /** số giây còn phải chờ; chỉ có nghĩa khi `trangThai = 'bi_chan_tan_suat'` */
+  choGiay?: number;
 }
 
-const BANNER: Record<Exclude<LoginState, 'moi'>, { nen: string; chu: string; loi: string }> = {
+const BANNER: Record<Exclude<LoginState, 'moi' | 'bi_chan_tan_suat'>, { nen: string; chu: string; loi: string }> = {
   sai_mat_khau: {
     nen: 'var(--fail-tint)',
     chu: 'var(--fail-ink)',
@@ -62,8 +64,35 @@ const CSS_LOGIN = `
     overflow-x:auto; margin:9px 0 0; }
 `;
 
+/**
+ * Băng «đang bị tạm chặn» — dựng riêng vì nó mang một con số.
+ *
+ * Đây là ngoại lệ CÓ CHỦ ĐÍCH của R11.10 («không phân biệt thông điệp»). Luật ấy giấu *tài khoản nào có
+ * thật*; câu này chỉ nói về *hành vi của chính người đang gõ*, thứ họ đã biết. Gộp nó vào «sai mật khẩu»
+ * thì người vận hành gõ sai vài lần sẽ thấy mật khẩu ĐÚNG bị báo là sai, rồi đi đổi mật khẩu — hỏng một
+ * thứ đang không hỏng.
+ *
+ * Nhưng nó KHÔNG được nói gác nào đang chặn, cũng không nói còn mấy lần nữa thì bị chặn: hai thứ đó biến
+ * trang này thành bảng điều khiển cho người đang dò.
+ */
+function throttleBanner(giay?: number): { nen: string; chu: string; loi: string } {
+  const s = Number.isFinite(giay) && (giay as number) > 0 ? Math.ceil(giay as number) : null;
+  return {
+    nen: 'var(--medium-tint)',
+    chu: 'var(--medium-ink)',
+    loi: s
+      ? `Quá nhiều lần thử. Chờ khoảng ${s} giây rồi đăng nhập lại — mật khẩu của bạn không bị đổi.`
+      : 'Quá nhiều lần thử. Chờ một lát rồi đăng nhập lại — mật khẩu của bạn không bị đổi.',
+  };
+}
+
 export function loginPage(v: LoginView): string {
-  const b = v.trangThai === 'moi' ? null : BANNER[v.trangThai];
+  const b =
+    v.trangThai === 'moi'
+      ? null
+      : v.trangThai === 'bi_chan_tan_suat'
+        ? throttleBanner(v.choGiay)
+        : BANNER[v.trangThai];
   const chuaCoTk = v.trangThai === 'chua_co_tai_khoan';
 
   return `<!doctype html>

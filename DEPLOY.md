@@ -7,18 +7,89 @@ URL: https://checkmate.botswain.net (Lightsail 47.131.132.95, dùng chung máy v
 - nginx vhost `/etc/nginx/sites-available/checkmate` → proxy 4001, **tắt buffering** cho SSE (log chấm chảy realtime), timeout 600s.
 - SSL Let's Encrypt (certbot --nginx), tự gia hạn, hết hạn 25/11/2026. HTTP tự chuyển HTTPS.
 - Source: `/home/ubuntu/checkmate-app/{checkmate,demo-credit-approval,demo-python}`; log: `~/checkmate-app/checkmate.log`.
-- `CHECKMATE_MODE=org` → mở /settings và cổng merge/reject (đã an toàn nhờ lớp Basic Auth nginx bên dưới; đổi về `demo` trong unit systemd nếu muốn khoá chỉ-đọc).
-- **HTTP Basic Auth** ở tầng nginx: user `checkmate`, mật khẩu do chủ máy chọn (hash apr1 tại
-  `/etc/nginx/.htpasswd-checkmate`, quyền 640 root:www-data). Có **hai** đường được miễn trừ auth,
-  và chỉ hai: `/.well-known/acme-challenge/` (thiếu thì certbot renew thất bại, SSL chết sau 90 ngày) và
-  `/api/webhook/github` (GitHub không gửi được Basic Auth). Xem mục webhook bên dưới trước khi mở đường thứ hai.
+- `CHECKMATE_MODE=org` → mở /settings và cổng merge/reject. Đổi về `demo` trong unit systemd nếu muốn khoá chỉ-đọc.
 
-### Đổi mật khẩu về sau
+### Vì sao `MODE=org` được phép mở — lập luận SAU khi đã gỡ Basic Auth
+
+> Đến 05/09/2026 câu biện minh ở đây là «đã an toàn nhờ lớp Basic Auth nginx bên dưới». Lớp ấy **đã được
+> gỡ** (change `login-gate-replaces-basic-auth`), nên câu ấy không còn đúng. Nó được **viết lại** chứ
+> không xoá: đây là chỗ người sau đọc để hiểu vì sao một chế độ mở cổng merge lại được bật trên một máy
+> chủ có mặt trên Internet. Xoá đi là để lại một quyết định không có lý do.
+
+Lập luận hiện hành đứng trên **bốn** chân, không chân nào là «có một lớp nữa ở ngoài»:
+
+1. **Cửa phiên là allowlist mặc-định-chặn.** `evaluateSessionGate` từ chối mọi đường không nằm trong
+   `OPEN_PATHS`; danh sách ấy đóng, có lưới khoá **nội dung**, nên thêm một cửa là một thay đổi nhìn thấy
+   được chứ không phải một dòng lọt qua review.
+2. **Bốn đường mở đều tự đứng được.** `/login` là cửa vào và **có rào tần suất riêng**; `/logout` chỉ xoá
+   phiên của chính người gọi; `/health` chỉ trả `{ok:true}`; `/api/webhook/github` có hai gác độc lập
+   (HMAC-SHA256 trên raw body **và** repo phải nằm trong danh sách đã khai).
+3. **`MODE=org` mở *bề mặt*, không mở *quyền*.** Ai bấm được cổng vẫn do **vai** quyết định
+   (`canOperateGate`), và ⛔C1 vẫn đứng: máy không bao giờ merge. Basic Auth chưa bao giờ tham gia vào
+   quyết định ấy — nó chỉ trả lời «có ai đó được vào», không trả lời «ai».
+4. **Mỗi hành động cổng đều để lại vết** trong sổ chỉ-ghi-thêm, gắn tên người bấm. Basic Auth không làm
+   được điều này: mật khẩu của nó dùng chung, nên nó không phân biệt được người.
+
+Chân số 2 là chân duy nhất phải **chứng minh lại mỗi khi thêm đường vào `OPEN_PATHS`** — requirement
+«đường mới phải tự đứng được trước Internet» ở capability `identity-session` khai đúng nghĩa vụ đó.
+
+**Không còn HTTP Basic Auth ở nginx.** File `/etc/nginx/.htpasswd-checkmate` được **giữ lại** làm đường
+lùi (xem mục «Gỡ / khôi phục Basic Auth» bên dưới), nhưng không cấu hình nào còn trỏ tới nó.
+
+### Rào đăng nhập — và đường thoát khi nó chặn oan
+
+`POST /login` có rào chống dò: **đếm theo IP** (quá 10 lần sai trong 15 phút → chặn IP đó 15 phút) và
+**lùi dần theo tài khoản** (từ lần sai thứ 3: chờ 1s, 2s, 4s… tối đa 60s). Trạng thái nằm **trong bộ nhớ
+tiến trình**, không trong cơ sở dữ liệu.
+
+Hệ quả vận hành quan trọng — **đường thoát khi chính chủ máy bị chặn oan**:
+
+```bash
+sudo systemctl restart checkmate    # xoa sach trang thai rao, dang nhap lai duoc ngay
+```
+
+Ghi ở đây vì người ta cần biết điều này **trước** lúc cuống, không phải lúc đang cuống. Mất trạng thái khi
+restart là chấp nhận được: kẻ tấn công không gây được restart — họ chỉ chạm tới nginx.
+
+Rào **cố ý không phân biệt** tên tài khoản có thật với tên không tồn tại; nếu nó phân biệt thì chính nó
+thành cửa dò tài khoản. Và log của nó ghi tên đã **che** — ô tên đăng nhập là chỗ người ta gõ nhầm mật
+khẩu vào, nên ghi nguyên văn là ghi mật khẩu vào log.
+
+### Gỡ / khôi phục Basic Auth ở nginx
+
+Basic Auth **đã gỡ** 06/09/2026. Cách gỡ đã dùng — và cách lùi nếu cần:
+
+```bash
+sudo nano /etc/nginx/sites-available/checkmate
+#   trong `server { … }`: COMMENT hai dòng
+#       # auth_basic "CheckMate";
+#       # auth_basic_user_file /etc/nginx/.htpasswd-checkmate;
+#   và bỏ hai dòng `auth_basic off;` đã thành thừa (miễn trừ của một lớp không còn tồn tại
+#   thì đọc lên gây hiểu nhầm là nó còn). GIỮ NGUYÊN `location ^~ /.well-known/acme-challenge/`
+#   — certbot renew cần nó, thiếu thì SSL chết sau 90 ngày.
+
+sudo nginx -t          # ⛔ BẮT BUỘC trước reload: cấu hình sai + reload = mất cả site, không chỉ mất auth
+sudo systemctl reload nginx
+```
+
+**Lùi lại** (nếu cần bật lại lớp ngoài): bỏ comment hai dòng trên, `sudo nginx -t`, reload. File
+`/etc/nginx/.htpasswd-checkmate` **được giữ nguyên** nên không phải đặt lại mật khẩu.
+
+Đổi mật khẩu của file ấy (chỉ có nghĩa khi đã bật lại):
 ```
 printf '%s' 'MAT-KHAU-MOI' | openssl passwd -apr1 -stdin   # ra hash
 sudo nano /etc/nginx/.htpasswd-checkmate                    # sửa thành  checkmate:HASH
 sudo systemctl reload nginx
 ```
+
+**Kiểm sau khi gỡ** (ba phép, làm cả ba):
+```bash
+curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' https://checkmate.botswain.net/   # 303 -> /login  (KHONG 401)
+curl -s https://checkmate.botswain.net/api/runs | head -c 120                              # JSON 401, khong phai HTML
+curl -s -o /dev/null -w '%{http_code}\n' -X POST https://checkmate.botswain.net/api/webhook/github  # webhook van nhan
+```
+`401` ở phép thứ nhất nghĩa là chưa gỡ xong; **nội dung ứng dụng** ở đó nghĩa là cửa phiên đang hỏng —
+dừng lại và lùi ngay.
 
 ## Webhook GitHub — chấm ngay khi PR mở, thay vì đợi chu kỳ trực
 
@@ -51,14 +122,24 @@ tiếp). Xoá khoá ấy đi là tắt webhook ngay, không cần đổi gì kh�
 
 ```nginx
 location = /api/webhook/github {
-    auth_basic off;                 # GitHub khong gui duoc Basic Auth
     proxy_pass http://127.0.0.1:4001;
     proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Real-IP $remote_addr;          # GHI DE — rao dang nhap doc header nay
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
 }
 ```
+
+> Khối này từng có `auth_basic off;` — đã bỏ cùng lúc gỡ Basic Auth: miễn trừ của một lớp không còn tồn
+> tại thì đọc lên gây hiểu nhầm là lớp ấy còn.
+
+⛔ **`X-Real-IP` không phải dòng trang trí.** Rào đăng nhập đếm theo header này, và nó tin được **chỉ vì**
+nginx **ghi đè** nó. Dòng `X-Forwarded-For $proxy_add_x_forwarded_for` bên dưới thì **nối thêm** vào giá
+trị client tự gửi — phần tử đầu của nó do client viết, nên nó **không** dùng được để đếm. Bỏ dòng
+`X-Real-IP` đi thì rào tụt về đếm theo địa chỉ socket (tức đếm chung cả nginx thành một nguồn) và mọi
+người dùng chung một xô. Ứng dụng nghe trên `127.0.0.1` là tiền đề của cả lập luận này — đổi sang
+`0.0.0.0` là rào mất hiệu lực **không có triệu chứng gì**; có lưới khoá địa chỉ nghe ở
+`test/login-throttle.test.ts`.
 
 Dùng `location =` (khớp **chính xác**) chứ không `location /api/webhook` — tiền tố sẽ miễn auth cho mọi
 đường con thêm về sau, tức một cửa mở ra mà không ai định mở. Đo được từ ngoài sau khi đặt (05/09):

@@ -19,6 +19,13 @@ import {
   createSession,
   deleteSession,
 } from './identity.js';
+import {
+  clientKey,
+  maskAccountKey,
+  runLoginAttempt,
+  newThrottleState,
+  shouldLog,
+} from './login-throttle.js';
 import { buildSessionCookie, evaluateSessionGate, OPEN_PATHS } from './session-gate.js';
 import { evaluatePurgeRequest } from './probe-gate.js';
 import { verifyWebhookSignature, decideWebhookAction } from './webhook.js';
@@ -88,24 +95,74 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 app.get('/login', (req, res) => {
   if (identityIfAny(req)) return res.redirect(303, '/');
   const q = req.query as Record<string, string>;
+  const choGiay = Number(q.cho);
   const trangThai: LoginState = !hasAnyAccount()
     ? 'chua_co_tai_khoan'
-    : q.het === '1'
-      ? 'phien_het_han'
-      : q.sai === '1'
-        ? 'sai_mat_khau'
-        : 'moi';
-  res.send(loginPage({ trangThai, tiep: internalPath(q.tiep) }));
+    : Number.isFinite(choGiay) && choGiay > 0
+      ? 'bi_chan_tan_suat'
+      : q.het === '1'
+        ? 'phien_het_han'
+        : q.sai === '1'
+          ? 'sai_mat_khau'
+          : 'moi';
+  res.send(loginPage({ trangThai, tiep: internalPath(q.tiep), choGiay: Math.ceil(choGiay) || undefined }));
 });
+
+/**
+ * Trạng thái rào đăng nhập — một bản cho cả tiến trình, dựng một lần lúc khởi động.
+ *
+ * Trong bộ nhớ chứ không trong SQLite: ghi một hàng cho mỗi lần đăng nhập sai biến `/login` thành máy bơm
+ * ghi đĩa, tức chính rào chống DoS lại mở một đường DoS mới, rẻ hơn đường nó vừa bịt. Mất trạng thái khi
+ * restart là mất thật, nhưng kẻ tấn công không gây được restart — họ chỉ chạm tới nginx.
+ *
+ * Đi kèm: đồng hồ ĐƠN ĐIỆU. Trạng thái sống trong tiến trình nên `performance.now()` là cặp nhất quán với
+ * nó, và nó không nhảy khi NTP chỉnh giờ — `Date.now()` nhảy tiến sẽ làm án phạt hết sớm, tức fail-open.
+ */
+const throttleState = newThrottleState();
+const throttleClock = (): number => performance.now();
 
 app.post('/login', (req, res) => {
   const b = req.body as Record<string, string>;
-  const dt = verifyPassword((b.ten ?? '').trim(), b.mk ?? '');
-  if (!dt) {
-    // Cùng một câu cho sai tên lẫn sai mật khẩu (R11.10)
-    const tiep = internalPath(b.tiep);
-    return res.redirect(303, `/login?sai=1${tiep ? `&tiep=${encodeURIComponent(tiep)}` : ''}`);
+  const ten = (b.ten ?? '').trim();
+  const ipKey = clientKey(req.headers, req.socket?.remoteAddress);
+  const accountKey = maskAccountKey(ten);
+  const tiepRao = internalPath(b.tiep);
+
+  // ⛔ THỨ TỰ LÀ LUẬT, không phải phong cách (`login-throttle` §1).
+  //
+  // Gác đứng TRƯỚC `verifyPassword`. Băm ở đây là scrypt N=16384 — chậm CÓ CHỦ ĐÍCH — nên đặt gác sau
+  // phép băm thì rào chặn được đoán mật khẩu mà KHÔNG chặn được chi phí CPU, tức mất đúng nửa lý do nó
+  // tồn tại. Nhìn từ ngoài hai cách viết y hệt nhau; thứ phân biệt chúng là ca test đếm số lần
+  // `verifyPassword` được gọi.
+  //
+  // Và từ chối bằng TRẢ LỜI NGAY, không bằng `sleep`: ngủ giữ connection sống, tức biến rào chống DoS
+  // thành công cụ vắt cạn connection pool.
+  // `verifyPassword` đi vào qua tham số `verify` chứ KHÔNG được gọi thẳng ở đây — đó là cách thứ tự trở
+  // thành thứ đo được: ca test đếm số lần nó được gọi khi đang bị chặn, và con số phải là 0.
+  const kq = runLoginAttempt({
+    ipKey,
+    accountKey,
+    state: throttleState,
+    now: throttleClock(),
+    verify: () => verifyPassword(ten, b.mk ?? ''),
+  });
+
+  if (kq.ket === 'bi_chan') {
+    const nhipLog = shouldLog(throttleState, throttleClock());
+    if (nhipLog.ghi) {
+      // Tên đã CHE (⛔C3): ô tên là chỗ người ta gõ nhầm mật khẩu vào, nên ghi nguyên văn là ghi mật khẩu
+      // vào log. Bản che vẫn phân biệt được hai tên khác nhau, nếu không thì mất luôn khả năng thấy
+      // «một tên bị dò nhiều lần» khác «nhiều tên bị thử một lần».
+      console.error(`rào đăng nhập: chặn ${nhipLog.donLai} lượt · tài khoản ${accountKey} · nguồn ${ipKey}`);
+    }
+    return res.redirect(303, `/login?cho=${kq.choGiay}${tiepRao ? `&tiep=${encodeURIComponent(tiepRao)}` : ''}`);
   }
+
+  if (kq.ket === 'sai') {
+    // Cùng một câu cho sai tên lẫn sai mật khẩu (R11.10)
+    return res.redirect(303, `/login?sai=1${tiepRao ? `&tiep=${encodeURIComponent(tiepRao)}` : ''}`);
+  }
+  const dt = kq.danhTinh;
   const { token, hetHan } = createSession(dt.ten);
   res.setHeader('set-cookie', buildSessionCookie(req.headers['x-forwarded-proto'], SESSION_COOKIE_NAME, token, hetHan));
   res.redirect(303, internalPath(b.tiep) || '/');
