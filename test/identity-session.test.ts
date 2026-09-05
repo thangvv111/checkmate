@@ -174,6 +174,15 @@ describe('R11.2 — không phiên hợp lệ thì chặn, kể cả khi lớp ng
     expect(qd).toMatchObject({ pass: false, as: 'json', status: 401 });
   });
 
+  it('⛔ văn bản của gác không còn biện minh bằng «đã có lớp ngoài»', () => {
+    // Sau khi Basic Auth bị gỡ, một comment nói «kể cả khi lớp ngoài đã cho qua» là văn bản ĐANG SAI —
+    // và người sửa sau đọc comment chứ không đọc lịch sử change. Gỡ lớp ngoài KHÔNG đổi hành vi của gác
+    // này; nó đổi HẬU QUẢ của một lỗ trong gác: trước còn một lớp nữa che, nay là lỗ ra thẳng Internet.
+    const src = readFileSync(join(process.cwd(), 'apps/web/src/session-gate.ts'), 'utf8');
+    expect(src).toMatch(/lớp DUY NHẤT/);
+    expect(src, 'phải nói rõ Basic Auth ĐÃ ĐƯỢC GỠ, không phải «sẽ gỡ»').toMatch(/đã được gỡ|ĐÃ ĐƯỢC GỠ/);
+  });
+
   it('đường trang bị chặn → chuyển hướng về màn đăng nhập, mang theo đường quay lại', async () => {
     const qd = (await gate())({ path: '/runs', hasSession: false, method: 'GET', originalUrl: '/runs?x=1' });
     expect(qd).toMatchObject({ pass: false, as: 'redirect', status: 303 });
@@ -190,6 +199,37 @@ describe('R11.2 — không phiên hợp lệ thì chặn, kể cả khi lớp ng
     // nhờ hai gác riêng — HMAC trên raw body, và repo phải đã khai — chứ không nhờ được miễn.
     const { OPEN_PATHS } = await import('../apps/web/src/session-gate.js');
     expect([...OPEN_PATHS].sort()).toEqual(['/api/webhook/github', '/health', '/login', '/logout']);
+  });
+});
+
+// ------------------------------------------- R11.10 × login-throttle
+
+describe('R11.10 + login-throttle — từ chối vì TẦN SUẤT là trạng thái RIÊNG', () => {
+  it('trạng thái tần suất tách bạch với «sai mật khẩu»', async () => {
+    // R11.10 giấu *tài khoản nào có thật*. Thông điệp tần suất chỉ nói về *hành vi của chính người đang
+    // gõ*, thứ họ đã biết — nên nó được phép nói ra, và PHẢI nói ra: gộp vào «sai mật khẩu» thì người
+    // vận hành gõ sai vài lần sẽ thấy mật khẩu ĐÚNG bị báo là sai rồi đi đổi mật khẩu, tức hỏng một thứ
+    // đang không hỏng.
+    const { loginPage } = await import('../apps/web/src/ui-login.js');
+    const sai = loginPage({ trangThai: 'sai_mat_khau' });
+    const chan = loginPage({ trangThai: 'bi_chan_tan_suat', choGiay: 4 });
+
+    expect(sai).toContain('Tên đăng nhập hoặc mật khẩu không đúng');
+    expect(sai).not.toMatch(/Chờ khoảng/);
+    expect(chan).toMatch(/Chờ khoảng 4 giây/);
+    expect(chan).not.toContain('Tên đăng nhập hoặc mật khẩu không đúng');
+  });
+
+  it('⛔ rào KHÔNG phân biệt tên có thật với tên không tồn tại', async () => {
+    // Nếu rào bỏ qua tên không tồn tại (để «đỡ tốn bộ nhớ») thì hành vi chặn tự tố cáo tài khoản nào có
+    // thật — cửa dò mà R11.10 đóng ở tầng THÔNG ĐIỆP bị mở lại ở tầng THỜI GIAN.
+    const lt = await import('../apps/web/src/login-throttle.js');
+    const dau = (khoa: string) => {
+      const st = lt.newThrottleState();
+      for (let i = 0; i < 6; i++) lt.recordFailure({ ipKey: `ip-${i}`, accountKey: khoa, state: st, now: 0 });
+      return lt.evaluateLoginAttempt({ ipKey: 'ip-sach', accountKey: khoa, state: st, now: 0 });
+    };
+    expect(dau(lt.maskAccountKey('co-that'))).toEqual(dau(lt.maskAccountKey('khong-ton-tai-7c1e')));
   });
 });
 

@@ -17,9 +17,15 @@
 /**
  * Đường KHÔNG cần phiên.
  *
- * Nới danh sách này là mở một cửa vào hệ thống, và sau khi bỏ Basic Auth ở nginx (nợ #4) thì đây là
- * HÀNG RÀO DUY NHẤT giữa Internet và ứng dụng. Ba đường đầu không gây tác dụng phụ nào: `/login` là
- * cửa vào, `/logout` xoá phiên của chính người gọi, `/health` chỉ đọc.
+ * Nới danh sách này là mở một cửa vào hệ thống, và **từ change `login-gate-replaces-basic-auth` thì đây
+ * là HÀNG RÀO DUY NHẤT** giữa Internet và ứng dụng — Basic Auth ở nginx đã gỡ, không còn lớp nào phía
+ * ngoài. Ba đường đầu không gây tác dụng phụ nào: `/login` là cửa vào, `/logout` xoá phiên của chính
+ * người gọi, `/health` chỉ đọc.
+ *
+ * ⛔ `/login` không tác dụng phụ nhưng **có chi phí**: mỗi lượt POST tốn một lần scrypt N=16384 của máy
+ * chủ. Nên nó có rào riêng (`login-throttle`), và rào ấy phải đứng TRƯỚC phép băm. Ba đường còn lại đứng
+ * được **không phải vì có gác**, mà vì chúng không tốn gì đáng kể — đó là một LẬP LUẬN, không phải một
+ * cơ chế. Ai thêm đường thứ tư vào đây phải chứng minh lại đúng điều đó cho đường của mình.
  *
  * `/api/webhook/github` là đường ĐẦU TIÊN vừa không cần phiên vừa GÂY TÁC DỤNG PHỤ (khởi lượt chấm,
  * tiêu token, chiếm trần). Nó đứng được ở đây vì có hai gác riêng, độc lập với nhau: chữ ký HMAC trên
@@ -33,10 +39,14 @@ export type SessionGateDecision =
   | { pass: false; as: 'redirect'; status: 303; to: string };
 
 /**
- * R11.2 — không có phiên hợp lệ thì chặn, KỂ CẢ khi lớp xác thực bên ngoài đã cho qua.
+ * R11.2 — không có phiên hợp lệ thì chặn. Gác này KHÔNG tựa vào bất kỳ lớp nào bên ngoài ứng dụng.
  *
- * Lớp ngoài (Basic Auth ở proxy) trả lời «có ai đó được vào», không trả lời «ai». Khi lớp ấy được gỡ
- * (nợ có tên #4) thì gác này thành lớp DUY NHẤT — nên nó phải gọi được từ test TRƯỚC khi việc đó xảy ra.
+ * Lớp ngoài (Basic Auth ở proxy) trả lời «có ai đó được vào», không trả lời «ai» — nó không phân vai,
+ * không ghi sổ, không hết hạn, và đã phải bị đục thủng cho webhook GitHub. Nó **đã được gỡ**
+ * (`login-gate-replaces-basic-auth`), nên gác này nay là lớp DUY NHẤT.
+ *
+ * Điều đó không đổi hành vi của gác — nó đổi **hậu quả của một lỗi trong gác**: trước, một lỗ ở đây còn
+ * một lớp nữa che; nay một lỗ ở đây là một lỗ ra thẳng Internet.
  *
  * Hình dạng từ chối khác nhau theo bề mặt là có chủ đích: client gọi API mà nhận HTML thì lỗi biến thành
  * «JSON hỏng», tức lại một ca báo sai bản chất.
