@@ -100,10 +100,29 @@ function stripLabel(n: number): string {
   return n >= TRAN_LICH_SU ? `${n} lượt gần nhất — mới nhất bên phải` : `${n} lượt · mới nhất bên phải`;
 }
 
+/**
+ * Khối cách ly — nói ĐỦ ba điều: đang bị loại, vì sao, và từ bao giờ.
+ *
+ * Nó KHÔNG ẩn probe đi. Một probe biến mất không lời giải thích đúng là thứ màn này vừa mất công đóng
+ * lại ở change trước; cách ly mà giấu thì chỉ đổi chỗ cùng một lỗi.
+ */
+function quarantineBox(m: ProbeLibEntry): string {
+  if (!m.cach_ly) return '';
+  return `<div class="probe-cachly">
+<div class="probe-cachly-dau"><b>Đang bị cách ly</b> — probe này KHÔNG nạp được trên nhánh gốc, nên nó bị loại khỏi mọi lượt chấm cho tới khi được gỡ dấu. Nó vẫn còn nguyên trong thư viện.</div>
+<div class="probe-cachly-ly">${escHtml(String(m.cach_ly.ly_do ?? '').slice(0, 400) || '(không có lý do ghi kèm)')}</div>
+<div class="probe-cachly-luc">phát hiện ${escHtml(String(m.cach_ly.luc ?? '').slice(0, 16).replace('T', ' '))} · nhánh gốc ${escHtml(String(m.cach_ly.sha_goc ?? '?').slice(0, 7))}</div>
+</div>`;
+}
+
 function probeRow(m: ProbeLibEntry): string {
   const plan = m.plan ?? ({} as ProbeLibEntry['plan']);
   const ten = escHtml(m.ten);
-  return `<div class="probe-dong">
+  const soLuot = (m.lich_su ?? []).length;
+  // Nút phá huỷ phải nói trước CÁI MẤT, và bước xác nhận tách khỏi cú bấm đầu (data-mat đọc ở lượt hai).
+  const nutGo = `<button class="btn phu probe-nut-go" data-ten="${ten}" data-mat="${soLuot} lượt lịch sử hành vi${m.da_bat_hoi_quy ? ' · probe NÀY ĐÃ TỪNG BẮT HỒI QUY' : ''}" type="button">Gỡ khỏi thư viện</button>`;
+  const nutGoDau = m.cach_ly ? `<button class="btn phu probe-nut-godau" data-ten="${ten}" type="button">Gỡ dấu cách ly</button>` : '';
+  return `<div class="probe-dong${m.cach_ly ? ' probe-dong-cachly' : ''}">
   <div class="probe-grid">
     <div style="min-width:0">
       <div class="probe-ten-hang"><span class="probe-ten">${ten}</span>${ruleTags(plan.spec_rule)}</div>
@@ -117,11 +136,45 @@ function probeRow(m: ProbeLibEntry): string {
       <div class="hv-dai">${behaviorStrip(m.lich_su)}</div>
       <div class="probe-tomtat">${escHtml(summarizeBehavior(m.lich_su))}</div>
     </div>
-    <button class="btn phu probe-nut-code" data-ten="${ten}" type="button">Xem code probe</button>
+    <div class="probe-nut-cot">
+      <button class="btn phu probe-nut-code" data-ten="${ten}" type="button">Xem code probe</button>
+      ${nutGoDau}
+      ${nutGo}
+    </div>
   </div>
+  ${quarantineBox(m)}
   <pre class="probe-code" hidden></pre>
 </div>`;
 }
+
+/**
+ * Xoá TOÀN BỘ thư viện — đường một chiều nhất của màn này.
+ *
+ * Xác nhận bằng cách GÕ LẠI tên repo, không phải một hộp «có/không». Một hộp có/không cạnh một nút bấm
+ * nhầm không phải một quyết định — nó là một cú bấm thứ hai. Máy chủ kiểm lại chuỗi ấy, nên ô này là
+ * lớp thứ hai chứ không phải lớp duy nhất.
+ */
+function purgeBlock(repoFull: string, soProbe: number): string {
+  if (!soProbe) return '';
+  return `<section class="probe-khu probe-xoa">
+<h4 style="margin:0 0 2px">Xoá toàn bộ thư viện</h4>
+<p class="sub" style="margin:0 0 10px">Xoá <b>${soProbe} probe</b> của <span class="mono">${escHtml(repoFull)}</span> và toàn bộ lịch sử hành vi của chúng.
+Đây là <b>tài sản tích luỹ qua từng lượt chấm</b> và không dựng lại được — thư viện sẽ mọc lại từ đầu, mất hết những probe đã từng bắt hồi quy.
+Sổ gỡ vẫn giữ nguyên: mỗi probe ra đi để lại một dòng, kèm tên người xoá.</p>
+<div class="probe-xoa-hang">
+  <input id="xac-nhan-xoa" placeholder="gõ lại: ${escHtml(repoFull)}" autocomplete="off" spellcheck="false">
+  <button class="btn phu probe-nut-xoa" data-repo="${escHtml(repoFull)}" type="button">Xoá thư viện</button>
+</div>
+</section>`;
+}
+
+/** Bốn loại gỡ — hai do máy quyết, hai do người. Chỉ hai loại sau có ai chịu trách nhiệm. */
+const REMOVAL_KIND_LABEL: Record<string, string> = {
+  trung_lap: 'gỡ vì trùng lặp',
+  dao_thai: 'đào thải vì vượt trần',
+  nguoi_go: 'người vận hành gỡ',
+  nguoi_xoa_thu_vien: 'người vận hành xoá cả thư viện',
+};
 
 function removalsBlock(so: RemovalLog): string {
   if (!so.ton_tai && !so.dong_hong) {
@@ -135,14 +188,14 @@ function removalsBlock(so: RemovalLog): string {
       (b) => `<div class="go-hang">
 <span class="go-ten">${escHtml(b.go)}</span>
 <span class="mono">${b.giu ? escHtml(b.giu) : '<span class="go-trong">— không có probe thay thế</span>'}</span>
-<span>${escHtml(b.loai === 'trung_lap' ? 'gỡ vì trùng lặp' : 'đào thải vì vượt trần')} · ${escHtml(b.ly_do ?? '')}</span>
+<span>${escHtml(REMOVAL_KIND_LABEL[b.loai] ?? String(b.loai))}${b.boi ? ` · <b>${escHtml(b.boi)}</b>` : ''} · ${escHtml(b.ly_do ?? '')}</span>
 <span class="go-bc">${escHtml(b.bang_chung ?? '—')}</span>
 </div>`,
     )
     .join('');
   return `<section class="probe-khu">
 <h4 style="margin:0 0 2px">Probe đã gỡ</h4>
-<p class="sub" style="margin:0 0 10px">Chỉ đọc, chỉ ghi thêm. <b>Hai lý do khác nhau</b>: gỡ vì trùng lặp có probe được giữ thay; đào thải vì vượt trần thì không có gì thay nó.</p>
+<p class="sub" style="margin:0 0 10px">Chỉ đọc, chỉ ghi thêm. <b>Bốn lý do khác nhau</b>: gỡ vì trùng lặp có probe được giữ thay; đào thải vì vượt trần thì không có gì thay nó; hai loại do người vận hành gỡ thì mang tên người.</p>
 ${so.dong_hong ? `<div class="card" style="border-left:4px solid var(--medium);background:var(--medium-tint);margin-bottom:10px"><b>${so.dong_hong} dòng trong sổ gỡ không đọc được</b> — đã bỏ qua. Sổ ghi bằng cách nối thêm dòng, nên một tiến trình chết giữa chừng để lại dòng cụt. Con số này hiện ra thay vì bị nuốt: một sổ hỏng dần trông y hệt một sổ trống.</div>` : ''}
 <div class="go-dau"><span>Gỡ</span><span>Giữ</span><span>Lý do</span><span>Bằng chứng</span></div>
 ${hang || '<p class="sub">Sổ có mặt nhưng chưa dòng nào đọc được.</p>'}
@@ -169,6 +222,39 @@ document.addEventListener('click', async (e) => {
   o.hidden = false;
   nut.disabled = false;
   nut.textContent = 'Ẩn code';
+});
+
+// Ba hanh dong pha huy. Buoc XAC NHAN tach khoi cu bam dau: lan bam thu nhat doi nut thanh mot cau
+// noi ro CAI MAT, lan thu hai moi goi may chu. Khong dung confirm() vi no khong noi duoc cai mat.
+function callLibraryApi(duong, than, nut) {
+  nut.disabled = true;
+  fetch(duong, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(than) })
+    .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
+    .then(({ ok, d }) => { if (ok) location.reload(); else { alert(d.loi || 'không thực hiện được'); nut.disabled = false; } })
+    .catch((e) => { alert('không gọi được máy chủ: ' + e); nut.disabled = false; });
+}
+
+document.addEventListener('click', (e) => {
+  const goDau = e.target.closest('.probe-nut-godau');
+  if (goDau) return callLibraryApi('/api/probes/unquarantine', { ten: goDau.dataset.ten }, goDau);
+
+  const go = e.target.closest('.probe-nut-go');
+  if (go) {
+    if (go.dataset.xn !== '1') {
+      go.dataset.xn = '1';
+      go.textContent = 'Bấm lần nữa để gỡ — mất ' + go.dataset.mat;
+      return;
+    }
+    return callLibraryApi('/api/probes/remove', { ten: go.dataset.ten }, go);
+  }
+
+  const xoa = e.target.closest('.probe-nut-xoa');
+  if (xoa) {
+    const o = document.getElementById('xac-nhan-xoa');
+    // Kiem o CA HAI phia: o day de noi ngay, va o may chu vi day la thu nguoi ta bo qua duoc.
+    if (o.value.trim() !== xoa.dataset.repo) { alert('Gõ đúng tên repo để xác nhận: ' + xoa.dataset.repo); o.focus(); return; }
+    return callLibraryApi('/api/probes/purge', { xac_nhan: o.value.trim() }, xoa);
+  }
 });`;
 
 const LEGEND = ['pass', 'hoi_quy', 'ngoai_pham_vi', 'nghi_van', 'khong_chay']
@@ -260,5 +346,5 @@ ${removalsBlock(so)}`;
     .sort((a, b) => String(b.luc ?? '').localeCompare(String(a.luc ?? '')))
     .map(probeRow)
     .join('');
-  return `${dau}${dong}${removalsBlock(so)}`;
+  return `${dau}${dong}${removalsBlock(so)}${purgeBlock(repoFull, ix.probes.length)}`;
 }

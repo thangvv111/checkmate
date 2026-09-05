@@ -101,6 +101,12 @@ const coLuat = verdict({
   probe_stats: { ke_hoach: 3, ghi_nhan: 3, pass: 3, hoi_quy: 0, ngoai_pham_vi: 0, nghi_loi_co_san: 0, nghi_van: 0, cai_thien: 0, bo_qua: 0, that_lac: [], luat_da_phu: ['Duyệt › Ngưỡng theo vai', 'Duyệt'], luat_tong: 3 },
 });
 
+/** Cắt đúng hàng «Độ phủ luật» khỏi bảng số liệu — luật này nói về hàng ấy, không về cả bảng. */
+const hangDoPhu = (bang: string): string => {
+  const i = bang.indexOf('Độ phủ luật');
+  return i < 0 ? '' : bang.slice(i, bang.indexOf('</div>', i) + 6);
+};
+
 describe('màn Run và bảng verdict', () => {
   it('không có luật → banner đứng TRƯỚC verdict và nêu đã dò ở đâu; bảng ghi «không đo được», không ghi 0', () => {
     const html = runPage(meta(khongLuat), false, []);
@@ -111,7 +117,7 @@ describe('màn Run và bảng verdict', () => {
     expect(html).toContain('sources.specs');
     const bang = verdictHtml(khongLuat);
     expect(bang).toContain('KHÔNG CÓ — chấm không có luật đối chiếu');
-    expect(bang).toContain('không đo được');
+    expect(hangDoPhu(bang)).toContain('không đo được');
     expect(bang).not.toMatch(/0\/0/);
   });
 
@@ -128,7 +134,10 @@ describe('màn Run và bảng verdict', () => {
     const bang = verdictHtml(coLuat);
     expect(bang).toContain('3 đơn vị · 1 file · tự dò');
     expect(bang).toContain('2/3 đơn vị có probe');
-    expect(bang).not.toContain('không đo được');
+    // Thu hẹp về ĐÚNG hàng độ phủ. Bản trước quét cả bảng, và nó đỏ khi change `probe-quarantine`
+    // thêm hàng «◍ cách ly: không đo được» — hàng ấy nói một chuyện KHÁC (verdict đời cũ chưa có phép
+    // đo cách ly) và nó đúng. Một phép quét cả bảng cho một luật về MỘT hàng là lỗi lưới loại 3.
+    expect(hangDoPhu(bang)).not.toContain('không đo được');
   });
 
   it('bản ghi đời cũ (không có spec_source) → không banner, không hàng độ phủ: vắng là KHÔNG BIẾT, không phải «không có»', () => {

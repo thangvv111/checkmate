@@ -147,7 +147,18 @@ export interface Verdict {
     nghi_van: number;
     cai_thien: number;
     bo_qua: number;
-    that_lac: string[]; // id probe trong kế hoạch nhưng không thấy khi chạy
+    that_lac: string[]; // id probe ĐÃ ĐƯA VÀO CHẠY nhưng không thấy kết quả — kể cả probe thư viện
+    /**
+     * Số probe thư viện bị CÁCH LY trong lượt này — không nạp được trên nhánh gốc, nên bị loại ra để
+     * lượt chấm chạy tiếp được.
+     *
+     * VẮNG mặt ở verdict đời cũ, và bề mặt đọc phải phân biệt vắng-mặt với `0`: `0` nghĩa là đã đếm và
+     * không probe nào bị cách ly; vắng nghĩa là lượt chấm ấy chạy trước khi có phép đo này.
+     *
+     * Con số này nói lượt chấm **yếu đi bao nhiêu**. Giấu nó đi thì cách ly biến một lỗi ỒN ÀO (lượt chấm
+     * chết) thành một lỗi IM LẶNG (PASS mỏng hơn tưởng) — đổi một cái dở lấy một cái nguy hiểm hơn.
+     */
+    cach_ly?: number;
     /**
      * Phân bố probe theo trigger — CHỈ bề mặt người xem (màn cấu hình thuật toán sẽ đọc).
      * TUYỆT ĐỐI không phát ngược vào prompt và không có chỉ tiêu «phủ đủ trigger»: trần probe đã
@@ -181,7 +192,14 @@ export interface Verdict {
    * `evicted` — probe đã có bị gỡ, tức MẤT tài sản đã chứng minh được mình.
    * Hai việc hậu quả khác hẳn nhau nên tách mã, không gộp thành một cờ.
    */
-  library_changes?: Array<{ probe_id: string; action: 'not_admitted' | 'evicted'; reason: string }>;
+  /**
+   * Ba việc KHÁC NHAU, và không được gộp:
+   *   `not_admitted` — probe MỚI của lượt này không được nhận vào thư viện. Thư viện không mất gì.
+   *   `evicted`      — probe ĐÃ CÓ bị gỡ (trùng lặp hoặc vượt trần). Thư viện mất một phép thử, vĩnh viễn.
+   *   `quarantined`  — probe ĐÃ CÓ bị cách ly vì không nạp được trên nhánh gốc. Nó **vẫn còn**, chỉ thôi
+   *                    tham gia lượt chấm cho tới khi người vận hành gỡ dấu — đảo ngược được, khác hẳn `evicted`.
+   */
+  library_changes?: Array<{ probe_id: string; action: 'not_admitted' | 'evicted' | 'quarantined'; reason: string }>;
   /** Nhánh gốc không chạy được probe nào — probe đỏ khi đó chỉ là nghi vấn, không thành hồi quy. */
   no_baseline?: boolean;
   /**

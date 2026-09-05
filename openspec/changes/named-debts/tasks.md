@@ -118,3 +118,19 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       repo thứ hai sẽ tưởng trực đang canh cả hai.
       *Cẩn thận khi làm:* quét N repo mỗi chu kỳ là N lần hạn ngạch GitHub và N lần chi phí; phải có trần
       đồng thời và thứ tự công bằng trước khi mở, chứ không phải chỉ đổi `cfg.repo` thành `cfg.repos`.
+
+- [ ] 21. **Lưới `r-rules-map` nổ ENOENT mỗi lần archive** (đo được HAI lần trong ngày 05/09: archive
+      `empty-repo-list-is-a-real-state` và archive `probe-library-screen`). Nguyên nhân: nó đọc mọi file
+      `git ls-files` theo dõi mà không kiểm tồn tại; archive DỜI cả thư mục change nên chỉ mục git còn trỏ
+      vào đường cũ cho tới lúc commit. Triệu chứng là `ENOENT` giữa một lượt `npm test` đang xanh — nhìn
+      như lưới hỏng chứ không như «chỉ mục lệch đĩa», nên tốn một lượt chẩn đoán mỗi lần.
+      *Cẩn thận khi làm:* bỏ qua file không tồn tại là làm phép quét **bớt phủ** đi một cách im lặng — đúng
+      thứ loại lỗi lưới số 1. Muốn sửa thì phải nói ra: đếm số file bỏ qua và đỏ nếu con số ấy khác 0 mà
+      không phải đang ở giữa một lượt archive. Vì nó đổi hành vi của một lưới, phải đi qua change riêng.
+
+- [ ] 22. **Đếm SỐ VÒNG cách ly chưa có ca khoá** (từ `probe-quarantine-and-cleanup`, 05/09). Trần vòng
+      (`QUARANTINE_ROUND_CAP`) đã có ca và có mutation; thứ chưa khoá là «không còn ứng viên thì KHÔNG chạy
+      thừa một vòng». Kiểm được nó đòi lái `chayCaHaiNhanh` với sandbox giả, mà vòng lặp nằm trong closure
+      không export — tách ra là đổi hình dạng đường chạy chấm.
+      *Hại nếu sai:* tốn tối đa hai lượt sandbox thừa mỗi lượt chấm, không sai kết quả. Nên nó là nợ chứ
+      không phải chặn.
