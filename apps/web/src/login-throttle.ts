@@ -51,9 +51,13 @@ export interface ThrottleEntry {
 export interface ThrottleState {
   theoIp: Map<string, ThrottleEntry>;
   theoTaiKhoan: Map<string, ThrottleEntry>;
-  /** Mốc lần ghi log gần nhất + số lần đã dồn kể từ đó (trần tần suất ghi sổ). */
+  /** Mốc lần GHI LOG gần nhất, và số lượt đã dồn kể từ đó. */
   logLanCuoi: number;
   logDonLai: number;
+  /** Mốc lượt BỊ CHẶN gần nhất — dùng để biết một đợt đã kết thúc chưa (khác `logLanCuoi`). */
+  logChanCuoi: number;
+  /** Tổng số lượt bị chặn trong ĐỢT hiện tại — con số mốc luỹ tiến đếm theo. */
+  logTongDot: number;
 }
 
 export type LoginThrottleDecision =
@@ -61,7 +65,14 @@ export type LoginThrottleDecision =
   | { choQua: false; choGiay: number };
 
 export function newThrottleState(): ThrottleState {
-  return { theoIp: new Map(), theoTaiKhoan: new Map(), logLanCuoi: -Infinity, logDonLai: 0 };
+  return {
+    theoIp: new Map(),
+    theoTaiKhoan: new Map(),
+    logLanCuoi: -Infinity,
+    logDonLai: 0,
+    logChanCuoi: -Infinity,
+    logTongDot: 0,
+  };
 }
 
 // ---------- Danh tính client ----------
@@ -269,14 +280,51 @@ export function runLoginAttempt<T>(input: {
  * Có nên ghi một dòng log lần này không — trần tần suất của riêng việc ghi sổ.
  *
  * Ghi một dòng cho mỗi lần thử biến một trận dò thành một trận làm đầy đĩa: rào lại đẻ ra đường DoS thứ
- * hai. Nên rào ghi TỔNG HỢP — nhiều nhất một dòng mỗi `LOG_MIN_INTERVAL_MS`, kèm số lần đã dồn.
+ * hai. Nên phải có trần. Nhưng **trần thời gian một mình nói dối về độ lớn** — đo được trên prod 06/09
+ * (§7 của change `login-gate-replaces-basic-auth`): **13 lượt bị chặn, log ghi «chặn 1 lượt»**. Bản đầu
+ * báo số dồn ở lần phát KẾ TIẾP, nên một đợt ngắn hơn `LOG_MIN_INTERVAL_MS` kết thúc bằng đúng một dòng
+ * nói «1». Đúng luật, sai sự thật: người vận hành ước lượng thấp đi một bậc độ lớn.
+ *
+ * Nên có **hai** điều kiện phát, và chúng bù cho nhau:
+ *
+ *   - **MỐC luỹ tiến** (lượt thứ 1, 10, 100, 1000…) — cho tín hiệu NGAY và cho ĐỘ LỚN.
+ *   - **trần thời gian** — cho nhịp đều khi một đợt kéo dài không chạm mốc mới.
+ *
+ * Vẫn không mở lại đường làm đầy đĩa: mốc là luỹ thừa của 10, nên một đợt N lượt phát nhiều nhất
+ * `log10(N)+1` dòng — một triệu lượt là bảy dòng.
+ *
+ * Trả về cả `donLai` (từ lần phát trước) lẫn `tongDot` (cả đợt), vì hai con số trả lời hai câu khác nhau:
+ * «vừa rồi có gì mới» và «đợt này lớn cỡ nào».
  */
-export function shouldLog(state: ThrottleState, now: number): { ghi: boolean; donLai: number } {
-  if (!state) return { ghi: false, donLai: 0 };
+function laMoc(n: number): boolean {
+  if (n < 1) return false;
+  for (let m = 1; m <= n; m *= 10) if (m === n) return true;
+  return false;
+}
+
+export function shouldLog(
+  state: ThrottleState,
+  now: number,
+): { ghi: boolean; donLai: number; tongDot: number } {
+  if (!state) return { ghi: false, donLai: 0, tongDot: 0 };
+  const moc = typeof now === 'number' && !Number.isNaN(now) ? now : 0;
+
+  // Đợt MỚI khi đã im lặng trọn một khoảng — mốc đếm theo ĐỢT, không đếm tích luỹ từ lúc khởi động, để
+  // một đợt hôm nay không thừa hưởng con số của đợt hôm qua.
+  if (moc - (state.logChanCuoi ?? -Infinity) >= LOG_MIN_INTERVAL_MS) {
+    state.logTongDot = 0;
+    state.logDonLai = 0;
+  }
+  state.logChanCuoi = moc;
+  state.logTongDot = (state.logTongDot ?? 0) + 1;
   state.logDonLai = (state.logDonLai ?? 0) + 1;
-  if (now - (state.logLanCuoi ?? -Infinity) < LOG_MIN_INTERVAL_MS) return { ghi: false, donLai: 0 };
+
+  const quaHan = moc - (state.logLanCuoi ?? -Infinity) >= LOG_MIN_INTERVAL_MS;
+  if (!laMoc(state.logTongDot) && !quaHan) return { ghi: false, donLai: 0, tongDot: 0 };
+
   const donLai = state.logDonLai;
-  state.logLanCuoi = now;
+  const tongDot = state.logTongDot;
+  state.logLanCuoi = moc;
   state.logDonLai = 0;
-  return { ghi: true, donLai };
+  return { ghi: true, donLai, tongDot };
 }

@@ -106,10 +106,28 @@ minh được trên máy thật.
 (~0,55 giây CPU). Một mạng khoảng **27 IP** trở lên là giữ được một lõi bận liên tục. Rào này cắt chi phí
 xuống hai bậc độ lớn, **không** đưa nó về không — ai đọc số ở trên nên biết cả điều đó.
 
-⚠ **Đo được một chỗ CHƯA TỐT, ghi lại thay vì bỏ qua:** 13 lượt bị chặn mà log chỉ ghi «chặn 1 lượt».
-Hàm chặn-tần-suất-ghi-sổ báo số dồn ở lần phát **kế tiếp**, nên một đợt ngắn hơn 60 giây kết thúc bằng
-đúng một dòng nói «1». Không sai về luật — trần tần suất vẫn đúng như spec đòi — nhưng **con số làm người
-vận hành ước lượng thấp đi**. Xem nợ N2.
+⚠ **Đo được một chỗ CHƯA TỐT:** 13 lượt bị chặn mà log chỉ ghi «chặn 1 lượt». Hàm chặn-tần-suất-ghi-sổ
+báo số dồn ở lần phát **kế tiếp**, nên một đợt ngắn hơn 60 giây kết thúc bằng đúng một dòng nói «1».
+Không sai về luật — trần tần suất vẫn đúng như spec đòi — nhưng **con số làm người vận hành ước lượng
+thấp đi một bậc độ lớn**, tức sổ thành thứ đọc xong tin nhầm.
+
+✅ **Đã sửa trong chính change này (§7b) trước khi gỡ nginx** — PO chốt 06/09: sửa N2 rồi gỡ một thể.
+
+## 7b. Sửa N2 — sổ phải nói đúng độ lớn
+
+- [x] 7b.1 Hai điều kiện phát thay vì một: **mốc luỹ tiến** (lượt 1, 10, 100, 1000…) cho tín hiệu ngay và
+      độ lớn · **trần thời gian** cho nhịp đều khi đợt kéo dài không chạm mốc mới.
+- [x] 7b.2 Trần vẫn còn: mốc là luỹ thừa của 10 ⇒ đợt N lượt phát không quá bậc logarit của N dòng. Ca
+      T4.3 khoá điều này — thêm tín hiệu KHÔNG được mở lại đường làm đầy đĩa.
+- [x] 7b.3 Đếm theo **ĐỢT**, reset khi im lặng trọn một khoảng. Không thì đợt hôm nay thừa hưởng con số
+      của đợt hôm qua và mốc không bao giờ chạm nữa.
+- [x] 7b.4 Log mang **hai** con số: `chặn N lượt (đợt này M)` — chúng trả lời hai câu khác nhau.
+- [x] 7b.5 Spec `login-throttle` bổ sung yêu cầu «con số phải phản ánh độ lớn thật» + 2 scenario.
+- [x] 7b.6 Mutation 4 đột biến × 2 lượt (bỏ mốc · bỏ trần thời gian · mốc tuyến tính · không reset đợt) —
+      giết 3 / 4 / 3 / 1 ca, không cái nào sống sót.
+- [x] 7b.7 ⛔ **Ca T4.3 lần đầu viết SAI trần**: chỉ tính mốc, quên trần thời gian cũng phát. Đỏ ở
+      `expected 8 to be less than or equal to 7`. Sửa bằng cách viết trần thành CÔNG THỨC trong ca
+      (`log10(N)+1` + `khoảng-đợt / khoảng-log + 1`) chứ không phải một con số ma.
 
 ## 8. Deploy BƯỚC HAI — gỡ Basic Auth (⛔ CHỜ PO CHỐT, tin riêng)
 
@@ -124,7 +142,7 @@ vận hành ước lượng thấp đi**. Xem nợ N2.
 
 ## § Sau-merge — nợ có tên
 
-- [ ] N2 **Log của rào báo số thấp hơn thực tế ở đợt ngắn** (đo 06/09 §7): 13 lượt chặn → log ghi «chặn
+- [x] N2 ✅ XONG 06/09 ngay trong change này (§7b), trước khi gỡ nginx — PO chốt «sửa N2 trước rồi gỡ một thể». **Log của rào báo số thấp hơn thực tế ở đợt ngắn** (đo 06/09 §7): 13 lượt chặn → log ghi «chặn
       1 lượt». Hướng sửa: phát theo MỐC luỹ tiến (lần 1, 10, 100, 1000…) BÊN CẠNH trần thời gian — vừa
       có tín hiệu ngay vừa có độ lớn, mà không mở lại đường làm đầy đĩa.
 - [ ] N1 **Soi được trạng thái rào ở màn Cấu hình** (đang chặn IP nào, tài khoản nào đang lùi). Biến cơ chế

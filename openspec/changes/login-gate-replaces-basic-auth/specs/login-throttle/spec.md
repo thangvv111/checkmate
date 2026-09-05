@@ -122,6 +122,16 @@ cái đầu là dò mật khẩu một tài khoản, cái sau là quét danh sá
 Việc ghi sổ SHALL có trần tần suất của riêng nó. Ghi một dòng cho mỗi lần thử biến một trận dò thành một
 trận làm đầy đĩa, tức rào lại đẻ ra đường DoS thứ hai.
 
+Nhưng con số trong sổ SHALL phản ánh **độ lớn thật** của đợt. Trần thời gian một mình không đủ, và điều đó
+đo được chứ không phải suy đoán: bản đầu của change này chạy trên prod 06/09 với **13 lượt bị chặn** và
+ghi đúng một dòng nói **«chặn 1 lượt»** — vì nó báo số dồn ở lần phát *kế tiếp*, mà đợt kết thúc trước khi
+có lần phát kế tiếp. Không sai luật, nhưng làm người vận hành ước lượng thấp đi một bậc độ lớn, tức sổ
+trở thành thứ đọc xong tin nhầm.
+
+Nên phải có **hai** điều kiện phát: theo **mốc luỹ tiến** của số lượt trong đợt (cho tín hiệu ngay và cho
+độ lớn) và theo **trần thời gian** (cho nhịp đều khi đợt kéo dài không chạm mốc mới). Mốc SHALL thưa dần
+theo cấp số nhân để trần vẫn còn: một đợt N lượt phát không quá bậc logarit của N dòng.
+
 #### Scenario: tên thử xuất hiện trong log
 
 - **WHEN** đăng nhập sai với một tên bất kỳ, rồi đọc log
@@ -131,6 +141,16 @@ trận làm đầy đĩa, tức rào lại đẻ ra đường DoS thứ hai.
 
 - **WHEN** hai tên khác nhau bị thử
 - **THEN** hai bản che khác nhau — người đọc phân biệt được đây là hai tên, không phải một tên thử hai lần
+
+#### Scenario: một đợt ngắn kết thúc trước khi hết khoảng thời gian
+
+- **WHEN** một đợt chặn gồm nhiều lượt xảy ra rồi dừng, tất cả gọn trong một khoảng thời gian
+- **THEN** sổ vẫn cho biết đợt ấy có nhiều lượt — KHÔNG chỉ ghi một dòng nói «1 lượt»
+
+#### Scenario: đường sai — đợt rất dài làm đầy đĩa
+
+- **WHEN** một đợt kéo dài với rất nhiều lượt bị chặn
+- **THEN** số dòng sinh ra tăng theo bậc logarit chứ không theo số lượt — trần vẫn còn nguyên
 
 ### Requirement: Người bị từ chối được biết mình bị từ chối vì tần suất
 
