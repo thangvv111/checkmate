@@ -12,6 +12,7 @@ import {
   identityIfAny,
   readCookie,
   requireGateRole,
+  canOperate,
   getIdentity,
   IdentityError,
   verifyPassword,
@@ -19,12 +20,13 @@ import {
   deleteSession,
 } from './identity.js';
 import { buildSessionCookie, evaluateSessionGate, OPEN_PATHS } from './session-gate.js';
+import { evaluatePurgeRequest } from './probe-gate.js';
 import { verifyWebhookSignature, decideWebhookAction } from './webhook.js';
 import { readWebhookSecret } from './secret-vault.js';
 import { attachSecretGuard } from './response-secret-guard.js';
 import { loginPage, type LoginState } from './ui-login.js';
 import { probesPage } from './ui-probes.js';
-import { readLibraryIndex, readProbeCode, readRemovalLog, repoSlug } from '../../../packages/harness/src/probe-library.js';
+import { readLibraryIndex, readProbeCode, readRemovalLog, removeProbeByOperator, purgeLibrary, unquarantineProbe, repoSlug } from '../../../packages/harness/src/probe-library.js';
 
 import { type CauHinhCoRepo, LIBRARY_CAP, MODE, PROBE_DEPTH, ProviderConfigErrorCfg, clampToRange, coRepo, laRepoDaKhai, configForReview, currentConfig, maskToken, maskToken2, readConfig, migrateRepoToken, readSubscriptionToken, agentEnv, writeConfig, writeSubscriptionToken } from './config.js';
 import { PROVIDER_CATALOG, providerDefinition, validModel, readProviderCheck, writeKey, checkStillValid, type ProviderConfig, type ProviderId, type Method } from './provider.js';
@@ -389,6 +391,79 @@ app.get('/api/probes', (_req, res) => {
   const { index, removals } = readLibraryForScreen(cfg);
   // KHÔNG trả `slug` hay `local_path`: đường dẫn trên máy chủ là thông tin hạ tầng, màn không cần.
   res.json({ repo: cfg.repo.github, ...index, removals });
+});
+
+/**
+ * Danh tính + vai THAO TÁC cho ba đường phá huỷ của thư viện probe.
+ *
+ * Vai `tu_dong` (tác nhân máy) bị chặn ở `canOperate` — CÙNG cơ chế đã chặn nó ở cổng merge, không phải
+ * một phép kiểm mới ai đó phải nhớ viết. Đây là lần đầu màn Thư viện probe có nút phá huỷ, nên chỗ này
+ * là ranh giới ⛔C1 của change: máy không bao giờ xoá theo yêu cầu.
+ *
+ * Tên người lấy TỪ PHIÊN, không bao giờ từ thân yêu cầu — nhận `boi` từ client là để bất kỳ ai cũng ký
+ * tên người khác vào một hành động một chiều.
+ */
+function readOperatorIdentity(req: import('express').Request): IdentityCheck {
+  try {
+    const dt = getIdentity(req);
+    if (!canOperate(dt)) {
+      throw new IdentityError(`Tài khoản «${dt.ten}» mang vai ${dt.vai}, không được thao tác lên thư viện probe.`, 'khong_du_quyen');
+    }
+    return { ok: true, ten: dt.ten };
+  } catch (e) {
+    return {
+      ok: false,
+      status: e instanceof IdentityError && e.ma === 'khong_du_quyen' ? 403 : 401,
+      message: (e as Error).message,
+    };
+  }
+}
+
+/** Gom ba bước mở đầu giống hệt nhau của ba đường: có repo · đủ vai · lấy slug. Một chỗ, không ba chỗ. */
+function openLibraryRoute(req: import('express').Request, res: import('express').Response): { slug: string; repo: string; boi: string } | null {
+  const cfg = readConfig();
+  if (!coRepo(cfg)) {
+    res.status(409).json({ loi: 'Chưa kết nối repo nào — thư viện probe dựng theo repo.' });
+    return null;
+  }
+  const dt = readOperatorIdentity(req);
+  if (!dt.ok) {
+    res.status(dt.status).json({ loi: dt.message });
+    return null;
+  }
+  return { slug: repoSlug(cfg.repo.local_path), repo: cfg.repo.github, boi: dt.ten };
+}
+
+app.post('/api/probes/remove', (req, res) => {
+  const g = openLibraryRoute(req, res);
+  if (!g) return;
+  const ten = String((req.body as Record<string, unknown>).ten ?? '');
+  // Sổ gỡ ghi TRƯỚC, file xoá SAU — luật ấy nằm trong `removeProbeByOperator`, không lặp lại ở đây.
+  if (!removeProbeByOperator(g.slug, ten, g.boi)) {
+    return res.status(404).json({ loi: 'Probe không có trong thư viện của repo này.' });
+  }
+  res.json({ ok: true });
+});
+
+app.post('/api/probes/unquarantine', (req, res) => {
+  const g = openLibraryRoute(req, res);
+  if (!g) return;
+  const ten = String((req.body as Record<string, unknown>).ten ?? '');
+  // Đường ĐẢO NGƯỢC — không xoá gì, nên không cần bước xác nhận. Đây cũng chính là lý do cách ly được
+  // phép do máy quyết: nó có một đường về.
+  if (!unquarantineProbe(g.slug, ten)) {
+    return res.status(404).json({ loi: 'Probe không có trong thư viện, hoặc không đang bị cách ly.' });
+  }
+  res.json({ ok: true });
+});
+
+app.post('/api/probes/purge', (req, res) => {
+  const g = openLibraryRoute(req, res);
+  if (!g) return;
+  // ⛔ Xác nhận bằng cách GÕ LẠI tên repo — quyết định nằm ở HÀM THUẦN, không ở route.
+  const q = evaluatePurgeRequest({ xacNhan: (req.body as Record<string, unknown>).xac_nhan, repo: g.repo });
+  if (!q.ok) return res.status(q.status).json({ loi: q.loi });
+  res.json({ ok: true, da_xoa: purgeLibrary(g.slug, g.boi) });
 });
 
 app.get('/api/probes/code', (req, res) => {

@@ -33,10 +33,23 @@ lại là làm đường kia đạt cùng tính chất, chứ không phải phá
 
 **Non-Goals**
 - Không đổi cách chọn nạn nhân đào thải, không đổi trần.
-- Không sửa `chayTheoRunner` — đường ấy đã cô lập theo file.
 - Không tự sửa probe hỏng, không tự xoá probe.
 
+*(Sửa lúc apply)* `chayTheoRunner` **có** đổi, dù bản đầu xếp nó vào Non-Goals. Nó đã cô lập về THỰC THI
+(mỗi file một lệnh riêng) nhưng vẫn bỏ cuộc ở file hỏng đầu tiên — cùng sự cố, khác lối. Nay nó thu thập
+lỗi nạp rồi đi tiếp, để hai đường chạy cho cùng một quyết định.
+
 ## Decisions
+
+### D0 — Danh sách ĐÓNG cho nguyên nhân cách ly (PO chốt 05/09)
+
+Chỉ **lỗi nạp** kích hoạt cách ly. Không phải probe treo, không phải probe fail, không phải probe flaky,
+không phải probe làm verdict xấu đi. Bảng bốn hàng ở `specs/probe-quarantine/spec.md`.
+
+Ca dễ trượt nhất là **TREO**: nó cũng làm lượt chấm không chạy được, nên nó trông như cùng một tình trạng.
+Nhưng «chạy lâu» là bằng chứng VỀ CODE ĐÍCH và đã có finding riêng (C7) — nhét nó vào đường cách ly là để
+một PR làm treo test tự gỡ được phép thử bắt nó. Trong code, nhánh `treo` thoát ra **trước** mọi phép cách
+ly, và `scanQuarantineTriggers` khoá đúng thứ tự ấy.
 
 ### D1 — «Lỗi nạp» nhận diện bằng HÌNH DẠNG kết quả, không bằng bắt chuỗi lỗi
 

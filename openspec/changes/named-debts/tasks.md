@@ -127,3 +127,10 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       *Cẩn thận khi làm:* bỏ qua file không tồn tại là làm phép quét **bớt phủ** đi một cách im lặng — đúng
       thứ loại lỗi lưới số 1. Muốn sửa thì phải nói ra: đếm số file bỏ qua và đỏ nếu con số ấy khác 0 mà
       không phải đang ở giữa một lượt archive. Vì nó đổi hành vi của một lưới, phải đi qua change riêng.
+
+- [ ] 22. **Đếm SỐ VÒNG cách ly chưa có ca khoá** (từ `probe-quarantine-and-cleanup`, 05/09). Trần vòng
+      (`QUARANTINE_ROUND_CAP`) đã có ca và có mutation; thứ chưa khoá là «không còn ứng viên thì KHÔNG chạy
+      thừa một vòng». Kiểm được nó đòi lái `chayCaHaiNhanh` với sandbox giả, mà vòng lặp nằm trong closure
+      không export — tách ra là đổi hình dạng đường chạy chấm.
+      *Hại nếu sai:* tốn tối đa hai lượt sandbox thừa mỗi lượt chấm, không sai kết quả. Nên nó là nợ chứ
+      không phải chặn.

@@ -7,8 +7,8 @@ import { describeSources } from './sources.js';
 import { redactMessage } from '../../shared/src/message-egress.js';
 import { refHitsNew, ruleCoverage } from './spec-units.js';
 import { classifyInsufficientBasis, hasBasis, hasNoBaseline, missingRegressionFindings, regressionFloor } from './verdict.js';
-import { Sandbox, type ProbeResult } from './sandbox.js';
-import { updateHistory, readProbeLibrary, admitToLibrary, repoSlug, splitOneProbe, findAndDropBehaviorDuplicates } from './probe-library.js';
+import { Sandbox, type LoadFailure, type ProbeResult } from './sandbox.js';
+import { updateHistory, readProbeLibrary, admitToLibrary, repoSlug, splitOneProbe, findAndDropBehaviorDuplicates, quarantineProbes, chooseQuarantineTargets } from './probe-library.js';
 import { getCodeExamples, knowledgeByTrigger } from './trigger-examples.js';
 import { isValidTrigger, type TriggerId } from './trigger-catalog.js';
 import { applyRuling, promptDuplicateRuling, findSuspectedDuplicate, findRerunDuplicate, type Ruling, type RulingCandidate } from './dedup-probe.js';
@@ -49,6 +49,17 @@ type PhatEvent = (e: RunEvent) => void;
 
 // Trần 20 + mặc định 10 (PO chốt 31/08): chuỗi 11 vòng của PR #12 cho thấy 6 probe/lượt chỉ khoét
 // quanh diff mới nhất — 4 lỗi có từ commit đầu bị bắt muộn 3–8 vòng vì không còn suất quét lại toàn mặt.
+/**
+ * Trần số VÒNG cách ly trong một lượt chấm.
+ *
+ * Mỗi vòng tốn HAI lượt sandbox (nhánh PR + nhánh gốc), nên trần 2 nghĩa là tối đa 6 lượt ở ca xấu nhất.
+ * Nếu loại hai đợt mà bộ probe vẫn không chạy được thì nguyên nhân gần như chắc chắn nằm ở hạ tầng test
+ * của repo đích, không ở probe nào — và lúc đó lượt chấm phải THẤT BẠI chứ không loại tiếp (⛔C2).
+ *
+ * Hằng chứ không phải số rải trong code: một trần đọc được là một trần kiểm được.
+ */
+const QUARANTINE_ROUND_CAP = 2;
+
 const MAX_PROBE = Math.min(20, Math.max(2, Number(process.env.CHECKER_MAX_PROBE ?? 10)));
 const FILE_PROBE_MOI = 'checker.probe.test.ts';
 
@@ -520,6 +531,8 @@ export async function runCodeSkill(
 
   const slug = repoSlug(repo);
   const library = readProbeLibrary(slug);
+  /** Probe bị cách ly TRONG lượt này — ghi dấu vào sổ sau khi lượt chấm kết thúc, không ghi giữa chừng. */
+  const cachLyTrongLuot: { ten: string; ly_do: string; sha_goc: string }[] = [];
   const runner = readRunnerCfg(repo);
   const rao = makeFence();
   if (review) phat({ type: 'log', msg: `Tri thức nghiệp vụ per-repo từ checkmate.yml: ${review.khuon_loi?.length ?? 0} khuôn lỗi${review.severity_map ? ' + thang severity riêng' : ''}` });
@@ -557,26 +570,66 @@ export async function runCodeSkill(
   phat({ type: 'stage', stage: 4, ten: 'Chạy probe trong sandbox — nhánh PR và nhánh gốc đối chứng + cổng sanity' });
 
   const chayCaHaiNhanh = (codeMoi: string): { branchKq: ProbeResult[]; baseKq: ProbeResult[] | undefined; loiThu?: string; treoBranch?: boolean } => {
-    const chay = (sha: string): { probes: ProbeResult[]; ok: boolean; loiThu: string; treo?: boolean } => {
+    // Tên probe thư viện bị loại khỏi lượt này. Lớn dần qua từng vòng cách ly.
+    const boQua = new Set<string>();
+    const tenThuVien = new Set(library.map((f) => f.ten));
+    const chay = (sha: string): { probes: ProbeResult[]; ok: boolean; loiThu: string; treo?: boolean; loiNap?: LoadFailure[] } => {
       const sb = new Sandbox(repo, sha);
       try {
-        const files = [sb.ghiProbe(codeMoi, fileProbeMoi, runner?.probe_dir ?? 'test'), ...library.map((f) => sb.ghiProbe(f.code, f.ten, runner?.probe_dir ?? 'test'))];
+        const files = [
+          sb.ghiProbe(codeMoi, fileProbeMoi, runner?.probe_dir ?? 'test'),
+          ...library.filter((f) => !boQua.has(f.ten)).map((f) => sb.ghiProbe(f.code, f.ten, runner?.probe_dir ?? 'test')),
+        ];
         const kq = runner ? sb.chayTheoRunner(files, runner, parseJUnit) : sb.chayVitest(files);
-        return { probes: kq.probes, ok: kq.ok, loiThu: kq.loiThu, treo: kq.treo };
+        return { probes: kq.probes, ok: kq.ok, loiThu: kq.loiThu, treo: kq.treo, loiNap: kq.loiNap };
       } finally {
         sb.huy();
       }
     };
-    const br = chay(t.branchSha);
-    if (br.treo) return { branchKq: [], baseKq: undefined, treoBranch: true }; // C7: PR làm treo test — finding, không regen
-    if (!br.ok) return { branchKq: [], baseKq: undefined, loiThu: br.loiThu };
-    const bs = chay(t.baseSha);
-    // C1: nhánh gốc không chạy được (kể cả treo) → KHÔNG có đối chứng — baseKq=undefined, mọi fail thành nghi_van
-    if (!bs.ok) {
-      phat({ type: 'log', msg: `Cảnh báo: nhánh gốc KHÔNG chạy được probe (${redactMessage(bs.loiThu || 'không rõ', humanSurfaceSource(t)).slice(0, 160)}) — không có đối chứng, mọi probe fail sẽ là nghi_van thay vì hồi quy` });
-      return { branchKq: br.probes, baseKq: undefined };
+
+    for (let vong = 0; ; vong++) {
+      const br = chay(t.branchSha);
+      // C7: PR làm treo test — finding riêng, KHÔNG cách ly gì.
+      // ⛔ Ranh giới PO chốt 05/09: «chạy lâu» không phải «không nạp được». Đường treo thoát ở đây,
+      // trước mọi phép cách ly, nên một PR làm treo test không tự gỡ được phép thử bắt nó.
+      if (br.treo) return { branchKq: [], baseKq: undefined, treoBranch: true };
+
+      // ⛔ Chạy nhánh GỐC ngay cả khi nhánh PR đổ. Bản trước trả về ở đây và không bao giờ biết file nào
+      // hỏng độc lập với PR — tức ca sự cố prod cho ra ĐÚNG KHÔNG thông tin. Một lượt sandbox thêm đổi
+      // lấy câu trả lời «probe này mục, hay PR này làm hỏng nó».
+      const bs = chay(t.baseSha);
+
+      // ⛔ CHỈ file không nạp được trên NHÁNH GỐC mới là ứng viên cách ly. File chỉ hỏng trên nhánh PR là
+      // bằng chứng VỀ PR — cách ly nó là lấy một finding thật rồi biến thành một dòng bảo trì (xanh giả).
+      const ungVien = chooseQuarantineTargets({
+        loiNapGoc: bs.loiNap,
+        loiNapPr: br.loiNap,
+        tenThuVien: [...tenThuVien],
+        daBoQua: [...boQua],
+      });
+      if (ungVien.length > 0 && vong < QUARANTINE_ROUND_CAP) {
+        for (const u of ungVien) {
+          boQua.add(u.file);
+          cachLyTrongLuot.push({ ten: u.file, ly_do: redactMessage(u.ly_do, humanSurfaceSource(t)).slice(0, 400), sha_goc: t.baseSha });
+        }
+        phat({
+          type: 'log',
+          msg: `Cách ly ${ungVien.length} probe thư viện KHÔNG nạp được trên nhánh gốc (hỏng độc lập với PR): ${ungVien.map((u) => u.file).join(', ')} — chạy lại phần còn lại`,
+        });
+        continue;
+      }
+      if (ungVien.length > 0) {
+        phat({ type: 'log', msg: `Hết trần ${QUARANTINE_ROUND_CAP} vòng cách ly mà vẫn còn ${ungVien.length} probe không nạp được — dừng, không loại thêm` });
+      }
+
+      if (!br.ok) return { branchKq: [], baseKq: undefined, loiThu: br.loiThu };
+      // C1: nhánh gốc không chạy được (kể cả treo) → KHÔNG có đối chứng — baseKq=undefined, mọi fail thành nghi_van
+      if (!bs.ok) {
+        phat({ type: 'log', msg: `Cảnh báo: nhánh gốc KHÔNG chạy được probe (${redactMessage(bs.loiThu || 'không rõ', humanSurfaceSource(t)).slice(0, 160)}) — không có đối chứng, mọi probe fail sẽ là nghi_van thay vì hồi quy` });
+        return { branchKq: br.probes, baseKq: undefined };
+      }
+      return { branchKq: br.probes, baseKq: bs.probes };
     }
-    return { branchKq: br.probes, baseKq: bs.probes };
   };
 
   // C7: finding cứng khi PR làm treo bộ test — máy tự viết, không cần model
@@ -600,7 +653,7 @@ export async function runCodeSkill(
 
   // gom ứng viên + phân loại máy; retry sinh lại 1 lần nếu file mới lỗi thu thập HOẶC >50% probe mới hỏng
   let ungVienTatCa: UngVien[] = [];
-  const thongKe = { ke_hoach: keHoach.length, ghi_nhan: 0, pass: 0, hoi_quy: 0, vi_pham_luat_moi: 0, ngoai_pham_vi: 0, nghi_loi_co_san: 0, nghi_van: 0, cai_thien: 0, bo_qua: 0, that_lac: [] as string[], luat_da_phu: undefined as string[] | undefined, luat_tong: undefined as number | undefined, trigger_distribution: {} as Record<string, number> };
+  const thongKe = { ke_hoach: keHoach.length, ghi_nhan: 0, pass: 0, hoi_quy: 0, vi_pham_luat_moi: 0, ngoai_pham_vi: 0, nghi_loi_co_san: 0, nghi_van: 0, cai_thien: 0, bo_qua: 0, that_lac: [] as string[], cach_ly: 0, luat_da_phu: undefined as string[] | undefined, luat_tong: undefined as number | undefined, trigger_distribution: {} as Record<string, number> };
   for (let lan = 1; lan <= 2; lan++) {
     const { branchKq, baseKq, loiThu, treoBranch } = chayCaHaiNhanh(code);
     if (treoBranch) {
@@ -614,7 +667,7 @@ export async function runCodeSkill(
         findings: [f],
         target: t,
         soProbe: 0,
-        probeStats: { ...thongKe, that_lac: keHoach.map((p) => p.id) },
+        probeStats: { ...thongKe, that_lac: [...keHoach.map((p) => p.id), ...library.map((f) => f.plan.id)].filter(Boolean), cach_ly: cachLyTrongLuot.length },
         quanSat: [],
         // Nhánh PR treo nên chưa tới bước so hai nhánh — đối chiếu RỖNG là đúng sự thật, không phải
         // «đã so và không thấy gì khác».
@@ -711,7 +764,13 @@ export async function runCodeSkill(
     });
     thongKe.ngoai_pham_vi = tomTat('ngoai_pham_vi').length; thongKe.nghi_loi_co_san = tomTat('nghi_loi_co_san').length;
     thongKe.nghi_van = tomTat('nghi_van').length; thongKe.cai_thien = tomTat('cai_thien').length; thongKe.bo_qua = tomTat('bo_qua').length;
-    const idGhiNhan = new Set(ungVienTatCa.filter((u) => u.nguon === 'moi').map((u) => u.probe.id));
+    // Đếm trên MỌI nguồn, không chỉ probe mới.
+    //
+    // Bản trước lọc `nguon === 'moi'` rồi so với `keHoach`, nên một probe THƯ VIỆN biến mất không được
+    // đếm ở bất kỳ đâu: nếu một phần thư viện không nạp được mà phần khác vẫn thu được test, verdict
+    // trông bình thường trong khi hàng chục phép thử đã không chạy. Một nhóm probe chạy mà không được
+    // đếm là một lỗ đúng bằng kích thước nhóm ấy.
+    const idGhiNhan = new Set(ungVienTatCa.map((u) => u.probe.id));
     // Phân bố trigger — CHỈ để người vận hành đọc. Không phát ngược vào prompt, không đặt chỉ tiêu:
     // trần probe đã từng thành chỉ tiêu (ke_hoach = trần ở 14/14 lượt), và probe rải đều danh mục
     // làm false-PASS trông đáng tin hơn thực tế.
@@ -719,9 +778,17 @@ export async function runCodeSkill(
       if (isValidTrigger(p.trigger)) acc[p.trigger] = (acc[p.trigger] ?? 0) + 1;
       return acc;
     }, {});
-    thongKe.that_lac = keHoach.filter((p) => !idGhiNhan.has(p.id)).map((p) => p.id);
+    // Probe bị cách ly KHÔNG phải thất lạc: nó được đếm riêng, và gộp hai thứ là làm mất phân biệt giữa
+    // «đã loại có chủ đích, có ghi sổ» với «biến mất không ai biết vì sao».
+    const tenCachLy = new Set(cachLyTrongLuot.map((c) => c.ten));
+    const idChoDoi = [
+      ...keHoach.map((p) => p.id),
+      ...library.filter((f) => !tenCachLy.has(f.ten)).map((f) => f.plan.id),
+    ].filter(Boolean);
+    thongKe.that_lac = [...new Set(idChoDoi)].filter((id) => !idGhiNhan.has(id));
+    thongKe.cach_ly = cachLyTrongLuot.length;
     if (thongKe.that_lac.length > 0) {
-      phat({ type: 'log', msg: `C5: probe trong kế hoạch nhưng KHÔNG thấy khi chạy (thất lạc): ${thongKe.that_lac.join(', ')}` });
+      phat({ type: 'log', msg: `C5: probe đã đưa vào chạy nhưng KHÔNG thấy kết quả (thất lạc): ${thongKe.that_lac.join(', ')}` });
     }
 
     // C2: probe bị skip không được tính là "đã ghi nhận" — it.skip toàn bộ = PASS-rỗng
@@ -998,6 +1065,15 @@ export async function runCodeSkill(
   }
 
   // Tầng 4 (R10.9): lịch sử hành vi đo được + gỡ trùng bằng bằng chứng chạy thật
+  // Ghi dấu cách ly vào sổ — SAU khi lượt chấm đã kết luận, trong khoá. Không ghi giữa chừng: một lượt
+  // bị huỷ nửa đường không được để lại dấu loại probe khỏi MỌI lượt sau.
+  if (cachLyTrongLuot.length > 0) {
+    const dem = quarantineProbes(slug, cachLyTrongLuot);
+    phat({ type: 'log', msg: `Thư viện: ghi dấu cách ly cho ${dem} probe — chúng ở lại thư viện, không bị xoá, và không vào lượt chấm nào cho tới khi người vận hành gỡ dấu` });
+    for (const c of cachLyTrongLuot) {
+      libraryChanges.push({ probe_id: c.ten, action: 'quarantined', reason: c.ly_do.slice(0, 300) });
+    }
+  }
   if (library.length > 0) {
     updateHistory(
       slug,

@@ -561,6 +561,20 @@ table.runs td { padding:9px 13px; border-bottom:1px solid var(--color-divider); 
   .go-hang { grid-template-columns:1fr; gap:2px; }
 }
 
+/* Cách ly + hành động phá huỷ trên màn thư viện */
+.probe-dong-cachly { background:color-mix(in srgb, var(--medium) 6%, transparent); }
+.probe-nut-cot { display:flex; flex-direction:column; gap:6px; align-items:stretch; }
+.probe-cachly { margin-top:10px; border-left:4px solid var(--medium); background:var(--medium-tint);
+  color:var(--medium-ink); padding:10px 14px; }
+.probe-cachly-dau { font-size:13px; line-height:1.6; }
+.probe-cachly-ly { font-family:var(--font-mono); font-size:11.5px; margin-top:6px; overflow-wrap:anywhere;
+  white-space:pre-wrap; }
+.probe-cachly-luc { font-family:var(--font-mono); font-size:11px; margin-top:6px; opacity:0.8; }
+.probe-xoa { border-top:2px solid var(--color-divider); padding-top:16px; }
+.probe-xoa-hang { display:flex; gap:9px; flex-wrap:wrap; align-items:center; }
+.probe-xoa-hang input { flex:1; min-width:240px; padding:7px 10px; border:1px solid var(--color-divider);
+  font-family:var(--font-mono); font-size:12.5px; }
+
 /* Thư viện — nối liền dưới verdict */
 .thu-vien { border:2px solid var(--color-divider); border-top:none; background:var(--color-bg);
   padding:16px 20px; }
@@ -1402,10 +1416,10 @@ function hangMeta(k: string, v: string, xam = false): string {
 /**
  * HTML của thẻ verdict + khối Thư viện + khối quan sát ngoài phạm vi.
  *
- * Bảng số liệu BẮT BUỘC hiện **vùng xám probe** — nghi vấn · bỏ qua · thất lạc · nghi lỗi có sẵn —
- * kể cả khi bằng không. Bốn số đó nói lượt chấm này KHÔNG nhìn thấy gì. Giấu chúng đi thì một
- * verdict PASS mỏng trông giống hệt một verdict PASS dày, và người đọc mất đúng thứ cần để biết nên
- * tin đến đâu.
+ * Bảng số liệu BẮT BUỘC hiện **vùng xám probe** — nghi vấn · bỏ qua · thất lạc · nghi lỗi có sẵn ·
+ * **cách ly** — kể cả khi bằng không. Những số đó nói lượt chấm này KHÔNG nhìn thấy gì. Giấu chúng đi
+ * thì một verdict PASS mỏng trông giống hệt một verdict PASS dày, và người đọc mất đúng thứ cần để
+ * biết nên tin đến đâu.
  */
 export function verdictHtml(v: Verdict): string {
   const dem = (m: string): number => v.findings.filter((f) => chuanMuc(f.severity) === m).length;
@@ -1440,6 +1454,10 @@ export function verdictHtml(v: Verdict): string {
     ps ? hangMeta('◍ bỏ qua', String(ps.bo_qua), true) : '',
     ps ? hangMeta('◍ thất lạc', String(ps.that_lac.length), true) : '',
     ps ? hangMeta('◍ nghi lỗi có sẵn', String(ps.nghi_loi_co_san), true) : '',
+    // Cách ly: probe thư viện bị loại khỏi lượt vì không nạp được trên nhánh gốc.
+    // VẮNG trường ≠ `0`. Verdict đời cũ chạy trước khi có phép đo này, và ghi `0` cho chúng là khai
+    // rằng đã đếm và không có gì — đúng loại nói dối mà cả bảng này tồn tại để chống.
+    ps ? hangMeta('◍ cách ly', ps.cach_ly === undefined ? 'không đo được' : String(ps.cach_ly), true) : '',
     hangMeta('Nguồn model', ng.nguon),
     hangMeta('Model', ng.ten),
     cp ? hangMeta('Token vào/ra', `${cp.uoc_tinh ? '~' : ''}${kk(cp.token_vao)} / ${cp.uoc_tinh ? '~' : ''}${kk(cp.token_ra)}`) : '',

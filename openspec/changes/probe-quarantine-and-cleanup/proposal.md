@@ -35,8 +35,11 @@ Song song, thư viện nay **nhìn được** (change trước) nhưng vẫn **k
   với đào thải và gỡ-trùng.
 - **Máy không bao giờ xoá theo yêu cầu.** Ba đường trên là `POST` sau cửa phiên, đòi vai thao tác được, và
   MUST NOT gọi được từ vai tự động. Xoá cả thư viện đòi xác nhận bằng cách gõ đúng tên repo.
-- **KHÔNG** trong change này: đổi cách chọn nạn nhân đào thải · đổi trần · sửa `chayTheoRunner` (đường ấy
-  đã cô lập sẵn) · tự động sửa probe hỏng.
+- **KHÔNG** trong change này: đổi cách chọn nạn nhân đào thải · đổi trần · tự động sửa probe hỏng.
+- *(Sửa lúc apply: bản đầu ghi «không sửa `chayTheoRunner`». Đường ấy đã cô lập về THỰC THI — mỗi file một
+  lệnh — nhưng nó vẫn **bỏ cuộc ở file hỏng đầu tiên**, tức cùng một sự cố prod, chỉ khác lối. Nó phải
+  đổi để hai đường chạy cho CÙNG một quyết định trên cùng đầu vào; hai cửa cùng vai viết bằng hai biểu
+  thức riêng thì sẽ lệch, và khuôn ấy đã bị bắt chín lần ở repo này.)*
 
 ## Capabilities
 

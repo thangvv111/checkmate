@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import type { ProbePlan } from './skill-code.js';
+import type { LoadFailure } from './sandbox.js';
 
 // Thư viện probe tích luỹ per repo đích (specs/R10): probe đã chứng minh khớp contract (pass trên
 // nhánh gốc) được giữ lại làm regression cho các lượt chấm sau.
@@ -44,6 +45,17 @@ export interface ProbeLibEntry {
   // trần 20 lượt, mà thành tích bắt hồi quy và tật không-tất-định thì không được phép trôi theo.
   da_bat_hoi_quy?: boolean; // R10.23 — từng mang nhãn hoi_quy ít nhất một lượt
   flaky_diem?: number; // R10.24 — số lần cùng sha cho hai trạng thái hành-vi-riêng khác nhau
+  /**
+   * Dấu CÁCH LY: probe này không nạp được **trên nhánh gốc**, nên nó bị loại khỏi các lượt chấm sau.
+   *
+   * Nó là một DẤU, không phải một lần xoá — file và mục sổ vẫn còn. Một probe không nạp được hôm nay
+   * thường chỉ đang chờ một lần đổi tên module được sửa lại (đúng nguyên nhân của năm lượt chết trên
+   * prod 31/08), và code của nó vẫn đúng về nội dung. Máy được phép đánh dấu vì việc đó **đảo ngược
+   * được**; xoá thì chỉ người mới làm.
+   *
+   * `sha_goc` ghi lại lượt chấm nào phát hiện — để người vận hành tra ngược được, không phải để máy dùng.
+   */
+  cach_ly?: { luc: string; ly_do: string; sha_goc: string };
 }
 
 // Nhãn nói về hành vi RIÊNG của probe (R10.20) — dùng cho tầng 4 và phép đếm flaky R10.24.
@@ -494,13 +506,25 @@ function napMeta(slug: string): MetaLib {
  * Probe MỚI bị từ chối nạp KHÔNG thuộc sổ này: không nạp và đã gỡ là hai chuyện, và gộp chúng lại
  * làm người đọc tưởng thư viện vừa mất một thứ nó chưa từng có.
  */
+export type RemovalKind = 'trung_lap' | 'dao_thai' | 'nguoi_go' | 'nguoi_xoa_thu_vien';
+
+const VALID_REMOVAL_KINDS: ReadonlySet<string> = new Set<RemovalKind>(['trung_lap', 'dao_thai', 'nguoi_go', 'nguoi_xoa_thu_vien']);
+
 export interface RemovalRecord {
   luc: string;
-  loai: 'trung_lap' | 'dao_thai';
+  loai: RemovalKind;
   go: string;
   ly_do: string;
   giu?: string;
   bang_chung?: string;
+  /**
+   * Tên đăng nhập của người thao tác — CHỈ có ở hai loại do người gỡ.
+   *
+   * Hai loại kia là máy quyết nên không có ai chịu trách nhiệm; ở đây thì có, và đó là thông tin không
+   * được mất. Giá trị này phải lấy từ phiên đăng nhập, KHÔNG BAO GIỜ từ thân yêu cầu — nhận nó từ client
+   * là để bất kỳ ai cũng ký tên người khác vào một hành động phá huỷ.
+   */
+  boi?: string;
 }
 
 /** Sổ gỡ đọc ra — kèm những gì KHÔNG đọc được, vì im lặng ở đây làm sổ hỏng trông như sổ trống. */
@@ -556,7 +580,7 @@ export function readRemovalLog(slug: string): RemovalLog {
     if (!d.trim()) continue;
     try {
       const o = JSON.parse(d) as RemovalRecord;
-      if (o && typeof o.go === 'string' && (o.loai === 'trung_lap' || o.loai === 'dao_thai')) ban_ghi.push(o);
+      if (o && typeof o.go === 'string' && VALID_REMOVAL_KINDS.has(o.loai)) ban_ghi.push(o);
       else dong_hong++;
     } catch {
       dong_hong++;
@@ -567,10 +591,18 @@ export function readRemovalLog(slug: string): RemovalLog {
 
 // ---- API ----
 
+/**
+ * Thư viện cho ĐƯỜNG CHẠY CHẤM — probe mang dấu cách ly bị loại.
+ *
+ * Hai đường đọc cho hai câu hỏi khác nhau: hàm này trả lời «chạy cái gì», `readLibraryIndex` trả lời
+ * «đang có cái gì». Gộp chúng thì hoặc probe hỏng lọt vào lượt chấm, hoặc probe biến mất khỏi màn không
+ * lời giải thích — và cái thứ hai đúng là thứ change trước vừa mất công đóng lại.
+ */
 export function readProbeLibrary(slug: string): LibraryProbe[] {
   const meta = napMeta(slug);
   const kq: LibraryProbe[] = [];
   for (const m of meta.probes) {
+    if (m.cach_ly) continue;
     // Đọc NGOÀI khoá (R10.11) nên file có thể bị lượt song song evict/prune xoá giữa existsSync và
     // readFileSync — mất một probe thư viện ở lượt này thì bỏ qua nó, không được đổ cả lượt chấm.
     try {
@@ -647,6 +679,138 @@ export function readProbeCode(slug: string, ten: unknown): string | null {
   } catch {
     return null; // file vừa bị lượt song song dọn — mục sổ sẽ hết ở lượt đọc sau
   }
+}
+
+/**
+ * Chọn probe thư viện để CÁCH LY — hàm thuần, và là chỗ luật quan trọng nhất của cách ly sống.
+ *
+ * ⛔ Ứng viên CHỈ đến từ `loiNapGoc` (nhánh gốc). `loiNapPr` được nhận vào nhưng **cố ý không dùng**:
+ *
+ * | nạp trên gốc | nạp trên PR | nghĩa là | làm gì |
+ * |---|---|---|---|
+ * | ✗ | ✗ | probe mục, không liên quan PR | cách ly |
+ * | ✓ | ✗ | **PR làm hỏng nó** | KHÔNG cách ly — đó là bằng chứng |
+ * | ✗ | ✓ | PR sửa được thứ đang hỏng | không cách ly |
+ *
+ * Cách ly theo triệu chứng «không nạp được» mà không hỏi «trên nhánh nào» sẽ âm thầm gỡ đúng những probe
+ * mà PR vừa làm hỏng — lấy một finding thật rồi biến nó thành một dòng bảo trì. Đó là XANH GIẢ, hướng
+ * hỏng nguy hiểm nhất của một cổng chấm. Tham số `loiNapPr` đứng đây để chỗ này ĐỌC RA được là nó đã bị
+ * cân nhắc và bị loại, chứ không phải bị quên.
+ *
+ * Chỉ nhận tên NẰM TRONG thư viện: tên file đến từ bộ chạy test trên repo đích (dữ liệu ngoài), nên một
+ * tên lạ không được trở thành một mục cách ly.
+ */
+export function chooseQuarantineTargets(input: {
+  loiNapGoc: readonly LoadFailure[] | null | undefined;
+  loiNapPr?: readonly LoadFailure[] | null;
+  tenThuVien: readonly string[];
+  daBoQua?: readonly string[];
+}): LoadFailure[] {
+  const trongThuVien = new Set(input.tenThuVien ?? []);
+  const daBo = new Set(input.daBoQua ?? []);
+  const thay = new Set<string>();
+  const ra: LoadFailure[] = [];
+  for (const l of input.loiNapGoc ?? []) {
+    const f = typeof l?.file === 'string' ? l.file : '';
+    if (!f || !trongThuVien.has(f) || daBo.has(f) || thay.has(f)) continue;
+    thay.add(f);
+    ra.push({ file: f, ly_do: typeof l.ly_do === 'string' ? l.ly_do : '' });
+  }
+  return ra;
+}
+
+/**
+ * Ghi dấu cách ly cho một loạt probe — gọi SAU khi lượt chấm kết thúc, không gọi giữa chừng.
+ *
+ * Vì sao không ghi giữa chừng: một lượt chấm bị huỷ nửa đường (người bấm dừng, máy chủ restart) không được
+ * để lại dấu cách ly trên một probe chưa kết luận xong. Dấu ấy loại probe khỏi MỌI lượt sau, nên nó phải
+ * dựa trên một phép đo đã hoàn tất.
+ *
+ * Trả về số probe thực sự được đánh dấu — tên không có trong sổ thì bỏ qua, không tạo mục mới.
+ */
+export function quarantineProbes(slug: string, ds: readonly { ten: string; ly_do: string; sha_goc: string }[]): number {
+  if (!ds.length) return 0;
+  return withLibraryLock(slug, () => {
+    const meta = napMetaTrongKhoa(slug);
+    let dem = 0;
+    for (const d of ds) {
+      const m = meta.probes.find((x) => x.ten === d.ten);
+      if (!m || m.cach_ly) continue;
+      m.cach_ly = { luc: new Date().toISOString(), ly_do: String(d.ly_do ?? '').slice(0, 600), sha_goc: d.sha_goc };
+      dem++;
+    }
+    if (dem) ghiMeta(slug, meta);
+    return dem;
+  });
+}
+
+/** Gỡ dấu cách ly — đường ĐẢO NGƯỢC của `quarantineProbes`, và là lý do cách ly được phép do máy quyết. */
+export function unquarantineProbe(slug: string, ten: string): boolean {
+  return withLibraryLock(slug, () => {
+    const meta = napMetaTrongKhoa(slug);
+    const m = meta.probes.find((x) => x.ten === ten);
+    if (!m?.cach_ly) return false;
+    delete m.cach_ly;
+    ghiMeta(slug, meta);
+    return true;
+  });
+}
+
+/**
+ * Người vận hành gỡ MỘT probe khỏi thư viện.
+ *
+ * ⛔ Ghi sổ TRƯỚC, xoá file SAU. Ngược lại thì một lần xoá thành công cộng một lần ghi sổ hỏng bằng mất
+ * tài sản không dấu vết — và sổ gỡ tồn tại đúng để chuyện đó không xảy ra.
+ */
+export function removeProbeByOperator(slug: string, ten: string, boi: string, lyDo = ''): boolean {
+  return withLibraryLock(slug, () => {
+    const meta = napMetaTrongKhoa(slug);
+    const i = meta.probes.findIndex((x) => x.ten === ten);
+    if (i < 0) return false;
+    recordRemoval(slug, {
+      luc: new Date().toISOString(),
+      loai: 'nguoi_go',
+      go: ten,
+      ly_do: String(lyDo || 'người vận hành gỡ').slice(0, 300),
+      boi,
+    });
+    meta.probes.splice(i, 1);
+    ghiMeta(slug, meta);
+    try {
+      rmSync(join(GOC_LIB, slug, ten));
+    } catch {
+      /* file đã mất thì thôi — sổ đã ghi, mục sổ đã gỡ */
+    }
+    return true;
+  });
+}
+
+/**
+ * Xoá TOÀN BỘ thư viện của một repo.
+ *
+ * Đường một chiều nhất của cả sản phẩm này: nó vứt đi tài sản tích luỹ qua nhiều tháng chấm. Bước xác
+ * nhận (gõ lại tên repo) nằm ở tầng web; ở đây chỉ bảo đảm mỗi probe ra đi đều để lại một dòng sổ, và
+ * sổ ấy KHÔNG bị xoá theo.
+ */
+export function purgeLibrary(slug: string, boi: string): number {
+  return withLibraryLock(slug, () => {
+    const meta = napMetaTrongKhoa(slug);
+    const ds = [...meta.probes];
+    const luc = new Date().toISOString();
+    for (const m of ds) {
+      recordRemoval(slug, { luc, loai: 'nguoi_xoa_thu_vien', go: m.ten, ly_do: 'người vận hành xoá toàn bộ thư viện', boi });
+    }
+    meta.probes = [];
+    ghiMeta(slug, meta);
+    for (const m of ds) {
+      try {
+        rmSync(join(GOC_LIB, slug, m.ten));
+      } catch {
+        /* file đã mất thì thôi */
+      }
+    }
+    return ds.length;
+  });
 }
 
 export interface AdmitResult {

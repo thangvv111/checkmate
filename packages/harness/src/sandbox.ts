@@ -10,12 +10,30 @@ export interface ProbeResult {
   file: string; // basename file probe — nhiều bộ probe (mới + thư viện) chạy chung một lượt
 }
 
+/**
+ * Một file probe KHÔNG NẠP ĐƯỢC — không import/parse được, nên không đóng góp phép thử nào.
+ *
+ * ⛔ Đây là **nguyên nhân DUY NHẤT** được phép kích hoạt cách ly (PO chốt 05/09). Nó KHÔNG bao gồm:
+ * probe chạy lâu / làm treo lệnh test (đường `treo` riêng, và đó là bằng chứng về code đích), probe fail,
+ * probe flaky, hay probe làm verdict xấu đi. Nới danh sách ấy là hạ tiêu chuẩn của cổng.
+ */
+export interface LoadFailure {
+  file: string;
+  ly_do: string;
+}
+
 export interface VitestResult {
   ok: boolean;
   tongTest: number;
   probes: ProbeResult[];
   loiThu: string; // lỗi thu thập/biên dịch nếu có
   treo?: boolean; // C7: lệnh test vượt timeout (PR có thể chứa vòng lặp vô hạn)
+  /**
+   * File không nạp được, quy về TỪNG file. Rỗng KHÔNG có nghĩa là mọi file đều nạp được — nó cũng có
+   * nghĩa là **không quy được về file nào** (bộ chạy chết trước khi ghi kết quả). Hai ca ấy khác nhau, và
+   * bên gọi phân biệt chúng bằng `ok`: `ok=false` + `loiNap` rỗng = không biết gì, đừng đoán.
+   */
+  loiNap?: LoadFailure[];
 }
 
 // S2: code PR chạy trong sandbox KHÔNG được thấy secrets của checker (API key, token GitHub).
@@ -69,6 +87,30 @@ export function fileLoadError(probes: ProbeResult[], duongDanRel: string): strin
   return p.message.trim() || 'bộ chạy test không nói lý do';
 }
 
+/**
+ * Nhận diện file KHÔNG NẠP ĐƯỢC từ kết quả thô của vitest — hàm THUẦN.
+ *
+ * ⛔ Nhận diện bằng HÌNH DẠNG kết quả (`assertionResults` rỗng + có `message`), KHÔNG bắt chuỗi lời văn
+ * lỗi. Lời văn ấy đến từ Node, từ vitest, và từ chính code repo đích: nó đổi theo phiên bản, và nó là
+ * **dữ liệu ngoài** (⛔C4). Một repo đích cố ý in ra chuỗi giống lỗi nạp sẽ tự chọn được phép thử nào bị
+ * gỡ khỏi lượt chấm của chính nó.
+ *
+ * File test RỖNG (không assert nào, cũng không lỗi) KHÔNG phải lỗi nạp — nó nạp được, chỉ là không có gì.
+ */
+export function detectLoadFailures(testResults: unknown): LoadFailure[] {
+  if (!Array.isArray(testResults)) return [];
+  const ra: LoadFailure[] = [];
+  for (const tr of testResults) {
+    const o = (tr ?? {}) as { name?: unknown; message?: unknown; assertionResults?: unknown };
+    const msg = typeof o.message === 'string' ? o.message.trim() : '';
+    const coTest = Array.isArray(o.assertionResults) && o.assertionResults.length > 0;
+    if (coTest || !msg) continue;
+    const ten = typeof o.name === 'string' ? o.name : '';
+    ra.push({ file: ten.replace(/\\/g, '/').split('/').pop() ?? '', ly_do: msg });
+  }
+  return ra;
+}
+
 export class Sandbox {
   readonly dir: string;
 
@@ -106,6 +148,9 @@ export class Sandbox {
     });
     if ((kq.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT' || kq.signal) {
       donCayTienTrinh(kq.pid);
+      // ⛔ Đường TREO trả về KHÔNG kèm `loiNap` — có chủ đích, và đây là ranh giới PO chốt 05/09.
+      // «Chạy lâu» không phải «không nạp được»: nó là bằng chứng về code đích và đã có finding riêng (C7).
+      // Nhét file vào `loiNap` ở đây là để một PR làm treo test tự gỡ được phép thử bắt nó.
       return { ok: false, tongTest: 0, probes: [], loiThu: `TIMEOUT: lệnh test không kết thúc trong 300s — PR có thể chứa vòng lặp vô hạn/treo I/O`, treo: true };
     }
     if (!existsSync(outFile)) {
@@ -119,6 +164,15 @@ export class Sandbox {
         assertionResults: Array<{ title: string; status: string; failureMessages: string[] }>;
       }>;
     };
+    // ⛔ Nhận diện lỗi nạp bằng HÌNH DẠNG kết quả, KHÔNG bắt chuỗi lời văn lỗi.
+    //
+    // Một file không nạp được xuất hiện thành một mục `testResults` có `message` và `assertionResults`
+    // RỖNG — không phép thử nào thu được. Đó là dấu hiệu cấu trúc.
+    //
+    // Vì sao không dò `Cannot find module` / `SyntaxError`: lời văn ấy đến từ Node, từ vitest, và từ chính
+    // code repo đích. Nó đổi theo phiên bản. Tệ hơn: nó là **dữ liệu ngoài** (⛔C4) — một repo đích cố ý
+    // in ra chuỗi giống lỗi nạp sẽ tự chọn được phép thử nào bị gỡ khỏi lượt chấm của chính nó.
+    const loiNap = detectLoadFailures(data.testResults);
     const probes: ProbeResult[] = data.testResults.flatMap((tr) => {
       const file = (tr.name ?? '').replace(/\\/g, '/').split('/').pop() ?? '';
       return tr.assertionResults.map((a) => ({
@@ -129,7 +183,7 @@ export class Sandbox {
       }));
     });
     const loiThu = data.numTotalTests === 0 ? (data.testResults.map((t) => t.message ?? '').join('\n') || 'Không thu thập được test nào').slice(0, 2000) : '';
-    return { ok: data.numTotalTests > 0, tongTest: data.numTotalTests, probes, loiThu };
+    return { ok: data.numTotalTests > 0, tongTest: data.numTotalTests, probes, loiThu, loiNap };
   }
 
   // Runner cấu hình được (B4.5): chạy TỪNG file probe một lệnh riêng theo template của repo đích,
@@ -140,6 +194,11 @@ export class Sandbox {
     parseJUnit: (xml: string, file: string) => ProbeResult[],
   ): VitestResult {
     const probes: ProbeResult[] = [];
+    // Đường này chạy TỪNG file một lệnh riêng, nên nó đã cô lập sẵn về mặt thực thi. Thứ nó chưa làm là
+    // **báo cáo**: bản trước bỏ cuộc ngay ở file hỏng đầu tiên, tức cùng một sự cố prod, chỉ khác lối.
+    // Hai đường chạy phải cho CÙNG một quyết định trên cùng đầu vào — hai cửa cùng vai viết bằng hai
+    // biểu thức riêng thì sẽ lệch, và khuôn ấy đã bị bắt chín lần ở repo này.
+    const loiNap: LoadFailure[] = [];
     let tong = 0;
     for (const rel of testFilesRel) {
       const relSach = rel.replace(/\\/g, '/');
@@ -156,6 +215,7 @@ export class Sandbox {
       });
       if ((kq.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT' || kq.signal) {
         donCayTienTrinh(kq.pid);
+        // Cùng ranh giới với `chayVitest`: treo KHÔNG sinh `loiNap`.
         return { ok: false, tongTest: tong, probes, loiThu: `TIMEOUT: lệnh test cho ${relSach} không kết thúc trong ${cfg.timeout_s}s`, treo: true };
       }
       if (!existsSync(out)) {
@@ -168,19 +228,22 @@ export class Sandbox {
       }
       const cua = parseJUnit(readFileSync(out, 'utf8'), relSach.split('/').pop() ?? relSach);
       try { unlinkSync(out); } catch { /* không sao */ }
-      const loiNap = fileLoadError(cua, relSach);
-      if (loiNap) {
-        return {
-          ok: false,
-          tongTest: tong,
-          probes,
-          loiThu: `File probe ${relSach} KHÔNG nạp được (không test nào chạy): ${loiNap.slice(0, 1800)}`,
-        };
+      const loi = fileLoadError(cua, relSach);
+      if (loi) {
+        // KHÔNG đếm nó là test đã chạy, và KHÔNG bỏ cuộc: file sau vẫn có thể chạy được.
+        loiNap.push({ file: relSach.split('/').pop() ?? relSach, ly_do: loi.slice(0, 1800) });
+        continue;
       }
       probes.push(...cua);
       tong += cua.length;
     }
-    return { ok: tong > 0, tongTest: tong, probes, loiThu: tong > 0 ? '' : 'Không thu thập được test nào từ JUnit XML' };
+    return {
+      ok: tong > 0,
+      tongTest: tong,
+      probes,
+      loiThu: tong > 0 ? '' : `Không thu thập được test nào từ JUnit XML${loiNap.length ? ` — ${loiNap.length} file không nạp được` : ''}`,
+      loiNap,
+    };
   }
 
   huy(): void {
