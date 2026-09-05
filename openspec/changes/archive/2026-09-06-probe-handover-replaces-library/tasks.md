@@ -112,10 +112,8 @@ Sau khi bổ sung 8 ca còn thiếu ở lượt rà cuối: **1217**.
 - [x] 7.1 Deploy theo 4 bước `DEPLOY.md`.
 - [x] 7.2 ⛔ **Đối chiếu: `probes-lib/` trên máy chủ còn NGUYÊN 7 file + `meta.json` sau deploy.** Đây là
       phép kiểm quan trọng nhất của lượt deploy này — gỡ code đọc mà lỡ xoá dữ liệu là việc một chiều.
-- [ ] 7.3 ⛔ **CHƯA CHẠY ĐƯỢC.** Prod KHÔNG có sự cố nào cản — chẩn đoán «mất xác thực» ở bản đầu của mục
-      này là SAI, xem «§ Đo được ở §7». Chạy một lượt chấm thật trên repo demo: xác nhận **không probe thư
-      viện nào chạy**, và đo thời gian so với trước. Chạy khi **không có lượt nào đang chấm** và **không
-      deploy chen vào** — restart giết lượt đang chạy (đo được 4 lần).
+- [x] 7.3 ✅ **ĐÃ CHẠY 06/09 lúc 22:30** — lượt chấm thật trên PR #7, commit `66abacf`, tức đúng vùng
+      mà 7 probe thư viện cũ được sinh ra. Kết quả và bốn bằng chứng ở «§ T9.2» bên dưới.
 
 ## § Đo được ở §7 (06/09, prod)
 
@@ -184,6 +182,40 @@ Lượt chấm của riêng em thì hỏng vì lý do khác hẳn: shell SSH n�
 **Việc còn lại (không tick):** chạy một lượt chấm thật trên repo demo — xác nhận không probe thư viện nào
 chạy, và đo thời gian so với trước. Chạy khi **không có lượt nào đang chấm** và **không deploy chen vào**.
 Prod hiện KHÔNG có sự cố nào cản việc đó.
+
+### ✅ T9.2 — lượt chấm thật trên prod, 06/09 lúc 22:30
+
+Chạy lại PR #7 trên đúng commit `66abacf` — commit từng sinh ra 7 probe thư viện, tức vùng mà thư viện cũ
+phủ dày nhất. Nếu còn probe nào được nạp, lượt này sẽ lộ.
+
+```
+ke_hoach: 6 · ghi_nhan: 6          <- dung bang max_probe, KHONG probe nao them tu thu vien
+                                      (truoc change: 6 moi + 7 thu vien = 13, chay tren CA HAI nhanh)
+VERDICT: PASS · 1 finding (0 high · 1 medium)
+```
+
+**Bốn bằng chứng độc lập rằng thư viện thật sự đã đứt khỏi đường chấm:**
+
+| bằng chứng | kết quả |
+|---|---|
+| `probes-lib/*/meta.json` sửa lần cuối | **12:20** — lượt 22:30 **không ghi vào** lần nào |
+| số file trong `probes-lib/` | 8 → **8**, không mất, không thêm |
+| `verdict.library_changes` | **vắng** — không còn được sinh |
+| `verdict.probe_stats` | **không còn** `nghi_loi_co_san` lẫn `cach_ly` |
+
+**⛔C2 chạy đúng trên bề mặt thật** — log lượt chấm có dòng:
+
+> *«Phạm vi đã dò: probe của lượt này sinh quanh DIFF của PR. Hành vi cũ mà PR không chạm tới không được
+> dò — verdict không khẳng định toàn bộ hành vi repo còn nguyên.»*
+
+**Hàng đợi giao: 0 đề xuất** — và đó là kết quả ĐÚNG, không phải cơ chế hỏng. Lượt này có `hoi_quy: 0` nên
+không có hạng 1; ba probe `cai_thien` (fail→pass, tức PR sửa được thứ gì đó) **cố ý không** thuộc hạng nào —
+chúng chứng minh PR làm đúng, không chứng minh probe canh được gì. Đây đúng cái «dòng giao rất thưa» mà
+`design.md` dự đoán trước khi chạy.
+
+**Một chỗ bản đầu còn sót, chỉ chạy thật mới thấy:** dòng log tóm tắt vẫn in `0 nghi lỗi có sẵn (thư viện)`
+— một con số nay không bao giờ khác 0. Đã gỡ, và ca T4.3 khoá cả hai vế (không còn đường sinh, không còn
+nhắc trong log). Không lưới nào bắt được nó; thứ bắt được là **chạy thật rồi ĐỌC output**.
 
 ## § Sau-merge — nợ có tên
 
