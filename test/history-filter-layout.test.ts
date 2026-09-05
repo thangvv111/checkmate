@@ -93,9 +93,16 @@ describe('khối lọc màn Lịch sử dựng ra HÀNG NGANG (T1)', () => {
   });
 
   it('T1.3 — hẹp màn xếp DỌC là một quyết định KHAI RA, không phải tai nạn thừa kế', () => {
-    const i = CSS.indexOf('@media (max-width: 720px)');
-    expect(i).toBeGreaterThan(-1);
-    expect(CSS.slice(i, i + 400)).toContain('.loc-bar');
+    // Duyệt MỌI khối `@media (max-width: 720px)` chứ không lấy khối đầu tiên: bản đầu của ca này giả định
+    // chỉ có một, và nó đỏ oan ngay khi change `app-shell-narrow-viewport` thêm khối thứ hai cho vỏ —
+    // đúng cái bẫy «cắt cứng theo vị trí» mà `test-grid-integrity` mô tả.
+    // Cắt bằng CHUỖI, không regex: một regex literal mang ký tự xuống dòng là chỗ dễ gãy khi file đi qua
+    // công cụ sinh mã, và nó vừa gãy thật ở đây một lượt.
+    const khoi = CSS.split('@media (max-width: 720px)')
+      .slice(1)
+      .map((k) => k.slice(0, k.indexOf(NL + '}') + 2));
+    expect(khoi.length, 'không tìm thấy media query hẹp màn nào — phép quét này đang mù').toBeGreaterThan(0);
+    expect(khoi.some((k) => k.includes('.loc-bar')), 'không khối hẹp-màn nào khai .loc-bar').toBe(true);
   });
 });
 
