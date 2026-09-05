@@ -109,3 +109,12 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       lọc — và nó là danh sách CẤM theo hình dạng (`ghp_`, `sk-`, `AKIA`, JWT, entropy cao), chấp nhận
       được ở vai CẢNH BÁO vì âm tính giả chỉ làm sót một lời nhắc, không mở đường rò. Nguồn:
       `error-message-egress-gate` (explore 03/09).
+
+- [ ] 20. **Chế độ trực chỉ quét repo ĐANG CHỌN, không quét mọi repo đã khai** (ghi từ
+      `empty-repo-list-is-a-real-state`, 05/09). Hôm nay vòng trực đọc `cfg.repo` — tức khung nhìn của repo
+      đang chọn — nên khai ba repo thì chỉ một repo được canh, hai repo kia im lặng không ai chấm. Không sai
+      kết quả và không mở đường nào: gác repo-đã-khai vẫn chặn đúng phía nghiêng an toàn (quét ÍT hơn số đã
+      khai). Nhưng nó là một giả định ngầm nữa của thời một-repo, và nó **im lặng** — người vận hành thêm
+      repo thứ hai sẽ tưởng trực đang canh cả hai.
+      *Cẩn thận khi làm:* quét N repo mỗi chu kỳ là N lần hạn ngạch GitHub và N lần chi phí; phải có trần
+      đồng thời và thứ tự công bằng trước khi mở, chứ không phải chỉ đổi `cfg.repo` thành `cfg.repos`.

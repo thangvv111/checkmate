@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { GOC } from '../../../packages/shared/src/paths.js';
 import { projectValue, providerDefinition, readKey, METHODS, validModel, type ProviderConfig, type ProviderId } from './provider.js';
 import { readVault, writeVault, readOwnToken, writeRepoToken } from './secret-vault.js';
@@ -88,10 +88,18 @@ export interface AxisConfig {
 export interface CheckmateConfig {
   /** Danh sách repo đã kết nối. Nguồn sự thật kể từ bản đa repo. */
   repos: RepoConfig[];
-  /** owner/repo đang chọn — quyết định ngữ cảnh của Dashboard/Lịch sử */
+  /** owner/repo đang chọn — CHUỖI RỖNG khi chưa kết nối repo nào */
   repo_dang_chon: string;
-  /** View của repo đang chọn — giữ để code cũ (`cfg.repo`) chạy nguyên, không phải sửa rải rác */
-  repo: RepoConfig;
+  /**
+   * View của repo đang chọn — **VẮNG khi danh sách rỗng**.
+   *
+   * Trước đây trường này bắt buộc, nên danh sách rỗng bị thay bằng một repo hard-code để nó luôn có giá
+   * trị. Đo được trên prod: sau khi người vận hành xoá sạch repo, chế độ trực tự khởi hai lượt chấm trên
+   * chính repo ma ấy. Một kiểu nói dối thì code đọc nó cũng tin theo.
+   *
+   * Cần dùng thì đi qua `coRepo()` — `tsc` sẽ nhớ hộ, chứ 47 chỗ đọc trường này không ai nhớ nổi.
+   */
+  repo?: RepoConfig;
   /**
    * @deprecated Token dùng chung cho mọi repo — đã thay bằng token theo TỪNG repo (R4.18).
    * Trường này chỉ còn sống để đọc cấu hình đời cũ và di trú (R4.21); code mới KHÔNG được đọc nó,
@@ -117,16 +125,11 @@ export function findRepo(c: CheckmateConfig, github: string): RepoConfig | undef
 const FILE = join(GOC, 'config.json');
 // Secrets KHÔNG nằm chung config.json (kho riêng quyền 600 — xem kho-bi-mat.ts)
 
-const REPO_DEMO: RepoConfig = {
-  github: 'thangvv111/demo-credit-approval',
-  base_branch: 'main',
-  local_path: process.env.CHECKMATE_DEMO_REPO ?? resolve(GOC, '../demo-credit-approval'),
-};
-
 const MAC_DINH: CheckmateConfig = {
-  repos: [REPO_DEMO],
-  repo_dang_chon: REPO_DEMO.github,
-  repo: REPO_DEMO,
+  // Một bản vừa cài KHÔNG có repo nào, và nói thẳng điều đó. Đặt một repo mặc định ở đây là cách cũ,
+  // và nó biến «chưa kết nối repo nào» thành một trạng thái sản phẩm không biểu diễn được.
+  repos: [],
+  repo_dang_chon: '',
   github_token: '',
   agent: {
     ncc: 'anthropic',
@@ -157,7 +160,36 @@ let cache: { raw: string; token: string; c: CheckmateConfig } | null = null;
  * đời cũ nó không thấy repo nào, không di trú gì, mà vẫn xoá token dùng chung đi.
  */
 function dsRepoTuLuu(luu: Partial<CheckmateConfig>): RepoConfig[] {
-  return luu.repos?.length ? luu.repos : [{ ...MAC_DINH.repos[0], ...(luu.repo ?? {}) }];
+  // Chỗ tinh: `luu.repos?.length` của bản cũ gộp **`undefined`** với **`[]`** làm một, rồi trả cùng một
+  // repo mặc định cho cả hai. Hai ca ấy nói hai điều khác hẳn:
+  //   `repos` VẮNG MẶT  — cấu hình đời cũ chưa biết tới trường này ⇒ nâng `repo` đơn lẻ (R4.3).
+  //   `repos` CÓ và RỖNG — người vận hành đã xoá hết repo ⇒ RỖNG là câu trả lời đúng.
+  if (Array.isArray(luu.repos)) return usableRepos(luu.repos);
+  return usableRepos(luu.repo ? [luu.repo] : []);
+}
+
+/**
+ * Bỏ mục repo KHÔNG dùng được, và NÓI RA.
+ *
+ * `config.json` là đường cứu hộ sửa tay (⛔C6), nên nó nhận cả những thứ sai hình dạng. Một `repos: [null]`
+ * gõ nhầm làm `readConfig` NÉM — và ném ở đây thì mọi màn chết, kể cả màn Cấu hình, tức đúng lối thoát duy
+ * nhất để sửa lại chỗ vừa gõ sai. Bỏ trong im lặng cũng không được: người vừa gõ cần biết dòng của mình
+ * không có tác dụng (cùng lý do với `locKhoaBiet`).
+ */
+function usableRepos(tho: readonly unknown[]): RepoConfig[] {
+  const ra: RepoConfig[] = [];
+  const bo: string[] = [];
+  tho.forEach((r, i) => {
+    const github = (r as RepoConfig | null | undefined)?.github;
+    if (r && typeof r === 'object' && typeof github === 'string' && github.trim()) ra.push(r as RepoConfig);
+    else bo.push(`repos[${i}]`);
+  });
+  if (bo.length) {
+    console.error(
+      `config.json có mục repo KHÔNG dùng được, đã bỏ qua: ${bo.join(', ')} — mỗi mục cần ít nhất khoá "github" dạng owner/repo`,
+    );
+  }
+  return ra;
 }
 
 /**
@@ -177,12 +209,53 @@ function dsRepoTuLuu(luu: Partial<CheckmateConfig>): RepoConfig[] {
 export function resolveRepoShape(luu: Partial<CheckmateConfig>): {
   repos: RepoConfig[];
   repo_dang_chon: string;
-  repo: RepoConfig;
+  repo?: RepoConfig;
 } {
   const repos = dsRepoTuLuu(luu);
+  // Danh sách rỗng là trạng thái BÌNH THƯỜNG (vừa cài xong), không phải lỗi: không ném, không đoán.
+  if (!repos.length) return { repos, repo_dang_chon: '', repo: undefined };
   const chon =
-    luu.repo_dang_chon && repos.some((r) => r.github === luu.repo_dang_chon) ? luu.repo_dang_chon : repos[0].github;
+    luu.repo_dang_chon && repos.some((r) => r.github === luu.repo_dang_chon) ? luu.repo_dang_chon : repos[0]!.github;
   return { repos, repo_dang_chon: chon, repo: repos.find((r) => r.github === chon) ?? repos[0] };
+}
+
+/**
+ * Cấu hình ĐÃ BIẾT là có repo đang chọn.
+ *
+ * Hàm nào cần một repo cụ thể thì khai kiểu này trong chữ ký — gọi mà chưa qua `coRepo()` là **lỗi biên
+ * dịch**, không phải một ca test ai đó phải nhớ viết. Có 47 chỗ đọc `cfg.repo`; một điều kiện phải nhớ ở
+ * 47 chỗ thì sẽ có ngày quên, và ngày đó không có lỗi nào nổ ra.
+ */
+export type CauHinhCoRepo = CheckmateConfig & { repo: RepoConfig };
+
+/** Gác thu hẹp kiểu: cấu hình này có repo đang chọn không. */
+export function coRepo(c: CheckmateConfig): c is CauHinhCoRepo {
+  return !!c.repo && !!c.repos.length;
+}
+
+/**
+ * Repo này có nằm trong danh sách ĐÃ KHAI không — MỘT chỗ trả lời cho cả ba đường vào.
+ *
+ * Gác này sinh ra ở đường webhook với lý do «chữ ký chỉ chứng minh người gửi biết bí mật, không chứng
+ * minh việc này NÊN LÀM». Đường trực trước đây không có gác tương ứng, và hậu quả giống hệt: máy clone
+ * rồi chạy test của một repo chưa ai khai. Hai cửa cùng vai viết bằng hai biểu thức riêng sẽ lệch nhau.
+ *
+ * GitHub coi `Owner/Repo` và `owner/repo` là một, nên phép so cũng vậy.
+ */
+export function timRepoDaKhai(
+  daKhai: readonly string[] | null | undefined,
+  github: unknown,
+): string | undefined {
+  const ten = typeof github === 'string' ? github.trim().toLowerCase() : '';
+  if (!ten || !Array.isArray(daKhai)) return undefined;
+  // Trả về tên TRONG CẤU HÌNH, không trả tên trong đầu vào: chỗ gọi dùng nó làm khoá tra chìa và tra
+  // thư mục clone, nên nó phải là dạng người vận hành đã khai.
+  return daKhai.find((r) => String(r ?? '').trim().toLowerCase() === ten);
+}
+
+/** Vỏ bọc tiện dùng cho chỗ đang cầm cấu hình. Cùng MỘT lõi với đường webhook. */
+export function laRepoDaKhai(repos: readonly RepoConfig[] | null | undefined, github: unknown): boolean {
+  return !!timRepoDaKhai(Array.isArray(repos) ? repos.map((r) => String(r?.github ?? '')) : null, github);
 }
 
 export function readConfig(): CheckmateConfig {

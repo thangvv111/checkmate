@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { timRepoDaKhai } from './config.js';
 
 /**
  * Cửa webhook GitHub — `github-webhook`.
@@ -105,7 +106,9 @@ export function decideWebhookAction(
   const repo = typeof p.repository?.full_name === 'string' ? p.repository.full_name.trim() : '';
   if (!repo) return { lam: 'tu_choi', ly_do: 'payload thiếu repository.full_name' };
 
-  const khop = repoDaKhai.find((r) => r.toLowerCase() === repo.toLowerCase());
+  // Gác repo-đã-khai dùng CHUNG với đường trực và đường bấm tay — một câu hỏi, một chỗ trả lời.
+  // Trước đây mỗi đường một biểu thức, và đường trực thì không có biểu thức nào.
+  const khop = timRepoDaKhai(repoDaKhai, repo);
   if (!khop) return { lam: 'tu_choi', ly_do: `repo không có trong cấu hình: ${repo.slice(0, 80)}` };
 
   const soTho = typeof p.number === 'number' ? p.number : p.pull_request?.number;

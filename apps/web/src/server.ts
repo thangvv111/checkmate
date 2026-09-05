@@ -25,7 +25,7 @@ import { attachSecretGuard } from './response-secret-guard.js';
 import { loginPage, type LoginState } from './ui-login.js';
 import { probesPage } from './ui-probes.js';
 
-import { LIBRARY_CAP, MODE, PROBE_DEPTH, ProviderConfigErrorCfg, clampToRange, configForReview, currentConfig, maskToken, maskToken2, readConfig, migrateRepoToken, readSubscriptionToken, agentEnv, writeConfig, writeSubscriptionToken } from './config.js';
+import { type CauHinhCoRepo, LIBRARY_CAP, MODE, PROBE_DEPTH, ProviderConfigErrorCfg, clampToRange, coRepo, laRepoDaKhai, configForReview, currentConfig, maskToken, maskToken2, readConfig, migrateRepoToken, readSubscriptionToken, agentEnv, writeConfig, writeSubscriptionToken } from './config.js';
 import { PROVIDER_CATALOG, providerDefinition, validModel, readProviderCheck, writeKey, checkStillValid, type ProviderConfig, type ProviderId, type Method } from './provider.js';
 import { REPO_ROOT, slugGithubRepo, findRepo, type RepoConfig } from './config.js';
 import { existsSync as coFile } from 'node:fs';
@@ -158,7 +158,9 @@ function theoDoiHead(id: string, soPr: number): void {
     if (!rm.dangChay(id)) return clearInterval(h);
     void (async () => {
       try {
-        const nay = await getCurrentPr(readConfig(), soPr);
+        const cfgH = readConfig();
+        if (!coRepo(cfgH)) return clearInterval(h);
+        const nay = await getCurrentPr(cfgH, soPr);
         if (nay.headSha && nay.headSha !== ghim && rm.ghiHeadDoi(id, nay.headSha)) {
           console.log(`PR #${soPr}: head đổi giữa lượt chấm ${id} (${ghim.slice(0, 7)} → ${nay.headSha.slice(0, 7)})`);
           clearInterval(h);
@@ -175,6 +177,9 @@ function theoDoiHead(id: string, soPr: number): void {
 // ---- Chế độ trực (B4.3): hook run-xong + poller ----
 rm.onXong = (meta) => {
   const cfg = readConfig();
+  // Ba việc tự động đều gọi GitHub trên repo đang chọn. Không có repo thì không có gì để gọi — và
+  // đây là đường MÁY tự chạy, nên nó phải im chứ không được đoán.
+  if (!coRepo(cfg)) return;
   if (!meta.pr || !meta.verdict) return;
   const v = meta.verdict;
   const pr = meta.pr;
@@ -231,7 +236,7 @@ rm.onXong = (meta) => {
 /** R6.18 — tên ghi vào sổ cho hành động do máy thực hiện. Không mượn tên người dùng nào. */
 
 // Chấm một PR — dùng chung cho nút bấm lẫn poller
-async function chamPr(cfg: ReturnType<typeof readConfig>, soPr: number): Promise<{ id: string } | { daChamRunId: string }> {
+async function chamPr(cfg: CauHinhCoRepo, soPr: number): Promise<{ id: string } | { daChamRunId: string }> {
   const pr = fetchAndRoute(cfg, soPr);
   const daCham = rm.findByPr(pr.so, pr.headSha);
   if (daCham) return { daChamRunId: daCham.id };
@@ -260,6 +265,7 @@ async function chayDoiSoat(): Promise<void> {
   // R6.25 — khối try riêng: lỗi đối soát không được làm dừng việc quét và chấm PR.
   try {
     const cfg = readConfig();
+    if (!coRepo(cfg)) return; // chưa kết nối repo nào thì không có sổ nào để đối soát
     const ds = await reconcileGate((so, repo) => prState(cfg, so, repo), (m) => console.log(m));
     if (ds.daGhi || ds.loi) console.log(`Đối soát cổng: ghi ${ds.daGhi} hàng ngoài cổng · bỏ qua ${ds.boQua} · lỗi đọc ${ds.loi}`);
   } catch (e) {
@@ -274,6 +280,10 @@ setInterval(() => {
   void (async () => {
     const cfg = readConfig();
     if (!cfg.truc.bat || dangQuet) return;
+    // ⛔ Gác repo-đã-khai — CÙNG câu hỏi mà đường webhook hỏi, nay cùng một chỗ trả lời.
+    // Trước đây đường này KHÔNG có gác: đo được trên prod, sau khi người vận hành xoá sạch repo thì
+    // trực vẫn tự khởi hai lượt chấm trên một repo suy đoán, dựng lại clone và thư viện vừa dọn.
+    if (!coRepo(cfg) || !laRepoDaKhai(cfg.repos, cfg.repo.github)) return;
     if (Date.now() - lanQuetCuoi < cfg.truc.chu_ky_giay * 1000) return;
     dangQuet = true;
     lanQuetCuoi = Date.now();
@@ -304,6 +314,20 @@ setInterval(() => {
 
 app.get('/', async (req, res) => {
   const cfg = readConfig();
+  if (!coRepo(cfg)) {
+    // Trạng thái rỗng BÌNH THƯỜNG (vừa cài xong), không phải hỏng — nên nói cách sửa, và không dùng
+    // màu FAIL. `giao-dien-ccs` đã khai luật «rỗng và hỏng phải nói hai câu khác nhau».
+    return res.send(
+      homePage(
+        rm.danhSach(),
+        `<div class="card" style="max-width:720px"><div class="card-kicker">Chưa kết nối repo nào</div>
+<p style="margin:0 0 10px">CheckMate chưa có repo nào để chấm. Thêm repo ở màn Cấu hình — bốn bước: dán đường dẫn repo, dán chìa riêng của nó, kiểm kết nối, chọn nhánh đích.</p>
+<a class="btn btn-primary" href="/settings">Vào Cấu hình</a></div>`,
+        '',
+        ai(req),
+      ),
+    );
+  }
   let prBlock: string;
   try {
     const prs = await listPrs(cfg);
@@ -404,10 +428,12 @@ app.get('/settings', (req, res) => {
   res.send(
     settingsPage({
       mode: MODE,
-      repoGithub: c.repo.github,
-      baseBranch: c.repo.base_branch,
-      localPath: c.repo.local_path,
-      tokenChe: maskToken(readRepoToken(c.repo.github)),
+      // ⛔ Màn Cấu hình phải mở được KHI CHƯA CÓ REPO — đó chính là nơi người ta vào để thêm repo.
+      // Chặn nó bằng một gác là khoá người dùng ra khỏi lối thoát duy nhất.
+      repoGithub: c.repo?.github ?? '',
+      baseBranch: c.repo?.base_branch ?? '',
+      localPath: c.repo?.local_path ?? '',
+      tokenChe: c.repo ? maskToken(readRepoToken(c.repo.github)) : '',
       khoiRepoHtml: repoSection({
         repos: c.repos.map((r) => ({
           ...r,
@@ -422,7 +448,7 @@ app.get('/settings', (req, res) => {
           lan_cham_cuoi: rm.danhSach({ repo: r.github, gioi_han: 1 })[0]?.batDau,
         })),
         dangChon: c.repo_dang_chon,
-        hasToken: hasToken(c.repo.github),
+        hasToken: c.repo ? hasToken(c.repo.github) : false,
         moKhoa: MODE === 'org',
       }),
       khoiNccHtml: providerSection({
@@ -450,6 +476,7 @@ app.post('/settings', (req, res) => {
   if (MODE === 'demo') return res.status(403).send(shell('CheckMate', '<h1>403</h1><p class="sub">Chế độ demo không cho sửa cấu hình. <a href="/settings">← quay lại</a></p>'));
   const b = req.body as Record<string, string>;
   const c = readConfig();
+  if (!coRepo(c)) return res.status(409).send(shell('CheckMate', '<h1>Chưa kết nối repo nào</h1><p class="sub">Thêm repo ở khối «Repo đã kết nối» trước đã. <a href="/settings">← quay lại</a></p>'));
   // Sửa thông tin của repo ĐANG CHỌN; thêm/gỡ repo đi đường riêng (/api/repo/*)
   const tenCu = c.repo.github;
   const repoSua: RepoConfig = {
@@ -533,7 +560,9 @@ app.post('/settings', (req, res) => {
 // vào đó là rò chìa ra ba chỗ mà không ai kịp thấy (R4.19, R9.17).
 app.post('/api/github/repos', async (req, res) => {
   const c = readConfig();
-  const token = String((req.body as { token?: string }).token ?? '').trim() || readRepoToken(c.repo.github);
+  // Đường này dùng ĐỂ thêm repo đầu tiên, nên nó phải chạy khi chưa có repo nào: chìa lấy từ thân
+  // yêu cầu, chỉ rơi về chìa của repo đang chọn khi thật sự có một repo đang chọn.
+  const token = String((req.body as { token?: string }).token ?? '').trim() || (c.repo ? readRepoToken(c.repo.github) : '');
   try {
     const ds = await listReposForToken(token);
     const daCo = new Set(c.repos.map((r) => r.github.toLowerCase()));
@@ -809,6 +838,11 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
       }
       throw e;
     }
+    if (!coRepo(cfg)) {
+      const loi = 'Chưa kết nối repo nào — thêm repo ở màn Cấu hình trước khi chạy kiểm.';
+      if (muonJson) return res.status(409).json({ loi });
+      return res.status(409).send(shell('CheckMate', `<h1>Chưa kết nối repo nào</h1><p class="sub">${escHtml(loi)} <a href="/settings">→ Cấu hình</a></p>`));
+    }
     if (!hasGithubAccess(cfg.repo.github)) {
       const loi = `Repo ${cfg.repo.github} chưa có GitHub token nên không đọc được PR, và máy chủ cũng không có \`gh\` đã đăng nhập. Vào ⚙ Cài đặt → dán token cho repo này.`;
       if (muonJson) return res.status(412).json({ loi });
@@ -876,7 +910,7 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
     if (nd.length < 200) return res.status(422).send(shell('CheckMate', '<h1>Tài liệu quá ngắn</h1><p class="sub">Cần tối thiểu 200 ký tự để kiểm có nghĩa. <a href="/">← quay lại</a></p>'));
     const f = join(TMP_DOC, `doc-${Date.now()}.md`);
     writeFileSync(f, nd, 'utf8');
-    id = rm.batDau('Tài liệu dán tay', 'doc', ['--skill', 'doc', '--file', f], agentEnv(cfg), undefined, cfg.repo.github, ai(req));
+    id = rm.batDau('Tài liệu dán tay', 'doc', ['--skill', 'doc', '--file', f], agentEnv(cfg), undefined, cfg.repo?.github, ai(req));
   } else if (kieu === 'upload') {
     if (!req.file) return res.status(422).send(shell('CheckMate', '<h1>Chưa chọn file</h1><p class="sub"><a href="/">← quay lại</a></p>'));
     let text: string;
@@ -890,7 +924,7 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
     }
     const f = join(TMP_DOC, `up-${Date.now()}.md`);
     writeFileSync(f, text, 'utf8');
-    id = rm.batDau(`Tài liệu tải lên · ${req.file.originalname}`, 'doc', ['--skill', 'doc', '--file', f], agentEnv(cfg), undefined, cfg.repo.github, ai(req));
+    id = rm.batDau(`Tài liệu tải lên · ${req.file.originalname}`, 'doc', ['--skill', 'doc', '--file', f], agentEnv(cfg), undefined, cfg.repo?.github, ai(req));
   } else {
     return res.status(422).send('Thiếu loại artifact');
   }
@@ -979,6 +1013,8 @@ app.get('/api/repos', (_req, res) => {
 // JSON API (phục vụ MCP B4.4 + tích hợp ngoài)
 app.get('/api/prs', async (_req, res) => {
   const cfg = readConfig();
+  // Chưa kết nối repo nào ⇒ hàng đợi RỖNG, không phải lỗi. Đây là trạng thái bình thường của bản vừa cài.
+  if (!coRepo(cfg)) return res.json([]);
   try {
     const prs = await listPrs(cfg);
     res.json(prs.map((p) => {
@@ -1031,6 +1067,7 @@ function docDanhTinhCong(req: import('express').Request): IdentityCheck {
 app.post('/api/runs/:id/merge', async (req, res) => {
   const st = rm.lay(req.params.id);
   const cfg = readConfig();
+  if (!coRepo(cfg)) return loiCong(res, 409, 'Chưa kết nối repo nào — không có repo để merge.');
   const v = st?.meta.verdict;
   // Quyết định cổng nằm ở hàm THUẦN (gate.ts) để mỗi nhánh từ chối là một ca test chạy được; route chỉ
   // gom đầu vào rồi làm I/O. Thứ tự kiểm và từng chữ thông điệp thuộc về hàm đó, không phải chỗ này.
@@ -1064,6 +1101,7 @@ app.post('/api/runs/:id/merge', async (req, res) => {
 app.post('/api/runs/:id/reject', async (req, res) => {
   const st = rm.lay(req.params.id);
   const cfg = readConfig();
+  if (!coRepo(cfg)) return loiCong(res, 409, 'Chưa kết nối repo nào — không có repo để trả về.');
   // Cùng khuôn với merge: quyết định ở hàm thuần (gate.ts), route chỉ gom đầu vào rồi làm I/O.
   const cb = evaluateRejectLocal({
     mode: MODE,
