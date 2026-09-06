@@ -232,3 +232,17 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
         token riêng nó rơi về `GITHUB_TOKEN` chung, tức comment lên repo đội khác dưới danh tính của chủ
         máy. Với một repo thì không sao; với N đội thì cần quyết định rõ, và hướng an toàn là **từ chối
         chạy** khi repo chưa có token riêng, chứ không lặng lẽ mượn danh tính.
+
+- [ ] 29. ⛔ **Phép kiểm cô lập YẾU HƠN yêu cầu thật** (lộ ra 06/09 khi prod chết vì podman). `detectIsolation`
+      chạy `podman --version` — nó trả lời «podman có cài không», không trả lời «podman có chạy nổi một
+      container ở đây không». Hai câu ấy tách nhau đúng ở ca đã gặp: podman cài đủ, nhưng `/run/user/1000`
+      bị systemd xoá khi phiên SSH cuối đóng, nên `podman run` chết ở bước tạo tmpdir.
+      *Cái mất khi chưa làm:* verdict ghi `co_lap: container` là một **khẳng định**, và nếu nó dựa trên một
+      phép kiểm không chạm tới đường thật thì đó là khẳng định không có bằng chứng — đúng loại «xanh trên
+      hệ đã hỏng» mà luật lưới của repo cấm. Thêm nữa, khi hỏng thì thứ hiện ra là cảnh báo thô của podman,
+      không đọc được: người vận hành thấy `mkdir /run/user/1000: permission denied` chứ không thấy «môi
+      trường cô lập không dùng được».
+      *Chưa đo được:* lượt hỏng 03:34 chết TRƯỚC khi ghi verdict nên không biết engine đã báo mức nào —
+      đừng suy, hãy đo lại khi dựng được ca tái hiện.
+      *Hướng:* đổi phép kiểm sang thứ CHẠM đường thật (ví dụ chạy hẳn một container rỗng, hoặc `podman
+      info`), và khi nó hỏng thì nói bằng câu người đọc hiểu chứ không dội log podman ra verdict.

@@ -235,6 +235,48 @@ Con số nhỏ đi nghĩa là đã mất dữ liệu — khôi phục ngay từ 
 Muốn dọn thư mục ấy thì đó là **quyết định của chủ máy**, làm bằng tay, sau khi đã chắc không cần lùi nữa.
 Không quy trình tự động nào được đụng vào.
 
+## ⛔ Cô lập container CHẾT khi không ai đang SSH vào máy — bật `linger`, một lần, cho mọi máy
+
+**Triệu chứng** (gặp thật 06/09 lúc 03:37, PO báo):
+
+```
+LỖI: Probe không thu thập được sau 2 lần sinh:
+  level=warning msg="The cgroupv2 manager is set to systemd but there is no systemd user session available"
+  level=warning msg="XDG_RUNTIME_DIR is pointing to a path which is not writable. Most likely podman will fail."
+  Error: error creating tmpdir: mkdir /run/user/1000: permission denied
+```
+
+**Nguyên nhân, đo được:**
+
+| | |
+|---|---|
+| `/run/user/1000` | do **systemd-logind** tạo khi có phiên đăng nhập, và **XOÁ** khi phiên cuối cùng đóng |
+| `loginctl show-user ubuntu` | `Linger=no` ⇒ không có phiên thì không có thư mục |
+| môi trường tiến trình dịch vụ | **không có** `XDG_RUNTIME_DIR` ⇒ podman rơi về `/run/user/$UID` |
+
+Tức **cô lập container chỉ chạy được trong lúc có người đang SSH vào máy**. Đóng phiên cuối là mọi lượt
+chấm chết ở bước sandbox. Nó KHÔNG lộ ra khi cài đặt, vì lúc cài thì người cài đang đăng nhập — chính
+phiên của họ đang giữ thư mục sống. Bẫy chỉ bung sau khi họ thoát ra.
+
+**Sửa, một lần cho mỗi máy:**
+
+```bash
+sudo loginctl enable-linger ubuntu          # <-- user chay dich vu
+loginctl show-user ubuntu --property=Linger # phai ra Linger=yes
+systemctl is-active user@1000.service       # phai ra active
+ls -ld /run/user/1000                       # phai ton tai, chu so huu la user do
+```
+
+`enable-linger` bảo systemd giữ **user manager** của tài khoản ấy chạy độc lập với phiên đăng nhập, nên
+`/run/user/1000` tồn tại vĩnh viễn. Đảo ngược được bằng `disable-linger`.
+
+⚠ **Thêm một máy chủ mới thì phải làm lại bước này** — nó là cấu hình của máy, không nằm trong gói deploy.
+
+⚠ **Phép kiểm cô lập của engine YẾU HƠN yêu cầu thật.** `detectIsolation` chạy `podman --version`, tức nó
+trả lời *«podman có cài không»* chứ không trả lời *«podman có chạy nổi một container ở đây không»*. Hai câu
+ấy khác nhau đúng ở ca này. Chưa đo được engine đã báo mức nào cho lượt hỏng — lượt ấy chết trước khi ghi
+verdict — nên đừng suy; nhưng khoảng cách giữa hai câu hỏi là có thật và ghi ở nợ #29.
+
 ## Bốn khác biệt so với chạy trên máy dev (đều đã xử, ghi để lần sau khỏi mò)
 
 | # | Trên máy dev | Trên server | Đã xử thế nào |
