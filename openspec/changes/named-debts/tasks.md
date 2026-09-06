@@ -141,7 +141,8 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       (đo thật 245). Số bỏ qua vẫn được đếm và in ra trong thông điệp, nhưng tự nó không làm đỏ — vì một
       file vắng mặt là chuyện bình thường, còn phép quét mất phủ thì không.
 
-- [ ] 22. **Đếm SỐ VÒNG cách ly chưa có ca khoá** (từ `probe-quarantine-and-cleanup`, 05/09). Trần vòng
+- [x] 22. ✅ HẾT ĐỐI TƯỢNG 06/09 — cách ly đã gỡ cùng thư viện probe (`probe-handover-replaces-library`).
+      Hằng `QUARANTINE_ROUND_CAP` còn sót lại và không ai dùng, đã dọn. ~~**Đếm SỐ VÒNG cách ly chưa có ca khoá**~~ (từ `probe-quarantine-and-cleanup`, 05/09). Trần vòng
       (`QUARANTINE_ROUND_CAP`) đã có ca và có mutation; thứ chưa khoá là «không còn ứng viên thì KHÔNG chạy
       thừa một vòng». Kiểm được nó đòi lái `chayCaHaiNhanh` với sandbox giả, mà vòng lặp nằm trong closure
       không export — tách ra là đổi hình dạng đường chạy chấm.
@@ -162,7 +163,8 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       `display:flex` vẫn có thể đang xếp dọc oan mà không lưới nào thấy. Việc này đọc từng màn trên trình
       duyệt, không quét được bằng chuỗi.
 
-- [ ] 25. **Đặt bí mật webhook trên prod** (PO quyết, không phải việc kỹ thuật). Chưa đặt thì PR mở phải
+- [x] 25. ✅ XONG — kiểm 06/09: `.secrets.json` có `github_webhook_secret` (64 ký tự), và log có 9 dòng
+      «Webhook: chấm …», tức cửa đã nhận và chấm thật. ~~**Đặt bí mật webhook trên prod**~~ (PO quyết, không phải việc kỹ thuật). Chưa đặt thì PR mở phải
       đợi chu kỳ trực 300s thay vì chấm ngay. Quy trình ở `DEPLOY.md` › «Đặt bí mật». Ghi vào đây để nó
       không rơi khỏi tầm nhìn — cái giá của việc chưa đặt chỉ là độ trễ, không mất gì.
 

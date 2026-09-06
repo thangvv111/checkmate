@@ -50,16 +50,6 @@ type PhatEvent = (e: RunEvent) => void;
 
 // Trần 20 + mặc định 10 (PO chốt 31/08): chuỗi 11 vòng của PR #12 cho thấy 6 probe/lượt chỉ khoét
 // quanh diff mới nhất — 4 lỗi có từ commit đầu bị bắt muộn 3–8 vòng vì không còn suất quét lại toàn mặt.
-/**
- * Trần số VÒNG cách ly trong một lượt chấm.
- *
- * Mỗi vòng tốn HAI lượt sandbox (nhánh PR + nhánh gốc), nên trần 2 nghĩa là tối đa 6 lượt ở ca xấu nhất.
- * Nếu loại hai đợt mà bộ probe vẫn không chạy được thì nguyên nhân gần như chắc chắn nằm ở hạ tầng test
- * của repo đích, không ở probe nào — và lúc đó lượt chấm phải THẤT BẠI chứ không loại tiếp (⛔C2).
- *
- * Hằng chứ không phải số rải trong code: một trần đọc được là một trần kiểm được.
- */
-const QUARANTINE_ROUND_CAP = 2;
 
 const MAX_PROBE = Math.min(20, Math.max(2, Number(process.env.CHECKER_MAX_PROBE ?? 10)));
 const FILE_PROBE_MOI = 'checker.probe.test.ts';
