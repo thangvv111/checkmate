@@ -270,6 +270,10 @@ ls -ld /run/user/1000                       # phai ton tai, chu so huu la user d
 `enable-linger` bảo systemd giữ **user manager** của tài khoản ấy chạy độc lập với phiên đăng nhập, nên
 `/run/user/1000` tồn tại vĩnh viễn. Đảo ngược được bằng `disable-linger`.
 
+**Đã xác minh bằng một lượt chấm thật** sau khi bật (06/09, 03:41→03:44, 191 giây, VERDICT PASS, không
+dòng cảnh báo podman nào). Bật xong đừng tin suông — chạy một lượt và ĐỌC output, vì lỗi này nằm ở bước
+sandbox chứ không ở bước khởi động, nên `systemctl is-active` xanh không nói lên gì.
+
 ⚠ **Thêm một máy chủ mới thì phải làm lại bước này** — nó là cấu hình của máy, không nằm trong gói deploy.
 
 ⚠ **Phép kiểm cô lập của engine YẾU HƠN yêu cầu thật.** `detectIsolation` chạy `podman --version`, tức nó
