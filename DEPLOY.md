@@ -270,9 +270,25 @@ ls -ld /run/user/1000                       # phai ton tai, chu so huu la user d
 `enable-linger` bảo systemd giữ **user manager** của tài khoản ấy chạy độc lập với phiên đăng nhập, nên
 `/run/user/1000` tồn tại vĩnh viễn. Đảo ngược được bằng `disable-linger`.
 
-**Đã xác minh bằng một lượt chấm thật** sau khi bật (06/09, 03:41→03:44, 191 giây, VERDICT PASS, không
-dòng cảnh báo podman nào). Bật xong đừng tin suông — chạy một lượt và ĐỌC output, vì lỗi này nằm ở bước
-sandbox chứ không ở bước khởi động, nên `systemctl is-active` xanh không nói lên gì.
+**Xác minh HAI tầng — tầng thứ hai mới là tầng chứng minh được:**
+
+1. *Lượt chấm thật* sau khi bật (06/09, 03:41→03:44, 191 giây, VERDICT PASS, không cảnh báo podman nào).
+   ⚠ Nhưng lượt ấy chạy **trong lúc có phiên SSH mở**, nên `/run/user/1000` tồn tại dù có linger hay không.
+   Nó chứng minh đường sandbox chạy được — **không** chứng minh linger làm được việc của nó.
+2. *Chạy podman khi KHÔNG có phiên nào* — đây mới là ca đã hỏng. Dựng bằng cách hẹn giờ rồi thoát SSH:
+
+```bash
+sudo systemd-run --on-active=70 --unit=kiem-podman --uid=1000 --gid=1000 --setenv=HOME=/home/ubuntu \r
+  /bin/bash -c '{ loginctl list-sessions --no-legend | wc -l; ls -ld /run/user/1000; \r
+     podman run --rm <anh> node -e "console.log(42)"; } > /tmp/kq.txt 2>&1'
+# roi THOAT SSH va khong ket noi lai cho den khi no chay xong
+```
+
+Kết quả đo 06/09 lúc 04:01: `phiên đang mở: 0` · `/run/user/1000` tồn tại · container in ra `42` · `exit=0`.
+
+⛔ **Bật xong đừng tin suông, và đừng kiểm trong lúc đang SSH.** Lỗi này nằm ở bước sandbox chứ không ở
+bước khởi động, nên `systemctl is-active` xanh không nói gì; và chính phiên SSH của người đi kiểm sẽ che
+mất lỗi. Phép kiểm phải chạy ở trạng thái KHÔNG có ai đăng nhập, nếu không nó đo một máy khác với máy thật.
 
 ⚠ **Thêm một máy chủ mới thì phải làm lại bước này** — nó là cấu hình của máy, không nằm trong gói deploy.
 
