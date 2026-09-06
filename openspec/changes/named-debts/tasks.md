@@ -182,3 +182,53 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       đang chạy và kèm lệnh đếm thủ công, nhưng bước 1 của quy trình deploy vẫn không bắt buộc chạy nó.
       *Hướng:* đưa phép đếm vào chính `scripts/pack-deploy.sh` hoặc một bước bắt buộc của quy trình, để
       người deploy phải NHÌN con số ấy chứ không phải nhớ ra là nên nhìn.
+
+- [ ] 28. **Đề xuất giao chưa có đường sang repo đích — và hình dạng đúng ĐÃ ĐỔI khi biết CheckMate phục
+      vụ NHIỀU ĐỘI** (PO cho biết 06/09). Đây là N2 của change `probe-handover-replaces-library`, viết lại.
+
+      **Trạng thái hiện tại:** đề xuất dừng ở hai chỗ, cả hai nằm TRONG CheckMate — trường
+      `verdict.handover` và màn Hàng đợi giao. Đội repo đích không bao giờ nhìn thấy. Không có gì mang
+      chúng qua ranh giới thì ta đã thay **một kho vô dụng** bằng **một hàng đợi vô dụng**.
+
+      **Dữ kiện nhiều-đội loại bỏ một phương án và làm hỏng một phương án khác:**
+
+      · *Mở PR sang repo đích* — **loại**. Với repo của chính chủ máy đó chỉ là nới quyền; với repo của
+        đội khác nó là ba việc cùng lúc: xin quyền GHI NHÁNH trên repo người ta · bot review tự mở PR
+        trên repo họ · và CheckMate **viết code vào repo mà nó đi chấm**, rồi sau này chấm chính PR chạm
+        vào code ấy. Đó là phá tách bạch maker–checker, thứ cả sản phẩm đứng trên.
+      · *Màn Hàng đợi làm điểm giao* — **không mở rộng được**. Người xem màn ấy là người vận hành
+        CheckMate, không phải đội sở hữu repo. Với N đội, người vận hành thành **nút cổ chai**: mở N hàng
+        đợi, đọc N bộ đề xuất, chuyển tay sang N đội.
+
+      **⛔ Và nó lộ ra một chỗ thiết kế sai ở HẠNG 2.** Bản đầu coi cả hai hạng đều là «giao một cái
+      test», nên hạng 2 thừa hưởng một bài toán vận chuyển nó vốn không có. Thứ hạng 2 thật sự tìm ra
+      **không phải một cái test** — nó là: *PR này vừa cam kết một luật mới, và bộ test của đội KHÔNG có
+      gì canh luật ấy*. Đó là một khoảng hở đo được bằng máy, tức thông tin thuộc loại **finding**, chỗ
+      verdict vốn đã chở. Con probe chỉ là **bằng chứng khoảng hở ấy kiểm được**, không phải sản phẩm
+      cần bàn giao.
+
+      **Hình dạng đề xuất — cả hai hạng đi CHUNG một đường ĐÃ CÓ:**
+
+      | hạng | đi ra bằng gì | thêm quyền |
+      |---|---|---|
+      | 1 — probe đã nổ | mã probe ghép vào **khối bằng chứng của finding** trên comment verdict | không |
+      | 2 — luật mới chưa phủ | một **quan sát** trên cùng comment: «PR thêm luật R7, bộ test chưa phủ; đây là probe chứng minh nó kiểm được» | không |
+
+      Cả hai cưỡi `commentPr` — bề mặt **đã có, đã được cấp quyền, đang chạy hằng ngày** cho verdict.
+      Không quyền mới, không bề mặt mới, không người đứng giữa; mở rộng sang đội thứ N tốn **không công
+      gì**. Màn Hàng đợi trở về đúng vai: chỗ người vận hành **xem lại** cái gì đã đề xuất, không phải
+      đường vận chuyển.
+
+      **Cửa đột biến VẪN phải giữ** dù hạng 2 thôi giao code: nếu probe không thật sự kiểm luật R7 thì
+      câu «bộ test của các anh chưa phủ R7» cũng thành lời nói suông — ta khẳng định một khoảng hở dựa
+      trên một phép thử không chứng minh được gì.
+
+      **Hai việc nhiều-đội đẻ ra, phải xử cùng lúc chứ không sau:**
+
+      · **Comment verdict dài thêm.** Mã probe vài chục dòng nhét cùng finding có thể **dìm phần
+        finding** — mà finding mới là thứ chặn merge. Cần hình dạng gấp gọn hoặc trần độ dài, và đó là
+        quyết định trình bày phải **đo trên comment thật**, không chốt trên giấy.
+      · **Danh tính bot theo đội.** `readRepoToken` đã có token riêng từng repo — đúng. Nhưng khi THIẾU
+        token riêng nó rơi về `GITHUB_TOKEN` chung, tức comment lên repo đội khác dưới danh tính của chủ
+        máy. Với một repo thì không sao; với N đội thì cần quyết định rõ, và hướng an toàn là **từ chối
+        chạy** khi repo chưa có token riêng, chứ không lặng lẽ mượn danh tính.

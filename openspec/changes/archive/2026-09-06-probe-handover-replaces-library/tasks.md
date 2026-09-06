@@ -256,5 +256,14 @@ phát hiện và sinh lại thay vì cho ra một verdict dựa trên 11 probe v
       phủ định cũng đỏ mà chẳng canh gì. Cửa mạnh hơn là đột biến **hiện thực** repo đích, nhưng nó đòi
       biết phá chỗ nào cho đúng, mà engine không có tri thức ấy. Chưa có lời giải, ghi để không ai tưởng
       cửa hiện tại là kín.
-- [ ] N2 **Repo đích NHẬN đề xuất bằng cách nào** — change này dừng ở verdict + màn hàng đợi. Đẩy PR sang
-      repo đích hay comment vào PR đang chấm là bề mặt khác, cần PO chốt.
+- [ ] N2 **Repo đích NHẬN đề xuất bằng cách nào** — change này dừng ở verdict + màn hàng đợi.
+      ➜ **ĐÃ CHUYỂN thành nợ #28 ở `named-debts`, và hình dạng ĐÃ ĐỔI.** PO cho biết 06/09 rằng CheckMate
+      được xây cho **nhiều đội** dùng. Dữ kiện ấy loại phương án «mở PR sang repo đích» (nó biến CheckMate
+      thành *maker* trong repo nó *check*, và cần quyền ghi nhánh trên repo đội khác), và làm hỏng phương
+      án «màn hàng đợi làm điểm giao» (người vận hành thành nút cổ chai giữa N đội).
+      Nó cũng lộ ra **một chỗ thiết kế sai trong chính change này**: hạng 2 không nên giao CODE. Thứ nó
+      tìm ra là một **khoảng hở** — «PR thêm luật mới mà bộ test của đội chưa phủ» — tức thông tin thuộc
+      loại finding, chỗ verdict vốn đã chở. Con probe chỉ là bằng chứng khoảng hở ấy kiểm được.
+      Hình dạng mới: cả hai hạng cưỡi `commentPr` (bề mặt đã có, đã cấp quyền, đang chạy hằng ngày), và
+      màn hàng đợi trở về vai **xem lại**, không phải vai vận chuyển. Chi tiết + hai việc nhiều-đội đẻ ra
+      (comment dài dìm finding · danh tính bot khi repo thiếu token riêng) ghi ở nợ #28.
