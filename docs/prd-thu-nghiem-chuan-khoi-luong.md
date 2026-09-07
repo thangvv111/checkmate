@@ -92,3 +92,5 @@ ngày làm việc kế tiếp.
 | Hoàn tất (`hoan_tat`) | — | Trạng thái đóng |
 | Từ chối (`tu_choi`) | Mở lại (`mo_lai`) | |
 | Mở lại (`mo_lai`) | Chờ duyệt | Sau khi chuyên viên bổ sung hồ sơ |
+
+<!-- lượt chấm lại sau khi main có khối standards — kiểm nguồn repo (ô T4.5) -->
