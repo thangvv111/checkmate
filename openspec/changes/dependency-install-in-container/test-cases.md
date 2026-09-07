@@ -86,9 +86,23 @@
 - [x] T3.3 ✅ **Nguyên mẫu đường đúng đã chạy thật**: thư mục tạm + danh sách đóng + `--ignore-scripts` +
       ảnh Node 24 ⇒ **246 gói, 9 giây, 220 MB, 174 mục cấp một**; trả quyền xong `node_modules` thuộc
       `ubuntu:ubuntu`; chuyển vào clone xong `git fsck` sạch và **0 mục lệch**
-- [x] T3.4 ✅ **Số đo bắt phải làm D3**: sau nguyên mẫu, cửa kiểm của nhịp một trả `chan: []` ·
-      `canhBao: ["runtime_lech"]`. Phụ thuộc cài bằng Node 24, probe chạy ảnh Node 22 — cảnh báo đang nói
-      thật. Cài mà không sửa ảnh chạy là đổi một cái bẫy lấy cái bẫy khác
+- [x] T3.4 ⛔ **CA BÁC BỎ MỘT KẾT LUẬN ĐÃ VIẾT — bản trước của ô này SAI.** Nó khai «số đo bắt phải làm
+      D3», suy từ việc cửa kiểm nhịp một vẫn trả `canhBao: ["runtime_lech"]` sau khi cài. Suy sai, không
+      kiểm bằng một lần chạy thật. Chạy thật cho:
+
+      | ảnh | tmpfs `.vitest` | kết quả |
+      |---|---|---|
+      | Node 22 | không | Startup Error · 0 test |
+      | Node 24 | không | Startup Error · 0 test |
+      | Node 22 | **có** | **158/158 pass** |
+      | Node 24 | **có** | **158/158 pass** |
+
+      `engines.node: ^24` chặt hơn mức repo thật sự cần. Thứ chặn lượt chấm code là **một hàng tmpfs
+      thiếu** (change `fix-vitest-token-scratch-path`), không phải bản đồ ảnh. D3 tụt từ **chặn** xuống
+      **nên làm** — nếu phải cắt phạm vi, đây là mục cắt trước
+- [x] T3.6 ✅ **Vế đáng giữ của cái sai trên**: `checkRuntime` cảnh báo chứ không chặn. Đây là ca thật đầu
+      tiên chứng minh lựa chọn ấy đúng — chặn cứng thì `admin-fe` đã bị **từ chối oan** trong khi test của
+      nó chạy sạch 158/158
 - [ ] T3.5 Ca hồi quy cho nhịp một: sau change này, repo **đủ điều kiện** vẫn không bị chặn và không bị
       cảnh báo oan
 

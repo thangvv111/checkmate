@@ -20,6 +20,7 @@ Tức CheckMate đang ở trạng thái «biết mình hỏng ở đâu, và kh�
 | gói có script cài trong toàn bộ cây phụ thuộc | **1** (`fsevents`, chỉ chạy trên macOS) |
 | mount **cả bản clone** vào container với cờ `U` | **HỎNG** — và làm hỏng bản clone (xem dưới) |
 | cài xong rồi kiểm lại bằng chính cửa của nhịp một | `chan: []` · `canhBao: ["runtime_lech"]` |
+| chạy test thật của repo trong sandbox, có tmpfs `.vitest` | **158/158 pass** — trên CẢ Node 22 lẫn 24 |
 
 **Số đo thứ ba là bài học đắt nhất, và nó đến từ một sự cố em tự gây ra.** Cách hiển nhiên — mount bản
 clone rồi chạy `npm ci` trong đó — được thử trước tiên. Cờ `U` của podman chown **đệ quy toàn bộ cây được
@@ -27,11 +28,19 @@ mount**, chạm `.git` thì hỏng giữa chừng, và để lại **78 mục c�
 dịch vụ không đọc được. Khôi phục xong (`podman unshare chown` + `sudo chown`, `git fsck` sạch, 0 mục lệch),
 nhưng bài học ở lại: **thư mục làm việc của lần cài không được là bản clone.**
 
-**Số đo thứ tư là kết quả quan trọng nhất.** Sau khi cài, cửa kiểm của nhịp một hết chặn — nhưng **cảnh
-báo runtime vẫn còn**, và nó đang nói thật: phụ thuộc được cài bằng **Node 24**, còn probe vẫn chạy trong
-ảnh **Node 22**. Cài trong container mà không đồng thời sửa ảnh chạy probe là dựng một cái bẫy mới: cây
-`node_modules` xây cho một runtime, đem chạy trên runtime khác, và lỗi khi ấy lại **không nói gì về pull
-request đang chấm** — đúng loại lỗi cả hai nhịp này sinh ra để diệt.
+⛔ **Số đo thứ tư — và một kết luận em rút ra từ nó đã SAI, giữ lại lời cải chính.** Sau khi cài, cửa kiểm
+của nhịp một hết chặn nhưng **cảnh báo runtime vẫn còn**: phụ thuộc cài bằng Node 24, probe chạy ảnh Node
+22. Em kết luận cảnh báo ấy đang chặn lượt chấm — không kiểm bằng một lần chạy thật. Chạy thật cho:
+
+| ảnh | tmpfs `.vitest` | kết quả |
+|---|---|---|
+| Node 22 / Node 24 | không | Startup Error · **0 test** |
+| Node 22 / Node 24 | **có** | **158/158 pass** |
+
+Tức `engines.node: ^24` chặt hơn mức repo thật sự cần, và thứ chặn lượt chấm code là **một hàng tmpfs
+thiếu** — sửa ở change `fix-vitest-token-scratch-path`, một dòng. **Bản đồ ảnh vẫn đáng làm, vì tái lập**
+(hai runtime khác phiên bản chính có thể cho kết quả khác nhau, và điều đó hôm nay không ai khai) — nhưng
+nó tụt từ **chặn** xuống **nên làm**. Nếu phải cắt phạm vi change này, đây là mục cắt trước.
 
 ## What Changes
 
@@ -43,8 +52,9 @@ request đang chấm** — đúng loại lỗi cả hai nhịp này sinh ra đ�
 - **`--ignore-scripts` mặc định.** Không script nào của repo đích chạy — kể cả `postinstall`.
 - **Bản đồ ảnh theo phiên bản Node, ghim theo digest** — một hàng một phiên bản. Thêm phiên bản là một
   change, không phải một lần `pull`. Change này thêm **Node 24** (`sha256:ba849c60…`, v24.20.0).
-- **Ảnh CÀI và ảnh CHẠY PROBE lấy từ CÙNG bản đồ, theo cùng một phiên bản.** Đây là vế bắt buộc, không
-  phải vế tuỳ chọn — xem số đo thứ tư ở trên.
+- **Ảnh CÀI và ảnh CHẠY PROBE lấy từ CÙNG bản đồ, theo cùng một phiên bản.** Vế này là **nên làm**, không
+  phải bắt buộc — số đo thứ tư đã bác bỏ bản trước của câu này. Lý do đúng của nó là **tái lập**, không
+  phải «không chạy được».
 - **Mạng: bật ĐÚNG ở container cài**, và chỉ ở đó. Container chạy probe giữ nguyên `--network=none`.
 - **Người vận hành bấm, máy không tự cài.** Cửa kiểm của nhịp một nói cần cài; việc cài là một hành động
   có nút, có log, có kết quả kiểm lại sau khi xong.

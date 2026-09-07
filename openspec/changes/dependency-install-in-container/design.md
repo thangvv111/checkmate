@@ -97,17 +97,35 @@ tự bật** — một khoá `checkmate.yml` xin chạy script cài chính là m
 
 ### D3. Bản đồ ảnh theo phiên bản — và ảnh CÀI phải bằng ảnh CHẠY
 
-Đây là quyết định mà **số đo bắt phải làm**, không phải quyết định thẩm mỹ.
+⛔ **Bản đầu của mục này viết «đây là quyết định mà số đo bắt phải làm». Câu ấy SAI, và đã bị chính số đo
+bác bỏ. Giữ lại lời cải chính thay vì xoá dấu vết.**
 
-Sau nguyên mẫu, cửa kiểm của nhịp một trả:
+Suy luận sai: sau nguyên mẫu, cửa kiểm của nhịp một trả `chan: []` · `canhBao: ["runtime_lech"]`, và em
+kết luận cảnh báo ấy đang chặn lượt chấm code — **không kiểm bằng một lần chạy thật**.
 
-```
-chan   : []                      <- het chan, phu thuoc da co
-canhBao: ["runtime_lech"]        <- VAN canh bao, va no dang noi that
-```
+Đo thật sau đó, dựng đúng khuôn engine dùng (`git archive` ra thư mục tạm · `node_modules` mount `:ro` ·
+`--read-only` · `--network=none` · ba trần tài nguyên), repo `admin-fe` nhánh `accessibility-floor`:
 
-Phụ thuộc cài bằng **Node 24**, probe chạy trong ảnh **Node 22**. Cài mà không sửa ảnh chạy là đổi một cái
-bẫy lấy một cái bẫy khác — và cái bẫy mới còn khó thấy hơn, vì nó chỉ nổ ở gói có phần native.
+| ảnh | tmpfs `.vitest` | kết quả |
+|---|---|---|
+| Node 22 | không | Startup Error · 0 test |
+| Node 24 | không | Startup Error · 0 test |
+| Node 22 | **có** | **158/158 pass** |
+| Node 24 | **có** | **158/158 pass** |
+
+Tức `engines.node: ^24` của repo **chặt hơn mức nó thật sự cần**; Node 22 chạy đủ 158 ca. Thứ chặn lượt
+chấm code là **một hàng tmpfs thiếu** — sửa ở change `fix-vitest-token-scratch-path`, một dòng.
+
+**Bản đồ ảnh vẫn đáng làm**, nhưng vì lý do đúng của nó chứ không vì một lý do bịa: hai runtime khác phiên
+bản chính **có thể** cho kết quả khác nhau (cú pháp mới, gói có phần native), và một cây `node_modules` xây
+bằng runtime này rồi chạy trên runtime kia là một khác biệt **không ai khai**. Đó là chuyện **tái lập** —
+cùng lý lẽ với việc ghim digest thay vì dùng thẻ. Nó **không** phải chuyện «không chạy được».
+
+Hệ quả cho change này: D3 tụt từ **chặn** xuống **nên làm**. Nếu phải cắt phạm vi, đây là mục cắt trước.
+
+*Vế đáng giữ của cái sai này: `checkRuntime` được thiết kế **cảnh báo chứ không chặn**, đúng vì lý do «repo
+khai `engines` chặt hơn mức cần». Số đo trên là ca thật đầu tiên chứng minh lựa chọn ấy đúng — nếu nó chặn
+cứng thì `admin-fe` đã bị **từ chối oan** trong khi test của nó chạy sạch.*
 
 Bản đồ:
 
