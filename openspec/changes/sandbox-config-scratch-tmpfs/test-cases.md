@@ -35,9 +35,9 @@
 
 - [N/A] T_bimat — change không chạm bí mật; không mount nào mới trỏ vào kho khoá, cấu hình hay sổ cái. Ca
   `scanWritableBinds` (T1.14) là chỗ giữ vế ấy.
-- [ ] T_failclosed ⛔C2 — mount thiếu hoặc tmpfs không dựng được ⇒ lượt chấm **lỗi**, MUST NOT thành PASS. Vế
-  này do đường lỗi sẵn có giữ (`Runner không xuất JUnit XML` ⇒ ném sau 2 lần sinh); ca chạy thật 7.1 xác nhận
-  chiều ngược lại — khi mount có thì lượt đi tới verdict
+- [x] T_failclosed ⛔C2 — hai chiều đều đo được trên prod cùng ngày: **không** có mount ⇒ PR #75/#77 kết thúc
+  bằng **lỗi**, không PASS; **có** mount ⇒ PR #79 đi tới verdict. Đường lỗi sẵn có («Runner không xuất JUnit
+  XML» ⇒ ném sau 2 lần sinh) là thứ giữ chiều thứ nhất.
 - [x] T_cong — change KHÔNG chạm verdict, không thêm đường ghi `result`, không đổi luật nhị phân
 - [x] T_khongtincay ⛔C4 — trục CHÍNH: thứ chạy trong sandbox là code repo đích. Danh sách đường ghi được là
   **đóng, trong mã** (D2); không khoá `checkmate.yml` nào mở nó — grep `DEPENDENCY_SCRATCH_PATHS` trong
@@ -46,12 +46,10 @@
 
 ## Chạy thật — KHÔNG tick trước khi chạy
 
-- [ ] T7.1 Sau deploy: mở một PR **code** trên prod, lượt chấm đi qua bước sandbox và **ra verdict** (không còn
-      chết ở «Runner không xuất JUnit XML»). Đây cũng là vế còn thiếu của ô T4.3 ở change
-      `finding-cap-and-density-standard`. run_id: ____
-- [ ] T7.2 Cùng lượt ấy: `node_modules` của bản clone **còn nguyên** sau lượt chạy — đếm file và tổng dung
-      lượng trước/sau. Đây là vế «ghi vào phụ thuộc thật vẫn thất bại» ở mức hệ thống, thứ mà ca đối số
-      (T1.12) không chứng minh được.
+- [x] T7.1 PR #79 (07/09): `result=PASS`, `co_lap={container, podman 3.4.4}`, `ke_hoach=9 ghi_nhan=9`,
+      `pass=2 · ngoai_pham_vi=3`. Ba probe neo vào `inBand` cho nhãn `✗→✓`. run_id: `wmtr4j87au091`
+- [x] T7.2 `node_modules` bản clone: **6471 file / 252 349 456 byte** trước và sau lượt chạy — không lệch một
+      byte. Vế «ghi vào phụ thuộc thật vẫn thất bại» ở mức hệ thống.
 
 ## Kiểm tay
 
