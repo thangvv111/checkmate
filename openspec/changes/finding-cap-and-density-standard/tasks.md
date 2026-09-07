@@ -111,14 +111,55 @@
       thay `test/sandbox-isolation.test.ts:190` (`toContain('readRunnerCfg(repo)')` — lưới loại 1) bằng ca git
       thật. **KHÔNG thuộc change này** — PO chốt 1a ngày 06/09.
 - [ ] 7.2 **Change ép chuẩn mật độ** (mở khi điều kiện D1 đủ: ≥ 30 verdict doc có `volume_standard.counts`).
-      Điều kiện tiên quyết **trước khi nâng mặc định `probe_cap`** hoặc bật FAIL: (a) đọc
-      `stop_reason`/`finish_reason`, trả lời cụt ⇒ lỗi có tên, không retry mù (`jsonx.ts:19`,
-      `model.ts:235/:333` — gom một hằng, thêm `CLAUDE_CODE_MAX_OUTPUT_TOKENS` vào `ENV_CHO_CLI`); (b)
+
+      ⛔ **(a) KHÔNG CÒN LÀ SUY LUẬN — đo trên prod 07/09, ngay lượt đầu sau deploy.** Chấm `README.md`
+      (1192 từ v1) qua đường **API** chết ở bước 3 với «Không tìm thấy JSON trong trả lời model:» và chuỗi
+      rỗng. Gọi thẳng `api.anthropic.com` với cùng model, cùng `max_tokens: 8000`, prompt cùng cỡ:
+
+      | | |
+      |---|---|
+      | `stop_reason` | **`max_tokens`** |
+      | khối trả về | `['thinking', 'text']` — model đời mới trả khối suy nghĩ, ăn phần lớn trần |
+      | `output_tokens` | **8000** — dùng hết sạch |
+      | text sau khi `AnthropicApiProvider` lọc `type === 'text'` | 2052 ký tự, JSON **không đóng** |
+
+      Tức trần THẬT của đường API là `max_tokens: 8000` (`model.ts:235`), và với model có `thinking` thì
+      phần dành cho câu trả lời còn lại rất ít. Engine không đọc `stop_reason` nên báo sai bản chất —
+      người vận hành đọc «không tìm thấy JSON» sẽ đi sửa parser thay vì nới trần. Đường **thuê bao**
+      (CLI) không dính: lượt PR #75 cùng ngày sinh được 12 probe và 2 lượt sinh code.
+
+      Việc phải làm: đọc `stop_reason`/`finish_reason`, trả lời cụt ⇒ **lỗi có tên**, không retry mù
+      (`jsonx.ts:19`, `model.ts:235/:333` — gom một hằng, thêm `CLAUDE_CODE_MAX_OUTPUT_TOKENS` vào
+      `ENV_CHO_CLI`); cân nhắc gửi `max_tokens` lớn hơn hoặc tắt `thinking` cho lượt đòi JSON.
+
+      Các điều kiện tiên quyết còn lại **trước khi nâng mặc định `probe_cap`** hoặc bật FAIL: (b)
       `unwrapCode` coi fence mở không đóng là cụt; `that_lac > 0` từ file của lượt ⇒ không PASS
       (`skill-code.ts:687`, `verdict.ts:84`); (c) timeout sandbox theo cap hoặc chia file (`sandbox.ts:305`);
       (d) ngân sách comment PR 60 000 ký tự có khai số bị bỏ (`gate.ts:370`, `server.ts:263` không nuốt lỗi
       422); (e) gom probe hạng 2 vào một sandbox (`skill-code.ts:951`); (f) vòng 2 chỉ gửi id hỏng
       (`skill-doc.ts:258`); (g) skeptic chia lô ≤ 10 (`skill-doc.ts:274`).
+- [ ] 7.5 ⛔ **SỰ CỐ PROD — mọi lượt chấm CODE đang hỏng ở bước sandbox.** Phát hiện 07/09 khi chạy lượt thật;
+      **không do change này**, nhưng nó chặn ô T4.3 nên ghi ở đây. Hai trạng thái, cả hai đều hỏng:
+
+      | trạng thái | lỗi |
+      |---|---|
+      | clone repo đích **không có** `node_modules` (trước 07/09) | `npx vitest` đi tải từ registry, container không có mạng ⇒ `EAI_AGAIN registry.npmjs.org` |
+      | clone **có** `node_modules` (sau `npm install` 07/09, PO duyệt) | `ENOENT: mkdir '/work/node_modules/.vite-temp'` — vite phải ghi thư mục tạm để nạp `vitest.config.ts` |
+
+      Nguyên nhân gốc: `sandbox.ts:188` bật `--read-only` và `:201` mount `node_modules` **`:ro`**, trong khi
+      vite cần ghi vào chính thư mục ấy để bundle config TypeScript. Chú thích ở đầu `vitest.config.ts` đã
+      từng vá một nửa vấn đề (bỏ mọi `import` để không phải giải `vitest/config` qua junction) nhưng không
+      chạm tới nhu cầu GHI.
+
+      Ba hướng, mỗi hướng một cái giá — **PO chọn, agent không tự chọn**: (a) mount `tmpfs` lên
+      `/work/node_modules/.vite-temp` — giữ nguyên `:ro`, hẹp nhất, nhưng phụ thuộc chi tiết nội bộ của vite;
+      (b) đổi `vitest.config.ts` → `.js` thuần để vite khỏi bundle — sửa repo đích, mất `as const`; (c) nới
+      mount thành `:rw` — **chạm ⛔ `sandbox-isolation`**, code repo đích sửa được thư viện, không nên.
+      Cần một change riêng có ca test chạy thật, không vá vội.
+
+      Bối cảnh: lượt code cuối thành công là PR #7 ngày 26/08, TRƯỚC khi `container-isolated-probe-runs`
+      archive (05/09). Nhiều khả năng là hồi quy của change ấy, lộ ra muộn vì giữa hai mốc không có lượt code
+      nào chạy tới bước sandbox.
 - [ ] 7.3 Router: PR kèm một file không phải `.md/.txt` đi đường code ⇒ tài liệu trong PR hỗn hợp không được
       đo mật độ (`github.ts:387`). Đã ghi ở README; đo tài liệu trong PR code là việc sau.
 - [ ] 7.4 Change `target-shape-knobs` (đã mở) — không đổi.
