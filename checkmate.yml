@@ -9,6 +9,19 @@ sources:
     - openspec/specs/**/*.md # luật máy đọc, sinh từ change — archive mới thành luật
   api_doc: README.md
 
+# Chuẩn khối lượng — capability `finding-volume-standard`. Khai TƯỜNG MINH bằng đúng mặc định của engine:
+# repo này là repo đích của chính nó, nên bốn dòng dưới vừa là cấu hình thật vừa là ví dụ sống cho đội khác.
+# Khai tường minh đổi NGUỒN trên verdict từ «mặc định» sang «checkmate.yml» — giá trị y nguyên.
+#
+# ⛔ Đọc từ NHÁNH GỐC qua `git show <base>:checkmate.yml`, không đọc bản trên đĩa của clone: sửa ở nhánh
+# pull request KHÔNG có tác dụng cho chính lượt chấm nó, kể cả khi siết chặt hơn.
+# Bước hiện tại CHỈ ĐO — mật độ được tính và ghi lên verdict, KHÔNG đổi PASS/FAIL.
+standards:
+  finding_cap: 100 # trần finding một lượt chấm tài liệu · dải 4–1000
+  probe_cap: 20 # trần probe một lượt chấm code · dải 2–100 · hiệu dụng = min(khoá này, núm của người vận hành)
+  density_per_1000_words: 20 # mức mật độ dải ≤1000 từ; dải lớn hơn nhân tỉ lệ theo bảng 20 · 12 · 8
+  density_floor_words: 300 # dưới sàn này không đo mật độ · dải 50–2000
+
 runner:
   test_cmd: 'npx vitest run {files} --reporter=junit --outputFile={out}'
   framework: vitest

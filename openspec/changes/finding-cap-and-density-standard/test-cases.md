@@ -128,21 +128,36 @@
 
 ## Chạy thật một lượt — KHÔNG tick trước khi chạy, ghi `run_id` vào ô
 
-- [ ] T4.1 Doc trong PR trên repo có `standards.density_per_1000_words: 40` ở nhánh gốc, fixture
-      `test/fixtures/volume/prd-1048w.md`: comment PR và màn chấm hiện `finding_cap 100 (mặc định)`, `density
-      {threshold 24 · band ≤5000?… (917 từ ⇒ dải ≤1000, ngưỡng 40) · source repo}`, `words 917`,
-      `counts.raw_round1` = số model trả, `applied false / observe_only`; verdict giữ nguyên so với lượt trước
-      change trên cùng tài liệu. **Cần prod sau deploy.** run_id: ____
+- [x] T4.1 Doc trong PR trên prod (PR #76, 07/09) — fixture `test/fixtures/volume/prd-1048w.md` qua đường sản
+      phẩm (webhook → đường thuê bao). Verdict thật đọc từ sổ cái:
+      `finding_cap {100, 'default'}` · `counts {raw_round1 6, after_machine_grids 6, before_cut 6, after_cut 6,
+      after_skeptic 6, final 6, dropped_by_cap 0}` · `density {words 917, count_method 'v1', band '<=1000',
+      threshold 20, measured 6.54, exceeded false, applied false, reason 'observe_only'}`; `FAIL` với 6 finding,
+      2 lời gọi model. **Khớp CHÍNH XÁC 7 lượt CLI local** (raw 6 · 917 từ · 6.54) — hai đường chạy khác nhau,
+      cùng con số. run_id: `wmtqui9blbmu4`
+      ⚠ Vế `source: 'repo'` chưa lấy được ở lượt này và ĐÓ LÀ ĐÚNG: chuẩn đọc từ nhánh gốc, mà nhánh gốc chưa
+      có khối `standards` (PR #77 mới thêm). Đây là scenario «nhánh gốc không có file, PR thêm mới ⇒ mặc định»
+      quan sát trên prod. Lượt sau khi merge #77 sẽ cho `source: 'repo'` — ô T4.5.
 - [x] T4.2 Doc không repo (cùng đường CLI với «dán tay»: `--skill doc --file`, không `--repo`): 7 lượt 06/09 —
       `finding_cap.source 'no_repo'` ở cả 7; PRD raw 6/6, mật độ 6.54, `applied false`; verdict FAIL/PASS như
       lịch sử. run_id: `run-2026-09-07T04-12-29-492Z…` · `…T04-12-40-962Z…` · `…T04-12-55-871Z…` ·
       `…T04-14-01-139Z…` · `…T04-15-14-897Z…` · `…T04-15-56-770Z…` · `…T04-20-53-312Z…`
-- [ ] T4.3 Code trên PR thật, operator slider 6, repo `probe_cap 40`: verdict `probe_cap {6, 'operator'}`,
-      `Object.hasOwn(volume_standard,'density') === false` đọc từ sổ cái; `counts.before_cut` = số model đề xuất
-      (gộp T3.3); `chi_phi.calls` không tăng so với lượt trước change trên cùng PR. **Cần prod sau deploy.**
+- [~] T4.3 Code trên PR thật (PR #77, 07/09), operator slider **12**, repo đề nghị **20**. Lấy được hai vế
+      quan trọng nhất từ log lượt thật, vế thứ ba bị chặn:
+      · **trần hiệu dụng = min(repo, operator), khai đủ nguồn** — log nguyên văn: «Trần probe hiệu dụng 12
+        (người vận hành 12; repo đề nghị 20) — model không được cho biết con số này» ✓
+      · **T3.3 — hiệu ứng ĐỊNH MỨC biến mất** ✓✓ Trần 12, model đề xuất **7 probe**. Lượt PR #75 cùng ngày,
+        cùng trần 12, **trước** khi gỡ số: đề xuất **đúng 12**. Đây là phép đo trực tiếp nhất của cả change —
+        không phải suy từ 14/14 lượt lịch sử, mà là hai lượt cùng repo cùng trần, khác nhau đúng một câu prompt.
+      · ✗ `volume_standard` trên verdict của lượt code: **chưa lấy được** — lượt kết thúc bằng lỗi ở bước
+        sandbox, không sinh verdict. Nguyên nhân là sự cố hạ tầng ngoài change (nợ 7.5), không phải code này.
+      run_id: `wmtquo1hz9hrs`
+- [ ] T4.4 Repo đích với `checkmate.yml` **hỏng cú pháp** ở nhánh gốc: lượt chạy, log nêu nguyên nhân, verdict
+      khai `default_unreadable`. Kiểm bằng `--base` trỏ một ref cục bộ có yml hỏng, KHÔNG làm hỏng `main` của
+      prod; vế «comment PR hiện `default_unreadable`» dựa vào ca đơn vị T2.12/T2.14 chứ không tick trơn.
       run_id: ____
-- [ ] T4.4 Repo đích với `checkmate.yml` **hỏng cú pháp** ở nhánh gốc: lượt chạy, log nêu nguyên nhân, comment PR
-      hiện `default_unreadable`. **Cần prod sau deploy.** run_id: ____
+- [ ] T4.5 Sau khi merge PR #77: một lượt doc bất kỳ phải khai `finding_cap.source = 'repo'` và
+      `density.standard.*.source = 'repo'` — vế còn thiếu của T4.1. run_id: ____
 
 ## Kiểm tay
 
