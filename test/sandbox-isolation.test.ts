@@ -176,6 +176,21 @@ describe('đối số dựng môi trường — ba cơ chế cô lập (T1)', ()
     expect(DEPENDENCY_SCRATCH_PATHS.every((x) => x.ly_do.trim().length > 0), 'mỗi mục phải có lý do').toBe(true);
   });
 
+  it('T1.10b — hai đường ĐÃ ĐO là hỏng-nếu-thiếu phải CÓ MẶT trong danh sách', () => {
+    // ⛔ T1.10 chỉ kiểm «đối số khớp danh sách», nên xoá một mục khỏi danh sách vẫn XANH — đúng khuôn lưới
+    // xanh trên hệ thống đã hỏng. Ca này ghim NỘI DUNG, và mỗi đường ở đây đứng trên một lần chạy thật:
+    //
+    //   .vite-temp  (07/09) vite bundle `vitest.config.ts` ra đây; thiếu ⇒ `ENOENT: mkdir`, mọi lượt chấm
+    //               code chết ở bước sandbox.
+    //   .vitest     (07/09) vitest ≥4 ghi token API vào đây khi HOME không ghi được (`--read-only`);
+    //               thiếu ⇒ «Startup Error: Failed to create Vitest API token», chết TRƯỚC khi nạp file
+    //               test nào. Đo trên `admin-fe`: thiếu ⇒ 0 test; có ⇒ 158/158, trên CẢ Node 22 lẫn 24.
+    const co = new Set(DEPENDENCY_SCRATCH_PATHS.map((x) => x.path));
+    for (const p of ['/work/node_modules/.vite-temp', '/work/node_modules/.vitest']) {
+      expect(co.has(p), `${p} đã đo được là hỏng-nếu-thiếu — gỡ nó phải đi qua một change khai rõ`).toBe(true);
+    }
+  });
+
   it('T1.11 — KHÔNG có phụ thuộc thì không phủ gì thêm: không có gì để phủ', () => {
     const argv2 = buildContainerArgs(spec({ thuMucPhuThuoc: undefined }));
     expect(tmpfsPaths(argv2)).toEqual(['/tmp']);
