@@ -66,7 +66,7 @@ describe('clampKnob — kẹp dải bằng predicate chặt (T1.1–T1.4)', () =
     expect(clampKnob(100, PROBE_CAP_RANGE)).toEqual({ value: 100, source: 'repo' });
     expect(clampKnob(101, PROBE_CAP_RANGE)).toEqual({ value: 100, source: 'repo', clamped_from: 101 });
     expect(clampKnob(1, PROBE_CAP_RANGE)).toEqual({ value: 2, source: 'repo', clamped_from: 1 });
-    expect(clampKnob(undefined, PROBE_CAP_RANGE)).toEqual({ value: 20, source: 'default' });
+    expect(clampKnob(undefined, PROBE_CAP_RANGE)).toEqual({ value: 100, source: 'default' });
     expect(clampKnob(0, DENSITY_RANGE)).toEqual({ value: 1, source: 'repo', clamped_from: 0 });
     expect(clampKnob(1001, DENSITY_RANGE)).toEqual({ value: 1000, source: 'repo', clamped_from: 1001 });
     expect(clampKnob(49, FLOOR_RANGE)).toEqual({ value: 50, source: 'repo', clamped_from: 49 });
@@ -273,8 +273,8 @@ describe('effectiveProbeCap — min(repo, operator), khai nguồn cắn (T1.10)'
     const s = defaultStandards();
     expect(effectiveProbeCap({ ...s, probe_cap: { value: 40, source: 'repo' }, operator_max_probe: 6 })).toEqual({ value: 6, repo: { value: 40, source: 'repo' }, operator: 6, bound_by: 'operator' });
     expect(effectiveProbeCap({ ...s, probe_cap: { value: 4, source: 'repo' }, operator_max_probe: 12 })).toEqual({ value: 4, repo: { value: 4, source: 'repo' }, operator: 12, bound_by: 'repo' });
-    expect(effectiveProbeCap({ ...s, operator_max_probe: 6 })).toEqual({ value: 6, repo: { value: 20, source: 'default' }, operator: 6, bound_by: 'operator' });
-    expect(effectiveProbeCap(s)).toEqual({ value: 20, repo: { value: 20, source: 'default' }, bound_by: 'repo' });
+    expect(effectiveProbeCap({ ...s, operator_max_probe: 6 })).toEqual({ value: 6, repo: { value: 100, source: 'default' }, operator: 6, bound_by: 'operator' });
+    expect(effectiveProbeCap(s)).toEqual({ value: 100, repo: { value: 100, source: 'default' }, bound_by: 'repo' });
   });
   it('parseOperatorMaxProbe: env là số ≥ 1 ⇒ số; vắng/rỗng/rác ⇒ undefined', () => {
     expect(parseOperatorMaxProbe('6')).toBe(6);

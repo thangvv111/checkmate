@@ -41,6 +41,10 @@ import { existsSync as coFile } from 'node:fs';
 import { join as noiDuong } from 'node:path';
 import { providerSection } from './ui-provider.js';
 import { repoSection } from './ui-repo.js';
+// Tầng `delivery` được value-import tầng `engine` (ma trận ở test/kien-truc-tang.test.ts). Dùng ở cửa
+// thêm repo để nói NGAY rằng bản clone chưa chạy được probe.
+import { preflightProbeEnvironment, nodeVersionOfImage } from '../../../packages/harness/src/probe-preflight.js';
+import { DEFAULT_IMAGE } from '../../../packages/harness/src/sandbox.js';
 import { cloneRepo, listBranches, listPrs, prState, listReposForToken, closePr, fetchAndRoute, setCommitStatus, checkRepo, getCurrentPr, mergePr, commentPr, splitOwnerRepo, returnToDev } from './github.js';
 import { hasToken, readRepoToken, readOwnToken, writeRepoToken, deleteRepoToken } from './secret-vault.js';
 import { hasGithubAccess, hasGhCli } from './github.js';
@@ -739,7 +743,12 @@ app.post('/api/repo/them', async (req, res) => {
       them_luc: new Date().toISOString(),
     };
     writeConfig({ ...c, repos: [...c.repos, moi], repo_dang_chon: github, repo: moi });
-    res.json({ ok: true, repo: moi });
+    // ⛔ Nói NGAY LÚC THÊM rằng bản clone chưa chạy được probe. Đo 07/09: repo thứ hai vào danh sách sạch
+    // sẽ, rồi lượt chấm code đầu tiên đi hết ba lời gọi model mới chết ở sandbox — người vận hành không có
+    // cách nào biết trước. Đăng ký KHÔNG bị chặn: repo vào danh sách hợp lệ, chấm tài liệu vẫn chạy được.
+    const kiem = preflightProbeEnvironment({ repo: dich, nodeMoiTruong: () => nodeVersionOfImage(DEFAULT_IMAGE) });
+    const canhBao = [...kiem.chan, ...kiem.canhBao].map((x) => `${x.thong_diep}${x.cach_sua ? ` — ${x.cach_sua}` : ''}`);
+    res.json({ ok: true, repo: moi, ...(canhBao.length > 0 ? { canh_bao_moi_truong: canhBao } : {}) });
   } catch (e) {
     // Clone hỏng thì repo KHÔNG vào danh sách — chìa vừa ghi ở trên trở thành chìa của một repo không
     // tồn tại trong cấu hình, không giao diện nào thấy để mà gỡ. Trả kho về đúng trạng thái trước đó.

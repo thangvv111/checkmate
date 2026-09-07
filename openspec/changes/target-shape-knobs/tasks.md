@@ -17,8 +17,11 @@
       thì cắt tiếp theo hướng phủ nhiều nhất».
 - [ ] 1.3 `spec-source › Độ sâu chia đơn vị luật là khoá của repo đích` — ADDED. Không sửa «Luật là ĐƠN
       VỊ CÓ ĐỊA CHỈ».
-- [ ] 1.4 `target-contract › Đường chạy test MẶC ĐỊNH chịu cùng khoá timeout` + `› Tên file probe đi qua
-      cùng cửa` — ADDED.
+- [ ] 1.4 `target-contract › Repo đích khai được thời hạn chạy test cho CẢ đường mặc định` + `› Tên file
+      probe đi qua cùng cửa` — ADDED. ⛔ **Đã thu hẹp 07/09:** cửa song sinh (con số cắt = con số in) và
+      dải `[30, 3600]` với nguồn dùng chung `TIMEOUT_RANGE` **đã xong** ở change
+      `probe-environment-preflight`. Change này chỉ còn mảnh «khai thời hạn mà không khai lệnh chạy test
+      thì đường mặc định vẫn áp».
 - [ ] 1.5 Chỗ sống của luật: hằng mặc định + dải kẹp trong engine **có test khoá** · khoá ở
       `checkmate.yml` repo đích · hồ sơ ở bốn capability trên. KHÔNG viết vào `docs/archive/r-rules/`.
 
@@ -39,8 +42,10 @@
       định. Nới trần KHÔNG được làm mất khai báo file ngoài tầm nhìn.
 - [ ] 3.3 `spec-units.ts`: nối nguồn cấu hình vào tham số `maxDepth` đã có (:56, :114); `MAX_UNIT_DEPTH`
       (:34) thành mặc định. Giữ nguyên cách đánh địa chỉ — **không đụng `RE_CODE`**.
-- [ ] 3.4 `sandbox.ts`: `chayVitest` (:305) đọc khoá timeout; thông điệp `TIMEOUT` (:311) **đọc chính
-      giá trị đã dùng để cắt**, không giữ hằng thứ hai. Ranh giới treo không đổi — vẫn KHÔNG kèm `loiNap`.
+- [x] 3.4 ⛔ **CHUYỂN SANG `probe-environment-preflight`, đã xong 07/09.** `chayVitest` nay nhận `timeoutS`
+      (mặc định `TIMEOUT_RANGE.default`), thông điệp `TIMEOUT` nội suy chính giá trị ấy, dải nới `[30,
+      3600]`. Ranh giới treo không đổi — vẫn KHÔNG kèm `loiNap`. Còn lại ở change này: nối **khoá của repo
+      đích** vào tham số ấy khi repo khai thời hạn mà không khai lệnh chạy test.
 - [ ] 3.5 `skill-code.ts`: `FILE_PROBE_MOI` (:55) đi qua cùng cửa với `runner.probe_file`; chỗ ghi và
       chỗ tìm dùng cùng một giá trị.
 - [ ] 3.6 Gắn khoá hình dạng đã áp + nguồn vào verdict.
