@@ -130,13 +130,26 @@ Tất cả ở `test/probe-environment.test.ts` trừ chỗ ghi khác.
 
 ## Chạy thật — KHÔNG tick trước khi chạy
 
-- [ ] T7.1 Sau deploy: chạy lượt chấm **code** trên `thangvv111/admin-fe` (clone chưa cài phụ thuộc). Kỳ
-      vọng: dừng **trước** stage 3, log nêu `npm ci`, **không** lời gọi model nào. run_id: ____
-- [ ] T7.2 Cài phụ thuộc cho clone ấy rồi chạy lại. Kỳ vọng: cảnh báo runtime `^24` vs Node 22 xuất hiện
-      và lượt **vẫn chạy tiếp**. run_id: ____
-- [ ] T7.3 Chạy lượt chấm **code** trên `thangvv111/checkmate` (môi trường đủ): không cảnh báo, không dừng,
-      lượt đi hết như trước. run_id: ____
+- [x] T7.1 ✅ **Chạy thật trên prod 07/09 sau deploy** — `thangvv111/admin-fe` PR #8 (`accessibility-floor`
+      @ `8197a92`, đối chứng `main` @ `d83b137`, diff 66 480 ký tự). Lượt dừng ở **cuối stage 2/5**, tức
+      **trước** stage 3 «Sinh probe đối kháng» — **không lời gọi model nào**. Thông điệp:
+
+      > ⛔ DỪNG TRƯỚC KHI GỌI MODEL — Bản clone của repo đích chưa cài phụ thuộc (**22 gói** khai trong
+      > package.json, thư mục node_modules **không tồn tại**) … Sửa: `cd repos/thangvv111-admin-fe && npm
+      > ci --no-audit --no-fund`
+
+- [x] T7.2 ✅ **Bệnh thứ ba lộ ra LẦN ĐẦU**, ngay cùng lượt ấy, đứng **trước** dòng chặn:
+
+      > ⚠ Môi trường: Repo đích đòi Node **^24** (engines.node) nhưng môi trường chạy probe là Node
+      > **v22.17.1**. Test của repo có thể không chạy, và lỗi khi ấy KHÔNG nói gì về pull request đang chấm.
+
+      Vế «cài xong rồi chạy lại» **KHÔNG kiểm được ở đây**: `npm ci` trên máy chủ Node 22 hỏng vì repo đòi
+      Node ^24 — đúng bệnh 3. Nó là việc của **nhịp hai** (cài trong container), chuyển thành nợ T9.1.
+- [x] T7.3 ✅ **Không chặn oan**: chạy phép kiểm trên cả hai clone của prod cùng lúc —
+      `repos/thangvv111-checkmate` ⇒ `chan: []` · `canhBao: []`; `repos/thangvv111-admin-fe` ⇒
+      `chan: ["thieu_phu_thuoc"]` · `canhBao: ["runtime_lech"]`. Repo đủ điều kiện đi tiếp y như trước.
 - [ ] T7.4 Thêm một repo đích mới qua giao diện: cảnh báo môi trường hiện ra và **không** chuyển trang.
+      *(Chưa kiểm — cần một repo đích thứ ba thật; không dựng repo giả trên prod chỉ để chạy phép thử.)*
 
 ## Kiểm tay
 
