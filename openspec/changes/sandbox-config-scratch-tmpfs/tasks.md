@@ -57,11 +57,16 @@
 
 ## § Chạy thật — KHÔNG tick trước khi chạy
 
-- [ ] 7.1 Deploy rồi mở một PR **code** trên prod: lượt chấm phải đi qua bước sandbox và ra verdict (không còn
-      chết ở «Runner không xuất JUnit XML»). Đây cũng là vế còn thiếu của ô T4.3 ở change
-      `finding-cap-and-density-standard`. run_id: ____
-- [ ] 7.2 Cùng lượt ấy: xác nhận `node_modules` của bản clone **còn nguyên** sau lượt chạy (so `du -sb` hoặc
-      số file trước/sau) — vế «ghi vào phụ thuộc thật vẫn thất bại» ở mức hệ thống, không chỉ ở mức đối số.
+- [x] 7.1 PR #79 trên prod (07/09, sau deploy): lượt chấm **đi qua sandbox và ra verdict** —
+      `result=PASS`, `co_lap={muc:'container', runtime:'podman version 3.4.4'}`, `ke_hoach=9 ghi_nhan=9`,
+      `pass=2 · ngoai_pham_vi=3`, 2 lời gọi model. Ba probe của lượt neo thẳng vào `inBand` (`✗→✓` — cải
+      thiện: đỏ ở nhánh gốc vì hàm chưa tồn tại, xanh ở nhánh PR). Trước change: chết ở «Runner không xuất
+      JUnit XML». run_id: `wmtr4j87au091`
+      ⚠ Lượt ĐẦU của PR #79 lỗi `spawnSync git ETIMEDOUT` — không do change này: server đang clone repo
+      `admin-fe` mới thêm, cú clone chèn ngang `git fetch` của webhook. Chấm lại sau khi clone xong thì qua.
+- [x] 7.2 `node_modules` của bản clone **còn nguyên từng byte** sau lượt chạy: 6471 file / 252 349 456 byte
+      trước, **y hệt** sau. Đây là vế mà lưới đối số không chứng minh được — nó khoá «dựng đối số đúng», còn
+      con số này khoá «podman thật sự không cho lớp phủ rò xuống bind `:ro`».
 
 ## § Sau-merge — nợ có tên
 
