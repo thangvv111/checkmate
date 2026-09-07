@@ -138,6 +138,28 @@
       (d) ngân sách comment PR 60 000 ký tự có khai số bị bỏ (`gate.ts:370`, `server.ts:263` không nuốt lỗi
       422); (e) gom probe hạng 2 vào một sandbox (`skill-code.ts:951`); (f) vòng 2 chỉ gửi id hỏng
       (`skill-doc.ts:258`); (g) skeptic chia lô ≤ 10 (`skill-doc.ts:274`).
+- [ ] 7.5 ⛔ **SỰ CỐ PROD — mọi lượt chấm CODE đang hỏng ở bước sandbox.** Phát hiện 07/09 khi chạy lượt thật;
+      **không do change này**, nhưng nó chặn ô T4.3 nên ghi ở đây. Hai trạng thái, cả hai đều hỏng:
+
+      | trạng thái | lỗi |
+      |---|---|
+      | clone repo đích **không có** `node_modules` (trước 07/09) | `npx vitest` đi tải từ registry, container không có mạng ⇒ `EAI_AGAIN registry.npmjs.org` |
+      | clone **có** `node_modules` (sau `npm install` 07/09, PO duyệt) | `ENOENT: mkdir '/work/node_modules/.vite-temp'` — vite phải ghi thư mục tạm để nạp `vitest.config.ts` |
+
+      Nguyên nhân gốc: `sandbox.ts:188` bật `--read-only` và `:201` mount `node_modules` **`:ro`**, trong khi
+      vite cần ghi vào chính thư mục ấy để bundle config TypeScript. Chú thích ở đầu `vitest.config.ts` đã
+      từng vá một nửa vấn đề (bỏ mọi `import` để không phải giải `vitest/config` qua junction) nhưng không
+      chạm tới nhu cầu GHI.
+
+      Ba hướng, mỗi hướng một cái giá — **PO chọn, agent không tự chọn**: (a) mount `tmpfs` lên
+      `/work/node_modules/.vite-temp` — giữ nguyên `:ro`, hẹp nhất, nhưng phụ thuộc chi tiết nội bộ của vite;
+      (b) đổi `vitest.config.ts` → `.js` thuần để vite khỏi bundle — sửa repo đích, mất `as const`; (c) nới
+      mount thành `:rw` — **chạm ⛔ `sandbox-isolation`**, code repo đích sửa được thư viện, không nên.
+      Cần một change riêng có ca test chạy thật, không vá vội.
+
+      Bối cảnh: lượt code cuối thành công là PR #7 ngày 26/08, TRƯỚC khi `container-isolated-probe-runs`
+      archive (05/09). Nhiều khả năng là hồi quy của change ấy, lộ ra muộn vì giữa hai mốc không có lượt code
+      nào chạy tới bước sandbox.
 - [ ] 7.3 Router: PR kèm một file không phải `.md/.txt` đi đường code ⇒ tài liệu trong PR hỗn hợp không được
       đo mật độ (`github.ts:387`). Đã ghi ở README; đo tài liệu trong PR code là việc sau.
 - [ ] 7.4 Change `target-shape-knobs` (đã mở) — không đổi.
