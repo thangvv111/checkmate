@@ -111,9 +111,28 @@
       thay `test/sandbox-isolation.test.ts:190` (`toContain('readRunnerCfg(repo)')` — lưới loại 1) bằng ca git
       thật. **KHÔNG thuộc change này** — PO chốt 1a ngày 06/09.
 - [ ] 7.2 **Change ép chuẩn mật độ** (mở khi điều kiện D1 đủ: ≥ 30 verdict doc có `volume_standard.counts`).
-      Điều kiện tiên quyết **trước khi nâng mặc định `probe_cap`** hoặc bật FAIL: (a) đọc
-      `stop_reason`/`finish_reason`, trả lời cụt ⇒ lỗi có tên, không retry mù (`jsonx.ts:19`,
-      `model.ts:235/:333` — gom một hằng, thêm `CLAUDE_CODE_MAX_OUTPUT_TOKENS` vào `ENV_CHO_CLI`); (b)
+
+      ⛔ **(a) KHÔNG CÒN LÀ SUY LUẬN — đo trên prod 07/09, ngay lượt đầu sau deploy.** Chấm `README.md`
+      (1192 từ v1) qua đường **API** chết ở bước 3 với «Không tìm thấy JSON trong trả lời model:» và chuỗi
+      rỗng. Gọi thẳng `api.anthropic.com` với cùng model, cùng `max_tokens: 8000`, prompt cùng cỡ:
+
+      | | |
+      |---|---|
+      | `stop_reason` | **`max_tokens`** |
+      | khối trả về | `['thinking', 'text']` — model đời mới trả khối suy nghĩ, ăn phần lớn trần |
+      | `output_tokens` | **8000** — dùng hết sạch |
+      | text sau khi `AnthropicApiProvider` lọc `type === 'text'` | 2052 ký tự, JSON **không đóng** |
+
+      Tức trần THẬT của đường API là `max_tokens: 8000` (`model.ts:235`), và với model có `thinking` thì
+      phần dành cho câu trả lời còn lại rất ít. Engine không đọc `stop_reason` nên báo sai bản chất —
+      người vận hành đọc «không tìm thấy JSON» sẽ đi sửa parser thay vì nới trần. Đường **thuê bao**
+      (CLI) không dính: lượt PR #75 cùng ngày sinh được 12 probe và 2 lượt sinh code.
+
+      Việc phải làm: đọc `stop_reason`/`finish_reason`, trả lời cụt ⇒ **lỗi có tên**, không retry mù
+      (`jsonx.ts:19`, `model.ts:235/:333` — gom một hằng, thêm `CLAUDE_CODE_MAX_OUTPUT_TOKENS` vào
+      `ENV_CHO_CLI`); cân nhắc gửi `max_tokens` lớn hơn hoặc tắt `thinking` cho lượt đòi JSON.
+
+      Các điều kiện tiên quyết còn lại **trước khi nâng mặc định `probe_cap`** hoặc bật FAIL: (b)
       `unwrapCode` coi fence mở không đóng là cụt; `that_lac > 0` từ file của lượt ⇒ không PASS
       (`skill-code.ts:687`, `verdict.ts:84`); (c) timeout sandbox theo cap hoặc chia file (`sandbox.ts:305`);
       (d) ngân sách comment PR 60 000 ký tự có khai số bị bỏ (`gate.ts:370`, `server.ts:263` không nuốt lỗi
