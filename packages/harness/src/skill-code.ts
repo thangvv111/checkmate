@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
-import { chuanMuc, normalizeOdcQualifier, normalizeOdcType, type Finding, type OdcQualifier, type OdcType, type RunEvent, type Severity } from '../../shared/src/types.js';
+import { chuanMuc, normalizeOdcQualifier, normalizeOdcType, type Finding, type OdcQualifier, type OdcType, type RunEvent, type Severity, type VolumeStandard } from '../../shared/src/types.js';
 import type { ModelProvider } from './model.js';
+import { defaultStandards, effectiveProbeCap, type ResolvedStandards } from './volume-standard.js';
 import { callCode, callJson } from './jsonx.js';
 import { humanSurfaceSource, modelSurfaceSource, readTarget, suggestModulePath, type TargetInfo } from './target.js';
 import { describeSources } from './sources.js';
@@ -44,14 +45,18 @@ interface KetQuaSkillCode {
   probeCompare: NonNullable<Verdict['probe_compare']>;
   /** Nguồn luật của lượt: khai hay dò, ở đâu, bao nhiêu đơn vị — 0 đơn vị là chấm KHÔNG có luật đối chiếu. */
   specSource: NonNullable<Verdict['spec_source']>;
+  /** Trần probe hiệu dụng + số đếm (kế hoạch thô / sau trần / ứng viên / cuối). Không có khối mật độ ở code. */
+  volumeStandard: VolumeStandard;
 }
 
 type PhatEvent = (e: RunEvent) => void;
 
-// Trần 20 + mặc định 10 (PO chốt 31/08): chuỗi 11 vòng của PR #12 cho thấy 6 probe/lượt chỉ khoét
-// quanh diff mới nhất — 4 lỗi có từ commit đầu bị bắt muộn 3–8 vòng vì không còn suất quét lại toàn mặt.
-
-const MAX_PROBE = Math.min(20, Math.max(2, Number(process.env.CHECKER_MAX_PROBE ?? 10)));
+// Trần probe KHÔNG còn là hằng ở đây: nó là `standards.probe_cap` của repo đích (đọc ở nhánh gốc, mặc định
+// 20 = trần hôm nay) kẹp với núm `agent.max_probe` của người vận hành — hiệu dụng = min(repo, operator),
+// giải ở `volume-standard.ts` và truyền vào `runCodeSkill`. Con số cũng KHÔNG còn trong prompt: đo được
+// `ke_hoach = trần` ở 14/14 lượt — trần nói cho model biết là một đơn đặt hàng, không phải một giới hạn.
+// (Lịch sử: trần 20 + mặc định 10 do PO chốt 31/08 sau chuỗi 11 vòng của PR #12 — 6 probe/lượt chỉ khoét
+// quanh diff mới nhất, 4 lỗi có từ commit đầu bị bắt muộn 3–8 vòng.)
 const FILE_PROBE_MOI = 'checker.probe.test.ts';
 
 // ---------- Phân loại MÁY (spec §11-A): model không được tự giác luật này ----------
@@ -344,7 +349,7 @@ ${rao('TEST_MAU', t.testMau)}
 ${rao('DIFF_PR', t.diff)}
 ${khoiNgoaiTamNhin(t)}
 # YÊU CẦU
-Đề xuất TỐI ĐA ${MAX_PROBE} probe độc lập, mỗi probe kiểm MỘT hành vi ${
+Đủ probe để mỗi đơn vị luật mà diff chạm tới có một phép thử; không probe cho luật diff không đụng. Mỗi probe kiểm MỘT hành vi ${
     coLuat ? 'mà spec khai. TRẢI probe theo LOẠI LUẬT có trong spec và phần diff đụng tới' : 'mà tài liệu API / test mẫu / diff cho thấy phải có. TRẢI probe theo phần diff đụng tới'
   } — đừng dồn hết vào một loại.
 
@@ -485,13 +490,36 @@ Trả lời CHỈ MỘT khối JSON trong fence \`\`\`json:
 
 // ---------- Pipeline ----------
 
+/**
+ * Mỗi ứng viên probe (`ma`) tối đa MỘT finding — giữ cái đầu, trả riêng các bản trùng để chỗ gọi log.
+ * Hàm thuần, không phụ thuộc sandbox, để câu «số finding code ≤ số probe» kiểm được bằng test.
+ */
+export function dedupeFindingsByCandidate<T extends { ma: string }>(items: readonly T[]): { kept: T[]; duplicates: T[] } {
+  const seen = new Set<string>();
+  const kept: T[] = [];
+  const duplicates: T[] = [];
+  for (const it of items) {
+    if (!it || typeof it !== 'object') continue;
+    const ma = String(it.ma ?? '');
+    if (seen.has(ma)) duplicates.push(it);
+    else {
+      seen.add(ma);
+      kept.push(it);
+    }
+  }
+  return { kept, duplicates };
+}
+
 export async function runCodeSkill(
   model: ModelProvider,
   repo: string,
   branch: string,
   base: string,
   phat: PhatEvent,
+  standard?: ResolvedStandards,
 ): Promise<KetQuaSkillCode> {
+  // Bộ chuẩn đã giải ở tầng có repo + base (cli.ts) — hàm này không tự mò checkmate.yml. Vắng = mặc định.
+  const probeCap = effectiveProbeCap(standard ?? defaultStandards());
   phat({ type: 'stage', stage: 1, ten: 'Nhận artifact — đọc diff PR' });
   const review = readReviewCfg(repo); // đọc trước readTarget: repo khai file nào không cần đưa vào diff
   const t = readTarget(repo, branch, base, diffIgnorePatterns(review));
@@ -533,7 +561,18 @@ export async function runCodeSkill(
   if (runner) phat({ type: 'log', msg: `Runner cấu hình từ checkmate.yml: ${runner.framework} · lệnh test của repo · hợp đồng JUnit XML` });
 
   phat({ type: 'stage', stage: 3, ten: 'Sinh probe đối kháng' });
-  const keHoach = (await callJson<{ probes: ProbePlan[] }>(model, promptPhanTich(t, review, rao))).probes.slice(0, MAX_PROBE);
+  phat({
+    type: 'log',
+    msg: `Trần probe hiệu dụng ${probeCap.value} (${probeCap.bound_by === 'operator' ? `người vận hành ${probeCap.operator}; repo đề nghị ${probeCap.repo.value}` : `${probeCap.repo.source}${probeCap.operator !== undefined ? `; người vận hành ${probeCap.operator}` : ''}`}) — model không được cho biết con số này`,
+  });
+  // ĐẾM TRƯỚC, CẮT SAU. Số kế hoạch thô đi lên verdict — bản trước `.slice` ngay ở đây nên không lượt nào
+  // biết model đề xuất bao nhiêu. `keHoachTho` lọc phần tử rỗng: model có thể trả `null` trong mảng.
+  const keHoachTra = await callJson<{ probes?: ProbePlan[] }>(model, promptPhanTich(t, review, rao));
+  const keHoachTho = (Array.isArray(keHoachTra?.probes) ? keHoachTra.probes : []).filter((p): p is ProbePlan => p !== null && typeof p === 'object');
+  const keHoach = keHoachTho.slice(0, probeCap.value);
+  if (keHoach.length < keHoachTho.length) {
+    phat({ type: 'log', msg: `Trần probe ${probeCap.value} cắn: model đề xuất ${keHoachTho.length}, giữ ${keHoach.length}, bỏ ${keHoachTho.length - keHoach.length}` });
+  }
   // Trigger lạ thì XOÁ TRƯỜNG, probe vẫn chạy: nhãn phân loại hỏng không được làm mất một phép thử
   // đã nghĩ ra. Ngược hướng với severity (fail-closed) vì trường này là telemetry, không gác gì.
   const triggerLa = keHoach.filter((p) => p.trigger !== undefined && !isValidTrigger(p.trigger)).map((p) => `${p.id}=${String(p.trigger)}`);
@@ -647,6 +686,10 @@ export async function runCodeSkill(
         handover,
         handoverBoQua,
         noBaseline: false,
+        volumeStandard: {
+          probe_cap: probeCap,
+          counts: { before_cut: keHoachTho.length, after_cut: keHoach.length, candidates: 0, final: 1, dropped_by_cap: keHoachTho.length - keHoach.length },
+        },
       };
     }
     if (loiThu !== undefined) {
@@ -870,8 +913,12 @@ export async function runCodeSkill(
       exit_code: 1,
     });
 
-    // Lưới máy 1: finding phải trỏ vào ứng viên hợp lệ — trỏ bậy thì VỨT finding đó (log), không chết run
-    for (const f of kl.findings) {
+    // Lưới máy 1: finding phải trỏ vào ứng viên hợp lệ — trỏ bậy thì VỨT finding đó (log), không chết run.
+    // Và MỖI ứng viên tối đa MỘT finding: model trả ba finding cùng `ma` là vượt trần mà không ai đếm,
+    // và câu «số finding code ≤ số probe» chỉ đúng khi có bước này (đo 06/09).
+    const khuTrung = dedupeFindingsByCandidate(Array.isArray(kl?.findings) ? kl.findings : []);
+    for (const d of khuTrung.duplicates) phat({ type: 'log', msg: `Lưới máy: vứt finding TRÙNG ứng viên ${d.ma} — mỗi ứng viên một finding` });
+    for (const f of khuTrung.kept) {
       const u = duocPhepFinding.find((x) => x.ma === f.ma);
       if (!u) {
         phat({ type: 'log', msg: `Lưới máy: vứt finding trỏ vào ứng viên không tồn tại/không được phép (${f.ma})` });
@@ -1078,5 +1125,16 @@ export async function runCodeSkill(
     handover,
     handoverBoQua,
     noBaseline,
+    // Không có khối `density` — chuẩn mật độ chỉ đo ở doc (số finding code đã neo vào ứng viên probe).
+    volumeStandard: {
+      probe_cap: probeCap,
+      counts: {
+        before_cut: keHoachTho.length,
+        after_cut: keHoach.length,
+        candidates: ungVienTatCa.length,
+        final: findings.length,
+        dropped_by_cap: keHoachTho.length - keHoach.length,
+      },
+    },
   };
 }

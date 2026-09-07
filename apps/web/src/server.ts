@@ -308,8 +308,10 @@ async function chamPr(cfg: CauHinhCoRepo, soPr: number): Promise<{ id: string } 
   try { tacGia = (await getCurrentPr(cfg, pr.so)).tacGia; } catch { /* thiếu tác giả không chặn run */ }
   const meta = { so: pr.so, headSha: pr.headSha, tacGia };
   if (pr.loai === 'doc') {
+    // `--base` cho lượt doc như lượt code: chuẩn khối lượng đọc ở nhánh gốc (`git show baseRef:checkmate.yml`).
+    // Thiếu nó thì CLI rơi về 'main' — ref local đóng băng lúc clone, không phải nhánh gốc hiện tại.
     return { id: rm.batDau(`PR #${pr.so} · tài liệu ${pr.fileDoc}`, 'doc',
-      ['--skill', 'doc', '--repo', cfg.repo.local_path, '--branch', pr.headSha, '--file', pr.fileDoc!], agentEnv(cfg), meta, cfg.repo.github) };
+      ['--skill', 'doc', '--repo', cfg.repo.local_path, '--branch', pr.headSha, '--base', pr.baseRef, '--file', pr.fileDoc!], agentEnv(cfg), meta, cfg.repo.github) };
   }
   // W2: truyền SHA đã pin thay vì tên ref dùng chung — ref bị force-move giữa chừng không đổi được commit bị chấm
   return { id: rm.batDau(`PR #${pr.so} · code (${pr.filesDoi.length} file đổi)`, 'code',
@@ -986,7 +988,7 @@ app.post('/api/runs', upload.single('tep'), async (req, res) => {
         id = rm.batDau(
           `PR #${pr.so} · tài liệu ${pr.fileDoc}`,
           'doc',
-          ['--skill', 'doc', '--repo', cfg.repo.local_path, '--branch', pr.headSha, '--file', pr.fileDoc!],
+          ['--skill', 'doc', '--repo', cfg.repo.local_path, '--branch', pr.headSha, '--base', pr.baseRef, '--file', pr.fileDoc!],
           agentEnv(cfg),
           { so: pr.so, headSha: pr.headSha, tacGia },
           cfg.repo.github,

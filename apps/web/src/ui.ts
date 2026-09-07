@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chuanMuc } from '../../../packages/shared/src/types.js';
+import { describeVolumeStandard } from '../../../packages/shared/src/volume-summary.js';
 import type { Finding, InsufficientBasis, InsufficientBasisKind, Verdict } from '../../../packages/shared/src/types.js';
 import { MODE, PROBE_DEPTH, readConfig } from './config.js';
 import type { RunMeta, StoredEvent } from './runs.js';
@@ -1497,6 +1498,9 @@ export function verdictHtml(v: Verdict): string {
 
   const hang = [
     hangMeta('Finding', `${v.findings.length} · ${dem('high')} high · ${dem('medium')} med · ${dem('low')} low`),
+    // Chuẩn khối lượng — lấy từ trường có kiểu, KHÔNG đếm lại danh sách finding đã cắt. Vắng = đời cũ, hiện
+    // «không biết», KHÔNG hiện 0 hay mặc định. Xám khi không biết.
+    hangMeta('Chuẩn khối lượng', describeVolumeStandard(v.volume_standard).replace(/^Chuẩn khối lượng: /, ''), !v.volume_standard),
     ps ? hangMeta('Probe', `${ps.ghi_nhan}/${ps.ke_hoach} ghi nhận · ${ps.pass} pass · ${ps.hoi_quy} hồi quy`) : '',
     ps ? hangMeta('Ngoài phạm vi', String(ps.ngoai_pham_vi)) : '',
     // Nguồn luật và độ phủ. Có `spec_source` mà VẮNG `luat_tong` = KHÔNG ĐO ĐƯỢC, không phải 0 — hai

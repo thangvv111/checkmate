@@ -86,7 +86,11 @@ export function historyPage(runs: RunMeta[], loc: HistoryFilter, repos: string[]
         r.trangThai === 'dang_chay'
           ? '<span style="color:var(--muted)">đang chạy…</span>'
           : r.verdict
-            ? `<span class="vd-pill vd-${r.verdict.result}">${r.verdict.result}</span> · ${r.verdict.findings.length} finding`
+            ? `<span class="vd-pill vd-${r.verdict.result}">${r.verdict.result}</span> · ${r.verdict.findings.length} finding · trước cắt ${
+                r.verdict.volume_standard?.counts && typeof r.verdict.volume_standard.counts.before_cut === 'number'
+                  ? String(r.verdict.volume_standard.counts.before_cut)
+                  : '<span title="verdict đời cũ — không có phép đo, không phải 0">?</span>'
+              }`
             : r.khongDuCoSo
               ? '<span class="vd-pill vd-thieu-co-so" title="lượt chấm chạy xong nhưng không chứng minh được gì — khác với lỗi hạ tầng">Không đủ cơ sở</span>'
               : '<span style="color:var(--fail)">lỗi</span>';

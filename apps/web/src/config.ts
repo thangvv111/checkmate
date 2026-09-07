@@ -32,7 +32,12 @@ export function clampToRange(tho: unknown, khoang: ValueRange): number {
 }
 
 /** Số phép thử tối đa mỗi lượt chấm. Mặc định 6 — con số gói design CCS chốt. */
-export const PROBE_DEPTH: ValueRange = { min: 2, max: 12, mac_dinh: 6 };
+// Trần PHỤC VỤ của người vận hành cho số probe mỗi lượt — hiệu dụng = min(núm này, `standards.probe_cap`
+// của repo đích). Dải nới 12 → 100 (06/09) để operator CÓ THỂ nâng khi repo đề nghị cao hơn; mặc định 6
+// giữ nguyên. ⚠ Nâng quá 20 khi chưa xử bốn nợ ở change `finding-cap-and-density-standard` § Sau-merge
+// (trả lời cụt không nhận diện · file probe cụt vẫn nạp · treo 300 s ⇒ FAIL giả · comment PR không cắt)
+// là tự mở chúng.
+export const PROBE_DEPTH: ValueRange = { min: 2, max: 100, mac_dinh: 6 };
 
 
 export interface AgentConfig {

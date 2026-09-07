@@ -5,8 +5,13 @@
 export type Severity = 'high' | 'medium' | 'low';
 
 // Run cũ còn lưu 'blocking'/'non_blocking' — mọi chỗ đọc phải qua hàm này.
-export function chuanMuc(s: string): Severity {
-  const t = (s ?? '').toLowerCase().trim();
+//
+// Nhận `unknown`, KHÔNG ném: severity là dữ liệu model trả về, và model có thể trả số, boolean, object,
+// hay bỏ trống. Bản trước gọi `.toLowerCase()` thẳng nên `severity: 3` làm cả lượt chấm chết thành «lỗi»
+// (gate.ts đã phải bọc `safeString` riêng cho web — engine thì không). Một severity không phải chuỗi là
+// một GIÁ TRỊ LẠ và đi cùng đường với mọi giá trị lạ khác: fail-closed về `high`. Đo 06/09.
+export function chuanMuc(s: unknown): Severity {
+  const t = typeof s === 'string' ? s.toLowerCase().trim() : '';
   if (t === 'high' || t === 'medium' || t === 'low') return t;
   if (t === 'non_blocking') return 'medium';
   return 'high'; // blocking + mọi giá trị lạ → fail-closed
@@ -111,6 +116,79 @@ export interface ArtifactRef {
   type: 'pr' | 'doc';
   name: string;
   sha_or_hash: string;
+}
+
+/**
+ * Nguồn của một khoá chuẩn khối lượng (capability `finding-volume-standard`).
+ *   `default`            — repo không khai khoá này; dùng mặc định của engine.
+ *   `repo`               — đọc được từ `checkmate.yml` ở NHÁNH GỐC của repo đích.
+ *   `default_unreadable` — repo CÓ file ở nhánh gốc nhưng không đọc được (sai cú pháp / khối sai kiểu).
+ *                          Phải phân biệt với `default`: đội đã siết chuẩn mà file hỏng thì lượt này đang
+ *                          chấm lỏng hơn ý họ — đó là thứ phải lộ ra, không được trông y hệt «chưa khai».
+ *   `no_repo`            — lượt chấm không có repo (tài liệu dán tay / tải lên).
+ */
+export type KnobSource = 'default' | 'repo' | 'default_unreadable' | 'no_repo';
+
+/** Một khoá số đã KẸP: giá trị áp, nguồn, giá trị gốc nếu bị kẹp, lý do nếu bị bỏ vì sai kiểu. */
+export interface Knob {
+  value: number;
+  source: KnobSource;
+  clamped_from?: number;
+  reason?: 'invalid_type';
+}
+
+/** Dải cỡ tài liệu (theo số từ) — bậc thang dưới tuyến tính, ranh trên. */
+export type DensityBand = '<=1000' | '<=5000' | '>5000';
+
+/** Vì sao phép đo mật độ KHÔNG áp ở lượt này. Bước hiện tại luôn `observe_only` khi đo được. */
+export type DensityReason = 'observe_only' | 'under_floor' | 'unmeasurable' | 'error';
+
+/**
+ * Chuẩn khối lượng mà lượt chấm đã bị chấm theo — TRƯỜNG CÓ KIỂU trên verdict.
+ *
+ * Vì sao là nghĩa vụ của hợp đồng verdict: chuẩn nay do repo đích khai được, tức mỗi đội chấm theo một
+ * ngưỡng khác nhau. Verdict không mang ngưỡng thì PASS của đội chấm theo 20 và PASS của đội chấm theo
+ * 200 trông giống hệt nhau. Và số đếm TRƯỚC khi cắt là mẫu số của mọi phép đánh giá xem chuẩn đặt đúng
+ * hay sai — để nó ở log là quyết định rằng câu hỏi ấy không bao giờ trả lời được từ dữ liệu đã có.
+ *
+ * VẮNG cả trường = bản ghi đời cũ, KHÔNG BIẾT — không phải «đã đo và bằng mặc định».
+ */
+export interface VolumeStandard {
+  /** Trần finding của skill-doc. Vắng ở lượt code. */
+  finding_cap?: Knob;
+  /**
+   * Trần probe của skill-code — HIỆU DỤNG = min(repo, operator). Repo đích chỉ ĐỀ NGHỊ; tài nguyên
+   * sandbox là của bên chấm. `operator` vắng khi lượt chạy không có núm operator (CLI tay).
+   */
+  probe_cap?: { value: number; repo: Knob; operator?: number; bound_by: 'repo' | 'operator' };
+  /**
+   * Số đếm theo tầng. Doc dùng đủ; code dùng `before_cut` (kế hoạch thô) · `after_cut` (sau trần) ·
+   * `candidates` (ứng viên probe có kết quả) · `final`. Số nào không có ở skill đó thì VẮNG, không ghi 0.
+   */
+  counts: {
+    raw_round1?: number;
+    after_machine_grids?: number;
+    raw_round2?: number;
+    before_cut: number;
+    after_cut: number;
+    after_skeptic?: number;
+    candidates?: number;
+    final: number;
+    dropped_by_cap: number;
+  };
+  /** Phép đo mật độ — CHỈ skill-doc. Vắng ở lượt code, không ghi 0. */
+  density?: {
+    standard: { per_1000_words: Knob; floor_words: Knob };
+    words: number;
+    count_method: 'v1';
+    band?: DensityBand;
+    threshold_per_1000?: number;
+    measured_per_1000?: number;
+    exceeded?: boolean;
+    /** Bước này CHỈ ĐO. `applied` luôn false; change ép chuẩn sẽ đổi nghĩa trường này. */
+    applied: false;
+    reason: DensityReason;
+  };
 }
 
 export interface Verdict {
@@ -302,6 +380,8 @@ export interface Verdict {
     /** Đường khai bị loại ở cửa đọc (tuyệt đối, có `..`). */
     rejected?: Array<{ key: string; pattern: string; reason: string }>;
   };
+  /** Chuẩn khối lượng đã áp + số đếm theo tầng + phép đo mật độ. Vắng = bản ghi đời cũ, KHÔNG BIẾT. */
+  volume_standard?: VolumeStandard;
   mode: 'live' | 'replay';
   started_at: string;
   finished_at: string;

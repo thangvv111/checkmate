@@ -5,6 +5,8 @@ import { ProviderConfigError, pickProvider, checkProvider, costMetrics, costSumm
 import { runCodeSkill } from './skill-code.js';
 import { decideResult } from './verdict.js';
 import { runDocSkill } from './skill-doc.js';
+import { parseOperatorMaxProbe, resolveVolumeStandard } from './volume-standard.js';
+import { describeVolumeStandard } from '../../shared/src/volume-summary.js';
 
 function layArg(ten: string, macDinh?: string): string | undefined {
   const i = process.argv.indexOf(`--${ten}`);
@@ -42,6 +44,8 @@ function phat(e: RunEvent): void {
     console.log(` VERDICT: ${v.result}  ·  ${v.artifact_ref.name} @ ${v.artifact_ref.sha_or_hash.slice(0, 7)}`);
     const dem = (m: string) => v.findings.filter((f) => f.severity === m).length;
     console.log(` ${v.findings.length} finding (${dem('high')} high · ${dem('medium')} medium · ${dem('low')} low) · model ${v.model}`);
+    // Lấy từ trường có kiểu — KHÔNG đếm lại danh sách finding đã cắt cho «trước khi cắt».
+    console.log(` ${describeVolumeStandard(v.volume_standard)}`);
     if (v.probe_stats) {
       const ps = v.probe_stats;
       console.log(` Độ phủ: ${ps.ghi_nhan} probe ghi nhận / ${ps.ke_hoach} kế hoạch · ${ps.pass} pass · ${ps.hoi_quy} hồi quy · ${ps.ngoai_pham_vi} ngoài phạm vi · ${ps.nghi_van} nghi vấn${ps.bo_qua ? ` · ${ps.bo_qua} skip` : ''}${ps.that_lac.length ? ` · thất lạc: ${ps.that_lac.join(',')}` : ''}`);
@@ -130,6 +134,13 @@ async function main(): Promise<void> {
     phat(e);
   };
 
+  // Bộ chuẩn khối lượng giải ở ĐÂY — tầng duy nhất có cả repo lẫn base — rồi truyền xuống hai skill.
+  // Đọc `standards` bằng `git show <base>:checkmate.yml`, không đọc đĩa; không repo (dán tay/tải lên) là
+  // `no_repo`. Núm operator đến từ env do tầng web đặt (`agentEnv`), CLI tay thì vắng.
+  const standards = resolveVolumeStandard(repo, repo ? base : null, parseOperatorMaxProbe(process.env.CHECKER_MAX_PROBE), (msg) =>
+    ghiPhat({ type: 'log', msg }),
+  );
+
   const nhan = skill === 'code' ? branch! : file!;
   const runId = `run-${new Date().toISOString().replace(/[:.]/g, '-')}-${nhan.replace(/[^\w-]/g, '_').slice(-40)}`;
   const batDau = new Date().toISOString();
@@ -144,10 +155,12 @@ async function main(): Promise<void> {
     let noBaseline: Verdict['no_baseline'];
     let probeCompare: Verdict['probe_compare'];
     let specSource: Verdict['spec_source'];
+    let volumeStandard: Verdict['volume_standard'];
     if (skill === 'code') {
-      const kq = await runCodeSkill(model, repo!, branch!, base, ghiPhat);
+      const kq = await runCodeSkill(model, repo!, branch!, base, ghiPhat, standards);
       findings = kq.findings;
       probeStats = kq.probeStats;
+      volumeStandard = kq.volumeStandard;
       quanSat = kq.quanSat.length > 0 ? kq.quanSat : undefined;
       // Rỗng thì để VẮNG hẳn, đừng ghi `[]`: bản ghi đời cũ cũng vắng, nên hai bên đọc như nhau và
       // giao diện chỉ phải nhớ MỘT luật — vắng thì không bày khối đó.
@@ -166,15 +179,19 @@ async function main(): Promise<void> {
       const sha = execFileSync('git', ['rev-parse', branch], { cwd: repo, encoding: 'utf8' }).trim();
       const sb = new Sandbox(repo, sha);
       try {
-        const kq = await runDocSkill(model, join(sb.dir, file!), ghiPhat);
+        // `sb.dir` là cây NHÁNH PR — đúng cho tài liệu đang chấm, nhưng KHÔNG dùng để đọc chuẩn: chuẩn đã
+        // giải ở trên từ nhánh gốc (`--base`, server truyền `pr.baseRef`).
+        const kq = await runDocSkill(model, join(sb.dir, file!), ghiPhat, standards);
         findings = kq.findings;
+        volumeStandard = kq.volume_standard;
         artifactRef = { type: 'doc', name: file!, sha_or_hash: sha };
       } finally {
         sb.huy();
       }
     } else {
-      const kq = await runDocSkill(model, file!, ghiPhat);
+      const kq = await runDocSkill(model, file!, ghiPhat, standards);
       findings = kq.findings;
+      volumeStandard = kq.volume_standard;
       artifactRef = { type: 'doc', name: kq.tenFile, sha_or_hash: kq.hash };
     }
     const verdict: Verdict = {
@@ -192,6 +209,7 @@ async function main(): Promise<void> {
       no_baseline: noBaseline,
       probe_compare: probeCompare,
       spec_source: specSource,
+      volume_standard: volumeStandard,
       // Ai bấm chạy — tầng web truyền xuống. Vắng = lượt do máy chạy (chế độ trực), và đó là một
       // khẳng định có nghĩa chứ không phải thiếu dữ liệu.
       run_by: layArg('run-by') || undefined,
