@@ -187,6 +187,7 @@ export interface ContainerSpec {
  */
 export const DEPENDENCY_SCRATCH_PATHS: ReadonlyArray<{ path: string; ly_do: string }> = [
   { path: '/work/node_modules/.vite-temp', ly_do: 'vite bundle file cấu hình TypeScript ra đây trước khi nạp (vitest)' },
+  { path: '/work/node_modules/.vitest', ly_do: 'vitest ≥4 ghi token API vào đây khi HOME không ghi được — không ghi được thì chết ở Startup Error, trước khi nạp một file test nào' },
 ];
 
 /**
