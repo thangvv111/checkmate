@@ -156,8 +156,14 @@
       khai `default_unreadable`. Kiểm bằng `--base` trỏ một ref cục bộ có yml hỏng, KHÔNG làm hỏng `main` của
       prod; vế «comment PR hiện `default_unreadable`» dựa vào ca đơn vị T2.12/T2.14 chứ không tick trơn.
       run_id: ____
-- [ ] T4.5 Sau khi merge PR #77: một lượt doc bất kỳ phải khai `finding_cap.source = 'repo'` và
-      `density.standard.*.source = 'repo'` — vế còn thiếu của T4.1. run_id: ____
+- [x] T4.5 Sau khi merge PR #77 — chấm lại **cùng PR #76, cùng tài liệu**, chỉ khác: nhánh gốc nay có khối
+      `standards`. `finding_cap {100, **'repo'**}` · `density.standard.per_1000_words {20, **'repo'**}` ·
+      `floor_words {300, **'repo'**}` · `words 931` (thêm một dòng chú thích vào file) · `measured 6.44` ·
+      `applied false`. run_id: `wmtr1870vu36c`
+      ⛔ **Đây là bằng chứng dứt điểm cho «đọc từ NHÁNH GỐC, không đọc đĩa»** — mạnh hơn mọi ca đơn vị: hai
+      lượt chấm cùng một PR trên cùng một clone, cách nhau ba giờ, cho `default` rồi `repo`. Working tree của
+      clone KHÔNG hề đổi giữa hai lượt (git chỉ `fetch` vào `refs/checkmate/*`, không checkout — đo ở task
+      0.2). Nếu engine đọc đĩa thì cả hai lượt đều phải ra `default`. Nó ra `repo` ⇒ nó đọc ref nhánh gốc.
 
 ## Kiểm tay
 
