@@ -36,7 +36,7 @@ import { probesPage, type QueueItem, type SkippedItem } from './ui-probes.js';
 
 import { type CauHinhCoRepo, MODE, PROBE_DEPTH, ProviderConfigErrorCfg, clampToRange, coRepo, laRepoDaKhai, configForReview, currentConfig, maskToken, maskToken2, readConfig, migrateRepoToken, readSubscriptionToken, agentEnv, writeConfig, writeSubscriptionToken } from './config.js';
 import { PROVIDER_CATALOG, providerDefinition, validModel, readProviderCheck, writeKey, checkStillValid, type ProviderConfig, type ProviderId, type Method } from './provider.js';
-import { REPO_ROOT, slugGithubRepo, findRepo, type RepoConfig } from './config.js';
+import { REPO_ROOT, slugGithubRepo, findRepo, configForRepo, type RepoConfig } from './config.js';
 import { existsSync as coFile } from 'node:fs';
 import { join as noiDuong } from 'node:path';
 import { providerSection } from './ui-provider.js';
@@ -222,8 +222,9 @@ function theoDoiHead(id: string, soPr: number): void {
     if (!rm.dangChay(id)) return clearInterval(h);
     void (async () => {
       try {
-        const cfgH = readConfig();
-        if (!coRepo(cfgH)) return clearInterval(h);
+        // Repo của LƯỢT, không phải repo đang chọn — xem `configForRepo`.
+        const cfgH = configForRepo(readConfig(), rm.lay(id)?.meta.repo);
+        if (!cfgH) return clearInterval(h);
         const nay = await getCurrentPr(cfgH, soPr);
         if (nay.headSha && nay.headSha !== ghim && rm.ghiHeadDoi(id, nay.headSha)) {
           console.log(`PR #${soPr}: head đổi giữa lượt chấm ${id} (${ghim.slice(0, 7)} → ${nay.headSha.slice(0, 7)})`);
@@ -240,10 +241,14 @@ function theoDoiHead(id: string, soPr: number): void {
 
 // ---- Chế độ trực (B4.3): hook run-xong + poller ----
 rm.onXong = (meta) => {
-  const cfg = readConfig();
-  // Ba việc tự động đều gọi GitHub trên repo đang chọn. Không có repo thì không có gì để gọi — và
-  // đây là đường MÁY tự chạy, nên nó phải im chứ không được đoán.
-  if (!coRepo(cfg)) return;
+  // Ba việc tự động gọi GitHub trên repo CỦA LƯỢT — `meta.repo` gán lúc chạy — chứ KHÔNG phải repo đang
+  // chọn trên giao diện. Đây là đường MÁY tự chạy, nên thiếu repo thì nó phải im chứ không được đoán:
+  // đăng nhầm repo là gửi finding của cây mã nguồn này sang pull request của đội khác.
+  const cfg = configForRepo(readConfig(), meta.repo);
+  if (!cfg) {
+    if (meta.pr) console.error(`Tự động: BỎ QUA lượt ${meta.id} — ${meta.repo ? `repo «${meta.repo}» không còn trong danh sách đã khai` : 'lượt không gắn repo'}; không đăng, không gắn trạng thái, không trả về dev`);
+    return;
+  }
   if (!meta.pr || !meta.verdict) return;
   const v = meta.verdict;
   const pr = meta.pr;
@@ -1171,8 +1176,10 @@ function docDanhTinhCong(req: import('express').Request): IdentityCheck {
 
 app.post('/api/runs/:id/merge', async (req, res) => {
   const st = rm.lay(req.params.id);
-  const cfg = readConfig();
-  if (!coRepo(cfg)) return loiCong(res, 409, 'Chưa kết nối repo nào — không có repo để merge.');
+  // Repo CỦA LƯỢT, không phải repo đang chọn. Đây là đường nặng nhất của bug 07/09: dùng repo đang chọn
+  // thì `mergePr` merge pull request CÙNG SỐ ở repo khác — máy đưa code vào trunk không ai yêu cầu (⛔C1).
+  const cfg = configForRepo(readConfig(), st?.meta.repo);
+  if (!cfg) return loiCong(res, 409, st?.meta.repo ? `Repo «${st.meta.repo}» của lượt chấm này không còn trong danh sách đã khai — không merge.` : 'Lượt chấm này không gắn repo — không có repo để merge.');
   const v = st?.meta.verdict;
   // Quyết định cổng nằm ở hàm THUẦN (gate.ts) để mỗi nhánh từ chối là một ca test chạy được; route chỉ
   // gom đầu vào rồi làm I/O. Thứ tự kiểm và từng chữ thông điệp thuộc về hàm đó, không phải chỗ này.
@@ -1205,8 +1212,9 @@ app.post('/api/runs/:id/merge', async (req, res) => {
 
 app.post('/api/runs/:id/reject', async (req, res) => {
   const st = rm.lay(req.params.id);
-  const cfg = readConfig();
-  if (!coRepo(cfg)) return loiCong(res, 409, 'Chưa kết nối repo nào — không có repo để trả về.');
+  // Cùng luật với merge: repo của LƯỢT (xem `configForRepo`), không phải repo đang chọn.
+  const cfg = configForRepo(readConfig(), st?.meta.repo);
+  if (!cfg) return loiCong(res, 409, st?.meta.repo ? `Repo «${st.meta.repo}» của lượt chấm này không còn trong danh sách đã khai — không trả về dev.` : 'Lượt chấm này không gắn repo — không có repo để trả về.');
   // Cùng khuôn với merge: quyết định ở hàm thuần (gate.ts), route chỉ gom đầu vào rồi làm I/O.
   const cb = evaluateRejectLocal({
     mode: MODE,

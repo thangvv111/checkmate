@@ -232,6 +232,27 @@ export function coRepo(c: CheckmateConfig): c is CauHinhCoRepo {
 }
 
 /**
+ * Cấu hình gắn với MỘT repo cụ thể — cửa DUY NHẤT cho mọi hành động GitHub thuộc về một lượt chấm.
+ *
+ * `cfg.repo` là **khung nhìn của repo đang chọn trên giao diện** (`repo-history` khai vậy), nên dùng nó
+ * cho một lượt là dùng sai thứ: lượt thuộc repo nào đã được ghi vào `meta.repo` lúc CHẠY.
+ *
+ * ⛔ Đo được trên prod 07/09, ngay sau khi thêm repo thứ ba: lượt chấm PR #79 của `thangvv111/checkmate`
+ * bị đăng verdict lên `thangvv111/admin-fe` (repo đang chọn) — 404 vì repo ấy không có PR số 79, và 422
+ * «No commit found for SHA» vì sha thuộc repo kia. Hôm ấy may vì số PR không trùng; nếu trùng thì một đội
+ * nhận finding của cây mã nguồn khác, và ở cổng merge thì máy merge nhầm trunk (⛔C1).
+ *
+ * Trả `null` khi thiếu repo hoặc repo không còn trong danh sách — chỗ gọi phải DỪNG, không được rơi về
+ * repo đang chọn. Thà không đăng còn hơn đăng nhầm repo.
+ */
+export function configForRepo(c: CheckmateConfig, github: string | undefined | null): CauHinhCoRepo | null {
+  const ten = typeof github === 'string' ? github.trim() : '';
+  if (!ten) return null;
+  const r = findRepo(c, ten);
+  return r ? { ...c, repo: r, repo_dang_chon: r.github } : null;
+}
+
+/**
  * Repo này có nằm trong danh sách ĐÃ KHAI không — MỘT chỗ trả lời cho cả ba đường vào.
  *
  * Gác này sinh ra ở đường webhook với lý do «chữ ký chỉ chứng minh người gửi biết bí mật, không chứng
