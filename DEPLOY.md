@@ -297,6 +297,28 @@ trả lời *«podman có cài không»* chứ không trả lời *«podman có 
 ấy khác nhau đúng ở ca này. Chưa đo được engine đã báo mức nào cho lượt hỏng — lượt ấy chết trước khi ghi
 verdict — nên đừng suy; nhưng khoảng cách giữa hai câu hỏi là có thật và ghi ở nợ #29.
 
+## ⛔ «Runner không xuất JUnit XML» — MỘT thông điệp, HAI bệnh khác hẳn nhau
+
+Đo 07/09 khi chạy lượt thật sau deploy: hai lượt chấm code liên tiếp cùng chết với đúng một câu
+«Probe không thu thập được sau 2 lần sinh: Runner không xuất JUnit XML cho …», nhưng **hai nguyên nhân
+khác nhau và hai cách sửa khác nhau**. Đọc dòng lỗi con để phân biệt — đừng dừng ở câu ngoài.
+
+| dòng lỗi con | bệnh | sửa |
+|---|---|---|
+| `npm error code EAI_AGAIN` · `getaddrinfo … registry.npmjs.org` | bản clone repo đích **thiếu `node_modules`**, nên `npx vitest` đi tải từ registry — mà container chạy `--network=none` | `npm install` **trong bản clone**: `cd ~/checkmate-app/checkmate/repos/<repo> && npm install --no-audit --no-fund` |
+| `ENOENT: no such file or directory, mkdir '/work/node_modules/.vite-temp'` | vite phải ghi file bundle tạm để nạp `vitest.config.ts`, mà `node_modules` mount `:ro` | đã vá bằng lớp phủ `--tmpfs` — change `sandbox-config-scratch-tmpfs`. Gặp lại nghĩa là bản trên server cũ hơn change ấy |
+
+**Kiểm nhanh bệnh thứ nhất, trước khi mò tiếp:**
+
+```bash
+ls ~/checkmate-app/checkmate/repos/<repo>/node_modules | wc -l   # 0 hoặc "No such file" = đúng bệnh này
+```
+
+⚠ **Thêm một repo đích mới thì phải `npm install` trong bản clone của nó** — cùng loại việc với
+`enable-linger`: cấu hình của máy, không nằm trong gói deploy, và chỉ lộ ra khi có lượt chấm **code** đầu
+tiên chạy tới bước sandbox. Lượt chấm **tài liệu** không đụng sandbox nên vẫn xanh, và điều đó làm sự cố
+trông như không tồn tại.
+
 ## Bốn khác biệt so với chạy trên máy dev (đều đã xử, ghi để lần sau khỏi mò)
 
 | # | Trên máy dev | Trên server | Đã xử thế nào |

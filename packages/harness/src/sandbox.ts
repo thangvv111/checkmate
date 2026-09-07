@@ -167,6 +167,26 @@ export interface ContainerSpec {
 }
 
 /**
+ * Đường GHI ĐƯỢC bên trong thư mục phụ thuộc — **DANH SÁCH ĐÓNG**, mỗi mục một lý do.
+ *
+ * Luật: `sandbox-isolation › Không đường ghi nào ra ngoài thư mục của lượt chạy`. Thư mục phụ thuộc vào
+ * container ở chế độ `:ro`; mỗi mục dưới đây được phủ một lớp **tmpfs** — nằm trong bộ nhớ, biến mất cùng
+ * container, và KHÔNG chạm tới `node_modules` thật của bản clone.
+ *
+ * ⛔ Danh sách này MUST đóng và MUST nằm trong mã. Không mẫu chung, không biến môi trường, không khoá của
+ * `checkmate.yml`: thứ chạy trong sandbox là code của repo đích (⛔C4), nên để repo đích tự khai đường ghi
+ * là trả lại đúng thứ luật cô lập vừa lấy đi.
+ *
+ * Vì sao mục đầu tiên tồn tại — đo 07/09: vite nạp `vitest.config.ts` bằng cách bundle nó ra một file tạm
+ * đặt trong `node_modules/.vite-temp`. Mount `:ro` làm bước ấy chết với `ENOENT: mkdir`, và MỌI lượt chấm
+ * code hỏng ở bước sandbox. Kiểm bằng podman dựng tay trên prod: không có mount này thì hỏng, có thì
+ * `JUNIT report written`.
+ */
+export const DEPENDENCY_SCRATCH_PATHS: ReadonlyArray<{ path: string; ly_do: string }> = [
+  { path: '/work/node_modules/.vite-temp', ly_do: 'vite bundle file cấu hình TypeScript ra đây trước khi nạp (vitest)' },
+];
+
+/**
  * Dựng đối số cho runtime — hàm THUẦN, và là chỗ luật của change này sống.
  *
  * ⛔ Container KHÔNG chặn gì nếu vẫn bind ghi được ra ngoài. Hai thứ nặng nhất — thư viện probe và sổ cái
@@ -198,7 +218,12 @@ export function buildContainerArgs(spec: ContainerSpec): string[] {
     // ~0.35s nên giá như nhau; chọn đường có hậu quả nhẹ hơn khi hỏng.
     '-v', `${spec.thuMucChay}:/work:Z,U`,
   ];
-  if (spec.thuMucPhuThuoc) a.push('-v', `${spec.thuMucPhuThuoc}:/work/node_modules:ro,Z`);
+  if (spec.thuMucPhuThuoc) {
+    a.push('-v', `${spec.thuMucPhuThuoc}:/work/node_modules:ro,Z`);
+    // Lớp phủ tạm cho đúng những đường bộ chạy test PHẢI ghi. Chỉ thêm khi có thư mục phụ thuộc: không có
+    // gì để phủ thì một mount thừa là một bề mặt thừa.
+    for (const { path } of DEPENDENCY_SCRATCH_PATHS) a.push('--tmpfs', path);
+  }
   a.push('-w', '/work', safeImageName(spec.anh), ...spec.lenh);
   return a;
 }
