@@ -83,6 +83,49 @@ export function readReviewCfg(repoPath: string): ReviewCfg | null {
   }
 }
 
+/** Kết quả đọc khối `standards` — ba trạng thái phải PHÂN BIỆT được, vì verdict khai nguồn khác nhau. */
+export type StandardsRead =
+  | { state: 'absent' }
+  | { state: 'unreadable'; error: string }
+  | { state: 'present'; standards: Record<string, unknown> | undefined };
+
+/**
+ * Cửa đọc THỨ TƯ của `checkmate.yml` — khối `standards` (capability `finding-volume-standard`).
+ *
+ * Khác ba cửa trên ở một điểm CÓ CHỦ ĐÍCH: nhận một HÀM ĐỌC thay vì đường dẫn thư mục. Người gọi đưa
+ * `git show <baseRef>:checkmate.yml`; hàm này không biết đĩa. Khuôn «join đường dẫn thư mục + tên file»
+ * của ba cửa kia đọc working tree của clone — mà working tree là snapshot nhánh default LÚC KẾT NỐI,
+ * không bao giờ được checkout lại (đo 06/09: git chỉ `clone` + `fetch` vào `refs/checkmate/*`). Đọc đĩa
+ * là đọc một bản đã chết. Kéo ba cửa kia về cùng khuôn là change fix-bug riêng.
+ *
+ * Fail-safe như hai cửa song sinh: yml hỏng → `unreadable` (KHÔNG ném), và nói ra. Khối `standards`
+ * không phải object (chuỗi, mảng) cũng là `unreadable` — có file mà không đọc được, khác «chưa khai».
+ * Không cache (⛔C6): mỗi lượt đọc lại.
+ */
+export function readStandardsCfg(readAtBase: (path: string) => string | null): StandardsRead {
+  let text: string | null;
+  try {
+    text = readAtBase('checkmate.yml');
+  } catch (e) {
+    return { state: 'unreadable', error: loiCuPhapAnToan(e) };
+  }
+  if (text === null) return { state: 'absent' };
+  let raw: unknown;
+  try {
+    raw = parseYaml(text);
+  } catch (e) {
+    console.error(`checkmate.yml của repo đích sai cú pháp — bỏ qua khối standards, rơi về mặc định: ${loiCuPhapAnToan(e)}`);
+    return { state: 'unreadable', error: loiCuPhapAnToan(e) };
+  }
+  const s = (raw as { standards?: unknown } | null | undefined)?.standards;
+  if (s === undefined || s === null) return { state: 'present', standards: undefined };
+  if (typeof s !== 'object' || Array.isArray(s)) {
+    console.error('checkmate.yml: khối standards không phải object — bỏ qua, rơi về mặc định');
+    return { state: 'unreadable', error: 'khối standards không phải object' };
+  }
+  return { state: 'present', standards: s as Record<string, unknown> };
+}
+
 // Mẫu repo khai có thể sai cú pháp regex — mẫu hỏng bị bỏ qua chứ không được làm sập lượt chấm.
 export function diffIgnorePatterns(review: ReviewCfg | null): RegExp[] {
   const ra: RegExp[] = [];

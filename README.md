@@ -47,9 +47,38 @@ thật; PR fail + gốc pass = hồi quy). FAIL ⟺ có ≥1 finding mức chặ
 
 Repo đích khai cách nó được chấm trong `checkmate.yml` ở gốc: `sources` (spec, tài liệu API, file test mẫu
 nằm đâu — không khai thì engine tự dò và ghi ra đã dò ở đâu), `runner` (lệnh chạy test, thư mục/đuôi probe,
-hướng dẫn viết probe), `review` (file bỏ khỏi diff, khuôn lỗi ưu tiên, thang severity riêng). Engine đọc
-file này từ bản clone của repo đích. Gói deploy của CheckMate không mang hồ sơ xây dựng (`openspec/`,
-`docs/`, `test/`…) — xem `scripts/pack-deploy.sh` và `DEPLOY.md`.
+hướng dẫn viết probe), `review` (file bỏ khỏi diff, khuôn lỗi ưu tiên, thang severity riêng), `standards`
+(chuẩn khối lượng — xem bảng dưới). Engine đọc file này từ bản clone của repo đích. Gói deploy của CheckMate
+không mang hồ sơ xây dựng (`openspec/`, `docs/`, `test/`…) — xem `scripts/pack-deploy.sh` và `DEPLOY.md`.
+
+### Khối `standards` — chuẩn khối lượng (capability `finding-volume-standard`)
+
+Bốn khoá, tất cả là **số**; giá trị không phải số hữu hạn (chuỗi, `null`, `true`, `.inf`) bị bỏ và dùng mặc
+định, giá trị ngoài dải bị kẹp và verdict ghi `clamped_from`. Bước hiện tại **chỉ đo**: mật độ được tính và
+ghi lên verdict (`volume_standard`), **không đổi PASS/FAIL**; change ép chuẩn mở sau khi sổ cái có đủ dữ liệu.
+
+| khoá | nghĩa | mặc định | dải kẹp |
+|---|---|---|---|
+| `finding_cap` | trần số finding một lượt chấm **tài liệu** | 100 | 4 – 1000 |
+| `probe_cap` | trần số probe một lượt chấm **code** — repo chỉ *đề nghị*; hiệu dụng = min(khoá này, núm «Số phép thử tối đa» của người vận hành) | 20 | 2 – 100 |
+| `density_per_1000_words` | mức mật độ finding / 1000 từ ở dải ≤ 1000 từ; các dải lớn hơn nhân tỉ lệ theo bảng 20 · 12 · 8 (≤1000 · ≤5000 · >5000 từ) | 20 | 1 – 1000 |
+| `density_floor_words` | dưới sàn này không đo mật độ | 300 | 50 – 2000 |
+
+Ba điều cần biết khi khai:
+
+- **Đọc từ NHÁNH GỐC** qua `git show <nhánh-gốc>:checkmate.yml` — không phải từ nhánh pull request, và không
+  phải từ đĩa của clone. Sửa `standards` trên nhánh gốc có hiệu lực ở lượt chấm kế tiếp; sửa trong PR không ăn
+  cho chính PR đó (kể cả siết chặt hơn).
+- **Mỗi lượt khai lại chuẩn nó đã bị chấm theo** trên comment PR, màn chấm, lịch sử và CLI — kèm nguồn: mặc
+  định · `checkmate.yml` · «mặc định vì checkmate.yml KHÔNG ĐỌC ĐƯỢC» · «không có repo». Đội nới chuẩn thì
+  người đọc verdict thấy.
+- **Trần thật của đường code là trần token đầu ra của provider** (8 000 token đường API, 16 000 đường
+  chat-completions, CLI không chỉnh được) ≈ 25–40 probe. `probe_cap` cao hơn số ấy chưa được kiểm chứng; trước
+  khi nâng mặc định cần nhận diện trả lời cụt, timeout sandbox theo cap, ngân sách comment PR — xem
+  `openspec/changes/finding-cap-and-density-standard/tasks.md` § Sau-merge.
+- «Từ» đếm bằng hàm máy phiên bản `v1`: trên bản gốc tài liệu, bỏ front-matter và khối code, gột ký tự
+  markdown/bảng, tách khoảng trắng, giữ token có chữ hoặc số. Với tiếng Việt, một token ≈ một âm tiết.
+- Tài liệu **trong PR hỗn hợp** (kèm file không phải `.md`/`.txt`) đi đường code và không được đo mật độ.
 
 ## Model provider
 

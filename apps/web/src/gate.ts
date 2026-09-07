@@ -1,4 +1,5 @@
 import { chuanMuc, type Finding, type Verdict } from '../../../packages/shared/src/types.js';
+import { describeVolumeStandard } from '../../../packages/shared/src/volume-summary.js';
 import { appendGateLedger, gateActionsOfPr, prsNeedingReconcile } from './store/ledger-store.js';
 import { maskTokenInText } from './github.js';
 import { MODE } from './config.js';
@@ -357,6 +358,7 @@ export function renderReceipt(v: Verdict, nguoi: string, xacNhanMedium: string[]
 
 **Verdict: ${v.result}** · \`${v.artifact_ref.name}\` @ \`${v.artifact_ref.sha_or_hash.slice(0, 10)}\`
 ${v.findings.length} finding (${d.high} high · ${d.medium} medium · ${d.low} low) · model \`${v.model}\` · run \`${v.run_id}\`
+_${describeVolumeStandard(v.volume_standard)}_
 ${xn}
 ${dsFinding}
 
@@ -372,6 +374,7 @@ export function renderAutoVerdict(v: Verdict): string {
   return `## ♞ CheckMate — Verdict tự động (chế độ trực)
 
 **${v.result}** · \`${v.artifact_ref.name}\` @ \`${v.artifact_ref.sha_or_hash.slice(0, 10)}\` · ${v.findings.length} finding (${d.high} high · ${d.medium} medium · ${d.low} low) · run \`${v.run_id}\`
+_${describeVolumeStandard(v.volume_standard)}_
 
 ${dsFinding}
 ${(v.quan_sat_ngoai_pr ?? []).length ? `\n**Quan sát ngoài phạm vi PR** (không tính vào verdict — lỗi tồn tại trên cả nhánh gốc, đề nghị mở việc riêng):\n${(v.quan_sat_ngoai_pr ?? []).map((q) => `- ${q.loai === 'nghi_loi_co_san' ? '⚠ nghi LỖI CÓ SẴN' : 'ngoài phạm vi'} · \`${q.probe_id}\` (${q.spec_rule}) — ${q.ten}`).join('\n')}\n` : ''}

@@ -30,7 +30,9 @@ describe('MỘT nguồn cho một khoảng giá trị', () => {
   });
 
   it('T1.3 kẹp về biên của CHÍNH khoảng ấy', () => {
-    expect(clampToRange(99, PROBE_DEPTH)).toBe(PROBE_DEPTH.max);
+    // Trên biên bằng `max + 1`, không dùng số cứng: dải PROBE_DEPTH nới 12 → 100 (06/09) làm số 99 cũ rơi
+    // vào TRONG dải và ca này đỏ oan — một ca «kẹp về biên» phải theo biên, không theo một con số nhớ.
+    expect(clampToRange(PROBE_DEPTH.max + 1, PROBE_DEPTH)).toBe(PROBE_DEPTH.max);
     expect(clampToRange(1, PROBE_DEPTH)).toBe(PROBE_DEPTH.min);
     expect(clampToRange(999, PROBE_DEPTH)).toBe(PROBE_DEPTH.max);
     expect(clampToRange(1, PROBE_DEPTH)).toBe(PROBE_DEPTH.min);
