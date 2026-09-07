@@ -35,8 +35,11 @@ describe('readRunnerCfg', () => {
     expect(c?.probe_dir).toBe('test');
   });
 
+  // Cận trên nới 1800 → 3600 ngày 07/09 (PO chốt): trần 5 phút biến một bộ test bình thường thành
+  // finding «PR làm treo test» — engine kết luận sai về pull request vì một hằng của chính nó. Việc
+  // siết thuộc về núm của người vận hành CheckMate, không thuộc mặc định engine áp lên repo đích.
   it('kẹp timeout vào dải an toàn — repo khai 99999 không được giữ máy chủ mãi mãi', () => {
-    expect(readRunnerCfg(viet('runner:\n  test_cmd: "x {files} {out}"\n  timeout_s: 99999\n'))?.timeout_s).toBe(1800);
+    expect(readRunnerCfg(viet('runner:\n  test_cmd: "x {files} {out}"\n  timeout_s: 99999\n'))?.timeout_s).toBe(3600);
     expect(readRunnerCfg(viet('runner:\n  test_cmd: "x {files} {out}"\n  timeout_s: 1\n'))?.timeout_s).toBe(30);
   });
 });

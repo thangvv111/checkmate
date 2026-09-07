@@ -4,12 +4,13 @@
 
 Trần số finding của `skill-doc` và trần số probe của `skill-code` là **hai khoá riêng** trong khối
 `standards` của `checkmate.yml` repo đích: `finding_cap` (mặc định 100, kẹp `[4, 1000]`) và `probe_cap`
-(mặc định 20, kẹp `[2, 100]`). Hai đại lượng có chi phí biên khác hẳn nhau — một finding doc là vài trăm
+(mặc định 100, kẹp `[2, 100]`). Hai đại lượng có chi phí biên khác hẳn nhau — một finding doc là vài trăm
 token; một probe là token sinh code **cộng** hai lượt chạy sandbox — nên MUST NOT dùng chung một con số.
 
 Trần probe **hiệu dụng** SHALL là `min(probe_cap của repo, agent.max_probe của người vận hành)`. Tài
 nguyên sandbox là của bên chấm; repo đích được **đề nghị** một trần, không được **áp** nó lên máy chủ của
-người khác.
+người khác. Mặc định phía repo SHALL đặt ở **cận trên của dải** (PO chốt 07/09): phía bị chấm để rộng,
+việc siết thuộc về núm của bên chấm — repo đích tự đặt trần thấp cho chính mình là maker chỉnh checker.
 
 Mọi khoá số SHALL qua một phép kẹp duy nhất: giá trị được nhận **chỉ khi** `typeof v === 'number'` và hữu
 hạn; sau đó lấy phần nguyên rồi kẹp vào dải. Mọi thứ khác — chuỗi (kể cả chuỗi số), `null`, boolean, mảng,
@@ -30,7 +31,7 @@ là một cách ra `NaN` hoặc một số không ai khai. `[].slice(0, NaN)` tr
 
 #### Scenario: repo không khai gì
 - **WHEN** `checkmate.yml` không có khối `standards`
-- **THEN** `finding_cap` = 100, `probe_cap` = 20, và verdict khai nguồn của cả hai là mặc định của engine
+- **THEN** `finding_cap` = 100, `probe_cap` = 100, và verdict khai nguồn của cả hai là mặc định của engine
 
 #### Scenario: repo khai trong dải
 - **WHEN** repo khai `standards.finding_cap: 250` và `standards.probe_cap: 40`

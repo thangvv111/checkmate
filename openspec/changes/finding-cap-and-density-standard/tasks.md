@@ -132,7 +132,17 @@
       (`jsonx.ts:19`, `model.ts:235/:333` — gom một hằng, thêm `CLAUDE_CODE_MAX_OUTPUT_TOKENS` vào
       `ENV_CHO_CLI`); cân nhắc gửi `max_tokens` lớn hơn hoặc tắt `thinking` cho lượt đòi JSON.
 
-      Các điều kiện tiên quyết còn lại **trước khi nâng mặc định `probe_cap`** hoặc bật FAIL: (b)
+      ⛔ **PO chốt 07/09 — NÂNG `probe_cap` mặc định 20 → 100 dù các điều kiện dưới chưa đủ.** Lý lẽ: phía
+      repo đích để rộng, việc siết thuộc về núm của người vận hành (`agent.max_probe`), và trần hiệu dụng
+      vẫn là `min` của hai bên. Đo được lúc chốt: trên prod núm là **80**, nên trần hiệu dụng đi từ 20 lên
+      80 — nhiều nhất gấp bốn số probe mỗi lượt. Trạng thái THẬT của bảy điều kiện lúc nâng, đo bằng code
+      chứ không suy từ tài liệu: **(c) XONG** (change `probe-environment-preflight`, 07/09) · **(a) (b)
+      (d) (e) (f) (g) CHƯA**. Cái (a) là cái có thể cắn ngay — nhiều probe hơn ⇒ JSON dài hơn ⇒ chạm
+      `max_tokens`; prod hôm nay **không dính** vì chạy đường thuê bao (`phuong_thuc: thue_bao` trong
+      `config.json`), đổi sang `api` là chạm. Nợ này có tên ở `probe-environment-preflight` tasks 8.2.
+
+      Các điều kiện tiên quyết còn lại **trước khi bật FAIL theo mật độ** (và là nợ mở sau khi đã nâng
+      `probe_cap`): (b)
       `unwrapCode` coi fence mở không đóng là cụt; `that_lac > 0` từ file của lượt ⇒ không PASS
       (`skill-code.ts:687`, `verdict.ts:84`); (c) timeout sandbox theo cap hoặc chia file (`sandbox.ts:305`);
       (d) ngân sách comment PR 60 000 ký tự có khai số bị bỏ (`gate.ts:370`, `server.ts:263` không nuốt lỗi

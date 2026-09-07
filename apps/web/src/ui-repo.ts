@@ -151,6 +151,15 @@ export const JS_REPO = String.raw`
     fetch('/api/repo/them',{method:'POST',headers:{'content-type':'application/json'},
       body:JSON.stringify({github:githubDaKiem, base_branch:sNhanh.value, token:iToken.value})})
       .then(function(r){return r.json();}).then(function(d){
+        if(d.ok && d.canh_bao_moi_truong && d.canh_bao_moi_truong.length){
+          // Repo ĐÃ vào danh sách — nhưng bản clone chưa chạy được probe. Không chuyển trang: người vận
+          // hành cần đọc lệnh sửa. Chuyển trang ở đây là nuốt mất thứ duy nhất nói cho họ biết phải làm gì.
+          oThem.style.color='var(--fail-ink)';
+          oThem.innerHTML='Đã thêm '+esc(githubDaKiem)+', nhưng lượt chấm CODE sẽ chưa chạy được:<ul style="margin:6px 0 0;padding-left:18px">'+
+            d.canh_bao_moi_truong.map(function(x){ return '<li style="margin:3px 0">'+esc(x)+'</li>'; }).join('')+
+            '</ul><a href="/settings?luu=1" style="display:inline-block;margin-top:8px">Tới trang cấu hình</a>';
+          return;
+        }
         if(d.ok){ location.href='/settings?luu=1'; return; }
         bao(oThem,false,d.loi||'không thêm được'); nutThem.disabled=false;
       }).catch(function(e){ bao(oThem,false,'Không gọi được: '+e); nutThem.disabled=false; });

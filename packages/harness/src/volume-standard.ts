@@ -21,8 +21,18 @@ export interface KnobRange {
 
 /** Trần finding của skill-doc. */
 export const FINDING_CAP_RANGE: KnobRange = { min: 4, max: 1000, default: 100 };
-/** Trần probe của skill-code — mặc định GIỮ trần hôm nay (20); nâng cần bốn điều kiện tiên quyết (tasks 7.2). */
-export const PROBE_CAP_RANGE: KnobRange = { min: 2, max: 100, default: 20 };
+/**
+ * Trần probe của skill-code.
+ *
+ * ⛔ Mặc định 100 = **cận trên của dải**, PO chốt 07/09: phía repo đích để RỘNG, việc siết thuộc về **núm
+ * của người vận hành CheckMate** (`max_probe`), và trần hiệu dụng là `min` của hai bên — `effectiveProbeCap`.
+ * Repo đích là bên bị chấm; để nó tự đặt trần thấp cho chính mình là để maker chỉnh checker.
+ *
+ * ⚠ Khai ra chứ không giấu: hồ sơ `finding-cap-and-density-standard` (tasks 7.2) liệt bảy điều kiện tiên
+ * quyết trước khi nâng mặc định này, và tới 07/09 mới xong (c) — timeout theo khoá. Trần hiệu dụng trên
+ * prod do đó đi từ 20 lên 80 (núm người vận hành). Các điều kiện còn lại vẫn là nợ có tên ở change ấy.
+ */
+export const PROBE_CAP_RANGE: KnobRange = { min: 2, max: 100, default: 100 };
 /** Mức mật độ dải đầu (finding / 1000 từ); nhân tỉ lệ cả bảng DENSITY_BANDS. */
 export const DENSITY_RANGE: KnobRange = { min: 1, max: 1000, default: 20 };
 /** Sàn cỡ (từ) — dưới sàn không đo. Kẹp hai đầu: sàn 10⁹ là cách vô hiệu chuẩn triệt để nhất. */

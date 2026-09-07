@@ -2,13 +2,14 @@ import { createHash } from 'node:crypto';
 import { chuanMuc, normalizeOdcQualifier, normalizeOdcType, type Finding, type OdcQualifier, type OdcType, type RunEvent, type Severity, type VolumeStandard } from '../../shared/src/types.js';
 import type { ModelProvider } from './model.js';
 import { defaultStandards, effectiveProbeCap, type ResolvedStandards } from './volume-standard.js';
+import { describeEnvironmentFailure, looksLikeEnvironmentFailure, nodeVersionOfImage, preflightProbeEnvironment } from './probe-preflight.js';
 import { callCode, callJson } from './jsonx.js';
 import { humanSurfaceSource, modelSurfaceSource, readTarget, suggestModulePath, type TargetInfo } from './target.js';
 import { describeSources } from './sources.js';
 import { redactMessage } from '../../shared/src/message-egress.js';
 import { refHitsNew, ruleCoverage } from './spec-units.js';
 import { classifyInsufficientBasis, hasBasis, hasNoBaseline, missingRegressionFindings, regressionFloor } from './verdict.js';
-import { Sandbox, type IsolationInfo, type LoadFailure, type ProbeResult } from './sandbox.js';
+import { DEFAULT_IMAGE, Sandbox, type IsolationInfo, type LoadFailure, type ProbeResult } from './sandbox.js';
 import { splitOneProbe } from './probe-split.js';
 import { rankProbe, mutationGate, buildProposal, type HandoverProposal } from './probe-handover.js';
 import { getCodeExamples, knowledgeByTrigger } from './trigger-examples.js';
@@ -560,6 +561,17 @@ export async function runCodeSkill(
   const fileProbeMoi = runner ? (runner.probe_file ?? `checker_probe${runner.probe_ext}`) : FILE_PROBE_MOI;
   if (runner) phat({ type: 'log', msg: `Runner cấu hình từ checkmate.yml: ${runner.framework} · lệnh test của repo · hợp đồng JUnit XML` });
 
+  // ⛔ KIỂM MÔI TRƯỜNG TRƯỚC KHI TỐN MỘT LỜI GỌI MODEL NÀO. Đo 07/09: repo thiếu phụ thuộc làm lượt chấm
+  // đi hết ba lời gọi (~100k token vào) rồi mới chết ở bước sandbox với một thông điệp nói sai bệnh.
+  const anhChay = runner?.image ?? DEFAULT_IMAGE;
+  const kiemMoiTruong = preflightProbeEnvironment({ repo, nodeMoiTruong: () => nodeVersionOfImage(anhChay) });
+  for (const c of kiemMoiTruong.canhBao) phat({ type: 'log', msg: `⚠ Môi trường: ${c.thong_diep}${c.cach_sua ? ` — ${c.cach_sua}` : ''}` });
+  if (kiemMoiTruong.chan.length > 0) {
+    const c = kiemMoiTruong.chan[0]!;
+    phat({ type: 'log', msg: `⛔ DỪNG TRƯỚC KHI GỌI MODEL — ${c.thong_diep}` });
+    throw new Error(`Môi trường chưa chạy được probe: ${c.thong_diep}${c.cach_sua ? ` Sửa: ${c.cach_sua}` : ''}`);
+  }
+
   phat({ type: 'stage', stage: 3, ten: 'Sinh probe đối kháng' });
   phat({
     type: 'log',
@@ -693,6 +705,13 @@ export async function runCodeSkill(
       };
     }
     if (loiThu !== undefined) {
+      // ⛔ Lỗi MÔI TRƯỜNG không sinh lại: probe không gây ra nó và không sửa được nó. Sinh lại chỉ tốn thêm
+      // một lời gọi sinh code rồi hỏng y hệt — đo 07/09, ba lượt liên tiếp cùng một bệnh.
+      const loaiMoiTruong = looksLikeEnvironmentFailure(loiThu);
+      if (loaiMoiTruong) {
+        phat({ type: 'log', msg: `⛔ Lỗi MÔI TRƯỜNG, KHÔNG sinh lại probe — ${describeEnvironmentFailure(loaiMoiTruong, repo)}` });
+        throw new Error(`Môi trường chạy probe hỏng (${loaiMoiTruong}): ${describeEnvironmentFailure(loaiMoiTruong, repo)}`);
+      }
       if (lan === 2) throw new Error(`Probe không thu thập được sau 2 lần sinh: ${loiThu}`);
       phat({ type: 'log', msg: 'File probe lỗi thu thập — sinh lại lần 2 kèm thông báo lỗi' });
       // Kèm ĐƯỜNG ĐÚNG chứ không chỉ kèm lời kêu: lượt sinh lại mù đường thì nó đoán lại y hệt
