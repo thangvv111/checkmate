@@ -96,8 +96,13 @@ export const DENSITY_BANDS: ReadonlyArray<{ band: DensityBand; max_words: number
   { band: '>5000', max_words: Number.POSITIVE_INFINITY, base_per_1000: 8 },
 ];
 
+/** Số từ có nằm trong dải này không — dùng ở `bandFor`, tách ra để lượt chấm code có một hàm thuần để dò. */
+export function inBand(words: number, maxWords: number): boolean {
+  return Number.isFinite(words) && words <= maxWords;
+}
+
 export function bandFor(words: number): { band: DensityBand; base_per_1000: number } {
-  const b = DENSITY_BANDS.find((x) => words <= x.max_words) ?? DENSITY_BANDS[DENSITY_BANDS.length - 1];
+  const b = DENSITY_BANDS.find((x) => inBand(words, x.max_words)) ?? DENSITY_BANDS[DENSITY_BANDS.length - 1];
   return { band: b.band, base_per_1000: b.base_per_1000 };
 }
 

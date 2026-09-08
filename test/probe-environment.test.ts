@@ -3,8 +3,10 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import {
+  ECOSYSTEMS,
   checkDependencies,
   checkRuntime,
+  detectEcosystem,
   readEnginesNode,
   majorFromRange,
   majorFromVersion,
@@ -451,6 +453,143 @@ describe('cửa song sinh timeout — một nguồn cho hai đường chạy', (
       .filter((l) => l.includes('TIMEOUT: lệnh test không kết thúc'));
     expect(dong).toHaveLength(1);
     expect(dong[0], 'thông điệp phải nội suy biến, không ghi cứng số giây').toContain('{timeoutS}');
+  });
+});
+
+// ---------- Requirement: cửa kiểm và thông điệp đi theo HỆ SINH THÁI ----------
+
+/** Bảng nhận diện hệ phải ĐÓNG, nằm trong mã, và mỗi hàng đủ trường. */
+export function scanEcosystemTable(bang: readonly { he: string; ten: string; dauHieu: readonly string[]; engineCapPhuThuoc: boolean }[]): string[] {
+  const loi: string[] = [];
+  if (bang.length === 0) return ['bảng hệ sinh thái RỖNG — lưới đang mù'];
+  for (const h of bang) {
+    if (!h.ten.trim()) loi.push(`${h.he}: thiếu tên hiển thị — thông điệp sẽ nói trống`);
+    if (h.dauHieu.length === 0) loi.push(`${h.he}: không có file dấu hiệu nào — không bao giờ nhận ra được`);
+    for (const f of h.dauHieu) {
+      if (f.includes('*') || f.includes('/')) loi.push(`${h.he}: dấu hiệu «${f}» là mẫu/đường dẫn, phải là TÊN FILE ở gốc`);
+    }
+  }
+  if (!bang.some((h) => h.engineCapPhuThuoc)) loi.push('không hệ nào engine cấp được phụ thuộc — bảng sai, Node phải cấp được');
+  return loi;
+}
+
+describe('nhận diện hệ sinh thái — bảng ĐÓNG (cặp fixture)', () => {
+  it('ĐỎ: hàng thiếu file dấu hiệu, hoặc dấu hiệu là mẫu đường dẫn', () => {
+    const xau = [
+      { he: 'node', ten: 'Node.js', dauHieu: ['package.json'], engineCapPhuThuoc: true },
+      { he: 'maven', ten: 'Java/Maven', dauHieu: [], engineCapPhuThuoc: false },
+      { he: 'gradle', ten: '', dauHieu: ['**/build.gradle'], engineCapPhuThuoc: false },
+    ];
+    const ra = scanEcosystemTable(xau);
+    expect(ra.some((x) => x.includes('không có file dấu hiệu'))).toBe(true);
+    expect(ra.some((x) => x.includes('thiếu tên hiển thị'))).toBe(true);
+    expect(ra.some((x) => x.includes('là mẫu/đường dẫn'))).toBe(true);
+  });
+
+  it('ĐỎ khi bảng rỗng — chống xanh oan', () => {
+    expect(scanEcosystemTable([])[0]).toContain('lưới đang mù');
+  });
+
+  it('XANH: bảng HIỆN TẠI trong mã sạch, và có đủ bốn hệ', () => {
+    expect(scanEcosystemTable(ECOSYSTEMS)).toEqual([]);
+    expect(ECOSYSTEMS.map((e) => e.he)).toEqual(['node', 'maven', 'gradle', 'python']);
+    expect(ECOSYSTEMS.filter((e) => e.engineCapPhuThuoc).map((e) => e.he), 'hôm nay engine CHỈ cấp được phụ thuộc Node').toEqual(['node']);
+  });
+
+  it('detectEcosystem đọc đúng file dấu hiệu ở gốc', () => {
+    const d = mkdtempSync(join(tmpdir(), 'cm-eco-'));
+    donDep.push(d);
+    expect(detectEcosystem(d), 'không có dấu hiệu nào ⇒ không kết luận').toBeNull();
+    writeFileSync(join(d, 'pom.xml'), '<project/>', 'utf8');
+    expect(detectEcosystem(d)).toBe('maven');
+    // `package.json` đứng đầu bảng nên thắng khi có cả hai — repo lai vẫn đi đường Node, là đường duy
+    // nhất engine cấp được phụ thuộc.
+    writeFileSync(join(d, 'package.json'), '{}', 'utf8');
+    expect(detectEcosystem(d)).toBe('node');
+  });
+
+  it('nhận ra Gradle qua cả hai tên file, và Python qua cả hai tên file', () => {
+    for (const [f, mong] of [['build.gradle', 'gradle'], ['build.gradle.kts', 'gradle'], ['requirements.txt', 'python'], ['pyproject.toml', 'python']] as const) {
+      const d = mkdtempSync(join(tmpdir(), 'cm-eco2-'));
+      donDep.push(d);
+      writeFileSync(join(d, f), 'x', 'utf8');
+      expect(detectEcosystem(d), f).toBe(mong);
+    }
+  });
+});
+
+describe('⛔ CA CHỐNG TÁI PHÁT 08/09 — thông điệp KHÔNG được kê lệnh của hệ khác', () => {
+  /**
+   * Lỗi thật: repo `admin-be` (Java/Maven, không có `package.json` nào) nhận được thông điệp
+   * «Cài trong bản clone rồi chấm lại: cd … && npm ci --no-audit --no-fund».
+   * Lệnh ấy trong repo Maven không làm gì cả. Đây là ca giữ cho nó không quay lại.
+   */
+  const heKhongPhaiNode: Array<[string, string]> = [
+    ['pom.xml', 'Java/Maven'],
+    ['build.gradle', 'Java/Gradle'],
+    ['requirements.txt', 'Python'],
+  ];
+
+  it('checkDependencies CHẶN repo không phải Node, và thông điệp nêu ĐÚNG TÊN HỆ', () => {
+    for (const [f, ten] of heKhongPhaiNode) {
+      const d = mkdtempSync(join(tmpdir(), 'cm-eco3-'));
+      donDep.push(d);
+      writeFileSync(join(d, f), 'x', 'utf8');
+      const v = checkDependencies(d);
+      expect(v?.kind, f).toBe('he_chua_ho_tro');
+      expect(v?.thong_diep, f).toContain(ten);
+      expect(v?.cach_sua, 'engine KHÔNG biết lệnh nào đúng ⇒ không kê lệnh nào').toBeUndefined();
+    }
+  });
+
+  it('KHÔNG thông điệp nào của hệ không-Node chứa lệnh npm', () => {
+    for (const [f] of heKhongPhaiNode) {
+      const d = mkdtempSync(join(tmpdir(), 'cm-eco4-'));
+      donDep.push(d);
+      writeFileSync(join(d, f), 'x', 'utf8');
+      const loi = [checkDependencies(d)?.thong_diep, checkDependencies(d)?.cach_sua, describeEnvironmentFailure('thieu_phu_thuoc', d), describeEnvironmentFailure('he_chua_ho_tro', d)]
+        .filter((x): x is string => typeof x === 'string')
+        .join(' | ');
+      expect(loi, `${f}: thông điệp vẫn kê lệnh npm`).not.toMatch(/npm (ci|install)/);
+      expect(loi).not.toMatch(/node_modules/);
+    }
+  });
+
+  it('describeEnvironmentFailure cho hệ chưa hỗ trợ nói rõ KHÔNG phải lỗi của pull request', () => {
+    const d = mkdtempSync(join(tmpdir(), 'cm-eco5-'));
+    donDep.push(d);
+    writeFileSync(join(d, 'pom.xml'), '<project/>', 'utf8');
+    const s = describeEnvironmentFailure('he_chua_ho_tro', d);
+    expect(s).toContain('Java/Maven');
+    expect(s).toContain('KHÔNG phải lỗi của pull request');
+    expect(s).not.toMatch(/npm|JUnit|XML/i);
+  });
+
+  it('⛔ HỒI QUY: repo Node đi Y HỆT đường cũ — không nhánh nào đổi', () => {
+    const thieu = tam({ dependencies: { vitest: '^1' } }, 'khong');
+    const v = checkDependencies(thieu);
+    expect(v?.kind).toBe('thieu_phu_thuoc');
+    expect(v?.cach_sua).toContain('npm install');
+    expect(describeEnvironmentFailure('thieu_phu_thuoc', thieu)).toContain('npm ci');
+    expect(checkDependencies(tam({ dependencies: { vitest: '^1' } }, 'day')), 'đã cài ⇒ vẫn không chặn').toBeNull();
+    expect(checkDependencies(tam({ dependencies: {} }, 'khong')), 'khai rỗng ⇒ vẫn không chặn').toBeNull();
+    expect(checkDependencies(tam(null, 'khong')), 'không dấu hiệu nào ⇒ vẫn không kết luận').toBeNull();
+  });
+
+  it('preflightProbeEnvironment chặn hệ chưa hỗ trợ TRƯỚC lời gọi model, và không hỏi ảnh', () => {
+    const d = mkdtempSync(join(tmpdir(), 'cm-eco6-'));
+    donDep.push(d);
+    writeFileSync(join(d, 'pom.xml'), '<project/>', 'utf8');
+    let hoi = 0;
+    const r = preflightProbeEnvironment({
+      repo: d,
+      nodeMoiTruong: () => {
+        hoi++;
+        return 'v22.17.1';
+      },
+    });
+    expect(r.chan.map((x) => x.kind)).toEqual(['he_chua_ho_tro']);
+    expect(hoi, 'repo Maven không khai engines.node ⇒ không dựng container hỏi phiên bản').toBe(0);
   });
 });
 

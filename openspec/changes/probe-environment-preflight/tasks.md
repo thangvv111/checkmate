@@ -57,7 +57,9 @@
 ## 7. Trước merge
 
 - [ ] 7.1 `npx tsc --noEmit && npm test` — toàn bộ, không riêng file vừa sửa.
-- [ ] 7.2 Deploy theo `DEPLOY.md`, rồi chạy **một lượt chấm code thật** trên prod.
+- [x] 7.2 Deploy theo `DEPLOY.md` (07/09) — dữ liệu đối chiếu nguyên vẹn: `run` 22 · `so_cai` 12 ·
+      `so_cong` 9 · `probes-lib` 8 file, bằng trước deploy. Chạy lượt chấm code thật trên `admin-fe`:
+      dừng trước lời gọi model, cả hai bệnh được nêu tên (T7.1 · T7.2 · T7.3).
 
 ## 8. Sau-merge — nợ có tên
 
