@@ -19,14 +19,61 @@ import { join } from 'node:path';
  */
 
 /** Vì sao môi trường chưa chạy được probe. Mã máy đọc — bề mặt đọc MUST NOT so khớp lời văn. */
-export type PreflightIssueKind = 'thieu_phu_thuoc' | 'runtime_lech';
+export type PreflightIssueKind = 'thieu_phu_thuoc' | 'runtime_lech' | 'he_chua_ho_tro';
 
 export interface PreflightIssue {
   kind: PreflightIssueKind;
   /** Lời cho NGƯỜI VẬN HÀNH: nói đúng bệnh và đúng việc phải làm. Không nói về JUnit XML. */
   thong_diep: string;
-  /** Lệnh sửa, nếu có một lệnh sửa được. */
+  /** Lệnh sửa, nếu có một lệnh sửa được. ⛔ Vắng khi engine KHÔNG biết lệnh nào đúng — xem `ECOSYSTEMS`. */
   cach_sua?: string;
+}
+
+/** Hệ sinh thái của repo đích. Mã máy đọc, KHÔNG phải nhãn hiển thị. */
+export type Ecosystem = 'node' | 'maven' | 'gradle' | 'python';
+
+/**
+ * Bảng nhận diện hệ sinh thái — **ĐÓNG**, nằm trong mã.
+ *
+ * ⛔ Vì sao đóng và vì sao repo đích KHÔNG tự khai được hệ của mình: nếu khai được, một repo sẽ tự chọn
+ * nhánh xử lý cho chính nó — kể cả chọn nhánh «Node, phụ thuộc đã đủ» để lách cửa kiểm. Thứ đến từ repo
+ * đích ở đây chỉ là **một file có tồn tại hay không**; tên file là hằng của CheckMate (⛔C4).
+ *
+ * `engineCapPhuThuoc` = engine có đường nào cấp phụ thuộc cho môi trường chạy probe không. Hôm nay
+ * container chỉ mount `node_modules` của bản clone — không có kho Maven, Gradle hay pip nào. Cờ này là
+ * chỗ ghi sự thật ấy, để thông điệp không hứa một lệnh sửa không tồn tại.
+ *
+ * Vì sao bảng này ra đời — đo trên prod 08/09: `admin-be` (Java/Maven) nhận thông điệp «chạy `npm ci`».
+ * Repo ấy không có `package.json` nào. Lượt chấm đã chạy 17 phút và tiêu 2 lời gọi model trước khi chết.
+ */
+export const ECOSYSTEMS: ReadonlyArray<{
+  he: Ecosystem;
+  ten: string;
+  dauHieu: readonly string[];
+  engineCapPhuThuoc: boolean;
+}> = [
+  { he: 'node', ten: 'Node.js', dauHieu: ['package.json'], engineCapPhuThuoc: true },
+  { he: 'maven', ten: 'Java/Maven', dauHieu: ['pom.xml'], engineCapPhuThuoc: false },
+  { he: 'gradle', ten: 'Java/Gradle', dauHieu: ['build.gradle', 'build.gradle.kts'], engineCapPhuThuoc: false },
+  { he: 'python', ten: 'Python', dauHieu: ['requirements.txt', 'pyproject.toml'], engineCapPhuThuoc: false },
+];
+
+/**
+ * Hệ sinh thái của repo đích, hoặc `null` khi không khớp hàng nào.
+ *
+ * Không khớp ⇒ **không kết luận**, và lượt chấm đi tiếp như hôm nay. Bỏ sót là hướng an toàn: nó rơi về
+ * hành vi cũ, còn nhận nhầm thì chặn một lượt lẽ ra chạy được.
+ */
+export function detectEcosystem(repo: string): Ecosystem | null {
+  for (const e of ECOSYSTEMS) {
+    if (e.dauHieu.some((f) => existsSync(join(repo, f)))) return e.he;
+  }
+  return null;
+}
+
+/** Hàng của một hệ trong bảng đóng. */
+function ecosystemRow(he: Ecosystem): (typeof ECOSYSTEMS)[number] {
+  return ECOSYSTEMS.find((e) => e.he === he) ?? ECOSYSTEMS[0]!;
 }
 
 /**
@@ -37,8 +84,23 @@ export interface PreflightIssue {
  * đúng trạng thái gặp 07/09 với `admin-fe`.
  */
 export function checkDependencies(repo: string): PreflightIssue | null {
+  const he = detectEcosystem(repo);
+  if (he === null) return null; // không nhận ra hệ nào — không kết luận, đi tiếp như hôm nay
+  if (he !== 'node') {
+    // ⛔ Hệ nhận ra được nhưng engine KHÔNG có kho phụ thuộc cho nó. Chặn SỚM và nói đúng tên hệ —
+    // MUST NOT kê lệnh của hệ khác. Đo 08/09: kê `npm ci` cho repo Maven làm người vận hành chạy một
+    // lệnh vô tác dụng rồi gặp lại đúng lỗi cũ, tức đi sai hướng một cách tự tin.
+    const h = ecosystemRow(he);
+    return {
+      kind: 'he_chua_ho_tro',
+      thong_diep:
+        `Repo đích là dự án ${h.ten}, và CheckMate chưa cấp được phụ thuộc cho hệ này: môi trường chạy probe ` +
+        'không có mạng và chưa có kho phụ thuộc nào ngoài Node. Lượt chấm code sẽ không chạy được test nào.',
+      // KHÔNG có `cach_sua`: engine không biết lệnh nào đúng ở đây, và đoán một lệnh là tệ hơn im lặng.
+    };
+  }
   const pkgPath = join(repo, 'package.json');
-  if (!existsSync(pkgPath)) return null; // không phải dự án Node — không có gì để kiểm
+  if (!existsSync(pkgPath)) return null; // hệ Node nhận ra qua dấu hiệu khác — không có gì để kiểm
   let pkg: { dependencies?: unknown; devDependencies?: unknown };
   try {
     pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as typeof pkg;
@@ -169,7 +231,20 @@ export function looksLikeEnvironmentFailure(loi: unknown): PreflightIssueKind | 
 
 /** Lời cho người vận hành khi dừng vì môi trường — nói đúng bệnh, không nói về JUnit XML. */
 export function describeEnvironmentFailure(kind: PreflightIssueKind | 'moi_truong_khac', repo: string): string {
+  if (kind === 'he_chua_ho_tro') {
+    const h = ECOSYSTEMS.find((e) => e.he === detectEcosystem(repo));
+    return `Repo đích là dự án ${h?.ten ?? 'không thuộc hệ engine hỗ trợ'}, và CheckMate chưa cấp được phụ thuộc cho hệ này. Đây KHÔNG phải lỗi của pull request đang chấm, và cũng không phải thứ đội repo sửa được.`;
+  }
   if (kind === 'thieu_phu_thuoc') {
+    // ⛔ Lệnh sửa phải thuộc ĐÚNG hệ của repo đích. Đo 08/09: câu này từng kê `npm ci` cho một repo
+    // Maven — lệnh không làm gì cả, và người vận hành chạy xong sẽ gặp lại đúng lỗi cũ. Một thông điệp
+    // kê nhầm thuốc tệ hơn một thông điệp chỉ nêu triệu chứng: cái sau làm người ta đi tìm, cái trước
+    // làm người ta đi sai hướng một cách tự tin.
+    const he = detectEcosystem(repo);
+    if (he !== null && he !== 'node') {
+      const h = ECOSYSTEMS.find((e) => e.he === he);
+      return `Môi trường chạy probe không có phụ thuộc của repo đích (dự án ${h?.ten ?? he}), và không có mạng để tải. CheckMate chưa cấp được phụ thuộc cho hệ này — không có lệnh nào chạy trong bản clone sửa được việc đó.`;
+    }
     return `Môi trường chạy probe không có phụ thuộc của repo đích, và không có mạng để tải. Cài trong bản clone rồi chấm lại: cd ${repo} && npm ci --no-audit --no-fund`;
   }
   if (kind === 'runtime_lech') {
