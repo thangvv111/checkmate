@@ -1,9 +1,9 @@
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { DEFAULT_IMAGE, safeImageName } from './sandbox.js';
-import { checkDependencies, detectEcosystem } from './probe-preflight.js';
+import { dirname, join } from 'node:path';
+import { DEFAULT_IMAGE, MAVEN_STORE_MOUNT, safeImageName } from './sandbox.js';
+import { checkDependencies, detectEcosystem, repoStoreDir, type Ecosystem } from './probe-preflight.js';
 
 /**
  * Cài phụ thuộc cho bản clone repo đích — capability `dependency-provisioning`.
@@ -43,6 +43,39 @@ export const IMAGE_BY_NODE_MAJOR: ReadonlyMap<number, string> = new Map([
  */
 export const INSTALL_COPY_FILES: readonly string[] = ['package.json', 'package-lock.json', '.npmrc', '.nvmrc'];
 
+/**
+ * Ảnh cài cho hệ KHÔNG phải Node — bảng ĐÓNG, ghim theo DIGEST, cùng luật với bảng Node ở trên.
+ *
+ * ⛔ Cái giá của việc bỏ trình bao bọc của repo đích (`./mvnw`), khai thẳng vì làn `oapi-portal-be` khai
+ * đúng nó: từ đây **phiên bản Maven do ảnh này quyết, repo đích không còn tiếng nói ở khâu ấy** — spine của
+ * họ ghim công cụ cho máy lập trình viên và CI, còn máy chấm là môi trường thứ ba mà spine chưa nói tới.
+ * Ghim digest không xoá được rủi ro ấy; nó chỉ biến một thay đổi vô hình thành **một dòng diff phải có
+ * người duyệt**.
+ */
+export const IMAGE_BY_ECOSYSTEM: ReadonlyMap<Ecosystem, string> = new Map([
+  // maven:3.9-eclipse-temurin-21 — kiểm TRONG ảnh 08/09: Maven 3.9.16, Java 21.0.12, 538 MB.
+  // Digest đọc từ `podman images --digests` trên chính máy chấm, không chép từ ghi chú.
+  ['maven' as Ecosystem, 'docker.io/library/maven@sha256:8f6ac126f7810bb5549c4cd122d2bf0e9cda5bdeb0838aa928f09e779fd8bef8'],
+]);
+
+/**
+ * File khai phụ thuộc của hệ Maven — **danh sách ĐÓNG**, và cố ý HẸP HƠN thứ Maven thường đọc.
+ *
+ * ⛔ Vì sao KHÔNG chép `.mvn/`: thư mục ấy không phải dữ liệu, nó là **cần điều khiển**. `.mvn/maven.config`
+ * thêm được cờ tuỳ ý vào chính lệnh CheckMate chạy (kể cả đè đường kho), và `.mvn/extensions.xml` nạp được
+ * mã của bên thứ ba vào tiến trình Maven — trong **container duy nhất có mạng** của sản phẩm. Đó là để repo
+ * **bị chấm** lái môi trường tạo ra bằng chứng chấm chính nó.
+ *
+ * Đo 08/09 trên cả hai repo Java đang dùng: `.mvn/` chỉ chứa `wrapper/maven-wrapper.properties`, mà trình
+ * bao bọc thì change này đã bỏ. Nên cái giá của việc không chép là **bằng không** hôm nay, còn cái mở ra
+ * nếu chép thì không đo được.
+ */
+export const INSTALL_COPY_FILES_MAVEN: readonly string[] = ['pom.xml'];
+
+// ⛔ Đường mount kho sống ở `sandbox.ts` — MỘT chỗ cho cả hai đường (nạp và chạy probe). Khai lại ở đây
+// là đúng khuôn cửa song sinh: hai hằng cho một luật, sửa một chỗ thì bước nạp ghi vào đường mà bước chạy
+// không mount. Khuôn ấy đã bị bắt 11 lần trong repo này.
+
 /** Trần tài nguyên bước CÀI — lỏng hơn lượt chạy probe vì giải nén vài trăm gói cần nhiều hơn. */
 export const INSTALL_MEMORY_CAP = '2g';
 export const INSTALL_CPU_CAP = '2';
@@ -59,6 +92,10 @@ export interface InstallResult {
   /** Kết quả kiểm LẠI bằng chính cửa của `probe-environment`. `null` = đủ điều kiện. */
   con_thieu?: string | null;
   ly_do?: string;
+  /** Kho đã nạp (hệ có kho riêng). Vắng với hệ Node — nó cài thẳng vào bản clone. */
+  kho?: string;
+  /** Số mục ở tầng đầu của kho. ⛔ CHỈ số đếm, không bao giờ là tên tệp (⛔C3). */
+  so_muc_kho?: number;
 }
 
 /**
@@ -122,8 +159,8 @@ export function nodeMajorWanted(repo: string, doc = docFile): number | null {
  * cắt đúng giao ấy: thứ duy nhất chạy trong container có mạng là trình quản lý gói, chương trình của bên
  * **chấm**, không phải của bên **bị chấm**.
  */
-export function buildInstallContainerArgs(spec: { thuMucCai: string; anh: string; lenh: readonly string[] }): string[] {
-  return [
+export function buildInstallContainerArgs(spec: { thuMucCai: string; anh: string; lenh: readonly string[]; thuMucKho?: string }): string[] {
+  const a = [
     'run', '--rm',
     `--memory=${INSTALL_MEMORY_CAP}`,
     `--cpus=${INSTALL_CPU_CAP}`,
@@ -135,15 +172,30 @@ export function buildInstallContainerArgs(spec: { thuMucCai: string; anh: string
     '--tmpfs', '/tmp',
     '-e', 'npm_config_cache=/tmp/npm',
     '-v', `${spec.thuMucCai}:/work:Z,U`,
-    '-w', '/work',
-    safeImageName(spec.anh),
-    ...spec.lenh,
   ];
+  // Kho ĐÍCH của bước nạp — thư mục do CheckMate tạo và sở hữu, KHÔNG phải bản clone. Điều kiện 2 của
+  // ngoại lệ mạng vẫn giữ nguyên: không mount tài sản nào của repo đích, không mount tài sản nào của
+  // CheckMate ngoài chính cái kho đang được ghi.
+  if (spec.thuMucKho) a.push('-v', `${spec.thuMucKho}:${MAVEN_STORE_MOUNT}:Z,U`);
+  a.push('-w', '/work', safeImageName(spec.anh), ...spec.lenh);
+  return a;
 }
 
 /** Lệnh cài — `--ignore-scripts` KHÔNG có công tắc (PO chốt 08/09). */
 export function installCommand(coLockFile: boolean): string[] {
   return ['npm', coLockFile ? 'ci' : 'install', '--ignore-scripts', '--no-audit', '--no-fund'];
+}
+
+/**
+ * Lệnh nạp kho Maven — **KHÔNG tham số**, cùng lý do `installCommand` không có tham số thứ hai: một tham
+ * số ở đây là chỗ để ai đó nhét một công tắc.
+ *
+ * ⛔ MUST NOT mang cờ tắt cổng chất lượng của repo đích (`-D*.skip`, `-DskipTests`). `dependency:go-offline`
+ * là lời gọi goal trực tiếp nên không kéo theo pha nào của vòng đời — nhưng cái ngăn cờ ấy xuất hiện ở đây
+ * là **luật + lưới** `scanNoQualityGateBypass`, không phải sự tình cờ rằng hôm nay chưa ai cần nó.
+ */
+export function mavenInstallCommand(): string[] {
+  return ['mvn', '-B', '-q', 'dependency:go-offline', `-Dmaven.repo.local=${MAVEN_STORE_MOUNT}`];
 }
 
 /**
@@ -156,8 +208,9 @@ export function installCommand(coLockFile: boolean): string[] {
  */
 export function installDependencies(repo: string, runnerImage?: string, chay = spawnSync): InstallResult {
   const he = detectEcosystem(repo);
+  if (he === 'maven') return installMavenStore(repo, chay);
   if (he !== 'node') {
-    return { ok: false, ly_do: `CheckMate chỉ cài được phụ thuộc cho dự án Node; repo đích ${he === null ? 'không nhận ra hệ nào' : `là dự án ${he}`}.` };
+    return { ok: false, ly_do: `CheckMate chưa cài được phụ thuộc cho hệ này; repo đích ${he === null ? 'không nhận ra hệ nào' : `là dự án ${he}`}.` };
   }
   const anhRa = resolveInstallImage(repo, runnerImage);
   if (!anhRa.anh) return { ok: false, ly_do: anhRa.ly_do };
@@ -213,4 +266,106 @@ export function installDependencies(repo: string, runnerImage?: string, chay = s
       /* dọn là best-effort; thư mục tạm không ảnh hưởng tính đúng của lượt chấm */
     }
   }
+}
+
+/**
+ * Nạp kho phụ thuộc RIÊNG cho một repo Maven.
+ *
+ * Khác hệ Node ở một điểm quyết định: kho **bền**, sống qua nhiều lượt chấm, nên có một cửa sổ mà hệ Node
+ * không có — nạp lại **trong khi một lượt chấm đang mount kho ấy**. Probe chỉ đọc nên nó không hỏng kho,
+ * nhưng nó đọc trúng một jar đang tải dở và chết với lỗi nói về artifact, tức lại **sai tên bệnh**.
+ *
+ * ⇒ Nạp vào `<kho>.new`, xong xuôi và đã mở quyền đọc mới **đổi tên đè**. Đổi tên là nguyên tử ở tầng thư
+ * mục; container đang chạy giữ kho cũ qua inode nên nó chạy hết lượt với bản nguyên vẹn, còn lượt sau lấy
+ * bản mới. Đây đúng nếp «ghi bản mới trước rồi mới xoá bản cũ» mà repo đã đặt cho dữ liệu prod.
+ */
+function installMavenStore(repo: string, chay: typeof spawnSync): InstallResult {
+  const anh = IMAGE_BY_ECOSYSTEM.get('maven');
+  if (!anh) return { ok: false, ly_do: 'CheckMate chưa ghim ảnh cho hệ Maven. Thêm một hàng vào bản đồ ảnh là một change, không phải một lần pull.' };
+
+  const kho = repoStoreDir(repo);
+  const khoMoi = `${kho}.new`;
+  const w = mkdtempSync(join(tmpdir(), 'cm-install-'));
+  const t0 = Date.now();
+  const moTaLenh = `podman run … ${anh} ${mavenInstallCommand().join(' ')}`;
+  try {
+    let coPom = false;
+    for (const f of INSTALL_COPY_FILES_MAVEN) {
+      const nguon = join(repo, f);
+      if (!existsSync(nguon)) continue;
+      copyFileSync(nguon, join(w, f));
+      if (f === 'pom.xml') coPom = true;
+    }
+    if (!coPom) return { ok: false, anh, ly_do: 'Không tìm thấy pom.xml ở gốc repo đích — không có gì để nạp.' };
+
+    // Kho đích LUÔN dựng lại từ trống: nạp chồng lên một kho cũ làm «nạp thành công» không còn nghĩa là
+    // «kho khớp pom.xml hiện tại», và không ai phát hiện được sai lệch ấy.
+    donKho(khoMoi, chay);
+    mkdirSync(khoMoi, { recursive: true });
+
+    const argv = buildInstallContainerArgs({ thuMucCai: w, anh, lenh: mavenInstallCommand(), thuMucKho: khoMoi });
+    const kq = chay('podman', argv, { encoding: 'utf8', timeout: INSTALL_TIMEOUT_S * 1000 });
+    const giay = Math.round((Date.now() - t0) / 100) / 10;
+    if (kq.status !== 0 || kq.error) {
+      return { ok: false, anh, lenh: moTaLenh, giay, kho, ly_do: `Trình nạp thất bại: ${(kq.stderr || kq.stdout || kq.error?.message || 'không có output').slice(0, 600)}` };
+    }
+
+    // Trả quyền sở hữu TRƯỚC khi mở quyền đọc, và cả hai TRƯỚC khi đổi tên đè. Đảo thứ tự là để lại một
+    // kho không đọc được ở đúng đường mà lượt chấm sau sẽ mount — hỏng im lặng.
+    const tra = chay('podman', ['unshare', 'chown', '-R', '0:0', khoMoi], { encoding: 'utf8', timeout: 120_000 });
+    if (tra.status !== 0) {
+      return { ok: false, anh, lenh: moTaLenh, giay, kho, ly_do: `Không trả được quyền sở hữu kho: ${(tra.stderr || '').slice(0, 300)}` };
+    }
+    // ⛔ Đo 08/09: kho ở mode 0700 làm tiến trình trong container không vào được, và Maven báo «artifact
+    // absent» — một câu nói về THIẾU GÓI trong khi bệnh là KHÔNG ĐỌC ĐƯỢC. Đúng họ con bệnh mà cả cửa
+    // kiểm môi trường tồn tại để diệt, nên bước này là bắt buộc chứ không phải gia cố.
+    const mo = chay('chmod', ['-R', 'a+rX', khoMoi], { encoding: 'utf8', timeout: 120_000 });
+    if (mo.status !== 0) {
+      return { ok: false, anh, lenh: moTaLenh, giay, kho, ly_do: `Không mở được quyền đọc kho: ${(mo.stderr || '').slice(0, 300)}` };
+    }
+
+    let soMuc = 0;
+    try {
+      soMuc = existsSync(khoMoi) ? readdirSync(khoMoi).length : 0;
+    } catch {
+      soMuc = 0;
+    }
+    if (soMuc === 0) {
+      return { ok: false, anh, lenh: moTaLenh, giay, kho, ly_do: 'Trình nạp báo thành công nhưng kho không có mục nào.' };
+    }
+
+    mkdirSync(dirname(kho), { recursive: true });
+    donKho(kho, chay);
+    renameSync(khoMoi, kho);
+
+    // ⛔C6 — kiểm LẠI bằng chính cửa đã báo thiếu, đọc đĩa ở thời điểm kiểm. Không tin mã thoát của trình nạp.
+    const conThieu = checkDependencies(repo);
+    if (conThieu) {
+      return { ok: false, anh, lenh: moTaLenh, giay, kho, so_muc_kho: soMuc, con_thieu: conThieu.thong_diep, ly_do: 'Trình nạp thoát 0 nhưng phép kiểm vẫn báo môi trường chưa đủ điều kiện.' };
+    }
+    return { ok: true, anh, lenh: moTaLenh, giay, kho, so_muc_kho: soMuc, con_thieu: null };
+  } catch (e) {
+    return { ok: false, anh, kho, ly_do: `Bước nạp hỏng: ${(e as Error).message.slice(0, 300)}` };
+  } finally {
+    try {
+      if (existsSync(w) && readdirSync(w).length > 0) chay('podman', ['unshare', 'rm', '-rf', w], { encoding: 'utf8', timeout: 120_000 });
+      rmSync(w, { recursive: true, force: true });
+      // Kho dở dang KHÔNG được để lại: lần nạp sau sẽ dựng lại nó, nhưng để lại thì nó chiếm vài trăm MB
+      // mà không ai biết nó là gì. Kho THẬT không bị chạm ở đây — đó là điểm của lối đổi-tên-đè.
+      if (existsSync(khoMoi)) donKho(khoMoi, chay);
+    } catch {
+      /* dọn là best-effort; nó không ảnh hưởng tính đúng của lượt chấm */
+    }
+  }
+}
+
+/** Xoá một thư mục kho, kể cả khi trong đó còn mục thuộc subuid của container. */
+function donKho(duong: string, chay: typeof spawnSync): void {
+  if (!existsSync(duong)) return;
+  try {
+    rmSync(duong, { recursive: true, force: true });
+  } catch {
+    /* rơi sang đường podman ngay dưới */
+  }
+  if (existsSync(duong)) chay('podman', ['unshare', 'rm', '-rf', duong], { encoding: 'utf8', timeout: 120_000 });
 }

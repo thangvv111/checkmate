@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 // ⛔ Dải timeout sống ở `runner.ts` — MỘT chỗ cho cả hai đường chạy. `runner.ts` chỉ import KIỂU từ file
 // này (`import type`), nên chiều ngược lại không tạo vòng lúc chạy.
 import { TIMEOUT_RANGE } from './runner.js';
+import { detectEcosystem, repoStoreDir, storeIsPopulated, type Ecosystem } from './probe-preflight.js';
 
 export interface ProbeResult {
   title: string;
@@ -165,6 +166,10 @@ export interface ContainerSpec {
   thuMucChay: string;
   /** node_modules của bản clone; đưa vào thì CHỈ ĐỌC */
   thuMucPhuThuoc?: string;
+  /** kho phụ thuộc riêng của repo (hệ Maven); đưa vào thì CHỈ ĐỌC */
+  thuMucKho?: string;
+  /** biến môi trường trỏ bộ chạy test của repo đích vào kho — ⛔ chỉ do CheckMate đặt, xem `probeEnvForEcosystem` */
+  bienMoiTruong?: ReadonlyArray<readonly [string, string]>;
   anh: string;
   lenh: string[];
 }
@@ -228,8 +233,31 @@ export function buildContainerArgs(spec: ContainerSpec): string[] {
     // gì để phủ thì một mount thừa là một bề mặt thừa.
     for (const { path } of DEPENDENCY_SCRATCH_PATHS) a.push('--tmpfs', path);
   }
+  // Kho phụ thuộc của hệ có kho riêng — **CHỈ ĐỌC**, cùng luật với `node_modules`. Đo 08/09: Maven chạy
+  // ngoại tuyến KHÔNG đòi ghi vào kho, nên không cần lớp phủ ghi tạm nào ở đây.
+  if (spec.thuMucKho) a.push('-v', `${spec.thuMucKho}:${MAVEN_STORE_MOUNT}:ro,Z`);
+  for (const [ten, gia] of spec.bienMoiTruong ?? []) a.push('-e', `${ten}=${gia}`);
   a.push('-w', '/work', safeImageName(spec.anh), ...spec.lenh);
   return a;
+}
+
+/** Đường mount kho phụ thuộc trong container — hằng của CheckMate. Repo đích không thấy và không đặt nó. */
+export const MAVEN_STORE_MOUNT = '/m2';
+
+/**
+ * Biến môi trường trỏ bộ chạy test của repo đích vào kho CheckMate đã nạp.
+ *
+ * ⛔ Vì sao đi qua MÔI TRƯỜNG chứ không qua `runner.test_cmd`: `test_cmd` là hợp đồng của **repo đích**.
+ * Bắt nó mang đường mount nội bộ của CheckMate là buộc hai bên vào nhau không cần thiết, và nó đổi hình
+ * dạng cấu hình chung của repo vì một người tiêu dùng. Repo khai **chạy cái gì**, CheckMate khai **kho ở đâu**.
+ *
+ * ⛔ Kho CHƯA nạp ⇒ trả rỗng, KHÔNG đặt cờ ngoại tuyến. Đặt `-o` lên một kho trống cho ra thông điệp Maven
+ * nói về artifact thiếu — tức **sai tên bệnh**, và người đọc sẽ đi chữa nhầm chỗ. Ca này không nên xảy ra
+ * (cửa kiểm môi trường chặn trước), nhưng «không nên xảy ra» không phải một cơ chế.
+ */
+export function probeEnvForEcosystem(he: Ecosystem | null, khoDaNap: boolean): ReadonlyArray<readonly [string, string]> {
+  if (he !== 'maven' || !khoDaNap) return [];
+  return [['MAVEN_ARGS', `-o -Dmaven.repo.local=${MAVEN_STORE_MOUNT}`]];
 }
 
 /**
@@ -252,6 +280,9 @@ export class Sandbox {
   /** Mức cô lập THỰC TẾ của sandbox này — đo một lần lúc dựng, không đoán lại. */
   readonly coLap: IsolationInfo;
   private readonly phuThuoc: string | null;
+  /** Kho phụ thuộc riêng của repo — chỉ hệ có kho VÀ đã nạp. `null` với hệ Node: nó dùng `phuThuoc`. */
+  private readonly kho: string | null;
+  private readonly he: Ecosystem | null;
 
   constructor(
     private readonly repo: string,
@@ -288,6 +319,11 @@ export class Sandbox {
     // Đường KHÔNG cô lập được (máy dev Windows) vẫn dùng junction như trước — nó là hành vi cũ, và nó
     // được KHAI RA là `none` chứ không giấu. Đường container bind cùng thư mục ấy ở chế độ CHỈ ĐỌC.
     if (this.phuThuoc && this.coLap.muc === 'none') symlinkSync(this.phuThuoc, join(this.dir, 'node_modules'), 'junction');
+
+    // Kho riêng của hệ có kho. ⛔ Hỏi `storeIsPopulated` chứ không chỉ `existsSync`: mount một kho trống
+    // rồi đặt cờ ngoại tuyến cho ra lỗi Maven nói về artifact thiếu — sai tên bệnh.
+    this.he = detectEcosystem(repo);
+    this.kho = this.he === 'maven' && storeIsPopulated(repo) ? repoStoreDir(repo) : null;
   }
 
   /**
@@ -302,6 +338,8 @@ export class Sandbox {
       const argv = buildContainerArgs({
         thuMucChay: this.dir,
         thuMucPhuThuoc: this.phuThuoc ?? undefined,
+        thuMucKho: this.kho ?? undefined,
+        bienMoiTruong: probeEnvForEcosystem(this.he, this.kho !== null),
         anh: this.anh,
         lenh,
       });

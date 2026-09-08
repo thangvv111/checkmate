@@ -21,7 +21,7 @@ const PRODUCT_ALLOW = ['apps', 'packages', 'package.json', 'package-lock.json', 
 /** Có trên đĩa máy dev nhưng git không theo dõi — tar vẫn gói nếu không loại. */
 const KHONG_THEO_DOI_NHUNG_CO = ['_ref'];
 /** Tên dữ liệu chung, được phép loại dạng trơ vì áp cho cả repo demo đóng gói cùng. */
-const TRO_DUOC_PHEP = new Set(['node_modules', '.git', 'config.json', '.secrets.json', '.ncc-verify.json', 'web-runs', 'probes-lib', 'probes-lib-*', 'runs', 'repos', '*.log', 'bench/kq', '.worktrees', '*.tar.gz', '*.tmp.*']);
+const TRO_DUOC_PHEP = new Set(['node_modules', '.git', 'config.json', '.secrets.json', '.ncc-verify.json', 'web-runs', 'probes-lib', 'probes-lib-*', 'runs', 'repos', 'dep-stores', '*.log', 'bench/kq', '.worktrees', '*.tar.gz', '*.tmp.*']);
 
 function docExclude(): string[] {
   // Chỉ đọc dòng LỆNH — chú thích trong script có nhắc `--exclude=test` làm ví dụ về cái KHÔNG được làm.
@@ -83,7 +83,7 @@ describe('scripts/pack-deploy.sh — gói deploy chỉ mang sản phẩm', () =>
 
   it('tự kiểm trong script phủ đủ ba lớp: bí mật · dữ liệu prod · hồ sơ xây dựng', () => {
     const src = readFileSync(SCRIPT, 'utf8');
-    for (const dau of ['secrets', 'web-runs/', 'probes-lib/', 'checkmate/runs/', 'openspec|docs|test', 'checkmate\\.yml']) {
+    for (const dau of ['secrets', 'web-runs/', 'probes-lib/', 'dep-stores/', 'checkmate/runs/', 'openspec|docs|test', 'checkmate\\.yml']) {
       expect(src, `tự kiểm thiếu dấu hiệu: ${dau}`).toContain(dau);
     }
   });

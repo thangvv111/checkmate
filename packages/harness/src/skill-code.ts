@@ -564,7 +564,7 @@ export async function runCodeSkill(
   // ⛔ KIỂM MÔI TRƯỜNG TRƯỚC KHI TỐN MỘT LỜI GỌI MODEL NÀO. Đo 07/09: repo thiếu phụ thuộc làm lượt chấm
   // đi hết ba lời gọi (~100k token vào) rồi mới chết ở bước sandbox với một thông điệp nói sai bệnh.
   const anhChay = runner?.image ?? DEFAULT_IMAGE;
-  const kiemMoiTruong = preflightProbeEnvironment({ repo, nodeMoiTruong: () => nodeVersionOfImage(anhChay) });
+  const kiemMoiTruong = preflightProbeEnvironment({ repo, nodeMoiTruong: () => nodeVersionOfImage(anhChay), testCmd: runner?.test_cmd });
   for (const c of kiemMoiTruong.canhBao) phat({ type: 'log', msg: `⚠ Môi trường: ${c.thong_diep}${c.cach_sua ? ` — ${c.cach_sua}` : ''}` });
   if (kiemMoiTruong.chan.length > 0) {
     const c = kiemMoiTruong.chan[0]!;
@@ -707,10 +707,17 @@ export async function runCodeSkill(
     if (loiThu !== undefined) {
       // ⛔ Lỗi MÔI TRƯỜNG không sinh lại: probe không gây ra nó và không sửa được nó. Sinh lại chỉ tốn thêm
       // một lời gọi sinh code rồi hỏng y hệt — đo 07/09, ba lượt liên tiếp cùng một bệnh.
+      //
+      // ⛔ Cùng cửa ấy gánh thêm ca «cổng chất lượng của REPO ĐÍCH chặn probe» (D6). Đo 08/09: Spotless
+      // gãy trước pha test ⇒ không có báo cáo nào ⇒ trước bản này engine sinh lại probe hai lần rồi báo
+      // «Probe không thu thập được». Fail-closed vẫn giữ, nhưng nó KÊ SAI TÊN BỆNH và tiêu hai lời gọi
+      // model cho một nguyên nhân mà sinh lại không sửa được.
       const loaiMoiTruong = looksLikeEnvironmentFailure(loiThu);
       if (loaiMoiTruong) {
-        phat({ type: 'log', msg: `⛔ Lỗi MÔI TRƯỜNG, KHÔNG sinh lại probe — ${describeEnvironmentFailure(loaiMoiTruong, repo)}` });
-        throw new Error(`Môi trường chạy probe hỏng (${loaiMoiTruong}): ${describeEnvironmentFailure(loaiMoiTruong, repo)}`);
+        // `loiThu` NGUYÊN VĂN chỉ dùng để tra bảng đóng tên cổng; thứ đi vào lời văn là tên trong bảng.
+        const loi = describeEnvironmentFailure(loaiMoiTruong, repo, loiThu);
+        phat({ type: 'log', msg: `⛔ Lỗi MÔI TRƯỜNG, KHÔNG sinh lại probe — ${loi}` });
+        throw new Error(`Môi trường chạy probe hỏng (${loaiMoiTruong}): ${loi}`);
       }
       if (lan === 2) throw new Error(`Probe không thu thập được sau 2 lần sinh: ${loiThu}`);
       phat({ type: 'log', msg: 'File probe lỗi thu thập — sinh lại lần 2 kèm thông báo lỗi' });

@@ -4,6 +4,7 @@ runs/
 web-runs/
 config.json
 probes-lib/
+dep-stores/
 *.tmp.ts
 .secrets.json
 .ncc-verify.json
