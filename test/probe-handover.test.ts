@@ -280,3 +280,56 @@ describe('thư viện probe thật sự ĐÃ ĐI RỒI (T4)', () => {
     expect(SKILL).toContain('const files = [sb.ghiProbe(codeMoi');
   });
 });
+
+/**
+ * ⛔ Cửa đột biến phải CHẠY ĐƯỢC trên mọi hệ, không chỉ hệ mà tên file không ràng buộc gì.
+ *
+ * Lỗi đo được 08/09 bởi làn `oapi-admin-be`: bản đột biến ghi ra `dot_bien_<id><ext>`, bỏ qua
+ * `runner.probe_file`. Trên Java — nơi tên file PHẢI trùng tên class — cả hai nhánh đều chết trước khi
+ * sinh XML, nên `kq.probes.length === 0`, nên cửa kết luận «probe không cắn» cho MỌI probe Java. Cửa
+ * quan trọng nhất của repo im lặng không chạy, và verdict không nói ra.
+ *
+ * Đây là **cửa song sinh** thứ mười: hai chỗ cùng quyết «file probe tên gì», một chỗ tôn trọng cấu hình
+ * repo đích, chỗ kia tự đặt.
+ */
+export function scanMutationProbeName(nguon: string): string[] {
+  const loi: string[] = [];
+  const i = nguon.indexOf('chayVaHoiCoDo:');
+  if (i < 0) return ['không thấy cửa đột biến — mỏ neo đã đổi, lưới đang mù'];
+  const than = nguon.slice(i, i + 1600);
+  const ghi = than.split(/\r?\n/).find((l) => /\.ghiProbe\(/.test(l));
+  if (ghi === undefined) return ['cửa đột biến không ghi probe nào — mỏ neo đã đổi, lưới đang mù'];
+  if (!ghi.includes('fileProbeMoi')) {
+    loi.push(`bản đột biến tự đặt tên file thay vì dùng tên đã khai: ${ghi.trim().slice(0, 90)}`);
+  }
+  return loi;
+}
+
+describe('⛔ cửa đột biến dùng ĐÚNG tên file probe đã khai (T7)', () => {
+  const SKILL = readFileSync('packages/harness/src/skill-code.ts', 'utf8');
+
+  it('T7.1 ĐỎ: fixture tự đặt tên `dot_bien_…` — bỏ qua `runner.probe_file`', () => {
+    const gia = "chayVaHoiCoDo: (daDao) => {\n  const fileM = sbM.ghiProbe(daDao, `dot_bien_${u.probe.id}${extProbe}`, 'test');\n}";
+    const ra = scanMutationProbeName(gia);
+    expect(ra).toHaveLength(1);
+    expect(ra[0]).toContain('tự đặt tên file');
+  });
+
+  it('T7.2 XANH: fixture dùng `fileProbeMoi`', () => {
+    const gia = "chayVaHoiCoDo: (daDao) => {\n  const fileM = sbM.ghiProbe(daDao, fileProbeMoi, 'test');\n}";
+    expect(scanMutationProbeName(gia)).toEqual([]);
+  });
+
+  it('T7.3 ĐỎ khi mỏ neo biến mất — chống xanh oan', () => {
+    expect(scanMutationProbeName('const x = 1;')[0]).toContain('lưới đang mù');
+    expect(scanMutationProbeName('chayVaHoiCoDo: () => { return true; }')[0]).toContain('lưới đang mù');
+  });
+
+  it('T7.4 mã nguồn HIỆN TẠI sạch — và MỘT chỗ duy nhất quyết tên file probe', () => {
+    expect(scanMutationProbeName(SKILL)).toEqual([]);
+    // Cửa song sinh đóng: chỉ `fileProbeMoi` đọc `runner.probe_file`, và mọi chỗ ghi probe dùng nó.
+    const dongGhi = SKILL.split(/\r?\n/).filter((l) => /\.ghiProbe\(/.test(l));
+    expect(dongGhi.length, 'số chỗ ghi probe đổi thì lưới này phải được đọc lại').toBe(2);
+    for (const d of dongGhi) expect(d, `chỗ ghi probe không dùng tên đã khai: ${d.trim()}`).toContain('fileProbeMoi');
+  });
+});
