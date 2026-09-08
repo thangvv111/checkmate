@@ -212,6 +212,28 @@ mạng tương ứng, và một lưới đối chiếu hai danh sách. Không ph
 test không phủ đúng thứ họ hỏi. Kiểu sai này (yên tâm hoá một câu hỏi đúng bằng một quy chiếu gần đúng) tệ
 hơn im lặng, vì nó làm bên kia thôi tìm.*
 
+## Trạng thái `test_cmd` hai repo Java — đo trên đĩa 08/09
+
+| repo | SHA `main` | chuỗi chấm | còn thiếu |
+|---|---|---|---|
+| `portal-be` | `a472db8` | `mvn -B -q -Dspotless.check.skip=true test …` | — xong |
+| `admin-be` | `2d0909b` | còn `./mvnw -o -q test …` | `mvn` · cờ bỏ qua kiểm định dạng |
+
+`portal-be` bỏ đúng ba chỗ đã thống nhất, **không** `-o`, **không** `-Dmaven.repo.local` — ranh giới «repo
+khai chạy cái gì, CheckMate khai kho ở đâu» giữ nguyên vẹn. `admin-be` chưa sửa, và đó là trạng thái bình
+thường: chưa sửa thì lượt chấm phải **báo đúng tên cổng đã chặn** (D6), không phải chạy được nhờ engine tự gỡ.
+
+### Một xác nhận cho lựa chọn neo-theo-tên-plugin của D6
+
+Làn `oapi-portal-be` báo spine của đội họ **tự mâu thuẫn về pha Spotless**: bảng số ghim nói `validate`,
+bảng tóm tắt nói `verify`, và cổng kiểm của họ chỉ đọc bảng số nên **xanh trong khi văn bản sai**.
+
+CheckMate không đọc spine của đội đích, nên việc này không chạm em trực tiếp. Nhưng nó xác nhận một lựa chọn
+của `D6` mà lúc viết em mới chỉ lập luận: mẫu nhận dạng neo vào **tên plugin gãy**, ⛔ không neo vào **pha**.
+Nếu neo theo pha thì hôm nay đã có một repo mà pha thật khác pha khai — và bộ phân loại sẽ sai theo một nguồn
+mà **CheckMate không kiểm soát và không có quyền sửa**. Tên plugin là thứ hiện ra trong log của chính lượt
+chạy; pha là thứ phải đi hỏi tài liệu bên khác.
+
 ## Cái change này KHÔNG làm
 
 **Không mở bề mặt probe cho phần cần Docker.** `admin-be` **14/26** và `portal-be` **19/31** lớp test cần
