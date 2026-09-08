@@ -1513,10 +1513,18 @@ export function verdictHtml(v: Verdict): string {
           ss.units === 0,
         )
       : '',
+    // ⛔ SỐ ĐẾM, không phải tỉ lệ. Hàng «Luật đối chiếu» ngay trên đã bày tổng số đơn vị, nên bày thêm
+    // `x/y` ở đây là mời người đọc chia hai số ấy cho nhau — phép chia đó vô nghĩa: mẫu là cả kho luật
+    // của repo, tử là phần diff NÀY chạm tới. Đo 08/09: một PR sửa một dòng ra «1/195».
+    // Bày TÊN luật đã neo, vì tên nói được điều một con số không nói.
     ps && ps.luat_tong !== undefined
-      ? hangMeta('Độ phủ luật', `${ps.luat_da_phu?.length ?? 0}/${ps.luat_tong} đơn vị có probe`)
+      ? hangMeta(
+          'Luật có probe neo',
+          ps.luat_da_phu?.length ? `${ps.luat_da_phu.length} đơn vị · ${escHtml(ps.luat_da_phu.join(' · '))}` : '0 đơn vị',
+          !ps.luat_da_phu?.length,
+        )
       : ss
-        ? hangMeta('Độ phủ luật', 'không đo được', true)
+        ? hangMeta('Luật có probe neo', 'không đo được', true)
         : '',
     // Vùng xám — bốn số PHẢI hiện, kể cả bằng không. Im lặng và số không là hai điều khác nhau.
     ps ? hangMeta('◍ nghi vấn', String(ps.nghi_van), true) : '',

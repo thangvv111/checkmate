@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { promptPhanTich } from '../packages/harness/src/skill-code.js';
 import { ruleCoverage, splitSpecUnits } from '../packages/harness/src/spec-units.js';
 import { makeFence } from '../packages/harness/src/fence.js';
@@ -101,9 +102,9 @@ const coLuat = verdict({
   probe_stats: { ke_hoach: 3, ghi_nhan: 3, pass: 3, hoi_quy: 0, ngoai_pham_vi: 0, nghi_loi_co_san: 0, nghi_van: 0, cai_thien: 0, bo_qua: 0, that_lac: [], luat_da_phu: ['Duyệt › Ngưỡng theo vai', 'Duyệt'], luat_tong: 3 },
 });
 
-/** Cắt đúng hàng «Độ phủ luật» khỏi bảng số liệu — luật này nói về hàng ấy, không về cả bảng. */
+/** Cắt đúng hàng «Luật có probe neo» khỏi bảng số liệu — luật này nói về hàng ấy, không về cả bảng. */
 const hangDoPhu = (bang: string): string => {
-  const i = bang.indexOf('Độ phủ luật');
+  const i = bang.indexOf('Luật có probe neo');
   return i < 0 ? '' : bang.slice(i, bang.indexOf('</div>', i) + 6);
 };
 
@@ -133,7 +134,13 @@ describe('màn Run và bảng verdict', () => {
     expect(html).not.toContain('Chấm KHÔNG có luật đối chiếu');
     const bang = verdictHtml(coLuat);
     expect(bang).toContain('3 đơn vị · 1 file · tự dò');
-    expect(bang).toContain('2/3 đơn vị có probe');
+    // ⛔ SỐ ĐẾM, không phải tỉ lệ — luật `man-run › Verdict phải khai cả phần yếu của chính lượt chấm`.
+    // Bản trước khẳng định `2/3 đơn vị có probe`. Dạng `x/y` mời người đọc chia hai số cho nhau, mà
+    // phép chia ấy vô nghĩa: mẫu là cả kho luật của repo, tử là phần diff NÀY chạm tới. Đo 08/09 trên
+    // PR #91 (sửa MỘT dòng): «1/195», và đọc tự nhiên nhất là «phủ 0,5%, tệ quá».
+    expect(bang).toContain('2 đơn vị');
+    expect(bang, 'phải nêu TÊN luật đã neo, không chỉ số lượng').toContain('Duyệt › Ngưỡng theo vai');
+    expect(bang, 'MUST NOT bày dạng tỉ lệ').not.toMatch(/2\/3/);
     // Thu hẹp về ĐÚNG hàng độ phủ. Bản trước quét cả bảng, và nó đỏ khi change `probe-quarantine`
     // thêm hàng «◍ cách ly: không đo được» — hàng ấy nói một chuyện KHÁC (verdict đời cũ chưa có phép
     // đo cách ly) và nó đúng. Một phép quét cả bảng cho một luật về MỘT hàng là lỗi lưới loại 3.
@@ -145,6 +152,76 @@ describe('màn Run và bảng verdict', () => {
     expect(runPage(meta(cu), false, [])).not.toContain('Chấm KHÔNG có luật đối chiếu');
     const bang = verdictHtml(cu);
     expect(bang).not.toContain('Luật đối chiếu');
-    expect(bang).not.toContain('Độ phủ luật');
+    expect(bang).not.toContain('Luật có probe neo');
+  });
+});
+
+/**
+ * ⛔ Lưới chống tái phát: KHÔNG bề mặt nào được ghép «số luật đã neo» với «tổng số đơn vị» thành `x/y`.
+ *
+ * Đo 08/09 trên PR #91 — một bản vá MỘT DÒNG — thông điệp ra «Độ phủ luật: 1/195 đơn vị luật đọc được
+ * từ spec có probe neo vào». Đọc tự nhiên nhất là «phủ 0,5%, tệ quá», và đọc ấy SAI: mẫu số là toàn bộ
+ * kho luật của repo, tử số là phần diff ấy chạm tới.
+ *
+ * Và tỉ lệ ấy tạo khuyến khích ngược, đo trên hai repo cùng ngày: `checkmate` 195 đơn vị ⇒ luôn ra
+ * 1/195; `demo-credit-approval` 9 đơn vị ⇒ một lượt neo 3 ra 3/9 = 33%. **Repo viết ÍT luật hơn thì
+ * điểm cao hơn** — trong một công cụ tồn tại để bắt người ta viết luật rõ hơn.
+ *
+ * Bốn bề mặt đếm bằng máy: `spec-units.ts` (nguồn số) · `skill-code.ts` (log) · `cli.ts` (dòng tóm tắt)
+ * · `ui.ts` (bảng số liệu). Vá một chỗ mà quên ba chỗ kia là dựng lại đúng cửa song sinh.
+ */
+export function scanRatioSurfaces(files: readonly string[], doc: (f: string) => string): string[] {
+  const loi: string[] = [];
+  if (files.length === 0) return ['khong co be mat nao de quet — luoi dang mu'];
+  for (const f of files) {
+    const nguon = doc(f);
+    if (!/luat_tong/.test(nguon)) {
+      loi.push(`${f}: khong thay luat_tong — mo neo da doi ten, luoi dang mu`);
+      continue;
+    }
+    for (const [i, d] of nguon.split(/\r?\n/).entries()) {
+      if (d.trim().startsWith('//') || d.trim().startsWith('*')) continue;
+      // Ghép hai số bằng dấu gạch chéo, ở bất kỳ dạng nội suy nào.
+      if (/luat_da_phu[^\n]*\}\s*\/\s*\$\{[^\n]*luat_tong/.test(d)) {
+        loi.push(`${f}:${i + 1} bay dang ti le x/y: ${d.trim().slice(0, 80)}`);
+      }
+    }
+  }
+  return loi;
+}
+
+describe('⛔ số luật đã neo là SỐ ĐẾM, không phải tỉ lệ (man-run)', () => {
+  const BE_MAT = [
+    'packages/harness/src/spec-units.ts',
+    'packages/harness/src/skill-code.ts',
+    'packages/harness/src/cli.ts',
+    'apps/web/src/ui.ts',
+  ];
+
+  it('ĐỎ: fixture ghép hai số thành tỉ lệ', () => {
+    const gia = 'const s = `độ phủ ${doPhu.luat_da_phu!.length}/${doPhu.luat_tong} đơn vị`;';
+    const ra = scanRatioSurfaces(['gia.ts'], () => gia);
+    expect(ra).toHaveLength(1);
+    expect(ra[0]).toContain('bay dang ti le');
+  });
+
+  it('XANH: fixture bày hai số tách bạch', () => {
+    const gia = 'const s = `${doPhu.luat_da_phu!.length} luật có probe neo (kho ${doPhu.luat_tong})`;';
+    expect(scanRatioSurfaces(['gia.ts'], () => gia)).toEqual([]);
+  });
+
+  it('ĐỎ khi mỏ neo biến mất — chống xanh oan', () => {
+    expect(scanRatioSurfaces(['gia.ts'], () => 'const x = 1;')[0]).toContain('luoi dang mu');
+    expect(scanRatioSurfaces([], () => '')[0]).toContain('luoi dang mu');
+  });
+
+  it('cả BỐN bề mặt hiện tại đều sạch', () => {
+    const doc = (f: string): string => readFileSync(f, 'utf8');
+    expect(scanRatioSurfaces(BE_MAT, doc)).toEqual([]);
+  });
+
+  it('đếm bằng máy: đúng bốn tệp nguồn chạm `luat_tong` — thêm bề mặt thứ năm thì lưới phải đỏ', () => {
+    const doc = (f: string): string => readFileSync(f, 'utf8');
+    for (const f of BE_MAT) expect(doc(f), `${f} không còn chạm luat_tong`).toContain('luat_tong');
   });
 });
