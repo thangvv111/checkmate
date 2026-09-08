@@ -66,17 +66,32 @@
 
 ## Ca đối kháng & hồi quy
 
-- [ ] T3.1 **Mutation hai chiều**, chạy **HAI lần**, kiểm chứng đột biến đã vào đĩa **trước** khi đọc kết
-      quả. Sáu gác tối thiểu:
+- [x] T3.1 ✅ **Mutation, chạy HAI lần**, kiểm chứng đột biến đã vào đĩa trước khi đọc kết quả; số ca đỏ
+      **khớp hệt** hai vòng, không mục nào SKIP:
 
-      | # | gác bị gỡ |
-      |---|---|
-      | M1 | `--ignore-scripts` |
-      | M2 | tắt mạng ở container **probe** |
-      | M3 | phiên bản không có hàng ⇒ từ chối (đổi thành rơi về mặc định) |
-      | M4 | thư mục làm việc là thư mục tạm (đổi thành mount clone) |
-      | M5 | kiểm lại sau khi cài |
-      | M6 | trả quyền sở hữu trước khi chuyển |
+      | # | gác bị gỡ | ca đỏ |
+      |---|---|---|
+      | M1 | `--ignore-scripts` trong lệnh cài | 3 |
+      | M2 | chỉ mount thư mục tạm, không mount bản clone | 2 |
+      | M3 | phiên bản không có hàng ⇒ TỪ CHỐI (không rơi về mặc định) | 2 |
+      | M4 | mọi hàng trong bảng ảnh ghim theo digest | 2 |
+      | M5 | trình cài thoát 0 mà không sinh thư mục phụ thuộc ⇒ thất bại | 1 |
+      | M6 | danh sách chép ĐÓNG, không có `.git` | 1 |
+      | M7 | trả quyền sở hữu TRƯỚC khi chuyển | 1 |
+
+- [x] T3.1b ⛔ **M7 ban đầu cho 0 ca đỏ — gác ấy KHÔNG có lưới nào.** Đúng thứ mutation sinh ra để bắt:
+      xoá bước trả quyền thì mọi ca vẫn xanh, trong khi hậu quả thật là một thư mục phụ thuộc mà chính tài
+      khoản dịch vụ không đọc được nằm lại trong clone — hỏng im lặng, chỉ lộ ở lượt chấm sau. Đã thêm ca
+      «trả quyền HỎNG ⇒ dừng, không chuyển vào clone»; chạy lại M7 ⇒ **1 ca đỏ**.
+
+- [x] T3.1c ⚠️ **Bộ chạy đột biến của chính mình có lỗi, và nó để lại file BẨN.** Phép kiểm «đột biến đã
+      vào đĩa» viết là `chuoi_cu not in file`, nhưng M2 là đột biến **cộng thêm** (chuỗi cũ vẫn nằm trong
+      chuỗi mới) ⇒ phép kiểm báo động giả ⇒ script thoát **ngoài** khối `finally` ⇒ file ở lại trạng thái
+      đã sửa. Vòng sau chạy trên nền hỏng: M1 đi từ 3 ca đỏ thành **5**, và con số ấy vô nghĩa.
+
+      Bắt được vì luật đòi **chạy hai lần và so** — không so thì «5 ca đỏ» trông vẫn như kết quả tốt. Và
+      file bẩn khó thấy hơn thường: nó **chưa được git theo dõi** nên `git status` chỉ hiện `??`, không
+      hiện diff. Đã sửa: phép kiểm so **toàn văn** và nằm **trong** `try`.
 
 - [x] T3.2 ✅ **Ca đã gãy THẬT — và nó là sự cố tự gây ra trên prod 07/09.** Mount cả bản clone với cờ
       chuyển-chủ-sở-hữu ⇒ chown đệ quy chạm `.git`, hỏng giữa chừng, để lại **78 mục** của bản clone thuộc

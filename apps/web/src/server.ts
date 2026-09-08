@@ -44,6 +44,8 @@ import { repoSection } from './ui-repo.js';
 // Tầng `delivery` được value-import tầng `engine` (ma trận ở test/kien-truc-tang.test.ts). Dùng ở cửa
 // thêm repo để nói NGAY rằng bản clone chưa chạy được probe.
 import { preflightProbeEnvironment, nodeVersionOfImage } from '../../../packages/harness/src/probe-preflight.js';
+import { installDependencies } from '../../../packages/harness/src/dependency-install.js';
+import { readRunnerCfg } from '../../../packages/harness/src/runner.js';
 import { DEFAULT_IMAGE } from '../../../packages/harness/src/sandbox.js';
 import { cloneRepo, listBranches, listPrs, prState, listReposForToken, closePr, fetchAndRoute, setCommitStatus, checkRepo, getCurrentPr, mergePr, commentPr, splitOwnerRepo, returnToDev } from './github.js';
 import { hasToken, readRepoToken, readOwnToken, writeRepoToken, deleteRepoToken } from './secret-vault.js';
@@ -798,6 +800,31 @@ app.post('/api/repo/go', (req, res) => {
   // R4.27 — clone và lịch sử thì giữ (R4.7), chìa thì không: chìa của repo đã gỡ nằm lại là rác có hại
   deleteRepoToken(github);
   res.json({ ok: true });
+});
+
+// Cài phụ thuộc cho bản clone repo đích — capability `dependency-provisioning`.
+//
+// ⛔ NGƯỜI VẬN HÀNH BẤM, MÁY KHÔNG TỰ CÀI (PO chốt 08/09). Cài là kéo mã từ registry công cộng về máy chủ
+// và ghi vào đĩa — một quyết định về *cái gì được phép nằm trên máy này*. Làm im lặng bên trong một lượt
+// chấm thì người vận hành mất cả chỗ thấy chi phí lẫn chỗ từ chối. Đo được: cài 246 gói mất 9 giây, nên
+// «cho người bấm» không phải cái giá về tốc độ.
+//
+// Ranh giới này KHÁC ⛔C1 và không được nhầm: ⛔C1 nói máy không được đưa code vào trunk. Ở đây máy không
+// bị cấm hành động — nó bị cấm hành động IM LẶNG.
+app.post('/api/repo/cai-phu-thuoc', (req, res) => {
+  if (MODE === 'demo') return res.status(403).json({ ok: false, loi: 'Chế độ demo không cho cài phụ thuộc.' });
+  const github = ((req.body as { github?: string }).github ?? '').trim();
+  const c = readConfig();
+  const repoCfg = findRepo(c, github);
+  if (!repoCfg) return res.status(404).json({ ok: false, loi: `Repo ${github || '(trống)'} không có trong danh sách đã khai.` });
+  const runner = readRunnerCfg(repoCfg.local_path);
+  const kq = installDependencies(repoCfg.local_path, runner?.image);
+  console.log(
+    `Cài phụ thuộc ${repoCfg.github}: ${kq.ok ? 'XONG' : 'HỎNG'}` +
+      `${kq.anh ? ` · ảnh ${kq.anh}` : ''}${kq.giay !== undefined ? ` · ${kq.giay}s` : ''}` +
+      `${kq.ok ? '' : ` · ${kq.ly_do ?? ''}`}`,
+  );
+  res.status(kq.ok ? 200 : 422).json(kq);
 });
 
 // Kiểm một nhà cung cấp — bấm nút trong Cấu hình, biết ngay thay vì chạy cả lượt chấm mới lộ lỗi.
