@@ -99,5 +99,11 @@
 - [ ] 7.3 **Nợ 31 vẫn mở và change này KHÔNG đóng nó**: verdict chưa khai rằng lượt chấm không với tới
       **14/26** (`admin-be`) và **19/31** (`portal-be`) lớp test cần Docker — ⚠ số ĐO NGÀY 08/09 và đang
       TĂNG (`OAPI-51` của làn `oapi-portal-be` bổ ba lớp cổng khởi động đọc `pg_catalog`). Một tỉ lệ ghim
-      cứng trong tài liệu là thứ hết hạn trong im lặng; verdict phải TỰ ĐO, không chép lại. Một change tên «nuôi Java» rất
+      cứng trong tài liệu là thứ hết hạn trong im lặng; verdict phải TỰ ĐO, không chép lại.
+      ⚠ **Ràng buộc thiết kế cho nợ 31, do làn `oapi-admin-be` nêu và em nhận:** với repo đang lớn, tỉ lệ
+      ấy **giảm dần theo thời gian** — và *một verdict trung thực đang xấu đi trông giống hệt một hệ đang
+      hỏng*. ⇒ Phần khai phạm vi MUST kèm **lý do phạm vi hẹp** (bao nhiêu lớp cần Docker mà sandbox
+      `--network=none` không dựng được), không chỉ con số. Thiếu vế lý do thì người đọc sẽ đọc **sự trung
+      thực thành sự xuống cấp**, và phản ứng đúng của họ khi ấy là ngừng tin con số — tức tính năng tự
+      phá chính mục đích của nó. Một change tên «nuôi Java» rất
       dễ bị đọc thành «giờ chấm được repo Java»; đúng hơn là **chấm được phần chạy được**.
