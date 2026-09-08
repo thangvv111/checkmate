@@ -1022,7 +1022,20 @@ export async function runCodeSkill(
             code: rieng,
             ext: extProbe,
             chayVaHoiCoDo: (daDao) => {
-              const fileM = sbM.ghiProbe(daDao, `dot_bien_${u.probe.id}${extProbe}`, runner?.probe_dir ?? 'test');
+              // ⛔ Bản đột biến dùng CHÍNH tên file của probe, không tự đặt tên riêng.
+              //
+              // Trước 08/09 chỗ này ghi ra `dot_bien_<id><ext>` — tức **cửa song sinh** thứ mười của repo:
+              // hai chỗ cùng quyết «file probe tên gì», một chỗ tôn trọng `runner.probe_file`, chỗ kia
+              // không. Làn `oapi-admin-be` đo và chỉ ra hậu quả trên repo Java, nơi tên file PHẢI trùng
+              // tên class:
+              //   · class `public` ⇒ javac từ chối «should be declared in a file named …» ⇒ không XML;
+              //   · class package-private ⇒ biên dịch được, nhưng `-Dtest=dot_bien_p1` không khớp class
+              //     nào ⇒ surefire chạy 0 test ⇒ vẫn không XML.
+              // Cả hai nhánh về cùng một chỗ: `kq.probes.length === 0` ⇒ hàm này trả `false` ⇒ cửa đột
+              // biến kết luận «probe không cắn» cho MỌI probe Java, và verdict không nói ra điều đó.
+              //
+              // Dùng lại `fileProbeMoi` an toàn vì `sbM` là sandbox RIÊNG — không đụng file probe chính.
+              const fileM = sbM.ghiProbe(daDao, fileProbeMoi, runner?.probe_dir ?? 'test');
               const kq = runner ? sbM.chayTheoRunner([fileM], runner, parseJUnit) : sbM.chayVitest([fileM]);
               // ĐỎ = có ít nhất một probe fail. Không chạy được cũng KHÔNG tính là đỏ: nó là «không biết».
               return kq.probes.length > 0 && kq.probes.some((r) => r.status === 'failed');
