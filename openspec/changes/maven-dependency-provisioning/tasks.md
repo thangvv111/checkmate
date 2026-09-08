@@ -30,57 +30,57 @@
 
 ## 2. Kiểu & hợp đồng
 
-- [ ] 2.1 `IMAGE_BY_ECOSYSTEM` — bản đồ ảnh mở rộng: khoá theo **hệ + phiên bản chính**, không chỉ Node.
+- [x] 2.1 `IMAGE_BY_ECOSYSTEM` — bản đồ ảnh mở rộng: khoá theo **hệ + phiên bản chính**, không chỉ Node.
       Ghim digest, bảng đóng, mỗi hàng ghi ngày đo và phiên bản kiểm **bên trong** ảnh.
-- [ ] 2.2 `INSTALL_COPY_FILES` theo hệ: Node giữ nguyên bốn tệp; Maven lấy `pom.xml` (+ `.mvn/` nếu có).
-- [ ] 2.3 Kiểu kết quả nạp mang thêm **đường kho** đã tạo, để bước chạy probe mount đúng chỗ.
-- [ ] 2.4 Khai mọi export mới vào bảng module `checkmate.yml` (⛔C5).
+- [x] 2.2 `INSTALL_COPY_FILES` theo hệ: Node giữ nguyên bốn tệp; Maven lấy `pom.xml` (+ `.mvn/` nếu có).
+- [x] 2.3 Kiểu kết quả nạp mang thêm **đường kho** đã tạo, để bước chạy probe mount đúng chỗ.
+- [x] 2.4 Khai mọi export mới vào bảng module `checkmate.yml` (⛔C5).
 
 ## 3. Engine
 
-- [ ] 3.1 `dependency-install.ts` tách theo hệ: `installDependencies` chọn nhánh Node / Maven.
-- [ ] 3.2 Nhánh Maven: chép danh sách đóng → nạp bằng **đúng lệnh sẽ chạy** → **trả quyền sở hữu** →
+- [x] 3.1 `dependency-install.ts` tách theo hệ: `installDependencies` chọn nhánh Node / Maven.
+- [x] 3.2 Nhánh Maven: chép danh sách đóng → nạp bằng **đúng lệnh sẽ chạy** → **trả quyền sở hữu** →
       **`chmod a+rX`** → kiểm lại bằng cửa của `probe-environment`.
-- [ ] 3.3 Kho `.m2` đặt ở đường **ổn định theo repo** (không phải thư mục tạm) — nó sống qua nhiều lượt chấm.
-- [ ] 3.3b Nạp vào `<kho>.new` rồi **đổi tên đè** (D5) — không ghi thẳng vào kho đang được mount.
-- [ ] 3.4 `sandbox.ts`: container chạy probe mount kho `:ro` và đặt `MAVEN_ARGS`. ⛔ Chỉ khi repo thuộc hệ
+- [x] 3.3 Kho `.m2` đặt ở đường **ổn định theo repo** (không phải thư mục tạm) — nó sống qua nhiều lượt chấm.
+- [x] 3.3b Nạp vào `<kho>.new` rồi **đổi tên đè** (D5) — không ghi thẳng vào kho đang được mount.
+- [x] 3.4 `sandbox.ts`: container chạy probe mount kho `:ro` và đặt `MAVEN_ARGS`. ⛔ Chỉ khi repo thuộc hệ
       có kho — Node **không** đổi một cờ nào.
-- [ ] 3.5 `ECOSYSTEMS`: Maven đổi `engineCapPhuThuoc` sang `true`.
-- [ ] 3.5b ⛔ **D7 lỗ 1 — `checkDependencies` tách nhánh:** Maven ⇒ kiểm **kho của repo ấy có jar không**,
+- [x] 3.5 `ECOSYSTEMS`: Maven đổi `engineCapPhuThuoc` sang `true`.
+- [x] 3.5b ⛔ **D7 lỗ 1 — `checkDependencies` tách nhánh:** Maven ⇒ kiểm **kho của repo ấy có jar không**,
       thiếu thì `thieu_phu_thuoc` kèm cách sửa là **bấm nút cài phụ thuộc**; `gradle`/`python` ⇒ giữ
       `he_chua_ho_tro`. Đây là chỗ chữa `F2` của làn `oapi-portal-be` — chặn ở chặng 2/5, **trước** mọi lời
       gọi model, không đoán bệnh sau khi đã tiêu token.
-- [ ] 3.5c ⛔ **D7 lỗ 2 — từ vựng lỗi mạng theo hệ:** mẫu bệnh 1 hiện toàn mã lỗi npm
+- [x] 3.5c ⛔ **D7 lỗ 2 — từ vựng lỗi mạng theo hệ:** mẫu bệnh 1 hiện toàn mã lỗi npm
       (`EAI_AGAIN`/`ENOTFOUND`/`getaddrinfo`); Maven nói `UnknownHostException`, `Could not resolve
       dependencies`, `Could not transfer artifact`. Thêm từ vựng **gắn vào hàng hệ sinh thái**, không rải
       regex rời.
-- [ ] 3.6 ⛔ **KHÔNG** thêm cờ tắt cổng chất lượng của repo đích vào bất kỳ lệnh nào.
-- [ ] 3.7 ⛔ **D6 — mở rộng `looksLikeEnvironmentFailure`**, KHÔNG mở cửa phân loại thứ hai ở `sandbox.ts`:
+- [x] 3.6 ⛔ **KHÔNG** thêm cờ tắt cổng chất lượng của repo đích vào bất kỳ lệnh nào.
+- [x] 3.7 ⛔ **D6 — mở rộng `looksLikeEnvironmentFailure`**, KHÔNG mở cửa phân loại thứ hai ở `sandbox.ts`:
       bản dựng gãy ở một **cổng chất lượng chạy trước pha test** ⇒ xếp lỗi môi trường/hợp đồng, nêu tên cổng,
       **không sinh lại probe**. Neo vào **bảng đóng tên plugin**, ⛔ không vào chuỗi `BUILD FAILURE`.
-- [ ] 3.8 Giữ nguyên đường sinh-lại cho ca bản dựng gãy ở **biên dịch chính tệp probe** — đó là lỗi của probe
+- [x] 3.8 Giữ nguyên đường sinh-lại cho ca bản dựng gãy ở **biên dịch chính tệp probe** — đó là lỗi của probe
       và sinh lại là hành vi ĐÚNG. Rộng tay ở 3.7 sẽ nuốt mất ca này.
 
 ## 4. Web
 
-- [ ] 4.1 Nút «Cài phụ thuộc» dùng được cho repo Maven; log nêu ảnh, cỡ kho, thời gian.
+- [x] 4.1 Nút «Cài phụ thuộc» dùng được cho repo Maven; log nêu ảnh, cỡ kho, thời gian.
 
 ## 5. Test
 
-- [ ] 5.1 Ca khoá cho từng scenario (5 + 2).
-- [ ] 5.2 **Cặp fixture** cho bản đồ ảnh mở rộng: hàng dùng thẻ ⇒ ĐỎ · toàn digest ⇒ XANH · rỗng ⇒ ĐỎ.
-- [ ] 5.3 ⛔ Lưới **chống tự nới cổng**: quét lệnh engine dựng, ĐỎ nếu thấy cờ dạng `-D*.skip` hay
+- [x] 5.1 Ca khoá cho từng scenario (5 + 2).
+- [x] 5.2 **Cặp fixture** cho bản đồ ảnh mở rộng: hàng dùng thẻ ⇒ ĐỎ · toàn digest ⇒ XANH · rỗng ⇒ ĐỎ.
+- [x] 5.3 ⛔ Lưới **chống tự nới cổng**: quét lệnh engine dựng, ĐỎ nếu thấy cờ dạng `-D*.skip` hay
       `-Dspotless*`. Cặp fixture bắt buộc.
-- [ ] 5.4 Ca **kho riêng từng repo**: hai repo ⇒ hai đường kho khác nhau.
-- [ ] 5.5 Ca **hồi quy Node**: đường Node không đổi một nhánh nào, không thêm cờ nào.
-- [ ] 5.5b ⛔ **Lưới ràng cửa song sinh D7:** mỗi hàng `ECOSYSTEMS` có `engineCapPhuThuoc: true` PHẢI có
+- [x] 5.4 Ca **kho riêng từng repo**: hai repo ⇒ hai đường kho khác nhau.
+- [x] 5.5 Ca **hồi quy Node**: đường Node không đổi một nhánh nào, không thêm cờ nào.
+- [x] 5.5b ⛔ **Lưới ràng cửa song sinh D7:** mỗi hàng `ECOSYSTEMS` có `engineCapPhuThuoc: true` PHẢI có
       mẫu nhận dạng lỗi mạng tương ứng. Lưới đối chiếu **hai danh sách**, đỏ khi lệch — vì thêm một hàng mà
       quên từ vựng thì hiện tại **không có gì đỏ**.
-- [ ] 5.6 **Mutation hai chiều, chạy HAI lần**, kiểm chứng đột biến đã vào đĩa trước khi đọc kết quả.
+- [x] 5.6 **Mutation hai chiều, chạy HAI lần**, kiểm chứng đột biến đã vào đĩa trước khi đọc kết quả.
 
 ## 6. Trước merge
 
-- [ ] 6.1 `npx tsc --noEmit && npm test`.
+- [x] 6.1 `npx tsc --noEmit && npm test`.
 - [ ] 6.2 Deploy, rồi **bấm cài phụ thuộc cho `admin-be` qua sản phẩm** (không qua shell tay).
 - [ ] 6.3 Chạy lượt chấm code thật trên một PR Java **sau khi đội đích đã sửa `test_cmd`** — chưa sửa thì
       Spotless vẫn chặn, và **sau 3.7 thì engine phải nêu đúng tên cổng đã chặn, không sinh lại probe**.
@@ -89,6 +89,13 @@
 
 - [ ] 7.1 **Kho `.m2` cũ dần khi `pom.xml` đổi**, không gì phát hiện được — cùng khuôn nợ 8.1 của nhịp hai.
 - [ ] 7.2 **Đĩa**: 248 MB mỗi repo Maven, tăng tuyến tính, chưa ai đếm và chưa có đường xoá.
+- [ ] 7.4 ⛔ **Lưới gọi MẠNG THẬT — phát hiện khi chạy mutation, KHÔNG thuộc change này.**
+      `test/token-repo.test.ts` có hai ca gọi thẳng `api.github.com` không token
+      (`checkRepo('vitest-dev/vitest', '')` và ca 404). Chạy bộ lưới 9 lần liên tiếp cho vòng mutation
+      thì GitHub bắt đầu chặn theo hạn mức, và hai ca ấy đỏ **ngẫu nhiên** — đó là toàn bộ lý do hai
+      vòng mutation lệch số, không phải đột biến nào không bị bắt.
+      Nguy hơn chiều đỏ-oan là chiều ngược: hai ca ấy có thể XANH vì GitHub trả lời, không vì mã đúng.
+      Cùng họ với loại 1 trong bảng ba loại lưới sai của `CLAUDE.md`. Sửa là một change riêng.
 - [ ] 7.3 **Nợ 31 vẫn mở và change này KHÔNG đóng nó**: verdict chưa khai rằng lượt chấm không với tới
       **14/26** (`admin-be`) và **19/31** (`portal-be`) lớp test cần Docker. Một change tên «nuôi Java» rất
       dễ bị đọc thành «giờ chấm được repo Java»; đúng hơn là **chấm được phần chạy được**.

@@ -4,7 +4,7 @@
 #
 # Ba lớp bị loại, ba lớp tự kiểm:
 #   1. bí mật           config.json · .secrets.json · .ncc-verify.json
-#   2. dữ liệu prod     web-runs · probes-lib · runs · repos · bench/kq      (tài sản, deploy không đè)
+#   2. dữ liệu prod     web-runs · probes-lib · runs · repos · dep-stores · bench/kq  (tài sản, deploy không đè)
 #   3. hồ sơ xây dựng   openspec · docs · test · bench · _ref · .claude · .github · checkmate.yml · luật agent
 # Lớp 3 loại theo ĐƯỜNG NEO `checkmate/<tên>`: `--exclude=test` trơ sẽ cắt luôn demo-credit-approval/test/,
 # mà repo đích cần thư mục test để chạy probe. Lớp 1–2 giữ dạng trơ vì áp cho cả repo demo.
@@ -28,7 +28,7 @@ CHO_PHEP="DEPLOY.md README.md apps package-lock.json package.json packages tscon
 
 tar "${FORCE[@]}" --exclude=node_modules --exclude=.git \
     --exclude=config.json --exclude=.secrets.json --exclude=.ncc-verify.json \
-    --exclude=web-runs --exclude=probes-lib --exclude='probes-lib-*' \
+    --exclude=web-runs --exclude=probes-lib --exclude='probes-lib-*' --exclude=dep-stores \
     --exclude=runs --exclude=repos --exclude='*.log' --exclude='bench/kq' \
     --exclude=.worktrees --exclude='*.tar.gz' --exclude='*.tmp.*' \
     --exclude=checkmate/openspec --exclude=checkmate/docs --exclude=checkmate/test \
@@ -40,7 +40,7 @@ tar "${FORCE[@]}" --exclude=node_modules --exclude=.git \
 
 # Tự kiểm — có dòng nào là gói HỎNG: in TÊN mục vi phạm (không in nội dung), xoá gói, thoát 1.
 VI_PHAM=$(tar "${FORCE[@]}" -tzf "$OUT" | grep -E \
-  "secrets|/config\.json|ncc-verify|web-runs/|probes-lib/|checkmate/runs/|^checkmate/(openspec|docs|test|bench|_ref|\.claude|\.github|probes-lib-bench|scripts)/|^checkmate/(checkmate\.yml|AGENTS\.md|CLAUDE\.md|GEMINI\.md|vitest\.config\.ts|\.gitignore)$" \
+  "secrets|/config\.json|ncc-verify|web-runs/|probes-lib/|dep-stores/|checkmate/runs/|^checkmate/(openspec|docs|test|bench|_ref|\.claude|\.github|probes-lib-bench|scripts)/|^checkmate/(checkmate\.yml|AGENTS\.md|CLAUDE\.md|GEMINI\.md|vitest\.config\.ts|\.gitignore)$" \
   || true)
 if [ -n "$VI_PHAM" ]; then
   echo "GÓI HỎNG — mục không được phép có trong gói:" >&2

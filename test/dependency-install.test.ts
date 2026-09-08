@@ -219,11 +219,14 @@ describe('resolveInstallImage — tra bảng đóng, KHÔNG ghép chuỗi repo �
 describe('installDependencies — thứ tự bước và cái gì xảy ra khi hỏng', () => {
   const chayGia = (ket: { status?: number; stderr?: string }) => (() => ({ status: ket.status ?? 0, stderr: ket.stderr ?? '', stdout: '', pid: 1, output: [], signal: null })) as never;
 
-  it('repo KHÔNG phải Node ⇒ từ chối, nói rõ hệ', () => {
-    const d = repoTam({ 'pom.xml': '<project/>' });
+  it('repo hệ CHƯA cấp được phụ thuộc ⇒ từ chối, nói rõ hệ', () => {
+    // ⛔ `pom.xml` không còn dùng ở đây: Maven nay ĐI VÀO đường nạp (nhánh riêng, lưới ở
+    // `test/maven-dependency-provisioning.test.ts`). Dùng Gradle để ca này vẫn khoá đúng thứ nó sinh ra
+    // để khoá — hệ engine chưa có đường cấp phụ thuộc thì phải từ chối, không thử rồi hỏng nửa chừng.
+    const d = repoTam({ 'build.gradle': '' });
     const r = installDependencies(d, undefined, chayGia({}));
     expect(r.ok).toBe(false);
-    expect(r.ly_do).toContain('maven');
+    expect(r.ly_do).toContain('gradle');
   });
 
   it('không nhận ra hệ nào ⇒ từ chối, không ném', () => {

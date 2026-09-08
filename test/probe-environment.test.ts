@@ -493,7 +493,9 @@ describe('nhận diện hệ sinh thái — bảng ĐÓNG (cặp fixture)', () =
   it('XANH: bảng HIỆN TẠI trong mã sạch, và có đủ bốn hệ', () => {
     expect(scanEcosystemTable(ECOSYSTEMS)).toEqual([]);
     expect(ECOSYSTEMS.map((e) => e.he)).toEqual(['node', 'maven', 'gradle', 'python']);
-    expect(ECOSYSTEMS.filter((e) => e.engineCapPhuThuoc).map((e) => e.he), 'hôm nay engine CHỈ cấp được phụ thuộc Node').toEqual(['node']);
+    // Change `maven-dependency-provisioning` nhận thêm Maven. Ca này khoá DANH SÁCH, không khoá số lượng:
+    // thêm một hệ mà quên khai đường cấp phụ thuộc cho nó thì lưới phải đỏ ở đây.
+    expect(ECOSYSTEMS.filter((e) => e.engineCapPhuThuoc).map((e) => e.he)).toEqual(['node', 'maven']);
   });
 
   it('detectEcosystem đọc đúng file dấu hiệu ở gốc', () => {
@@ -525,7 +527,9 @@ describe('⛔ CA CHỐNG TÁI PHÁT 08/09 — thông điệp KHÔNG được kê
    * Lệnh ấy trong repo Maven không làm gì cả. Đây là ca giữ cho nó không quay lại.
    */
   const heKhongPhaiNode: Array<[string, string]> = [
-    ['pom.xml', 'Java/Maven'],
+    // ⛔ `pom.xml` ĐÃ RỜI danh sách này: change `maven-dependency-provisioning` cấp được phụ thuộc cho
+    // Maven, nên bệnh của nó đổi từ «hệ chưa hỗ trợ» sang «chưa nạp kho». Phần KHÔNG đổi — thông điệp
+    // không được kê lệnh của hệ khác — khoá cho CẢ HAI bệnh, xem ca ngay dưới.
     ['build.gradle', 'Java/Gradle'],
     ['requirements.txt', 'Python'],
   ];
@@ -540,6 +544,16 @@ describe('⛔ CA CHỐNG TÁI PHÁT 08/09 — thông điệp KHÔNG được kê
       expect(v?.thong_diep, f).toContain(ten);
       expect(v?.cach_sua, 'engine KHÔNG biết lệnh nào đúng ⇒ không kê lệnh nào').toBeUndefined();
     }
+  });
+
+  it('⛔ ca gốc 08/09 vẫn khoá cho Maven — đổi BỆNH chứ không đổi luật: không kê lệnh của hệ khác', () => {
+    const d = mkdtempSync(join(tmpdir(), 'cm-eco3b-'));
+    donDep.push(d);
+    writeFileSync(join(d, 'pom.xml'), '<project/>', 'utf8');
+    const v = checkDependencies(d);
+    expect(v?.kind, 'Maven nay CẤP ĐƯỢC phụ thuộc ⇒ bệnh là chưa nạp kho').toBe('thieu_phu_thuoc');
+    expect(v?.thong_diep).toContain('Java/Maven');
+    expect(v?.cach_sua ?? '', 'lệnh npm trong repo Maven không làm gì cả — đây là lỗi thật 08/09').not.toContain('npm');
   });
 
   it('KHÔNG thông điệp nào của hệ không-Node chứa lệnh npm', () => {
@@ -579,7 +593,7 @@ describe('⛔ CA CHỐNG TÁI PHÁT 08/09 — thông điệp KHÔNG được kê
   it('preflightProbeEnvironment chặn hệ chưa hỗ trợ TRƯỚC lời gọi model, và không hỏi ảnh', () => {
     const d = mkdtempSync(join(tmpdir(), 'cm-eco6-'));
     donDep.push(d);
-    writeFileSync(join(d, 'pom.xml'), '<project/>', 'utf8');
+    writeFileSync(join(d, 'build.gradle'), '', 'utf8');
     let hoi = 0;
     const r = preflightProbeEnvironment({
       repo: d,
@@ -589,7 +603,7 @@ describe('⛔ CA CHỐNG TÁI PHÁT 08/09 — thông điệp KHÔNG được kê
       },
     });
     expect(r.chan.map((x) => x.kind)).toEqual(['he_chua_ho_tro']);
-    expect(hoi, 'repo Maven không khai engines.node ⇒ không dựng container hỏi phiên bản').toBe(0);
+    expect(hoi, 'repo không khai engines.node ⇒ không dựng container hỏi phiên bản').toBe(0);
   });
 });
 

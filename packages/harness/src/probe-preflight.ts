@@ -1,6 +1,8 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join, resolve } from 'node:path';
+import { GOC } from '../../shared/src/paths.js';
 
 /**
  * Kiểm ĐIỀU KIỆN MÔI TRƯỜNG trước khi tốn một lời gọi model nào — capability `probe-environment`.
@@ -51,12 +53,74 @@ export const ECOSYSTEMS: ReadonlyArray<{
   ten: string;
   dauHieu: readonly string[];
   engineCapPhuThuoc: boolean;
+  /**
+   * Cách hệ này NÓI khi không tải được gói. Trống là hợp lệ với hệ engine chưa cấp phụ thuộc.
+   *
+   * ⛔ Cột này ra đời từ finding `F2` của làn `oapi-portal-be`. Trước nó, bệnh «không có mạng để tải gói»
+   * được khai như một KHÁI NIỆM nhưng hiện thực bằng **từ vựng lỗi của đúng một hệ** (`EAI_AGAIN`,
+   * `ENOTFOUND`, `getaddrinfo` — toàn npm). Thêm một hàng vào bảng này mà quên từ vựng thì hệ mới **lặng
+   * lẽ mất khả năng chẩn đoán** mà chính bảng vừa hứa cho nó, và KHÔNG CÓ GÌ ĐỎ. Đó là cửa song sinh thứ
+   * 11 của repo, và là cái đầu tiên có hai bản thể không nằm ở hai file cho người đọc thấy lệch — chúng
+   * nằm ở một bảng và một chùm regex. Lưới `scanEcosystemDiagnosticParity` buộc hai cột đi cùng nhau.
+   */
+  mauLoiMang: readonly RegExp[];
 }> = [
-  { he: 'node', ten: 'Node.js', dauHieu: ['package.json'], engineCapPhuThuoc: true },
-  { he: 'maven', ten: 'Java/Maven', dauHieu: ['pom.xml'], engineCapPhuThuoc: false },
-  { he: 'gradle', ten: 'Java/Gradle', dauHieu: ['build.gradle', 'build.gradle.kts'], engineCapPhuThuoc: false },
-  { he: 'python', ten: 'Python', dauHieu: ['requirements.txt', 'pyproject.toml'], engineCapPhuThuoc: false },
+  {
+    he: 'node',
+    ten: 'Node.js',
+    dauHieu: ['package.json'],
+    engineCapPhuThuoc: true,
+    mauLoiMang: [/\bEAI_AGAIN\b/i, /\bENOTFOUND\b/i, /getaddrinfo/i],
+  },
+  {
+    he: 'maven',
+    ten: 'Java/Maven',
+    dauHieu: ['pom.xml'],
+    engineCapPhuThuoc: true,
+    // Đo trong ảnh `maven:3.9-eclipse-temurin-21` 08/09: Maven ngoại tuyến/không mạng nói bằng ba câu này.
+    // ⛔ KHÔNG khớp `BUILD FAILURE` — câu ấy xuất hiện ở mọi kiểu hỏng, kể cả probe viết sai.
+    mauLoiMang: [/UnknownHostException/i, /Could not resolve dependencies/i, /Could not transfer artifact/i],
+  },
+  { he: 'gradle', ten: 'Java/Gradle', dauHieu: ['build.gradle', 'build.gradle.kts'], engineCapPhuThuoc: false, mauLoiMang: [] },
+  { he: 'python', ten: 'Python', dauHieu: ['requirements.txt', 'pyproject.toml'], engineCapPhuThuoc: false, mauLoiMang: [] },
 ];
+
+/**
+ * Gốc các kho phụ thuộc do CheckMate nuôi — **dữ liệu prod**, không được đè khi deploy.
+ *
+ * Kho sống qua nhiều lượt chấm (khác thư mục cài tạm của hệ Node, xoá ngay sau khi cài), nên nó thuộc
+ * cùng hạng với `web-runs/` và `runs/`: mất nó không sai kết quả, nhưng phải nạp lại vài trăm MB.
+ */
+export const DEPENDENCY_STORE_ROOT = join(GOC, 'dep-stores');
+
+/**
+ * Kho phụ thuộc RIÊNG của một repo đích. Cùng repo ⇒ cùng đường; hai repo ⇒ hai đường.
+ *
+ * ⛔ Tên repo là **dữ liệu ngoài** (⛔C4): nó có thể mang `..`, dấu phân cách, khoảng trắng. Nên đường
+ * KHÔNG ghép thẳng từ tên — phần đọc được chỉ để người vận hành nhận ra thư mục, còn phần phân biệt là
+ * băm của đường tuyệt đối. Ghép thẳng là mở một đường leo ra khỏi gốc kho.
+ */
+export function repoStoreDir(repo: string): string {
+  const day = resolve(repo);
+  const doc = basename(day).replace(/[^A-Za-z0-9._-]/g, '-').slice(0, 40) || 'repo';
+  return join(DEPENDENCY_STORE_ROOT, `${doc}-${createHash('sha256').update(day).digest('hex').slice(0, 12)}`);
+}
+
+/**
+ * Kho của repo này đã nạp xong chưa.
+ *
+ * Chỉ cần kiểm **có và không rỗng**, không cần đếm jar: bước nạp ghi vào `<kho>.new` rồi mới đổi tên đè,
+ * nên một kho ĐANG TỒN TẠI ở đường thật là một kho đã nạp trọn. Nếu ngày nào đó bỏ lối đổi-tên-đè thì
+ * phép kiểm này thành nói dối — đó là lý do hai thứ ấy được buộc vào nhau bằng ca test, không bằng trí nhớ.
+ */
+export function storeIsPopulated(repo: string): boolean {
+  const kho = repoStoreDir(repo);
+  try {
+    return existsSync(kho) && readdirSync(kho).length > 0;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Hệ sinh thái của repo đích, hoặc `null` khi không khớp hàng nào.
@@ -87,16 +151,31 @@ export function checkDependencies(repo: string): PreflightIssue | null {
   const he = detectEcosystem(repo);
   if (he === null) return null; // không nhận ra hệ nào — không kết luận, đi tiếp như hôm nay
   if (he !== 'node') {
-    // ⛔ Hệ nhận ra được nhưng engine KHÔNG có kho phụ thuộc cho nó. Chặn SỚM và nói đúng tên hệ —
+    const h = ecosystemRow(he);
+    // ⛔ Hệ nhận ra được nhưng engine KHÔNG có đường cấp phụ thuộc cho nó. Chặn SỚM và nói đúng tên hệ —
     // MUST NOT kê lệnh của hệ khác. Đo 08/09: kê `npm ci` cho repo Maven làm người vận hành chạy một
     // lệnh vô tác dụng rồi gặp lại đúng lỗi cũ, tức đi sai hướng một cách tự tin.
-    const h = ecosystemRow(he);
+    if (!h.engineCapPhuThuoc) {
+      return {
+        kind: 'he_chua_ho_tro',
+        thong_diep:
+          `Repo đích là dự án ${h.ten}, và CheckMate chưa cấp được phụ thuộc cho hệ này: môi trường chạy probe ` +
+          'không có mạng và chưa có kho phụ thuộc cho hệ ấy. Lượt chấm code sẽ không chạy được test nào.',
+        // KHÔNG có `cach_sua`: engine không biết lệnh nào đúng ở đây, và đoán một lệnh là tệ hơn im lặng.
+      };
+    }
+    // Hệ ĐƯỢC cấp phụ thuộc: bệnh không còn là «chưa hỗ trợ» mà là «chưa nạp kho». Hai câu ấy dẫn người
+    // vận hành đi hai hướng khác hẳn — một câu bảo họ ngồi chờ CheckMate làm tính năng, câu kia bảo họ
+    // bấm một nút. Trả nhầm câu là để họ chờ một thứ đã có.
+    if (storeIsPopulated(repo)) return null;
     return {
-      kind: 'he_chua_ho_tro',
+      kind: 'thieu_phu_thuoc',
       thong_diep:
-        `Repo đích là dự án ${h.ten}, và CheckMate chưa cấp được phụ thuộc cho hệ này: môi trường chạy probe ` +
-        'không có mạng và chưa có kho phụ thuộc nào ngoài Node. Lượt chấm code sẽ không chạy được test nào.',
-      // KHÔNG có `cach_sua`: engine không biết lệnh nào đúng ở đây, và đoán một lệnh là tệ hơn im lặng.
+        `Repo đích là dự án ${h.ten} và CheckMate chưa nạp kho phụ thuộc cho repo này. Probe sẽ không chạy ` +
+        'được: môi trường chạy test không có mạng, nên thiếu kho là thiếu toàn bộ thư viện.',
+      // ⛔ KHÔNG kê một lệnh chạy trong bản clone: kho nằm phía CheckMate, không nằm trong repo đích, nên
+      // không lệnh nào chạy trong clone sửa được. Đường đúng là nút cài phụ thuộc của chính CheckMate.
+      cach_sua: 'Bấm «Cài phụ thuộc» cho repo này trong màn Cấu hình của CheckMate, rồi chấm lại.',
     };
   }
   const pkgPath = join(repo, 'package.json');
@@ -125,6 +204,32 @@ export function checkDependencies(repo: string): PreflightIssue | null {
       'Probe sẽ không chạy được: bộ chạy test đi tải gói từ registry, mà môi trường cô lập không có mạng.',
     cach_sua: `cd ${repo} && ${lenh}`,
   };
+}
+
+/**
+ * Cờ trong `runner.test_cmd` của repo đích ĐÈ MẤT cờ CheckMate cấp qua môi trường — trả cờ vi phạm.
+ *
+ * ⛔ Đo trên máy chấm 08/09, và đây là lý do phép kiểm này tồn tại chứ không phải một lời khuyên:
+ *
+ * ```
+ * MAVEN_ARGS="-o -Dmaven.repo.local=/m2"  mvn -X validate                        -> Using local repository at /m2
+ * MAVEN_ARGS="-o -Dmaven.repo.local=/m2"  mvn -X validate -Dmaven.repo.local=/khac -> Using local repository at /khac
+ * ```
+ *
+ * Cờ trên dòng lệnh **THẮNG** biến môi trường. Nên một repo đích khai `-Dmaven.repo.local` trong `test_cmd`
+ * sẽ trỏ Maven vào một đường KHÔNG tồn tại trong container; cộng với `--network=none`, Maven báo «artifact
+ * absent» — lại đúng con bệnh **sai tên bệnh** mà cả nhịp một sinh ra để diệt.
+ *
+ * Chặn ở cửa sớm thay vì để nó chạy rồi đoán: «không nên xảy ra» không phải một cơ chế.
+ */
+export function conflictingStoreFlags(testCmd: unknown): string | null {
+  const s = typeof testCmd === 'string' ? testCmd : '';
+  if (!s) return null;
+  if (/-Dmaven\.repo\.local\b/.test(s)) return '-Dmaven.repo.local';
+  // `-o` một mình thì vô hại (CheckMate cũng đặt nó), nhưng nó khai rằng repo đang tự lo phần kho — và
+  // repo tự lo thì khi CheckMate đổi đường mount, không cổng nào ở repo đỏ. Nói ra sớm.
+  if (/(^|\s)-o(\s|$)|(^|\s)--offline(\s|$)/.test(s)) return '-o';
+  return null;
 }
 
 /** Lấy phần chính của dải `engines.node` (`^24`, `>=20.11`, `22.x`) — số nguyên đầu tiên. */
@@ -188,7 +293,7 @@ export function nodeVersionOfImage(anh: string, chay: typeof execFileSync = exec
  * `thieu_phu_thuoc` là CHẶN CỨNG — không lời gọi model nào được phát. `runtime_lech` là CẢNH BÁO: nó có
  * thể vẫn chạy được (repo khai `engines` chặt hơn thực tế cần), nên chặn cứng ở đây sẽ chặn oan.
  */
-export function preflightProbeEnvironment(input: { repo: string; nodeMoiTruong?: (() => string | null) | string | null }): {
+export function preflightProbeEnvironment(input: { repo: string; nodeMoiTruong?: (() => string | null) | string | null; testCmd?: string | null }): {
   chan: PreflightIssue[];
   canhBao: PreflightIssue[];
 } {
@@ -196,6 +301,21 @@ export function preflightProbeEnvironment(input: { repo: string; nodeMoiTruong?:
   const canhBao: PreflightIssue[] = [];
   const phuThuoc = checkDependencies(input.repo);
   if (phuThuoc) chan.push(phuThuoc);
+  // ⛔ CHẶN CỨNG, không cảnh báo: cờ ấy thắng cờ CheckMate cấp (đo được), nên chạy tiếp là cầm chắc một
+  // thông điệp nói sai bệnh. Thà dừng và nói đúng chỗ phải sửa.
+  const dungDo = ECOSYSTEMS.find((e) => e.he === detectEcosystem(input.repo))?.engineCapPhuThuoc && detectEcosystem(input.repo) !== 'node'
+    ? conflictingStoreFlags(input.testCmd)
+    : null;
+  if (dungDo) {
+    chan.push({
+      kind: 'thieu_phu_thuoc',
+      thong_diep:
+        `\`runner.test_cmd\` của repo đích mang cờ \`${dungDo}\`, và cờ trên dòng lệnh ĐÈ cờ CheckMate cấp qua ` +
+        'môi trường. Kết quả: bộ chạy test trỏ vào một kho không có trong container, rồi báo thiếu gói — một ' +
+        'thông điệp nói sai bệnh.',
+      cach_sua: `Bỏ \`${dungDo}\` khỏi \`runner.test_cmd\` trong checkmate.yml của repo đích. Repo khai CHẠY CÁI GÌ, CheckMate khai KHO Ở ĐÂU.`,
+    });
+  }
   // ⚠ Chỉ hỏi phiên bản Node của ảnh khi repo CÓ khai `engines.node`. Hỏi là chạy một container, tốn
   // khoảng một giây mỗi lượt; repo không khai thì câu trả lời không dùng vào đâu cả.
   if (readEnginesNode(input.repo) !== null) {
@@ -215,11 +335,14 @@ export function preflightProbeEnvironment(input: { repo: string; nodeMoiTruong?:
  * Nhận diện bằng **mã lỗi và hình dạng đường dẫn**, không bằng lời văn tự do — lời văn đến từ npm, từ
  * Node, từ chính repo đích, và nó là dữ liệu ngoài (⛔C4). Danh sách ĐÓNG, mỗi mục một bệnh đã gặp thật.
  */
-export function looksLikeEnvironmentFailure(loi: unknown): PreflightIssueKind | 'moi_truong_khac' | null {
+export function looksLikeEnvironmentFailure(loi: unknown): PreflightIssueKind | 'moi_truong_khac' | 'repo_gate_blocked' | null {
   const s = typeof loi === 'string' ? loi : '';
   if (!s) return null;
-  // Bệnh 1 — không có mạng để tải gói: npm nói bằng mã, không bằng lời văn dịch được.
-  if (/\bEAI_AGAIN\b|\bENOTFOUND\b|getaddrinfo/i.test(s)) return 'thieu_phu_thuoc';
+  // Bệnh 1 — không có mạng để tải gói. Từ vựng lấy từ BẢNG hệ sinh thái, không viết rời ở đây: viết rời
+  // là cách hệ Maven đã lặng lẽ mất chẩn đoán suốt từ lúc nó được thêm vào bảng (`F2`, làn `oapi-portal-be`).
+  if (ECOSYSTEMS.some((e) => e.mauLoiMang.some((m) => m.test(s)))) return 'thieu_phu_thuoc';
+  // Cổng chất lượng của repo đích chặn probe — KHÔNG phải lỗi probe, nên sinh lại là vô ích.
+  if (qualityGateFromLog(s) !== null) return 'repo_gate_blocked';
   // Bệnh 2 — không ghi được vào thư mục phụ thuộc (mount chỉ đọc).
   if (/\bEROFS\b/i.test(s) || (/\bENOENT\b/i.test(s) && /node_modules/i.test(s))) return 'moi_truong_khac';
   // Bệnh 3 — runtime từ chối chạy: npm `engines`, hoặc Node từ chối cú pháp của bản mới hơn.
@@ -229,8 +352,57 @@ export function looksLikeEnvironmentFailure(loi: unknown): PreflightIssueKind | 
   return null;
 }
 
-/** Lời cho người vận hành khi dừng vì môi trường — nói đúng bệnh, không nói về JUnit XML. */
-export function describeEnvironmentFailure(kind: PreflightIssueKind | 'moi_truong_khac', repo: string): string {
+/**
+ * Cổng chất lượng của REPO ĐÍCH đã chặn bản dựng — trả tên cổng, hoặc `null`.
+ *
+ * ⛔ Neo vào **tên plugin**, KHÔNG vào **pha** và KHÔNG vào chuỗi `BUILD FAILURE`. Ba lý do, tất cả đo được:
+ *
+ * 1. `BUILD FAILURE` xuất hiện ở **mọi** kiểu hỏng, kể cả probe do model sinh viết sai cú pháp. Khớp nó là
+ *    nuốt luôn ca sinh-lại-đúng — đổi một lỗi chẩn đoán lấy một lỗi tệ hơn, vì người vận hành sẽ đi sửa
+ *    cấu hình cho một thứ không hỏng.
+ * 2. Pha là thứ phải đi hỏi **tài liệu của đội khác**. Đo 08/09: spine của một đội đích tự mâu thuẫn —
+ *    bảng số ghim nói `validate`, bảng tóm tắt nói `verify`, và cổng kiểm của họ xanh trong khi văn bản sai.
+ *    Neo theo pha là để chẩn đoán của CheckMate sai theo một nguồn nó không kiểm soát và không có quyền sửa.
+ * 3. Tên plugin hiện ra trong log của **chính lượt chạy** — nó là bằng chứng tại chỗ, không phải lời khai.
+ *
+ * Bảng ĐÓNG. Thêm hàng là một change: mỗi hàng nói «cổng này chặn probe thì đừng sinh lại probe», và đó là
+ * một quyết định về việc tiêu hay không tiêu lời gọi model.
+ */
+export const QUALITY_GATE_PLUGINS: ReadonlyArray<{ mau: RegExp; ten: string }> = [
+  // Đo trên prod 08/09 với `admin-be`: bind vào pha chạy trước test ⇒ probe JUnit HỢP LỆ vẫn làm bản dựng
+  // thất bại trước khi một test nào chạy. Repo đích tự khai cờ bỏ qua thì chạy đúng ngay.
+  { mau: /spotless-maven-plugin|spotless[.:]/i, ten: 'Spotless (kiểm định dạng mã)' },
+  { mau: /maven-checkstyle-plugin|checkstyle[.:]/i, ten: 'Checkstyle (kiểm quy ước mã)' },
+  { mau: /spotbugs-maven-plugin|spotbugs[.:]/i, ten: 'SpotBugs (kiểm tĩnh)' },
+  { mau: /maven-pmd-plugin/i, ten: 'PMD (kiểm tĩnh)' },
+  { mau: /maven-enforcer-plugin/i, ten: 'Enforcer (cưỡng chế quy tắc dựng)' },
+];
+
+export function qualityGateFromLog(loi: unknown): string | null {
+  const s = typeof loi === 'string' ? loi : '';
+  if (!s) return null;
+  // ⛔ Trình biên dịch gãy là lỗi của CHÍNH tệp probe ⇒ sinh lại ĐÚNG. Loại nó ra trước khi tra bảng, chứ
+  // không dựa vào chuyện bảng «tình cờ» không có hàng nào khớp: một hàng thêm sau này sẽ phá giả định ấy.
+  if (/maven-compiler-plugin|COMPILATION ERROR/i.test(s)) return null;
+  return QUALITY_GATE_PLUGINS.find((g) => g.mau.test(s))?.ten ?? null;
+}
+
+/**
+ * Lời cho người vận hành khi dừng vì môi trường — nói đúng bệnh, không nói về JUnit XML.
+ *
+ * `log` là bản NGUYÊN VĂN của lỗi, dùng để rút tên cổng đã chặn. Nó chỉ đi vào lời văn qua **tên trong
+ * bảng đóng** ở trên, không bao giờ vọng nguyên văn ra (⛔C3/⛔C4).
+ */
+export function describeEnvironmentFailure(kind: PreflightIssueKind | 'moi_truong_khac' | 'repo_gate_blocked', repo: string, log?: unknown): string {
+  if (kind === 'repo_gate_blocked') {
+    const cong = qualityGateFromLog(log);
+    return (
+      `Bản dựng của repo đích thất bại TRƯỚC khi test chạy, do cổng chất lượng của chính repo${cong ? `: ${cong}` : ''}. ` +
+      'Probe do CheckMate sinh không qua được cổng ấy, nên không có báo cáo test nào. Đây KHÔNG phải lỗi của ' +
+      'pull request đang chấm, và CheckMate MUST NOT tự tắt cổng của repo đích — đội repo tự khai cờ bỏ qua ' +
+      'trong `runner.test_cmd` của `checkmate.yml` nếu họ quyết định probe không phải chịu cổng ấy.'
+    );
+  }
   if (kind === 'he_chua_ho_tro') {
     const h = ECOSYSTEMS.find((e) => e.he === detectEcosystem(repo));
     return `Repo đích là dự án ${h?.ten ?? 'không thuộc hệ engine hỗ trợ'}, và CheckMate chưa cấp được phụ thuộc cho hệ này. Đây KHÔNG phải lỗi của pull request đang chấm, và cũng không phải thứ đội repo sửa được.`;
@@ -243,7 +415,11 @@ export function describeEnvironmentFailure(kind: PreflightIssueKind | 'moi_truon
     const he = detectEcosystem(repo);
     if (he !== null && he !== 'node') {
       const h = ECOSYSTEMS.find((e) => e.he === he);
-      return `Môi trường chạy probe không có phụ thuộc của repo đích (dự án ${h?.ten ?? he}), và không có mạng để tải. CheckMate chưa cấp được phụ thuộc cho hệ này — không có lệnh nào chạy trong bản clone sửa được việc đó.`;
+      const chung = `Môi trường chạy probe không có phụ thuộc của repo đích (dự án ${h?.ten ?? he}), và không có mạng để tải.`;
+      // Hai câu khác hẳn nhau, và trả nhầm là để người vận hành chờ một thứ đã có sẵn.
+      return h?.engineCapPhuThuoc
+        ? `${chung} Bấm «Cài phụ thuộc» cho repo này trong màn Cấu hình của CheckMate rồi chấm lại — kho nằm phía CheckMate, không lệnh nào chạy trong bản clone sửa được.`
+        : `${chung} CheckMate chưa cấp được phụ thuộc cho hệ này — không có lệnh nào chạy trong bản clone sửa được việc đó.`;
     }
     return `Môi trường chạy probe không có phụ thuộc của repo đích, và không có mạng để tải. Cài trong bản clone rồi chấm lại: cd ${repo} && npm ci --no-audit --no-fund`;
   }

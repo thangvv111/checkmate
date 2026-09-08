@@ -223,7 +223,8 @@ export const JS_REPO = String.raw`
           if(d.ok){
             oKiem.style.color='var(--pass-ink)';
             oKiem.innerHTML='✓ Đã cài phụ thuộc cho '+esc(ten)+
-              '<br><span class="mono" style="font-size:11px">ảnh '+esc(String(d.anh||'?'))+' · '+esc(String(d.giay||'?'))+'s · phép kiểm lại: đủ điều kiện</span>';
+              '<br><span class="mono" style="font-size:11px">ảnh '+esc(String(d.anh||'?'))+' · '+esc(String(d.giay||'?'))+'s'+
+              (d.so_muc_kho?' · kho riêng '+esc(String(d.so_muc_kho))+' mục':'')+' · phép kiểm lại: đủ điều kiện</span>';
           } else {
             oKiem.style.color='var(--fail-ink)';
             oKiem.innerHTML='✗ Không cài được cho '+esc(ten)+'<br>'+esc(String(d.ly_do||d.loi||'không rõ lý do'))+

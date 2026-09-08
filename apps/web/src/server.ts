@@ -822,6 +822,8 @@ app.post('/api/repo/cai-phu-thuoc', (req, res) => {
   console.log(
     `Cài phụ thuộc ${repoCfg.github}: ${kq.ok ? 'XONG' : 'HỎNG'}` +
       `${kq.anh ? ` · ảnh ${kq.anh}` : ''}${kq.giay !== undefined ? ` · ${kq.giay}s` : ''}` +
+      // ⛔ Chỉ SỐ ĐẾM của kho, không bao giờ tên tệp: kho có thể mang `settings.xml` của repo nội bộ (⛔C3).
+      `${kq.so_muc_kho !== undefined ? ` · kho ${kq.so_muc_kho} mục` : ''}` +
       `${kq.ok ? '' : ` · ${kq.ly_do ?? ''}`}`,
   );
   res.status(kq.ok ? 200 : 422).json(kq);

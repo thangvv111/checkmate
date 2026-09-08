@@ -234,6 +234,24 @@ Nếu neo theo pha thì hôm nay đã có một repo mà pha thật khác pha kh
 mà **CheckMate không kiểm soát và không có quyền sửa**. Tên plugin là thứ hiện ra trong log của chính lượt
 chạy; pha là thứ phải đi hỏi tài liệu bên khác.
 
+## D8. Cờ trong `test_cmd` THẮNG cờ CheckMate cấp — nên xung đột phải bị CHẶN, không được đoán
+
+Câu hỏi `T3.2` («repo đích khai sẵn `-Dmaven.repo.local` thì sao») lúc viết ca test em ghi là «khoá thứ tự
+ưu tiên đã khai ở design» — nhưng design chưa khai gì cả. Đo trên máy chấm 08/09:
+
+```
+MAVEN_ARGS="-o -Dmaven.repo.local=/m2"  mvn -X validate                          -> Using local repository at /m2
+MAVEN_ARGS="-o -Dmaven.repo.local=/m2"  mvn -X validate -Dmaven.repo.local=/khac -> Using local repository at /khac
+```
+
+**Cờ dòng lệnh thắng biến môi trường.** Nên một repo đích khai `-Dmaven.repo.local` trong `test_cmd` sẽ trỏ
+Maven vào đường không tồn tại trong container; cộng `--network=none`, Maven báo «artifact absent» — lại đúng
+con bệnh **sai tên bệnh**.
+
+⇒ Cửa sớm CHẶN CỨNG, không cảnh báo rồi chạy tiếp. Đây là lý do em bảo hai đội **bỏ cả `-o`** chứ không chỉ
+bỏ `-Dmaven.repo.local`: `-o` một mình vô hại hôm nay, nhưng nó khai rằng repo đang tự lo phần kho — và repo
+tự lo thì khi CheckMate đổi đường mount, **không cổng nào ở repo đỏ**. `portal-be` đã bỏ cả hai (`a472db8`).
+
 ## Cái change này KHÔNG làm
 
 **Không mở bề mặt probe cho phần cần Docker.** `admin-be` **14/26** và `portal-be` **19/31** lớp test cần
