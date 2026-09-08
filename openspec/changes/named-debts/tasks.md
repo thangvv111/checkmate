@@ -338,3 +338,39 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       của repo đích mà lượt chấm không với tới được**. Người đọc PASS không có cách nào biết mình đang
       đọc «đã kiểm hết» hay «đã kiểm phần chạy được». Cùng họ với ⛔C2: không chứng minh được là sai ≠ đã
       chứng minh là đúng.
+
+- [ ] 32. ⛔ **`test_cmd` của repo đích chưa được TỰ KIỂM — hợp đồng runner hỏng im lặng, và CheckMate là
+      bên duy nhất đứng đúng chỗ để bắt.** Đề xuất đến từ làn `oapi-portal-be` (08/09) sau khi cả hai bên
+      cùng chốt một `test_cmd` sai rồi cùng phát hiện ra:
+
+      > *«Nếu phía các bạn dựng được một phép kiểm cho `test_cmd` của mỗi repo — chạy thử một probe cố tình
+      > đỏ, và đòi thấy FAIL chứ không phải "không xuất XML" — thì đó mới là cổng thật, và nó đứng đúng
+      > chỗ, ở phía đọc.»*
+
+      **Vì sao repo đích KHÔNG tự đóng được:** chuỗi lệnh nằm trong tệp cấu hình mà **công cụ ngoài** thực
+      thi. Ai đổi `;` thành `&&` thì mọi probe đỏ thành «runner hỏng», và **không cổng nào của repo họ đỏ**.
+      Lớp duy nhất họ có là một khối chú thích — và chú thích **không phải cổng**, nó hạ xác suất chứ không
+      đóng lỗ.
+
+      **Hình dạng phép kiểm** (rẻ, một lần, không cần model):
+      1. sinh một probe **cố tình đỏ** theo đúng khuôn của repo đích (`expect(1).toBe(2)`, hoặc một khẳng
+         định JUnit luôn sai);
+      2. chạy nó qua **chính `test_cmd`** của repo đích;
+      3. đòi thấy `{out}` **tồn tại** VÀ XML báo **≥ 1 failure**.
+
+      Ba kết cục và nghĩa của từng cái:
+
+      | thấy gì | nghĩa |
+      |---|---|
+      | `{out}` có, `failures ≥ 1` | hợp đồng **đúng** — probe đỏ đi tới được verdict |
+      | `{out}` **vắng** | ⛔ template **nuốt thất bại** (`&&`, glob sai…) — mọi finding tương lai sẽ mất |
+      | `{out}` có, `failures = 0` | ⛔ đọc nhầm file — XML không phải của lượt này |
+
+      ⚠ Ô thứ hai là con bệnh **đã xảy ra thật** hôm nay ở hai repo, và nó không để lại dấu vết nào ngoài
+      một verdict nói sai bản chất.
+
+      *Vì sao đáng làm hơn nó nghe:* đây là sản phẩm áp **chính triết lý của nó** lên **đầu vào của chính
+      nó**. CheckMate tồn tại vì «không chứng minh được là sai ≠ đã chứng minh là đúng»; hôm nay nó tin hợp
+      đồng runner của repo đích mà chưa từng bắt hợp đồng ấy **tự chứng minh** một lần nào.
+
+      Liên quan: nợ 30 (không kiểm tính tươi của bằng chứng) — cùng họ, cùng chỗ vá.
