@@ -248,3 +248,43 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       đừng suy, hãy đo lại khi dựng được ca tái hiện.
       *Hướng:* đổi phép kiểm sang thứ CHẠM đường thật (ví dụ chạy hẳn một container rỗng, hoặc `podman
       info`), và khi nó hỏng thì nói bằng câu người đọc hiểu chứ không dội log podman ra verdict.
+
+- [ ] 30. ⛔ **CheckMate KHÔNG kiểm tính TƯƠI của bằng chứng nó parse** (lộ ra 08/09 qua hai làn repo đích
+      độc lập, `oapi-admin-be` và `oapi-portal-be`, mỗi bên tìm một nửa). `chayTheoRunner` kiểm đúng ba
+      thứ: timeout · `{out}` có tồn tại không · parse XML rồi **tin nội dung**. **Mã thoát của runner bị
+      bỏ hẳn** — không đọc, không log.
+
+      Hai đường ra verdict sai mà trông như đúng:
+      | # | đường | ai đóng được |
+      |---|---|---|
+      | a | `test_cmd` dùng `;` ⇒ runner đỏ, `cp` vẫn chép **XML của lượt trước** vào `{out}` | repo đích, bằng `rm -f` + `&&` trong template |
+      | b | runner chết giữa chừng nhưng đã kịp ghi XML **một phần** ⇒ rc≠0 + `{out}` hợp lệ | **CheckMate** — chưa có gì đóng |
+
+      ⚠ Ranh giới phải nói rõ, đừng gộp: `{out}` mang mốc thời gian nên **không bao giờ tồn tại sẵn** —
+      đó là thuộc tính của CheckMate, và nó chỉ chặn việc đọc nhầm kết quả *lượt chấm trước*. Việc chặn
+      chép nhầm kết quả *lượt maven trước trong cùng workspace* là thuộc tính của **lệnh** repo đích, chỉ
+      đúng chừng nào lệnh còn giữ `&&`. Hai lớp, hai chủ sở hữu — ai sửa `test_cmd` sau này mà bỏ `&&` sẽ
+      mở lại lỗ **dù `{out}` vẫn có mốc thời gian**.
+
+      ⛔ **KHÔNG được sửa bằng cách fail khi rc≠0**: với bộ chạy test, rc≠0 là tín hiệu BÌNH THƯỜNG của
+      «có test đỏ» — đúng thứ CheckMate cần quan sát. Fail ở đó là phân loại nhầm mọi probe đỏ hợp lệ.
+      Hai hướng đáng cân, PO chọn: **(1)** ghi rc vào sổ sự kiện cạnh số ca đã parse, để người đọc thấy
+      mâu thuẫn «rc=1 mà XML báo 0 failure»; **(2)** coi riêng tổ hợp **rc≠0 VÀ XML không có failure nào**
+      là *quan sát* đáng ngờ — tổ hợp ấy nghĩa là runner thoát khác 0 vì một lý do XML không giải thích.
+      Cả hai đều không chặn oan probe đỏ hợp lệ.
+
+      Nguồn: làn `oapi-admin-be` 08/09 — *«Nếu đó là chủ ý thì nên ghi ra; nếu không thì đó là lỗ thứ hai
+      cùng họ với lỗ `;`.»*
+
+- [ ] 31. **Verdict chưa khai PHẠM VI đã chấm.** Hai repo backend đo được: `admin-be` **14/26** và
+      `portal-be` **19/31** lớp test cần Docker thật, nên sandbox không chạm tới — và đó đúng là chỗ hai
+      repo đặt bất biến nặng nhất (ma trận quyền CSDL, băm móc xích nhật ký, cô lập vùng audit). Cả hai
+      làn đều **tự đề nghị** hướng giống nhau, và nó không đòi nới cô lập:
+
+      > *«Một verdict ghi rõ "không chạm được 14 ca CSDL" trung thực hơn hẳn một verdict im lặng trông
+      > như đã phủ hết.»* — làn `oapi-admin-be`
+
+      Hôm nay verdict khai `luat_da_phu` / `luat_tong` cho đơn vị luật, nhưng **không khai bề mặt test
+      của repo đích mà lượt chấm không với tới được**. Người đọc PASS không có cách nào biết mình đang
+      đọc «đã kiểm hết» hay «đã kiểm phần chạy được». Cùng họ với ⛔C2: không chứng minh được là sai ≠ đã
+      chứng minh là đúng.
