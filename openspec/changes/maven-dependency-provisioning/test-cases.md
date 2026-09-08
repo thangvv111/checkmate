@@ -46,6 +46,17 @@
 - [ ] T1.15 [Hồi quy]: bốn mẫu sẵn có của nhịp một (`EAI_AGAIN` · `EROFS` · `notsup` · không thấy bộ chạy)
       vẫn phân loại y như cũ — bảng mới **cộng thêm**, không sửa hàng cũ.
 - [ ] T1.16 [Biên]: `BUILD FAILURE` trơ, không tên plugin nào ⇒ trả `null`. Không đoán.
+- [ ] T1.17 ⛔ [D7 lỗ 2 — `F2` của làn `oapi-portal-be`]: log Maven gãy offline (`UnknownHostException` ·
+      `Could not resolve dependencies` · `Could not transfer artifact`) ⇒ phân loại `thieu_phu_thuoc`.
+      Hôm nay trả `null` ⇒ sinh lại probe. Ca này ĐỎ trên mã hiện tại.
+- [ ] T1.18 [Hồi quy]: ba mã lỗi npm cũ vẫn ra `thieu_phu_thuoc` y như trước.
+
+### `checkDependencies` (D7 lỗ 1)
+- [ ] T1.19 [Scenario]: repo Maven **chưa có kho** ⇒ `thieu_phu_thuoc`, cách sửa nêu **bấm nút cài phụ
+      thuộc**, ⛔ KHÔNG kê `npm ci` (án lệ 08/09: kê nhầm thuốc tệ hơn chỉ nêu triệu chứng).
+- [ ] T1.20 [Scenario]: repo Maven **đã có kho có jar** ⇒ `null`, đi tiếp.
+- [ ] T1.21 [Hồi quy]: `gradle`/`python` vẫn ra `he_chua_ho_tro` — change này chỉ nhận thêm Maven.
+- [ ] T1.22 [Hồi quy Node]: bốn nhánh Node của `checkDependencies` không đổi hành vi.
 
 ### `repoStoreDir`
 - [ ] T1.10 [Scenario]: hai repo khác nhau ⇒ **hai đường kho khác nhau**.
@@ -100,6 +111,9 @@
 
 - [ ] T5.1 `scanEcosystemImages`: hàng dùng thẻ ⇒ ĐỎ · toàn digest ⇒ XANH · bảng rỗng ⇒ ĐỎ.
       (Ca thứ ba là ca **chống xanh giả**: bảng rỗng làm mọi phép kiểm khác vô nghĩa.)
+- [ ] T5.1b ⛔ `scanEcosystemDiagnosticParity` (D7): mọi hàng `ECOSYSTEMS` có `engineCapPhuThuoc: true`
+      phải có mẫu lỗi mạng tương ứng. Cặp fixture: bảng có hệ thiếu từ vựng ⇒ ĐỎ · bảng khớp đủ ⇒ XANH.
+      **Đây là lưới ràng cửa song sinh**, không phải lưới kiểm một hàm.
 - [ ] T5.2 `scanNetworkExceptions`: mở rộng ca sẵn có — ngoại lệ mạng vẫn **chỉ** ở đường nạp, kể cả
       sau khi thêm nhánh Maven.
 - [ ] T5.3 ⛔ `scanNoQualityGateBypass`: quét mọi chuỗi lệnh engine dựng, ĐỎ khi thấy `-D` kèm
@@ -118,6 +132,8 @@
       vòng mutation của nhịp hai.
 - [ ] T6.6 M6 cho `probeEnvForEcosystem` trả `MAVEN_ARGS` cả với hệ Node ⇒ T1.8/T2.8 đỏ.
 - [ ] T6.7 M7 bỏ nhánh «kho rỗng thì không đặt `-o`» ⇒ T1.9 đỏ.
+- [ ] T6.9 M9 thêm một hàng hệ mới vào `ECOSYSTEMS` mà KHÔNG thêm từ vựng lỗi ⇒ **T5.1b đỏ**. Đột biến
+      này kiểm đúng cái đã trượt hôm nay: hiện tại làm vậy thì **không có gì đỏ**.
 - [ ] T6.8b M8 nới mẫu D6 thành khớp mọi `BUILD FAILURE` ⇒ **T1.14 và T1.16 đỏ**. Đột biến này kiểm đúng
       thứ khó nhất: gác không chỉ phải BẮT, nó còn phải **không bắt quá tay**.
       (Ở nhịp hai, M7 tương đương cho **0 ca đỏ** vì gác ấy chưa ai viết lưới — nên ca này viết

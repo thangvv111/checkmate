@@ -171,6 +171,47 @@ lượng là **bảng đóng, ghi rõ**, không phải regex đoán.
 Sửa ở `looksLikeEnvironmentFailure`, không ở `sandbox.ts`: chỗ ấy đã là **một cửa duy nhất** cho mọi phân
 loại lỗi môi trường, và thêm cửa thứ hai là đúng cách sinh ra cửa song sinh — thứ repo này đã bắt được 10 lần.
 
+## D7. Bệnh «không có mạng» hiện chỉ nói TIẾNG npm — và bảng hệ sinh thái mở rộng làm lộ ra điều đó
+
+Làn `oapi-portal-be` ghi một finding (`F2`) khi bỏ `-o` khỏi `test_cmd` của họ: nếu `MAVEN_ARGS` **không**
+mang `-o`, container `--network=none` làm Maven gãy ở khâu giải phụ thuộc ⇒ không có XML ⇒ lại rơi vào đúng
+con bệnh `D6`. Họ khai đúng ranh giới: **repo họ không có cổng nào canh được việc đó**, nó phụ thuộc phía
+CheckMate.
+
+Em đã trả lời họ rằng `T3.2` khoá tình huống ấy. ⚠ **Câu trả lời đó THIẾU.** `T3.2` khoá ca *hai nguồn cùng
+đặt một cờ*; nó không nói gì về ca *chưa có kho nên không đặt cờ nào*. Đo lại trong mã thì ra hai lỗ, không
+phải một:
+
+**Lỗ 1 — cửa sớm (`checkDependencies`).** Nhánh `he !== 'node'` hiện trả `he_chua_ho_tro` cho mọi hệ ngoài
+Node. Change này biến Maven thành hệ **được hỗ trợ**, nên nhánh ấy phải tách: Maven ⇒ kiểm **kho của repo
+ấy có tồn tại và có jar không**, thiếu thì `thieu_phu_thuoc` kèm cách sửa là **bấm nút cài phụ thuộc**;
+`gradle`/`python` ⇒ giữ nguyên `he_chua_ho_tro`. Đây mới là chỗ chữa `F2` cho đúng: chặn ở **chặng 2/5,
+trước mọi lời gọi model**, chứ không phải đoán bệnh sau khi đã tiêu token.
+
+**Lỗ 2 — bộ phân loại nói sai thứ tiếng.** Mẫu của bệnh 1 hiện là:
+
+```js
+/\bEAI_AGAIN\b|\bENOTFOUND\b|getaddrinfo/i     // <- toàn mã lỗi của npm/Node
+```
+
+Maven gãy offline thì nói `UnknownHostException`, `Could not resolve dependencies`, `Could not transfer
+artifact`. **Không mẫu nào khớp** ⇒ lại rơi vào đường sinh lại probe. Tức nhịp một khai bệnh 1 như một
+**khái niệm** («không có mạng để tải gói») nhưng hiện thực nó bằng **từ vựng lỗi của đúng một hệ**.
+
+⛔ Đây là **cửa song sinh** đúng nghĩa, lần thứ 11 trong repo này, và nó có hình dạng nguy hiểm hơn mười lần
+trước: hai bản thể không nằm ở hai file để ai đó đọc thấy lệch. Chúng nằm ở **bảng `ECOSYSTEMS`** (khai hệ
+nào được hỗ trợ) và **chùm regex trong `looksLikeEnvironmentFailure`** (biết đọc lỗi của hệ nào). Thêm một
+hàng vào bảng mà không thêm từ vựng thì **không có gì đỏ** — hệ mới lặng lẽ mất khả năng chẩn đoán mà bảng
+vừa hứa cho nó.
+
+⇒ Ràng hai thứ bằng máy: mỗi hàng `ECOSYSTEMS` có `engineCapPhuThuoc: true` **phải** có mẫu nhận dạng lỗi
+mạng tương ứng, và một lưới đối chiếu hai danh sách. Không phải một chú thích «nhớ thêm regex».
+
+*Ghi nhận: `F2` là finding của làn `oapi-portal-be`, không phải của em. Em đo phía họ đủ kỹ để bảo họ bỏ
+`-o`, nhưng không đo phía mình đủ kỹ để thấy việc bỏ ấy dời rủi ro sang đâu — và còn trả lời họ bằng một ca
+test không phủ đúng thứ họ hỏi. Kiểu sai này (yên tâm hoá một câu hỏi đúng bằng một quy chiếu gần đúng) tệ
+hơn im lặng, vì nó làm bên kia thôi tìm.*
+
 ## Cái change này KHÔNG làm
 
 **Không mở bề mặt probe cho phần cần Docker.** `admin-be` **14/26** và `portal-be` **19/31** lớp test cần

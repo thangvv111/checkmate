@@ -20,8 +20,13 @@
 - [x] 1.2 `dependency-provisioning › Cấp phụ thuộc cho một hệ MUST NOT tự nới cổng của repo đích` — ADDED,
       2 scenario. Đây là luật sinh ra từ phát hiện Spotless.
 - [x] 1.3 `sandbox-isolation › Ngoại lệ mạng CHỈ cho bước cài` — **KHÔNG sửa**; bốn điều kiện áp nguyên.
-- [x] 1.4 `probe-environment` — **KHÔNG cần delta**: bảng hệ sinh thái nằm **trong mã** và luật đã khai
-      thế; đổi cờ `engineCapPhuThuoc` của Maven không đổi câu chữ nào của luật.
+- [x] 1.4 ⚠ **Câu trên SAI, sửa sau khi có `F2` của làn `oapi-portal-be`.** Đổi Maven thành hệ được hỗ trợ
+      CÓ đổi hành vi đã khai: cửa sớm phải chuyển từ «hệ chưa hỗ trợ» sang kiểm kho. ⇒ requirement thứ ba
+      `Hệ ĐƯỢC hỗ trợ thì cửa sớm kiểm KHO, và mỗi hệ phải có từ vựng lỗi của chính nó` — ADDED, 4 scenario.
+- [x] 1.5 ⛔ Viết vào `dependency-provisioning` chứ không phải MODIFIED của `probe-environment`, vì
+      capability ấy **chưa archive** nên chưa có trong `openspec/specs/`. Ba change đã merge còn treo hồ sơ
+      (`probe-environment-preflight` 9 ô · `preflight-multi-ecosystem` 8 ô · `dependency-install-in-container`
+      52 ô chưa tick) — cổng archive cấm tự tick, phải trình PO. Đã nêu.
 
 ## 2. Kiểu & hợp đồng
 
@@ -41,6 +46,14 @@
 - [ ] 3.4 `sandbox.ts`: container chạy probe mount kho `:ro` và đặt `MAVEN_ARGS`. ⛔ Chỉ khi repo thuộc hệ
       có kho — Node **không** đổi một cờ nào.
 - [ ] 3.5 `ECOSYSTEMS`: Maven đổi `engineCapPhuThuoc` sang `true`.
+- [ ] 3.5b ⛔ **D7 lỗ 1 — `checkDependencies` tách nhánh:** Maven ⇒ kiểm **kho của repo ấy có jar không**,
+      thiếu thì `thieu_phu_thuoc` kèm cách sửa là **bấm nút cài phụ thuộc**; `gradle`/`python` ⇒ giữ
+      `he_chua_ho_tro`. Đây là chỗ chữa `F2` của làn `oapi-portal-be` — chặn ở chặng 2/5, **trước** mọi lời
+      gọi model, không đoán bệnh sau khi đã tiêu token.
+- [ ] 3.5c ⛔ **D7 lỗ 2 — từ vựng lỗi mạng theo hệ:** mẫu bệnh 1 hiện toàn mã lỗi npm
+      (`EAI_AGAIN`/`ENOTFOUND`/`getaddrinfo`); Maven nói `UnknownHostException`, `Could not resolve
+      dependencies`, `Could not transfer artifact`. Thêm từ vựng **gắn vào hàng hệ sinh thái**, không rải
+      regex rời.
 - [ ] 3.6 ⛔ **KHÔNG** thêm cờ tắt cổng chất lượng của repo đích vào bất kỳ lệnh nào.
 - [ ] 3.7 ⛔ **D6 — mở rộng `looksLikeEnvironmentFailure`**, KHÔNG mở cửa phân loại thứ hai ở `sandbox.ts`:
       bản dựng gãy ở một **cổng chất lượng chạy trước pha test** ⇒ xếp lỗi môi trường/hợp đồng, nêu tên cổng,
@@ -60,6 +73,9 @@
       `-Dspotless*`. Cặp fixture bắt buộc.
 - [ ] 5.4 Ca **kho riêng từng repo**: hai repo ⇒ hai đường kho khác nhau.
 - [ ] 5.5 Ca **hồi quy Node**: đường Node không đổi một nhánh nào, không thêm cờ nào.
+- [ ] 5.5b ⛔ **Lưới ràng cửa song sinh D7:** mỗi hàng `ECOSYSTEMS` có `engineCapPhuThuoc: true` PHẢI có
+      mẫu nhận dạng lỗi mạng tương ứng. Lưới đối chiếu **hai danh sách**, đỏ khi lệch — vì thêm một hàng mà
+      quên từ vựng thì hiện tại **không có gì đỏ**.
 - [ ] 5.6 **Mutation hai chiều, chạy HAI lần**, kiểm chứng đột biến đã vào đĩa trước khi đọc kết quả.
 
 ## 6. Trước merge

@@ -93,3 +93,43 @@ hai lần**. Fail-closed vẫn giữ (lượt chấm ném lỗi, không ra PASS)
 lời gọi model cho một nguyên nhân mà sinh lại không thể sửa. Ranh giới phân biệt phải hẹp: bản dựng gãy ở
 bước **biên dịch** chính probe là lỗi của probe ⇒ sinh lại ĐÚNG; gãy ở một cổng chạy **trước** khi test
 chạy là lỗi hợp đồng của repo đích ⇒ sinh lại là lãng phí. Rộng tay ở đây sẽ nuốt mất ca sinh-lại-đúng.*
+
+### Requirement: Hệ ĐƯỢC hỗ trợ thì cửa sớm kiểm KHO, và mỗi hệ phải có từ vựng lỗi của chính nó
+
+Khi một hệ sinh thái đã được engine cấp phụ thuộc, cửa kiểm môi trường chạy **trước mọi lời gọi model**
+SHALL kiểm **kho phụ thuộc của repo ấy**, và khi kho thiếu SHALL báo là **thiếu phụ thuộc** kèm cách sửa
+đúng hệ ấy. MUST NOT báo là «hệ chưa được hỗ trợ» — hệ ấy đã được hỗ trợ.
+
+Hệ chưa được cấp phụ thuộc SHALL vẫn báo «hệ chưa được hỗ trợ» như hiện hành.
+
+Mỗi hệ sinh thái mà engine cấp phụ thuộc SHALL có **mẫu nhận dạng lỗi mạng của chính hệ ấy**. Danh sách hệ
+được cấp phụ thuộc và danh sách mẫu lỗi SHALL được **đối chiếu bằng lưới**, MUST NOT dựa vào người viết nhớ
+thêm mẫu khi thêm hệ.
+
+*Vì sao thành luật — finding `F2` của làn `oapi-portal-be`, và nó bắt đúng một lỗ em đã trả lời sai. Khi repo
+đích bỏ cờ ngoại tuyến khỏi lệnh test của mình (đúng theo ranh giới «CheckMate khai kho ở đâu»), thì nếu
+engine không cấp cờ ấy, container không mạng làm trình quản lý gói gãy ở khâu giải phụ thuộc ⇒ không có báo
+cáo test ⇒ rơi vào đúng con bệnh chẩn đoán mà change này vừa chữa, chỉ khác nguyên nhân. Repo đích **không có
+cổng nào canh được** việc đó; nó phải được canh ở đây.*
+
+*Vì sao vế từ vựng phải thành luật riêng, không phải một chú thích: bệnh «không có mạng để tải gói» hiện được
+hiện thực bằng **mã lỗi của đúng một hệ** (`EAI_AGAIN`, `ENOTFOUND`, `getaddrinfo` — toàn npm). Thêm một hàng
+vào bảng hệ sinh thái mà quên thêm từ vựng thì **không có gì đỏ**: hệ mới lặng lẽ mất khả năng chẩn đoán mà
+bảng vừa hứa cho nó. Đây là cửa song sinh lần thứ 11 của repo, và là lần đầu hai bản thể không nằm ở hai file
+cho người đọc thấy lệch — chúng nằm ở một bảng và một chùm regex.*
+
+#### Scenario: repo hệ được hỗ trợ nhưng chưa có kho
+- **WHEN** lượt chấm bắt đầu trên repo thuộc hệ engine đã cấp phụ thuộc được, mà kho của repo ấy chưa có
+- **THEN** cửa sớm chặn trước mọi lời gọi model, báo **thiếu phụ thuộc**, và nêu cách sửa đúng hệ ấy
+
+#### Scenario: repo hệ chưa được cấp phụ thuộc
+- **WHEN** lượt chấm bắt đầu trên repo thuộc hệ engine chưa cấp phụ thuộc được
+- **THEN** cửa sớm vẫn báo «hệ chưa được hỗ trợ», không kê lệnh sửa nào
+
+#### Scenario: trình quản lý gói gãy vì không có mạng
+- **WHEN** lệnh test thất bại với lỗi giải phụ thuộc của hệ ấy trong container không mạng
+- **THEN** engine xếp là **thiếu phụ thuộc**; MUST NOT sinh lại probe
+
+#### Scenario: thêm một hệ vào bảng mà quên từ vựng lỗi
+- **WHEN** một hệ được khai là engine cấp phụ thuộc được nhưng không có mẫu nhận dạng lỗi mạng
+- **THEN** lưới đối chiếu hai danh sách phải ĐỎ
