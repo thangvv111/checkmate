@@ -537,8 +537,12 @@ phẩm cần (sai về phía «thiếu» phải lộ ngay ở đây, không ph�
 ```
 systemctl is-active checkmate
 tail -20 ~/checkmate-app/checkmate.log     # tìm dòng di trú và dòng chuyển token
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:4001/     # phải 200
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:4001/       # 303 -> /login (KHÔNG phải 200)
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:4001/login  # phải 200
 ```
+`/` trả **303 → /login** chứ không phải 200, kể từ khi có rào đăng nhập. Dòng cũ ghi «phải 200» đúng cho
+bản trước rào và sai từ đó tới 07/09/2026 — ai đọc nó sẽ tưởng deploy hỏng trong khi máy chủ chạy đúng.
+
 Đếm lại số hàng `so_cai` / `so_cong` / `run` trong `web-runs/checkmate.db` và số probe trong
 `probes-lib/`; chúng phải bằng hoặc lớn hơn trước khi deploy. Nhỏ đi là đã mất dữ liệu — khôi phục
 ngay từ `~/checkmate-backup-<mốc>`.

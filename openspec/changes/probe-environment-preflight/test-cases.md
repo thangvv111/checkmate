@@ -65,6 +65,21 @@ Tất cả ở `test/probe-environment.test.ts` trừ chỗ ghi khác.
 - [x] T1.28 Ca hồi quy cho quyết định 07/09: 2400 và 3600 **không** bị kẹp — trần cũ 1800 không còn
 - [x] T1.29 `test/runner-cfg.test.ts`: `readRunnerCfg` với `timeout_s: 99999` ⇒ 3600 (trước: 1800)
 
+### Trần probe mặc định phía repo — `test/volume-standard.test.ts` (gác của mutation M6)
+
+*Mục này thêm sau khi CheckMate chấm chính tài liệu này và chỉ ra M6 không có mô tả ở đâu khác — người
+đọc không biết «2 ca đỏ» của M6 đang khoá hành vi gì (PR #83 finding medium 07/09).*
+
+- [x] T1.30 `PROBE_CAP_RANGE.default` = **100** (trước: 20) = **cận trên của dải** `[2, 100]`. Mặc định
+      bằng cận trên là có chủ đích: phía repo đích để rộng, việc siết thuộc về núm người vận hành
+- [x] T1.31 `clampKnob(undefined, PROBE_CAP_RANGE)` ⇒ `{ value: 100, source: 'default' }` — repo không
+      khai thì lấy mặc định mới, và verdict khai nguồn là `default`
+- [x] T1.32 **Trần hiệu dụng vẫn là `min` của hai bên**, và đây mới là con số quyết số probe thật chạy:
+      `effectiveProbeCap` với repo 100 + người vận hành 6 ⇒ `{ value: 6, bound_by: 'operator' }`; không
+      có núm người vận hành ⇒ `{ value: 100, bound_by: 'repo' }`. Trên prod núm là 80, nên trần hiệu dụng
+      đi từ **20 lên 80** — đo lại được ở verdict thật: `probe_cap.value = 80`, `repo.value = 100`
+- [x] T1.33 Mutation **M6** gỡ đúng gác này (hạ mặc định về 20) ⇒ **2 ca đỏ** (T1.30/T1.31 và T1.32)
+
 ## Lưới tầng 3 — CẶP fixture bắt buộc
 
 - [x] T2.1 `scanPreflightBeforeModel` **ĐỎ**: fixture đặt cửa kiểm SAU lời gọi model
@@ -98,7 +113,7 @@ Tất cả ở `test/probe-environment.test.ts` trừ chỗ ghi khác.
       | M3 | dải timeout `[30, 3600]` mặc định 3600 | 5 |
       | M4 | đường mặc định lấy trần từ nguồn dùng chung | 1 |
       | M5 | thông điệp hết giờ đọc chính giá trị đã cắt | 2 |
-      | M6 | trần probe mặc định 100 | 2 |
+      | M6 | trần probe mặc định phía repo là 100 (mô tả ở T1.30–T1.33) | 2 |
       | M7 | thư mục phụ thuộc RỖNG cũng là chặn | 1 |
       | M8 | runtime lệch chỉ CẢNH BÁO, không chặn | 1 |
       | M9 | phân loại bằng MÃ, không bằng lời văn (⛔C4) | 2 |
@@ -121,8 +136,20 @@ Tất cả ở `test/probe-environment.test.ts` trừ chỗ ghi khác.
       lệnh sửa mới chạy được. Không giá trị người dùng gõ tay nào đi qua đây
 - [x] T_failclosed ⛔C2 — dừng vì môi trường **ném lỗi**, lượt vào trạng thái hỏng; MUST NOT ra PASS.
       Cùng khuôn với lời ném «Probe không thu thập được sau 2 lần sinh» đã có
-- [x] T_cong ⛔C1 — change **siết**, không nới: nó thêm một chỗ dừng, không thêm chỗ nào cho máy đi tiếp.
-      Không đường merge nào bị chạm
+- [x] T_cong ⛔C1 — ⛔ **Change này SIẾT trục cổng và NỚI trục ngân sách. Hai vế, không được gộp thành
+      một câu «chỉ siết».** Bản trước của ô này viết đúng thế, và CheckMate bắt được khi chấm chính tài
+      liệu này (PR #83, finding high 07/09) — người duyệt đọc nhãn ⛔C1 rồi tin cả change chỉ siết.
+
+      | trục | hướng | cái gì |
+      |---|---|---|
+      | ⛔C1 cổng merge | **siết** | thêm hai chỗ dừng (trước lời gọi model · trước vòng sinh lại); không thêm đường nào cho máy đi tiếp; không đường merge nào bị chạm |
+      | ngân sách thời gian | **NỚI gấp đôi** | `timeout_s` cận trên 1800 → 3600 giây (T1.25 · T1.28 · T1.29) |
+      | ngân sách probe | **NỚI** | `probe_cap` mặc định phía repo 20 → 100; trần hiệu dụng trên prod đi từ 20 lên 80 (núm người vận hành) |
+
+      Hai vế nới là **quyết định của PO ngày 07/09**, có lý lẽ ở `proposal.md` (mặc định phía repo để rộng,
+      siết bằng núm người vận hành). Chúng KHÔNG thuộc ⛔C1 — ⛔C1 nói về việc máy có được đưa code vào
+      trunk hay không, và vế ấy không đổi. Nhưng chúng là **nới thật**, nên phải đứng ngay cạnh, không nấp
+      sau chữ «siết»
 - [x] T_khongtincay ⛔C4 — T1.22 là ca khoá. Phân loại đọc **mã lỗi**, không đọc lời văn; danh sách ĐÓNG
 - [x] T_hopdong ⛔C5 — chín export mới khai trong bảng module của `checkmate.yml`; lưới hợp đồng xanh
 - [x] T_kientruc — `server.ts` value-import tầng engine: hợp lệ theo ma trận (`delivery → engine: true`);
@@ -130,13 +157,34 @@ Tất cả ở `test/probe-environment.test.ts` trừ chỗ ghi khác.
 
 ## Chạy thật — KHÔNG tick trước khi chạy
 
-- [ ] T7.1 Sau deploy: chạy lượt chấm **code** trên `thangvv111/admin-fe` (clone chưa cài phụ thuộc). Kỳ
-      vọng: dừng **trước** stage 3, log nêu `npm ci`, **không** lời gọi model nào. run_id: ____
-- [ ] T7.2 Cài phụ thuộc cho clone ấy rồi chạy lại. Kỳ vọng: cảnh báo runtime `^24` vs Node 22 xuất hiện
-      và lượt **vẫn chạy tiếp**. run_id: ____
-- [ ] T7.3 Chạy lượt chấm **code** trên `thangvv111/checkmate` (môi trường đủ): không cảnh báo, không dừng,
-      lượt đi hết như trước. run_id: ____
+- [x] T7.1 ✅ **Chạy thật trên prod 07/09 sau deploy** — `thangvv111/admin-fe` PR #8 (`accessibility-floor`
+      @ `8197a92`, đối chứng `main` @ `d83b137`, diff 66 480 ký tự). Lượt dừng ở **cuối stage 2/5**, tức
+      **trước** stage 3 «Sinh probe đối kháng» — **không lời gọi model nào**. Thông điệp:
+
+      > ⛔ DỪNG TRƯỚC KHI GỌI MODEL — Bản clone của repo đích chưa cài phụ thuộc (**22 gói** khai trong
+      > package.json, thư mục node_modules **không tồn tại**) … Sửa: `cd repos/thangvv111-admin-fe && npm
+      > ci --no-audit --no-fund`
+
+- [x] T7.2 ✅ **Bệnh thứ ba lộ ra LẦN ĐẦU**, ngay cùng lượt ấy, đứng **trước** dòng chặn:
+
+      Trích **NGUYÊN VĂN, đủ cả hai vế** — bản trước cắt mất vế `cach_sua`, làm thông điệp trông như
+      thiếu hướng dẫn sửa trong khi nó có (CheckMate bắt được, PR #83 finding medium 07/09):
+
+      > ⚠ Môi trường: Repo đích đòi Node **^24** (engines.node) nhưng môi trường chạy probe là Node
+      > **v22.17.1**. Test của repo có thể không chạy, và lỗi khi ấy KHÔNG nói gì về pull request đang
+      > chấm. **— Khai `runner.image` trong checkmate.yml của repo đích, trỏ một ảnh có đúng phiên bản
+      > Node.**
+
+      Tức T1.24 («runtime lệch ⇒ nêu `runner.image`») **được thoả** ở lượt chạy thật: `thong_diep` và
+      `cach_sua` nối nhau bằng « — » khi ra log.
+
+      Vế «cài xong rồi chạy lại» **KHÔNG kiểm được ở đây**: `npm ci` trên máy chủ Node 22 hỏng vì repo đòi
+      Node ^24 — đúng bệnh 3. Nó là việc của **nhịp hai** (cài trong container), chuyển thành nợ T9.1.
+- [x] T7.3 ✅ **Không chặn oan**: chạy phép kiểm trên cả hai clone của prod cùng lúc —
+      `repos/thangvv111-checkmate` ⇒ `chan: []` · `canhBao: []`; `repos/thangvv111-admin-fe` ⇒
+      `chan: ["thieu_phu_thuoc"]` · `canhBao: ["runtime_lech"]`. Repo đủ điều kiện đi tiếp y như trước.
 - [ ] T7.4 Thêm một repo đích mới qua giao diện: cảnh báo môi trường hiện ra và **không** chuyển trang.
+      *(Chưa kiểm — cần một repo đích thứ ba thật; không dựng repo giả trên prod chỉ để chạy phép thử.)*
 
 ## Kiểm tay
 
