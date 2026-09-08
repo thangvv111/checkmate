@@ -56,7 +56,8 @@ function phat(e: RunEvent): void {
         ss.units === 0
           ? ' ⚠ KHÔNG có luật đối chiếu — verdict yếu hơn lượt có luật; độ phủ luật không đo được'
           : ` Luật đối chiếu: ${ss.units} đơn vị từ ${ss.files.length} file (${ss.declared ? 'khai trong checkmate.yml' : 'tự dò'})${
-              v.probe_stats?.luat_tong !== undefined ? ` · độ phủ ${v.probe_stats.luat_da_phu?.length ?? 0}/${v.probe_stats.luat_tong}` : ''
+              // SỐ ĐẾM, không phải tỉ lệ — xem chú thích ở `skill-code.ts` và luật `man-run`.
+              v.probe_stats?.luat_tong !== undefined ? ` · ${v.probe_stats.luat_da_phu?.length ?? 0} luật có probe neo (kho ${v.probe_stats.luat_tong})` : ''
             }`,
       );
     }

@@ -784,8 +784,13 @@ export async function runCodeSkill(
       type: 'log',
       msg:
         doPhu.luat_tong === undefined
-          ? 'Độ phủ luật: KHÔNG ĐO ĐƯỢC — lượt này không có luật đối chiếu (0 đơn vị luật)'
-          : `Độ phủ luật: ${doPhu.luat_da_phu!.length}/${doPhu.luat_tong} đơn vị luật đọc được từ spec có probe neo vào${
+          ? 'Luật có probe neo: KHÔNG ĐO ĐƯỢC — lượt này không có luật đối chiếu (0 đơn vị luật)'
+          : // ⛔ SỐ ĐẾM, không phải TỈ LỆ. Bản trước in `x/y` và người đọc hiểu thành «phủ được x trên y
+            // kho luật» — sai, vì `y` là toàn bộ kho luật của repo còn `x` là phần diff NÀY chạm tới.
+            // Đo 08/09: một bản vá MỘT DÒNG ra «1/195», và đọc tự nhiên nhất là «phủ 0,5%, tệ quá».
+            `Luật có probe neo: ${doPhu.luat_da_phu!.length} đơn vị${
+              doPhu.luat_da_phu!.length ? ` — ${doPhu.luat_da_phu!.join(' · ')}` : ''
+            } (kho luật repo: ${doPhu.luat_tong} đơn vị — KHÔNG phải mẫu số của độ phủ: engine không biết diff chạm luật nào)${
               t.luatMoi.length ? ` · ${t.luatMoi.length} luật CHỈ có ở nhánh PR: ${t.luatMoi.join(', ')}` : ''
             }`,
     });
