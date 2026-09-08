@@ -5,6 +5,7 @@ import {
   detectIsolation,
   safeImageName,
   DEFAULT_IMAGE,
+  DEPENDENCY_SCRATCH_PATHS,
   type ContainerSpec,
 } from '../packages/harness/src/sandbox.js';
 
@@ -43,6 +44,13 @@ function binds(argv: readonly string[]): { nguon: string; dich: string; cach: st
     const p = (argv[i + 1] ?? '').split(':');
     ra.push({ nguon: p[0] ?? '', dich: p[1] ?? '', cach: p[2] ?? '' });
   }
+  return ra;
+}
+
+/** Các đường được phủ `--tmpfs`, theo thứ tự xuất hiện. */
+function tmpfsPaths(argv: readonly string[]): string[] {
+  const ra: string[] = [];
+  for (let i = 0; i < argv.length - 1; i++) if (argv[i] === '--tmpfs') ra.push(argv[i + 1] ?? '');
   return ra;
 }
 
@@ -157,6 +165,53 @@ describe('đối số dựng môi trường — ba cơ chế cô lập (T1)', ()
   it('T1.9 — không có phụ thuộc thì không bind gì thêm', () => {
     const argv2 = buildContainerArgs(spec({ thuMucPhuThuoc: undefined }));
     expect(binds(argv2)).toHaveLength(1);
+  });
+
+  // ---- Lớp phủ tạm cho đường bộ chạy test phải ghi (change `sandbox-config-scratch-tmpfs`) ----
+
+  it('T1.10 — có phụ thuộc thì phủ ĐÚNG những đường trong danh sách đóng, không hơn', () => {
+    const tmpfs = tmpfsPaths(argv);
+    // `/tmp` là lớp phủ vốn có; mọi lớp còn lại phải khớp DANH SÁCH ĐÓNG từng phần tử.
+    expect(tmpfs).toEqual(['/tmp', ...DEPENDENCY_SCRATCH_PATHS.map((x) => x.path)]);
+    expect(DEPENDENCY_SCRATCH_PATHS.every((x) => x.ly_do.trim().length > 0), 'mỗi mục phải có lý do').toBe(true);
+  });
+
+  it('T1.10b — hai đường ĐÃ ĐO là hỏng-nếu-thiếu phải CÓ MẶT trong danh sách', () => {
+    // ⛔ T1.10 chỉ kiểm «đối số khớp danh sách», nên xoá một mục khỏi danh sách vẫn XANH — đúng khuôn lưới
+    // xanh trên hệ thống đã hỏng. Ca này ghim NỘI DUNG, và mỗi đường ở đây đứng trên một lần chạy thật:
+    //
+    //   .vite-temp  (07/09) vite bundle `vitest.config.ts` ra đây; thiếu ⇒ `ENOENT: mkdir`, mọi lượt chấm
+    //               code chết ở bước sandbox.
+    //   .vitest     (07/09) vitest ≥4 ghi token API vào đây khi HOME không ghi được (`--read-only`);
+    //               thiếu ⇒ «Startup Error: Failed to create Vitest API token», chết TRƯỚC khi nạp file
+    //               test nào. Đo trên `admin-fe`: thiếu ⇒ 0 test; có ⇒ 158/158, trên CẢ Node 22 lẫn 24.
+    const co = new Set(DEPENDENCY_SCRATCH_PATHS.map((x) => x.path));
+    for (const p of ['/work/node_modules/.vite-temp', '/work/node_modules/.vitest']) {
+      expect(co.has(p), `${p} đã đo được là hỏng-nếu-thiếu — gỡ nó phải đi qua một change khai rõ`).toBe(true);
+    }
+  });
+
+  it('T1.11 — KHÔNG có phụ thuộc thì không phủ gì thêm: không có gì để phủ', () => {
+    const argv2 = buildContainerArgs(spec({ thuMucPhuThuoc: undefined }));
+    expect(tmpfsPaths(argv2)).toEqual(['/tmp']);
+  });
+
+  it('T1.12 — mọi đường được phủ phải nằm TRONG thư mục phụ thuộc, và phụ thuộc vẫn `:ro`', () => {
+    // Một mục trỏ ra ngoài `/work/node_modules` là nới đúng thứ luật cấm, mà lại đi qua cửa trông vô hại.
+    for (const { path } of DEPENDENCY_SCRATCH_PATHS) {
+      expect(path.startsWith('/work/node_modules/'), `${path} nằm ngoài thư mục phụ thuộc`).toBe(true);
+    }
+    const nm = binds(argv).find((b) => b.dich === '/work/node_modules');
+    expect(nm?.cach, 'chính node_modules vẫn phải chỉ đọc').toMatch(/(^|,)ro(,|$)/);
+  });
+
+  it('T1.13 — lớp phủ là TMPFS, không phải bind: ghi vào đó không chạm bản clone', () => {
+    // Nếu ai đó đổi `--tmpfs` thành `-v <host>:...:rw` thì ghi sẽ ra tới đĩa của bản clone. Cặp kiểm này
+    // bắt đúng cú đổi ấy: số bind không đổi, và không bind nào trỏ vào đường trong danh sách.
+    expect(binds(argv)).toHaveLength(2); // thư mục lượt chạy + node_modules, không hơn
+    for (const { path } of DEPENDENCY_SCRATCH_PATHS) {
+      expect(binds(argv).some((b) => b.dich === path), `${path} bị mount bằng bind thay vì tmpfs`).toBe(false);
+    }
   });
 });
 

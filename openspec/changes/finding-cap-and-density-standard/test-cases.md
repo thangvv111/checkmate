@@ -142,22 +142,27 @@
       `finding_cap.source 'no_repo'` ở cả 7; PRD raw 6/6, mật độ 6.54, `applied false`; verdict FAIL/PASS như
       lịch sử. run_id: `run-2026-09-07T04-12-29-492Z…` · `…T04-12-40-962Z…` · `…T04-12-55-871Z…` ·
       `…T04-14-01-139Z…` · `…T04-15-14-897Z…` · `…T04-15-56-770Z…` · `…T04-20-53-312Z…`
-- [~] T4.3 Code trên PR thật (PR #77, 07/09), operator slider **12**, repo đề nghị **20**. Lấy được hai vế
-      quan trọng nhất từ log lượt thật, vế thứ ba bị chặn:
-      · **trần hiệu dụng = min(repo, operator), khai đủ nguồn** — log nguyên văn: «Trần probe hiệu dụng 12
-        (người vận hành 12; repo đề nghị 20) — model không được cho biết con số này» ✓
-      · **T3.3 — hiệu ứng ĐỊNH MỨC biến mất** ✓✓ Trần 12, model đề xuất **7 probe**. Lượt PR #75 cùng ngày,
-        cùng trần 12, **trước** khi gỡ số: đề xuất **đúng 12**. Đây là phép đo trực tiếp nhất của cả change —
-        không phải suy từ 14/14 lượt lịch sử, mà là hai lượt cùng repo cùng trần, khác nhau đúng một câu prompt.
-      · ✗ `volume_standard` trên verdict của lượt code: **chưa lấy được** — lượt kết thúc bằng lỗi ở bước
-        sandbox, không sinh verdict. Nguyên nhân là sự cố hạ tầng ngoài change (nợ 7.5), không phải code này.
-      run_id: `wmtquo1hz9hrs`
+- [x] T4.3 Code trên PR thật, operator slider **12**, repo đề nghị **20**. Hoàn tất bằng HAI lượt:
+      · **trần hiệu dụng = min(repo, operator), khai đủ nguồn** — PR #77, log nguyên văn: «Trần probe hiệu
+        dụng 12 (người vận hành 12; repo đề nghị 20) — model không được cho biết con số này»
+      · **T3.3 — hiệu ứng ĐỊNH MỨC biến mất** — PR #77 trần 12 đề xuất **7**; PR #75 cùng ngày, cùng trần 12,
+        **trước** khi gỡ số: đề xuất **đúng 12**. Hai lượt cùng repo cùng trần, khác nhau đúng một câu prompt.
+      · **`volume_standard` trên verdict lượt code** — PR #79 (sau khi change sandbox vá bước chạy probe):
+        `probe_cap {value 12, repo {20,'repo'}, operator 12, bound_by 'operator'}` ·
+        `counts {before_cut 9, after_cut 9, candidates 9, final 0, dropped_by_cap 0}` · khối `density`
+        **VẮNG** đúng như spec đòi cho skill-code. run_id: `wmtr4j87au091` (PR #79) · `wmtquo1hz9hrs` (PR #77)
 - [ ] T4.4 Repo đích với `checkmate.yml` **hỏng cú pháp** ở nhánh gốc: lượt chạy, log nêu nguyên nhân, verdict
       khai `default_unreadable`. Kiểm bằng `--base` trỏ một ref cục bộ có yml hỏng, KHÔNG làm hỏng `main` của
       prod; vế «comment PR hiện `default_unreadable`» dựa vào ca đơn vị T2.12/T2.14 chứ không tick trơn.
       run_id: ____
-- [ ] T4.5 Sau khi merge PR #77: một lượt doc bất kỳ phải khai `finding_cap.source = 'repo'` và
-      `density.standard.*.source = 'repo'` — vế còn thiếu của T4.1. run_id: ____
+- [x] T4.5 Sau khi merge PR #77 — chấm lại **cùng PR #76, cùng tài liệu**, chỉ khác: nhánh gốc nay có khối
+      `standards`. `finding_cap {100, **'repo'**}` · `density.standard.per_1000_words {20, **'repo'**}` ·
+      `floor_words {300, **'repo'**}` · `words 931` (thêm một dòng chú thích vào file) · `measured 6.44` ·
+      `applied false`. run_id: `wmtr1870vu36c`
+      ⛔ **Đây là bằng chứng dứt điểm cho «đọc từ NHÁNH GỐC, không đọc đĩa»** — mạnh hơn mọi ca đơn vị: hai
+      lượt chấm cùng một PR trên cùng một clone, cách nhau ba giờ, cho `default` rồi `repo`. Working tree của
+      clone KHÔNG hề đổi giữa hai lượt (git chỉ `fetch` vào `refs/checkmate/*`, không checkout — đo ở task
+      0.2). Nếu engine đọc đĩa thì cả hai lượt đều phải ra `default`. Nó ra `repo` ⇒ nó đọc ref nhánh gốc.
 
 ## Kiểm tay
 

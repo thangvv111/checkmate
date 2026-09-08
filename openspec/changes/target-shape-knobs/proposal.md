@@ -23,10 +23,10 @@ Change này vừa gỡ mấy hằng ở nhóm một, vừa nâng ba lớp phòng
 - **`MAX_UNIT_DEPTH = 3`** (`spec-units.ts:34`) → cấu hình được, kẹp dải. Cũng đã là tham số mặc định
   (`spec-units.ts:56`, `:114`). Đây là **mẫu số của độ phủ luật**, nên nó đổi thì con số độ phủ đổi
   nghĩa — phải khai lên verdict.
-- **Đóng bất đối xứng hai đường chạy test.** `chayTheoRunner` dùng `cfg.timeout_s` và in đúng con số ấy
-  (`sandbox.ts:373`); `chayVitest` cứng `300_000` **và** cứng chuỗi `"300s"` ở thông điệp
-  (`sandbox.ts:305`, `:311`) — hai chỗ, đúng khuôn **cửa song sinh** đã bị bắt 9 lần trong repo: sửa một
-  chỗ thì chỗ kia nói dối.
+- **Đóng bất đối xứng hai đường chạy test — ĐÃ THU HẸP 07/09.** Nửa nặng (cửa song sinh: `chayVitest`
+  cứng `300_000` ở lệnh cắt **và** cứng chuỗi `"300s"` ở thông điệp) **đã xong** ở change
+  `probe-environment-preflight`, cùng với dải nới `[30, 3600]` và nguồn dùng chung `TIMEOUT_RANGE`. Còn
+  lại đúng một mảnh: repo khai thời hạn mà **không** khai lệnh chạy test thì đường mặc định vẫn phải áp.
 - **`FILE_PROBE_MOI`** (`skill-code.ts:55`) → đường mặc định dùng chung cửa với `runner.probe_file`.
 - **BREAKING (không):** mọi khoá mới đều tuỳ chọn; không khai thì hành vi y hệt hôm nay.
 
@@ -49,8 +49,8 @@ người sau không đi lại đường rà sai ấy.
   «Vượt trần thì cắt tiếp theo hướng phủ nhiều nhất, và không bao giờ cắt xuống rỗng».
 - `spec-source`: độ sâu chia đơn vị thành khoá của repo đích, và ảnh hưởng của nó lên **mẫu số độ phủ**
   phải khai ra — thêm requirement, không sửa «Luật là ĐƠN VỊ CÓ ĐỊA CHỈ».
-- `target-contract`: đường chạy test mặc định phải chịu cùng khoá timeout với đường runner — đóng cửa
-  song sinh.
+- `target-contract`: repo đích khai được thời hạn cho cả đường mặc định — phần còn lại sau khi cửa song
+  sinh đã đóng ở `probe-environment-preflight` (07/09).
 
 ## Luật chạm tới
 
@@ -58,7 +58,7 @@ người sau không đi lại đường rà sai ấy.
   - `target-knob-defense › *` — capability mới, mọi requirement ADDED.
   - `diff-visibility › Trần diff là khoá của repo đích, kẹp dải và khai lên verdict` — ADDED.
   - `spec-source › Độ sâu chia đơn vị là khoá của repo đích, và mẫu số độ phủ phải khai theo nó` — ADDED.
-  - `target-contract › Đường chạy test mặc định chịu cùng khoá timeout với đường runner` — ADDED.
+  - `target-contract › Repo đích khai được thời hạn chạy test cho CẢ đường mặc định` — ADDED (đã thu hẹp).
   - **⛔C4** — trục chính của change: `checkmate.yml` là dữ liệu ngoài **do bên bị chấm viết**.
   - **⛔C2** — mọi khoá hỏng/ngoài dải phải rơi về mặc định **nghiêm hơn**, không được biến thành PASS.
   - **⛔C5** — export mới phải khai vào bảng module.

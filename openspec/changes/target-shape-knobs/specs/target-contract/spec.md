@@ -1,49 +1,42 @@
 ## ADDED Requirements
 
-### Requirement: Đường chạy test MẶC ĐỊNH chịu cùng khoá timeout với đường runner, và con số sống ở đúng MỘT chỗ
+### Requirement: Repo đích khai được thời hạn chạy test cho CẢ đường mặc định, không chỉ đường runner
 
-Hai đường chạy test — đường runner do repo khai (`test_cmd`) và đường vitest mặc định — SHALL đọc thời
-hạn từ **cùng một khoá** `checkmate.yml`, cùng dải kẹp, cùng mặc định.
+Khoá thời hạn trong `checkmate.yml` SHALL có tác dụng kể cả khi repo đích **không** khai lệnh chạy test —
+tức khi lượt chấm đi đường vitest mặc định. Repo khai thời hạn mà không khai lệnh chạy MUST NOT bị bỏ
+nguyên khối như cấu hình dở dang; thời hạn là khoá **hình dạng**, không phải một mảnh của cấu hình runner.
 
-Thời hạn SHALL sống ở **đúng một chỗ** trong mã: con số dùng để cắt lệnh và con số in trong thông điệp
-`TIMEOUT` MUST là cùng một giá trị, không phải hai hằng viết cạnh nhau.
+*Vì sao đây là requirement riêng và HẸP hơn bản trước: cửa song sinh — con số dùng để cắt lệnh và con số
+in trong thông điệp `TIMEOUT` phải là một — **đã được đóng** ở change `probe-environment-preflight`
+(07/09), cùng với dải `[30, 3600]` và nguồn dùng chung `TIMEOUT_RANGE`. Còn lại đúng một mảnh chưa làm:
+hôm nay đường mặc định luôn dùng **mặc định của dải**, vì khối `runner` thiếu `test_cmd` bị bỏ nguyên khối
+theo luật «khai runner mà thiếu lệnh chạy test = không khai». Giữ hai change cùng khai một luật là đúng
+khuôn lệch mà repo này tồn tại để chống, nên requirement này chỉ nhận phần chưa ai làm.*
 
-Đổi khoá timeout MUST NOT đổi ranh giới «treo» đã khai: đường treo vẫn trả về **không kèm** `loiNap`, vì
-«chạy lâu» không phải «không nạp được».
+*Vì sao vẫn đáng làm: hai đường có cùng công dụng. Để một đường cấu hình được còn đường kia thì không là
+bất đối xứng do lịch sử, không do thiết kế — và repo đích không khai `test_cmd` thường đúng là repo cần
+thời hạn khác nhất, vì engine đang đoán cách chạy test của họ.*
 
-*Vì sao: đây đúng khuôn **cửa song sinh** đã bị bắt 9 lần trong repo. Hôm nay đường runner dùng
-`cfg.timeout_s` và in đúng `${cfg.timeout_s}s` (`sandbox.ts:373`), còn đường mặc định cứng `300_000` ở
-chỗ cắt (`sandbox.ts:305`) **và** cứng chuỗi `"300s"` ở thông điệp (`sandbox.ts:311`). Ai đó nới thời hạn
-mặc định sẽ sửa một chỗ, và người vận hành đọc được một thông điệp nói sai con số — thứ họ dùng để phán
-đoán PR có treo thật hay không.*
+#### Scenario: repo khai thời hạn nhưng không khai lệnh chạy test
+- **WHEN** `checkmate.yml` khai khoá thời hạn và **không** khai lệnh chạy test
+- **THEN** đường vitest mặc định áp đúng thời hạn ấy, đã kẹp vào dải
 
-*Vì sao repo đích được khai cả cho đường mặc định: hai đường có cùng một công dụng, nên để một đường cấu
-hình được còn đường kia thì không là một bất đối xứng chỉ do lịch sử, không do thiết kế.*
-
-#### Scenario: repo khai timeout, chạy đường mặc định
-- **WHEN** repo khai khoá timeout nhưng không khai `test_cmd` (nên chạy đường vitest mặc định)
-- **THEN** đường mặc định áp đúng thời hạn ấy
-
-#### Scenario: thông điệp TIMEOUT nói đúng con số đã áp
-- **WHEN** lệnh test bị cắt vì quá hạn ở đường mặc định với thời hạn đã cấu hình
-- **THEN** thông điệp `TIMEOUT` nêu đúng con số đã áp, không nêu một hằng khác
-
-#### Scenario: ranh giới treo không đổi
-- **WHEN** đường mặc định cắt lệnh vì quá hạn
-- **THEN** kết quả trả về KHÔNG kèm `loiNap` — treo vẫn không bị đọc thành «không nạp được»
+#### Scenario: khai thời hạn không làm khối runner dở dang thành khối được dùng
+- **WHEN** repo khai thời hạn và `framework` nhưng không khai lệnh chạy test
+- **THEN** lượt vẫn đi đường mặc định; chỉ thời hạn được lấy, phần còn lại của khối vẫn bị bỏ
 
 #### Scenario: repo không khai gì
-- **WHEN** `checkmate.yml` không khai khoá timeout
-- **THEN** cả hai đường dùng mặc định đang chạy hôm nay
+- **WHEN** `checkmate.yml` không khai khoá thời hạn
+- **THEN** cả hai đường dùng mặc định của dải
 
 ### Requirement: Tên file probe của đường mặc định đi qua cùng cửa với `runner.probe_file`
 
 Tên file probe SHALL đi qua **một cửa duy nhất**: khai `runner.probe_file` thì dùng giá trị ấy, không
 khai thì dùng mặc định của engine — và đường vitest mặc định dùng đúng cửa ấy, không giữ hằng riêng.
 
-*Vì sao: cùng lý do cửa song sinh ở trên. Hai chỗ quyết định cùng một thứ thì sớm muộn chúng lệch nhau,
-và ở đây lệch nghĩa là probe được ghi ra một tên còn được tìm bằng một tên khác — biểu hiện là probe
-«thất lạc», một triệu chứng chỉ về sai chỗ.*
+*Vì sao: cùng khuôn cửa song sinh. Hai chỗ quyết định cùng một thứ thì sớm muộn chúng lệch nhau, và ở đây
+lệch nghĩa là probe được ghi ra một tên còn được tìm bằng một tên khác — biểu hiện là probe «thất lạc»,
+một triệu chứng chỉ về sai chỗ.*
 
 #### Scenario: repo khai tên file probe
 - **WHEN** repo khai `runner.probe_file` và chạy đường mặc định

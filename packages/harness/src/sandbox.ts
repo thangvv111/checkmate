@@ -2,6 +2,9 @@ import { execFileSync, spawnSync, type SpawnSyncReturns } from 'node:child_proce
 import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync, readFileSync, rmSync, rmdirSync, existsSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+// ⛔ Dải timeout sống ở `runner.ts` — MỘT chỗ cho cả hai đường chạy. `runner.ts` chỉ import KIỂU từ file
+// này (`import type`), nên chiều ngược lại không tạo vòng lúc chạy.
+import { TIMEOUT_RANGE } from './runner.js';
 
 export interface ProbeResult {
   title: string;
@@ -167,6 +170,27 @@ export interface ContainerSpec {
 }
 
 /**
+ * Đường GHI ĐƯỢC bên trong thư mục phụ thuộc — **DANH SÁCH ĐÓNG**, mỗi mục một lý do.
+ *
+ * Luật: `sandbox-isolation › Không đường ghi nào ra ngoài thư mục của lượt chạy`. Thư mục phụ thuộc vào
+ * container ở chế độ `:ro`; mỗi mục dưới đây được phủ một lớp **tmpfs** — nằm trong bộ nhớ, biến mất cùng
+ * container, và KHÔNG chạm tới `node_modules` thật của bản clone.
+ *
+ * ⛔ Danh sách này MUST đóng và MUST nằm trong mã. Không mẫu chung, không biến môi trường, không khoá của
+ * `checkmate.yml`: thứ chạy trong sandbox là code của repo đích (⛔C4), nên để repo đích tự khai đường ghi
+ * là trả lại đúng thứ luật cô lập vừa lấy đi.
+ *
+ * Vì sao mục đầu tiên tồn tại — đo 07/09: vite nạp `vitest.config.ts` bằng cách bundle nó ra một file tạm
+ * đặt trong `node_modules/.vite-temp`. Mount `:ro` làm bước ấy chết với `ENOENT: mkdir`, và MỌI lượt chấm
+ * code hỏng ở bước sandbox. Kiểm bằng podman dựng tay trên prod: không có mount này thì hỏng, có thì
+ * `JUNIT report written`.
+ */
+export const DEPENDENCY_SCRATCH_PATHS: ReadonlyArray<{ path: string; ly_do: string }> = [
+  { path: '/work/node_modules/.vite-temp', ly_do: 'vite bundle file cấu hình TypeScript ra đây trước khi nạp (vitest)' },
+  { path: '/work/node_modules/.vitest', ly_do: 'vitest ≥4 ghi token API vào đây khi HOME không ghi được — không ghi được thì chết ở Startup Error, trước khi nạp một file test nào' },
+];
+
+/**
  * Dựng đối số cho runtime — hàm THUẦN, và là chỗ luật của change này sống.
  *
  * ⛔ Container KHÔNG chặn gì nếu vẫn bind ghi được ra ngoài. Hai thứ nặng nhất — thư viện probe và sổ cái
@@ -198,7 +222,12 @@ export function buildContainerArgs(spec: ContainerSpec): string[] {
     // ~0.35s nên giá như nhau; chọn đường có hậu quả nhẹ hơn khi hỏng.
     '-v', `${spec.thuMucChay}:/work:Z,U`,
   ];
-  if (spec.thuMucPhuThuoc) a.push('-v', `${spec.thuMucPhuThuoc}:/work/node_modules:ro,Z`);
+  if (spec.thuMucPhuThuoc) {
+    a.push('-v', `${spec.thuMucPhuThuoc}:/work/node_modules:ro,Z`);
+    // Lớp phủ tạm cho đúng những đường bộ chạy test PHẢI ghi. Chỉ thêm khi có thư mục phụ thuộc: không có
+    // gì để phủ thì một mount thừa là một bề mặt thừa.
+    for (const { path } of DEPENDENCY_SCRATCH_PATHS) a.push('--tmpfs', path);
+  }
   a.push('-w', '/work', safeImageName(spec.anh), ...spec.lenh);
   return a;
 }
@@ -297,18 +326,25 @@ export class Sandbox {
     return rel;
   }
 
-  chayVitest(testFilesRel: string | string[]): VitestResult {
+  /**
+   * Đường chạy test MẶC ĐỊNH (repo đích không khai `runner.test_cmd`).
+   *
+   * ⛔ `timeoutS` là THAM SỐ, không phải hằng của hàm này. Bản trước cứng `300_000` ở lệnh cắt **và** cứng
+   * chuỗi `"300s"` ở thông điệp — hai biểu thức cho một luật, đúng khuôn **cửa song sinh** đã bị bắt chín
+   * lần trong repo: sửa một chỗ thì chỗ kia nói dối. Nay thông điệp đọc chính giá trị đã dùng để cắt.
+   */
+  chayVitest(testFilesRel: string | string[], timeoutS: number = TIMEOUT_RANGE.default): VitestResult {
     const files = (Array.isArray(testFilesRel) ? testFilesRel : [testFilesRel]).map((f) => f.replace(/\\/g, '/'));
     const outFile = join(this.dir, 'vitest-out.json');
     // Đường ghi kết quả phải là đường TRONG môi trường chạy: trong container là `/work`, ngoài là host.
     const outArg = this.coLap.muc === 'container' ? '/work/vitest-out.json' : `"${outFile}"`;
-    const kq = this.chayTrongSandbox(['npx', 'vitest', 'run', ...files, '--reporter=json', `--outputFile=${outArg}`], 300_000);
+    const kq = this.chayTrongSandbox(['npx', 'vitest', 'run', ...files, '--reporter=json', `--outputFile=${outArg}`], timeoutS * 1000);
     if ((kq.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT' || kq.signal) {
       donCayTienTrinh(kq.pid);
       // ⛔ Đường TREO trả về KHÔNG kèm `loiNap` — có chủ đích, và đây là ranh giới PO chốt 05/09.
       // «Chạy lâu» không phải «không nạp được»: nó là bằng chứng về code đích và đã có finding riêng (C7).
       // Nhét file vào `loiNap` ở đây là để một PR làm treo test tự gỡ được phép thử bắt nó.
-      return { ok: false, tongTest: 0, probes: [], loiThu: `TIMEOUT: lệnh test không kết thúc trong 300s — PR có thể chứa vòng lặp vô hạn/treo I/O`, treo: true };
+      return { ok: false, tongTest: 0, probes: [], loiThu: `TIMEOUT: lệnh test không kết thúc trong ${timeoutS}s — PR có thể chứa vòng lặp vô hạn/treo I/O`, treo: true };
     }
     if (!existsSync(outFile)) {
       return { ok: false, tongTest: 0, probes: [], loiThu: (kq.stderr || kq.stdout || 'vitest không ra output').slice(0, 2000) };
