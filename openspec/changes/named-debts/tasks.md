@@ -257,14 +257,37 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       Hai đường ra verdict sai mà trông như đúng:
       | # | đường | ai đóng được |
       |---|---|---|
-      | a | `test_cmd` dùng `;` ⇒ runner đỏ, `cp` vẫn chép **XML của lượt trước** vào `{out}` | repo đích, bằng `rm -f` + `&&` trong template |
+      | a | `test_cmd` không dọn trước ⇒ runner hỏng, `cp` chép **XML của lượt trước** vào `{out}` | repo đích, bằng **`rm -f` trong template** |
       | b | runner chết giữa chừng nhưng đã kịp ghi XML **một phần** ⇒ rc≠0 + `{out}` hợp lệ | **CheckMate** — chưa có gì đóng |
 
       ⚠ Ranh giới phải nói rõ, đừng gộp: `{out}` mang mốc thời gian nên **không bao giờ tồn tại sẵn** —
       đó là thuộc tính của CheckMate, và nó chỉ chặn việc đọc nhầm kết quả *lượt chấm trước*. Việc chặn
-      chép nhầm kết quả *lượt maven trước trong cùng workspace* là thuộc tính của **lệnh** repo đích, chỉ
-      đúng chừng nào lệnh còn giữ `&&`. Hai lớp, hai chủ sở hữu — ai sửa `test_cmd` sau này mà bỏ `&&` sẽ
-      mở lại lỗ **dù `{out}` vẫn có mốc thời gian**.
+      chép nhầm kết quả *lượt trước trong cùng workspace* là thuộc tính của **lệnh** repo đích, chỉ đúng
+      chừng nào lệnh còn giữ **`rm -f`**. Hai lớp, hai chủ sở hữu — ai sửa `test_cmd` sau này mà bỏ
+      `rm -f` sẽ mở lại lỗ **dù `{out}` vẫn có mốc thời gian**.
+
+      ⛔⛔ **CẢI CHÍNH 08/09 — bản đầu của mục này khuyên dùng `&&` trước `cp`. Lời khuyên ấy SAI, và sai
+      theo đúng cách mục này cảnh báo.** Làn `oapi-admin-be` bắt được sau khi đọc chính đoạn «rc≠0 là tín
+      hiệu bình thường» ở dưới. Đo lại trên **hai** bộ chạy khác nhau:
+
+      | bộ chạy | ca | mã thoát | XML |
+      |---|---|---|---|
+      | surefire (`admin-be`) | `mvnw test -Dtest=<ca đỏ>` | **1** | **CÓ**, đầy đủ, mô tả failure |
+      | vitest (CheckMate) | `vitest run <ca đỏ> --reporter=junit` | **1** | **CÓ**, 684 byte, `failures="1"` |
+
+      Bộ chạy test **ghi báo cáo XONG rồi mới thoát khác 0** — hành vi chuẩn, không phải chi tiết của
+      maven. Nên `mvn … && cp …` làm `cp` **không chạy** khi có test đỏ ⇒ `{out}` vắng ⇒ CheckMate báo
+      «Runner không xuất JUnit XML». Tức **mọi probe đỏ hợp lệ biến thành lỗi hạ tầng** — và probe đỏ
+      chính là **phát hiện**, thứ duy nhất sản phẩm này sinh ra để tạo. `&&` không vô ích; nó **vô hiệu
+      hoá công cụ**.
+
+      Vì sao sai: thấy «`cp` chạy kể cả khi maven đỏ» rồi kết luận đó là lỗi, **mà không hỏi maven đỏ vì
+      lý do gì**. Hai ca khác hẳn bị gộp làm một — đỏ vì *hạ tầng* (không có XML mới, `rm -f` đã đóng) và
+      đỏ vì *test đỏ* (có XML mới, và đó chính là kết quả cần chép). ⇒ **cả hai dấu là `;`**; `rm -f` là
+      thứ đóng lỗ, `&&` chưa bao giờ là.
+
+      ⚠ Ca này suýt lọt vì **cả hai bên cùng thấy hợp lý** và không ai chạy thử một probe đỏ — cùng khuôn
+      với mọi lỗi khác trong sổ này: một tín hiệu bị đọc thành thứ nó không nói.
 
       ⛔ **KHÔNG được sửa bằng cách fail khi rc≠0**: với bộ chạy test, rc≠0 là tín hiệu BÌNH THƯỜNG của
       «có test đỏ» — đúng thứ CheckMate cần quan sát. Fail ở đó là phân loại nhầm mọi probe đỏ hợp lệ.
@@ -272,6 +295,16 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       mâu thuẫn «rc=1 mà XML báo 0 failure»; **(2)** coi riêng tổ hợp **rc≠0 VÀ XML không có failure nào**
       là *quan sát* đáng ngờ — tổ hợp ấy nghĩa là runner thoát khác 0 vì một lý do XML không giải thích.
       Cả hai đều không chặn oan probe đỏ hợp lệ.
+
+      ⇒ Làn `oapi-admin-be` đề xuất một bảng bốn ô tách được ba ca **mà không cần suy diễn ý nghĩa của rc** —
+      chỉ cần cặp `(rc, {out} có/không)`:
+
+      | rc | `{out}` | kết luận |
+      |---|---|---|
+      | 0 | có | probe xanh |
+      | ≠0 | có | **probe đỏ — bình thường**, không phải sự cố |
+      | ≠0 | không | runner hỏng trước khi test chạy |
+      | 0 | không | ⚠ đáng ngờ — runner thoát sạch mà không sinh bằng chứng |
 
       Nguồn: làn `oapi-admin-be` 08/09 — *«Nếu đó là chủ ý thì nên ghi ra; nếu không thì đó là lỗ thứ hai
       cùng họ với lỗ `;`.»*
