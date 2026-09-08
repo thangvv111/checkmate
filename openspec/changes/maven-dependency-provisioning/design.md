@@ -256,8 +256,11 @@ tự lo thì khi CheckMate đổi đường mount, **không cổng nào ở repo
 
 ⚠ **Hai con số dưới đây là ẢNH CHỤP ngày 08/09, không phải hằng số — và chúng TĂNG.** Làn `oapi-portal-be`
 báo `OAPI-51` đang bổ thêm ba lớp cổng khởi động đọc `pg_catalog`, nên `19/31` sẽ lớn hơn khi change ấy
-đóng. Làn `oapi-admin-be` báo `OAPI-54` sắp merge một gói `iam/` với **4 lớp test đều cần Docker thật**
-(Testcontainers `postgres:18`) ⇒ `14/26` thành **`18/30`**, còn bề mặt probe thuần **vẫn 12 lớp**.
+đóng. Làn `oapi-admin-be` đã merge `OAPI-54` (`main` = `3f085e9`, xác nhận trên đĩa): gói `iam/` thêm **4 lớp
+test đều cần Docker thật** (Testcontainers `postgres:18`) ⇒ `14/26` thành **`18/30`**, còn bề mặt probe
+thuần **vẫn 12 lớp**. Suite của họ: `Tests run: 213, Failures: 0`. `test_cmd` của họ **chưa đổi** — vẫn
+`./mvnw -o`, đang chờ PO của họ chốt, và đó là trạng thái bình thường: sau `D6` lượt chấm nêu thẳng tên
+cổng đã chặn nên nó tốn thời gian chứ không tốn một chẩn đoán sai.
 Ai đọc mục này sau đó mà lấy nguyên con số là đang trích một phép đo đã hết hạn. Chỗ đúng để biết tỉ
 lệ hiện hành là **chính verdict** — và verdict chưa khai nó, đó là nợ 31.
 
