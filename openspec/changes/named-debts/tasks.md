@@ -289,6 +289,23 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       ⚠ Ca này suýt lọt vì **cả hai bên cùng thấy hợp lý** và không ai chạy thử một probe đỏ — cùng khuôn
       với mọi lỗi khác trong sổ này: một tín hiệu bị đọc thành thứ nó không nói.
 
+      ⚠ **Đính chính thứ hai, cùng ngày — mục này NÓI QUÁ mức nguy hiểm của ca (a).** Làn
+      `oapi-portal-be` chỉ ra: sandbox trải mã bằng **`git archive`** ra thư mục dùng-một-lần, mà
+      `git archive` chỉ xuất file **được theo dõi** — `target/` bị gitignore nên **không tồn tại** lúc
+      bắt đầu. ⇒ Trong sandbox **không có XML cũ để chép nhầm**; con số «31 file còn lại» đo được là trên
+      **workspace sống lâu của máy dev**, không phải trong môi trường CheckMate chạy.
+
+      ⇒ Xếp lại đúng mức, vì hai vế này KHÔNG cùng hạng:
+
+      | vế | mức thật |
+      |---|---|
+      | `rm -f` trong template | **gia cố** — sandbox vốn đã sạch; đáng làm, không gấp |
+      | **`&&` thay vì `;`** | **vô hiệu hoá công cụ** — mọi probe đỏ thành lỗi hạ tầng |
+
+      Bài học riêng của lần đính chính này: mục 30 bản đầu **suy** rằng workspace bẩn mà không hỏi
+      «sandbox dựng bằng gì». Cùng lỗi hình dạng với `&&` — suy từ một mô hình trong đầu thay vì đọc
+      cơ chế đang chạy.
+
       ⛔ **KHÔNG được sửa bằng cách fail khi rc≠0**: với bộ chạy test, rc≠0 là tín hiệu BÌNH THƯỜNG của
       «có test đỏ» — đúng thứ CheckMate cần quan sát. Fail ở đó là phân loại nhầm mọi probe đỏ hợp lệ.
       Hai hướng đáng cân, PO chọn: **(1)** ghi rc vào sổ sự kiện cạnh số ca đã parse, để người đọc thấy
