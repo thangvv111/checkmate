@@ -139,6 +139,21 @@ export function diffIgnorePatterns(review: ReviewCfg | null): RegExp[] {
   return ra;
 }
 
+/**
+ * Dải timeout chạy test — MỘT chỗ cho cả hai đường chạy (runner của repo đích và đường vitest mặc định).
+ *
+ * ⛔ Mặc định RỘNG có chủ đích, PO chốt 07/09: giới hạn nên đến từ **núm của người vận hành CheckMate**,
+ * không từ mặc định áp lên repo đích. Trần 5 phút cũ biến một bộ test bình thường thành finding «PR làm
+ * treo test» — tức engine kết luận sai về pull request vì một hằng của chính nó. Cận dưới giữ nguyên: một
+ * trần quá thấp giết mọi probe rồi báo như thể code có lỗi.
+ */
+export const TIMEOUT_RANGE = { min: 30, max: 3600, default: 3600 } as const;
+
+/** Kẹp `timeout_s` (giây) vào dải. Khuôn `Number(x) || d` giữ nguyên — đây là cửa cũ, không phải khoá mới. */
+export function clampTimeout(raw: unknown): number {
+  return Math.min(TIMEOUT_RANGE.max, Math.max(TIMEOUT_RANGE.min, Number(raw) || TIMEOUT_RANGE.default));
+}
+
 export function readRunnerCfg(repoPath: string): RunnerCfg | null {
   const f = join(repoPath, 'checkmate.yml');
   if (!existsSync(f)) return null;
@@ -160,7 +175,7 @@ export function readRunnerCfg(repoPath: string): RunnerCfg | null {
     probe_dir: r.probe_dir ?? 'test',
     probe_ext: r.probe_ext ?? '.test.txt',
     probe_file: r.probe_file,
-    timeout_s: Math.min(1800, Math.max(30, Number(r.timeout_s) || 300)),
+    timeout_s: clampTimeout(r.timeout_s),
     huong_dan_probe: r.huong_dan_probe,
     image: typeof r.image === 'string' ? r.image : undefined,
   };

@@ -18,7 +18,7 @@ sources:
 # Bước hiện tại CHỈ ĐO — mật độ được tính và ghi lên verdict, KHÔNG đổi PASS/FAIL.
 standards:
   finding_cap: 100 # trần finding một lượt chấm tài liệu · dải 4–1000
-  probe_cap: 20 # trần probe một lượt chấm code · dải 2–100 · hiệu dụng = min(khoá này, núm của người vận hành)
+  probe_cap: 100 # trần probe một lượt chấm code · dải 2–100 · hiệu dụng = min(khoá này, núm của người vận hành)
   density_per_1000_words: 20 # mức mật độ dải ≤1000 từ; dải lớn hơn nhân tỉ lệ theo bảng 20 · 12 · 8
   density_floor_words: 300 # dưới sàn này không đo mật độ · dải 50–2000
 
@@ -27,7 +27,7 @@ runner:
   framework: vitest
   probe_dir: test
   probe_ext: .probe.test.ts
-  timeout_s: 300
+  timeout_s: 3600 # dải 30–3600 · rộng có chủ đích: siết bằng núm người vận hành, không bằng mặc định
   huong_dan_probe: |
     Import thẳng từ mã nguồn, dùng đuôi .js trong đường dẫn (mã viết theo NodeNext):
       import { classifyByMachine } from '../packages/harness/src/skill-code.js';
@@ -45,7 +45,8 @@ runner:
       ../apps/web/src/probe-gate.js        → evaluatePurgeRequest
       ../apps/web/src/login-throttle.js    → clientKey · maskAccountKey · runLoginAttempt · evaluateLoginAttempt · recordFailure · clearAccount · accountPenaltyMs · evictWhenFull · shouldLog · newThrottleState · IP_FAIL_CAP · IP_WINDOW_MS · IP_BLOCK_MS · ACCOUNT_FREE_TRIES · ACCOUNT_BACKOFF_BASE_MS · ACCOUNT_BACKOFF_CAP_MS · THROTTLE_MAX_ENTRIES · LOG_MIN_INTERVAL_MS · FALLBACK_CLIENT_KEY
       ../apps/web/src/response-secret-guard.js → collectSecrets · findSecret · blockMessage · attachSecretGuard · MIN_SECRET_LENGTH
-      ../packages/harness/src/runner.js      → parseJUnit · readRunnerCfg · readReviewCfg · readSourcesCfg · readStandardsCfg · diffIgnorePatterns
+      ../packages/harness/src/runner.js      → parseJUnit · readRunnerCfg · readReviewCfg · readSourcesCfg · readStandardsCfg · diffIgnorePatterns · clampTimeout · TIMEOUT_RANGE
+      ../packages/harness/src/probe-preflight.js → checkDependencies · checkRuntime · readEnginesNode · majorFromRange · majorFromVersion · nodeVersionOfImage · preflightProbeEnvironment · looksLikeEnvironmentFailure · describeEnvironmentFailure
       ../packages/harness/src/volume-standard.js → clampKnob · countDocWords · inBand · bandFor · measureDensity · isKnownSeverity · severityRank · cutBySeverity · defaultStandards · parseOperatorMaxProbe · resolveVolumeStandard · effectiveProbeCap · FINDING_CAP_RANGE · PROBE_CAP_RANGE · DENSITY_RANGE · FLOOR_RANGE · DENSITY_BANDS
       ../packages/shared/src/volume-summary.js → describeKnob · describeVolumeStandard · KNOB_SOURCE_LABEL · VOLUME_UNKNOWN
       ../packages/harness/src/sources.js     → readSources · describeSources · matchPattern · globToRegExp · skipReason · SPEC_CANDIDATES · API_DOC_CANDIDATES · TEST_SAMPLE_CANDIDATES · MAX_SOURCE_BYTES
@@ -61,7 +62,7 @@ runner:
       ../apps/web/src/ui.js                  → escHtml · splitSource · CSS · shell · findingHtml · verdictHtml · artifactCell
       ../apps/web/src/ui-history.js          → filterRuns · historyPage
       ../apps/web/src/provider.js                 → maskKey · projectValue · providerDefinition · PROVIDER_CATALOG · checkStillValid · readKey · writeKey · readProviderCheck · writeProviderCheck · validModel
-      ../apps/web/src/config.js              → maskToken · maskToken2 · slugGithubRepo · findRepo · migrateRepoToken · currentConfig · readConfig · writeConfig · readSubscriptionToken · writeSubscriptionToken · agentEnv · configForReview · ProviderConfigErrorCfg · resolveRepoShape · coRepo · laRepoDaKhai · timRepoDaKhai · clampToRange · PROBE_DEPTH
+      ../apps/web/src/config.js              → maskToken · maskToken2 · slugGithubRepo · findRepo · migrateRepoToken · currentConfig · readConfig · writeConfig · readSubscriptionToken · writeSubscriptionToken · agentEnv · configForReview · ProviderConfigErrorCfg · resolveRepoShape · coRepo · configForRepo · laRepoDaKhai · timRepoDaKhai · clampToRange · PROBE_DEPTH
       ../apps/web/src/secret-vault.js          → readRepoToken · readOwnToken · writeRepoToken · deleteRepoToken · hasToken · repoKey · readVault · writeVault · readWebhookSecret · writeWebhookSecret
       ../apps/web/src/identity.js           → getIdentity · identityIfAny · verifyPassword · createSession · deleteSession · cleanupExpiredSessions · createAccount · changePassword · changeRole · deleteAccount · listAccounts · hasAnyAccount · validName · readCookie · canOperateGate · requireGateRole · canOperate · IdentityError · SESSION_COOKIE_NAME · canRunReview · canEditConfig
       ../apps/web/src/ui-login.js            → loginPage · describeWaitTime

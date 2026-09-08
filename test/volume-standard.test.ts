@@ -13,6 +13,7 @@ import {
   bandFor,
   clampKnob,
   countDocWords,
+  inBand,
   cutBySeverity,
   defaultStandards,
   effectiveProbeCap,
@@ -66,7 +67,7 @@ describe('clampKnob — kẹp dải bằng predicate chặt (T1.1–T1.4)', () =
     expect(clampKnob(100, PROBE_CAP_RANGE)).toEqual({ value: 100, source: 'repo' });
     expect(clampKnob(101, PROBE_CAP_RANGE)).toEqual({ value: 100, source: 'repo', clamped_from: 101 });
     expect(clampKnob(1, PROBE_CAP_RANGE)).toEqual({ value: 2, source: 'repo', clamped_from: 1 });
-    expect(clampKnob(undefined, PROBE_CAP_RANGE)).toEqual({ value: 20, source: 'default' });
+    expect(clampKnob(undefined, PROBE_CAP_RANGE)).toEqual({ value: 100, source: 'default' });
     expect(clampKnob(0, DENSITY_RANGE)).toEqual({ value: 1, source: 'repo', clamped_from: 0 });
     expect(clampKnob(1001, DENSITY_RANGE)).toEqual({ value: 1000, source: 'repo', clamped_from: 1001 });
     expect(clampKnob(49, FLOOR_RANGE)).toEqual({ value: 50, source: 'repo', clamped_from: 49 });
@@ -117,6 +118,22 @@ describe('bậc thang và phép đo mật độ (T1.16–T1.19)', () => {
     expect(bandFor(1001).band).toBe('<=5000');
     expect(bandFor(5000).band).toBe('<=5000');
     expect(bandFor(5001).band).toBe('>5000');
+  });
+
+  it('`inBand` — hàm thuần tách khỏi `bandFor`, và nó KHÔNG đổi hành vi (khai rõ, không phóng đại)', () => {
+    // Biên của từng dải: cận trên nằm TRONG dải.
+    expect(inBand(1000, 1000)).toBe(true);
+    expect(inBand(1001, 1000)).toBe(false);
+    expect(inBand(0, 1000)).toBe(true);
+    // Số không hữu hạn KHÔNG nằm trong dải nào — kể cả dải cuối có cận trên là vô cực.
+    expect(inBand(Number.NaN, Number.POSITIVE_INFINITY)).toBe(false);
+    expect(inBand(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY)).toBe(false);
+    // ⛔ Và đây là vế phải nói thật: với `bandFor`, thêm phép kiểm hữu hạn KHÔNG đổi kết quả nào.
+    // Trước bản tách, `NaN <= x` sai ở mọi dải nên `find` trả undefined và rơi về dải cuối; sau bản tách,
+    // `inBand` trả false ở mọi dải nên cũng rơi về dải cuối. Giá trị của việc tách là **đặt tên cho một
+    // phép kiểm ẩn** và cho lượt chấm code một hàm thuần để dò — không phải sửa một lỗi.
+    expect(bandFor(Number.NaN).band).toBe('>5000');
+    expect(bandFor(Number.POSITIVE_INFINITY).band).toBe('>5000');
   });
 
   const std = defaultStandards();
@@ -273,8 +290,8 @@ describe('effectiveProbeCap — min(repo, operator), khai nguồn cắn (T1.10)'
     const s = defaultStandards();
     expect(effectiveProbeCap({ ...s, probe_cap: { value: 40, source: 'repo' }, operator_max_probe: 6 })).toEqual({ value: 6, repo: { value: 40, source: 'repo' }, operator: 6, bound_by: 'operator' });
     expect(effectiveProbeCap({ ...s, probe_cap: { value: 4, source: 'repo' }, operator_max_probe: 12 })).toEqual({ value: 4, repo: { value: 4, source: 'repo' }, operator: 12, bound_by: 'repo' });
-    expect(effectiveProbeCap({ ...s, operator_max_probe: 6 })).toEqual({ value: 6, repo: { value: 20, source: 'default' }, operator: 6, bound_by: 'operator' });
-    expect(effectiveProbeCap(s)).toEqual({ value: 20, repo: { value: 20, source: 'default' }, bound_by: 'repo' });
+    expect(effectiveProbeCap({ ...s, operator_max_probe: 6 })).toEqual({ value: 6, repo: { value: 100, source: 'default' }, operator: 6, bound_by: 'operator' });
+    expect(effectiveProbeCap(s)).toEqual({ value: 100, repo: { value: 100, source: 'default' }, bound_by: 'repo' });
   });
   it('parseOperatorMaxProbe: env là số ≥ 1 ⇒ số; vắng/rỗng/rác ⇒ undefined', () => {
     expect(parseOperatorMaxProbe('6')).toBe(6);
@@ -317,6 +334,11 @@ let clone: string;
 let upstream2: string;
 let clone2: string;
 
+// ⛔ Khối dựng này chạy HÀNG CHỤC lệnh git thật (2 upstream + 2 clone, nhiều nhánh và commit) — I/O đĩa,
+// không phải tính toán. Trần mặc định 10 giây của vitest cho hook là một phép cá cược trên máy đang chạy
+// 76 file test song song: đo 08/09, cùng một mã nguồn hỏng «Hook timed out in 10000ms» ở lượt chạy toàn
+// bộ rồi xanh ở lượt chạy riêng file này. Lưới lúc đỏ lúc xanh dạy người ta chạy lại thay vì đọc — và đó
+// đúng là cách một lỗi thật lọt qua. Nới trần KHÔNG làm ca yếu đi: ca vẫn đỏ khi hành vi sai.
 beforeAll(() => {
   goc = mkdtempSync(join(tmpdir(), 'cm-git-'));
   upstream = join(goc, 'upstream');
@@ -349,7 +371,7 @@ beforeAll(() => {
   git(upstream2, ['commit', '-q', '-m', 'pr adds standards']);
   git(upstream2, ['checkout', '-q', 'main']);
   git(clone2, ['fetch', '-q', 'origin', '+refs/heads/main:refs/checkmate/base-pr1', '+refs/heads/pr-them:refs/checkmate/pr1']);
-});
+}, 120_000);
 afterAll(() => {
   rmSync(goc, { recursive: true, force: true });
 });
@@ -385,6 +407,10 @@ describe('resolveVolumeStandard — đọc nhánh gốc qua git, không đọc �
     expect(s.file_state).toBe('absent');
     expect(logs.some((m) => m.includes('git show'))).toBe(true);
   });
+  // ⛔ Ca này dựng HAI repo git thật rồi clone cả hai — I/O đĩa, không phải tính toán. Trần mặc định 5 giây
+  // của vitest là một phép cá cược trên máy đang bận: đo 08/09, cùng một mã nguồn đỏ ở lượt chạy toàn bộ
+  // rồi xanh ở hai lượt chạy lại liền sau. Một lưới lúc đỏ lúc xanh dạy người ta chạy lại thay vì đọc, và
+  // đó là cách một lỗi thật lọt qua. Trần rộng KHÔNG làm ca yếu đi — nó vẫn đỏ khi hành vi sai.
   it('T1.9 yml hỏng ở nhánh gốc ⇒ default_unreadable (phân biệt với chưa khai), giá trị sai kiểu ⇒ invalid_type', () => {
     const u3 = join(goc, 'upstream3');
     repoMoi(u3, 'standards: [1, 2\n');
@@ -406,5 +432,5 @@ describe('resolveVolumeStandard — đọc nhánh gốc qua git, không đọc �
     expect(s4.finding_cap).toEqual({ value: 100, source: 'default', reason: 'invalid_type' });
     expect(s4.probe_cap).toEqual({ value: 100, source: 'repo', clamped_from: 5000 });
     expect(s4.density_floor_words).toEqual({ value: 50, source: 'repo', clamped_from: 10 });
-  });
+  }, 30_000);
 });
