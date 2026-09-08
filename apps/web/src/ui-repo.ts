@@ -62,6 +62,7 @@ export function repoSection(v: RepoSectionView): string {
   <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
     <button type="button" class="phu-nho nut-token-repo" data-repo="${escHtml(r.github)}" ${ro}>${r.token_rieng ? 'Đổi token' : 'Đặt token'}</button>
     ${chon ? '' : `<button type="button" class="phu-nho nut-chon-repo" data-repo="${escHtml(r.github)}" ${ro}>Chọn</button>`}
+    <button type="button" class="phu-nho nut-cai-phu-thuoc" data-repo="${escHtml(r.github)}" ${ro} title="Cài phụ thuộc cho bản clone trong container — cần cho lượt chấm CODE">Cài phụ thuộc</button>
     <button type="button" class="phu-nho nut-go-repo" data-repo="${escHtml(r.github)}" ${ro} style="margin-left:auto;color:var(--fail);border-color:var(--fail-tint)">Gỡ</button>
   </div>
 </div>`;
@@ -207,6 +208,29 @@ export const JS_REPO = String.raw`
   });
   document.querySelectorAll('.nut-chon-repo').forEach(function(b){
     b.addEventListener('click', function(){ goiRepo('/api/repo/chon',{github:b.dataset.repo}, b); });
+  });
+  document.querySelectorAll('.nut-cai-phu-thuoc').forEach(function(b){
+    b.addEventListener('click', function(){
+      var ten=b.dataset.repo;
+      b.disabled=true; oKiem.style.color='var(--muted)';
+      oKiem.textContent='Đang cài phụ thuộc cho '+ten+' trong container (kéo gói từ registry, có thể mất một lúc)…';
+      fetch('/api/repo/cai-phu-thuoc',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({github:ten})})
+        .then(function(r){return r.json();}).then(function(d){
+          // ⛔ KHÔNG chuyển trang: kết quả mang ẢNH đã dùng và THỜI GIAN — thứ người vận hành cần đọc để
+          // biết cây phụ thuộc vừa xây bằng runtime nào. Chuyển trang là nuốt mất nó.
+          b.disabled=false;
+          if(d.ok){
+            oKiem.style.color='var(--pass-ink)';
+            oKiem.innerHTML='✓ Đã cài phụ thuộc cho '+esc(ten)+
+              '<br><span class="mono" style="font-size:11px">ảnh '+esc(String(d.anh||'?'))+' · '+esc(String(d.giay||'?'))+'s · phép kiểm lại: đủ điều kiện</span>';
+          } else {
+            oKiem.style.color='var(--fail-ink)';
+            oKiem.innerHTML='✗ Không cài được cho '+esc(ten)+'<br>'+esc(String(d.ly_do||d.loi||'không rõ lý do'))+
+              (d.con_thieu?'<br><span class="mono" style="font-size:11px">phép kiểm lại vẫn báo: '+esc(String(d.con_thieu))+'</span>':'');
+          }
+        }).catch(function(e){ b.disabled=false; bao(oKiem,false,'Không gọi được: '+e); });
+    });
   });
   document.querySelectorAll('.nut-go-repo').forEach(function(b){
     b.addEventListener('click', function(){
