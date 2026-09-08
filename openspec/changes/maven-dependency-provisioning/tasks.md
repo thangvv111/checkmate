@@ -97,5 +97,7 @@
       Nguy hơn chiều đỏ-oan là chiều ngược: hai ca ấy có thể XANH vì GitHub trả lời, không vì mã đúng.
       Cùng họ với loại 1 trong bảng ba loại lưới sai của `CLAUDE.md`. Sửa là một change riêng.
 - [ ] 7.3 **Nợ 31 vẫn mở và change này KHÔNG đóng nó**: verdict chưa khai rằng lượt chấm không với tới
-      **14/26** (`admin-be`) và **19/31** (`portal-be`) lớp test cần Docker. Một change tên «nuôi Java» rất
+      **14/26** (`admin-be`) và **19/31** (`portal-be`) lớp test cần Docker — ⚠ số ĐO NGÀY 08/09 và đang
+      TĂNG (`OAPI-51` của làn `oapi-portal-be` bổ ba lớp cổng khởi động đọc `pg_catalog`). Một tỉ lệ ghim
+      cứng trong tài liệu là thứ hết hạn trong im lặng; verdict phải TỰ ĐO, không chép lại. Một change tên «nuôi Java» rất
       dễ bị đọc thành «giờ chấm được repo Java»; đúng hơn là **chấm được phần chạy được**.

@@ -254,6 +254,11 @@ tự lo thì khi CheckMate đổi đường mount, **không cổng nào ở repo
 
 ## Cái change này KHÔNG làm
 
+⚠ **Hai con số dưới đây là ẢNH CHỤP ngày 08/09, không phải hằng số — và chúng TĂNG.** Làn `oapi-portal-be`
+báo `OAPI-51` đang bổ thêm ba lớp cổng khởi động đọc `pg_catalog`, nên `19/31` sẽ lớn hơn khi change ấy
+đóng. Ai đọc mục này sau đó mà lấy nguyên con số là đang trích một phép đo đã hết hạn. Chỗ đúng để biết tỉ
+lệ hiện hành là **chính verdict** — và verdict chưa khai nó, đó là nợ 31.
+
 **Không mở bề mặt probe cho phần cần Docker.** `admin-be` **14/26** và `portal-be` **19/31** lớp test cần
 PostgreSQL thật. Sandbox vẫn `--network=none`, không container lồng nhau. Change này làm **12 lớp miền
 thuần** chạy được — và verdict vẫn **chưa khai** rằng nó không với tới phần còn lại (nợ 31).
