@@ -80,3 +80,16 @@ thành sự cố hạ tầng. Cờ bỏ qua kiểm định dạng làm nó chạ
 #### Scenario: repo đích tự khai cờ
 - **WHEN** repo đích khai cờ bỏ qua phép kiểm trong `runner.test_cmd` của mình
 - **THEN** engine chạy đúng lệnh đã khai, không thêm và không bớt
+
+#### Scenario: cổng repo đích chặn probe thì KHÔNG sinh lại probe
+- **WHEN** bản dựng của repo đích thất bại **trước khi test chạy** vì một cổng chất lượng, nên không có
+  báo cáo test nào
+- **THEN** engine xếp đây là lỗi **môi trường/hợp đồng**, nêu tên cổng đã chặn, và MUST NOT sinh lại probe
+  để thử lại
+
+*Vì sao phải khai riêng thành scenario dù requirement đã nói «báo đúng hiện tượng» — đo 08/09, sau khi
+`oapi-portal-be` bổ phép đo còn thiếu: hiện engine xếp ca này vào «probe lỗi thu thập» và **sinh lại probe
+hai lần**. Fail-closed vẫn giữ (lượt chấm ném lỗi, không ra PASS), nhưng nó **kê sai tên bệnh** và tiêu hai
+lời gọi model cho một nguyên nhân mà sinh lại không thể sửa. Ranh giới phân biệt phải hẹp: bản dựng gãy ở
+bước **biên dịch** chính probe là lỗi của probe ⇒ sinh lại ĐÚNG; gãy ở một cổng chạy **trước** khi test
+chạy là lỗi hợp đồng của repo đích ⇒ sinh lại là lãng phí. Rộng tay ở đây sẽ nuốt mất ca sinh-lại-đúng.*

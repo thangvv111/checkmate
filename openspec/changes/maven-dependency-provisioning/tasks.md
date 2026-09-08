@@ -42,6 +42,11 @@
       có kho — Node **không** đổi một cờ nào.
 - [ ] 3.5 `ECOSYSTEMS`: Maven đổi `engineCapPhuThuoc` sang `true`.
 - [ ] 3.6 ⛔ **KHÔNG** thêm cờ tắt cổng chất lượng của repo đích vào bất kỳ lệnh nào.
+- [ ] 3.7 ⛔ **D6 — mở rộng `looksLikeEnvironmentFailure`**, KHÔNG mở cửa phân loại thứ hai ở `sandbox.ts`:
+      bản dựng gãy ở một **cổng chất lượng chạy trước pha test** ⇒ xếp lỗi môi trường/hợp đồng, nêu tên cổng,
+      **không sinh lại probe**. Neo vào **bảng đóng tên plugin**, ⛔ không vào chuỗi `BUILD FAILURE`.
+- [ ] 3.8 Giữ nguyên đường sinh-lại cho ca bản dựng gãy ở **biên dịch chính tệp probe** — đó là lỗi của probe
+      và sinh lại là hành vi ĐÚNG. Rộng tay ở 3.7 sẽ nuốt mất ca này.
 
 ## 4. Web
 
@@ -62,7 +67,7 @@
 - [ ] 6.1 `npx tsc --noEmit && npm test`.
 - [ ] 6.2 Deploy, rồi **bấm cài phụ thuộc cho `admin-be` qua sản phẩm** (không qua shell tay).
 - [ ] 6.3 Chạy lượt chấm code thật trên một PR Java **sau khi đội đích đã sửa `test_cmd`** — chưa sửa thì
-      Spotless vẫn chặn, và đó là hành vi đúng.
+      Spotless vẫn chặn, và **sau 3.7 thì engine phải nêu đúng tên cổng đã chặn, không sinh lại probe**.
 
 ## § Sau-merge — nợ có tên
 

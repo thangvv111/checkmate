@@ -80,11 +80,41 @@ rc khac 0 · XML CO
 *cái gì được bỏ qua khi chấm chính repo ấy*. Bên chấm tự nới cổng của bên bị chấm — không ai khai, không ai
 duyệt — là maker-checker đảo chiều. Đã báo cả hai đội kèm số đo; họ tự sửa `test_cmd`.
 
-## Vế phụ: xác nhận độc lập hợp đồng runner
+## Vế phụ: xác nhận độc lập hợp đồng runner — và một đính chính
 
 Cùng phép đo trên cho **lần thứ ba, trên máy thứ ba**, cùng một kết luận đã có từ `oapi-admin-be` và
 `oapi-portal-be`: **bộ chạy test ghi báo cáo XONG rồi mới thoát khác 0.** Nên `;` đúng và `&&` sai — nay
 đo được trong chính môi trường CheckMate, không chỉ trên máy dev của họ.
+
+⚠ **Đính chính, đo lại trên đĩa 08/09.** Bản trước của mục này kê `portal-be` còn **ba** chỗ phải sửa,
+trong đó có `&&` → `;`. Sai: chỗ ấy đã lên trunk từ trước.
+
+```
+git -C portal-be rev-parse --short origin/main        -> e8be8b6
+git show origin/main:checkmate.yml | grep test_cmd    -> '... .xml; ./mvnw -o -q test ...; cp ...'
+                                                                                     ^ dấu ; ĐÃ có
+git merge-base --is-ancestor 80d8a6c origin/main      -> đúng, 80d8a6c là tổ tiên
+```
+
+⇒ Còn **hai** chỗ: `./mvnw -o` → `mvn` (bỏ luôn `-o`, vì CheckMate cấp cờ ấy qua `MAVEN_ARGS`), và thêm cờ
+bỏ qua kiểm định dạng. Em đọc một SHA cũ và kê thừa một việc cho đội khác — ghi lại vì bảng «còn phải sửa
+gì» gửi sang đội bạn là thứ họ hành động theo, không phải thứ họ đọc cho biết.
+
+Kèm một đính chính quy chiếu của làn `oapi-portal-be`: `OAPI-58-rm-f-bao-cao-cu` (`portal-be#16`, đã đóng)
+là issue của `rm -f`, **không phải** của `&&`; vế `&&` đi qua change `sua-chuoi-lenh-cham`. Hai việc khác
+nhau, đừng gộp khi tra lại sau.
+
+## Rủi ro nhận về khi bỏ trình bao bọc: phiên bản Maven do ẢNH quyết
+
+Làn `oapi-portal-be` khai đúng cái giá của D1, và nó phải nằm ở đây chứ không chỉ trong hộp thư: `AD-24`
+mục 6 của repo họ ghim trình bao bọc với lý do *«không cần `mvn` trên PATH»*. Bỏ nó trong chuỗi chấm là **cố
+ý đi lệch** khỏi luật ấy. Cái giá: từ lúc đó, **phiên bản Maven mà CheckMate chạy do ảnh của CheckMate
+quyết, không do repo đích ghim**. Nay là `3.9.16`, khớp bản wrapper — nhưng ảnh trôi thì **không cổng nào ở
+repo đích đỏ**, vì repo đích không còn tiếng nói ở khâu ấy.
+
+Đó là lý do bản đồ ảnh **ghim digest** chứ không ghim thẻ (T5.1, mutation M4): thẻ `3.9-eclipse-temurin-21`
+trôi lặng lẽ, digest thì không. Ghim digest không xoá được rủi ro — nó chỉ biến một thay đổi vô hình thành
+một dòng diff phải có người duyệt.
 
 ## D5. Hai lượt cùng lúc trên một kho: nạp vào kho TẠM rồi đổi tên đè
 
@@ -101,6 +131,45 @@ bản cũ nguyên vẹn**, còn lượt sau lấy bản mới. Đây đúng nế
 Hai lượt **nạp** cùng lúc cho cùng một repo thì lượt sau đè lượt trước — chấp nhận được, vì cả hai nạp ra
 cùng một nội dung từ cùng một `pom.xml`. Cái không chấp nhận được là **đọc kho nửa vời**, và đổi-tên-đè
 đóng đúng cửa đó.
+
+## D6. Cổng repo đích chặn probe: xếp là lỗi hợp đồng, KHÔNG sinh lại probe
+
+`oapi-portal-be` bổ phép đo còn thiếu, và nó lộ ra một lỗ trong chính nhịp một. Phép đo của họ trước đó
+dùng một test **cố tình đỏ nhưng đúng định dạng** ⇒ Maven chạy tới pha test, ghi XML, rồi thoát khác 0.
+Phép đo mới dùng probe **sai định dạng** ⇒ Spotless gãy ở pha trước test ⇒ **không có XML nào cả**. Cùng
+một triệu chứng, hai bệnh khác nhau, và `;` chỉ chữa được bệnh thứ nhất.
+
+Truy đường trong mã:
+
+```
+sandbox.ts:411   !existsSync(out)  ->  loiThu = "Runner không xuất JUnit XML cho ..."
+skill-code.ts:710  looksLikeEnvironmentFailure(loiThu)  ->  null   <- KHÔNG khớp mẫu nào
+skill-code.ts:721  sinh lại probe (tối đa 2 lần), mỗi lần một lời gọi model
+skill-code.ts:720  lần 2 hỏng  ->  "Probe không thu thập được sau 2 lần sinh: ..."
+```
+
+⛔ Nói chính xác mức độ, không thổi lên: **fail-closed vẫn giữ** — đường này `throw`, không có nhánh nào
+biến nó thành PASS, nên ⛔C2 không bị vi phạm. Cái hỏng là **chẩn đoán** và **chi phí**: engine kê tên bệnh
+là «probe không thu thập được» trong khi bệnh là «cổng chất lượng của repo đích chặn», và nó trả hai lời gọi
+model cho một nguyên nhân mà sinh lại probe không thể sửa. Đây đúng con bệnh nhịp một sinh ra để diệt, sống
+sót trên một bề mặt chưa ai viết ca — cùng khuôn với `response-secret-guard` (16 ca xanh, máy chủ thật không
+chặn gì).
+
+**Ranh giới phân biệt — chỗ dễ làm ẩu nhất của cả change.** Hai ca cùng cho «bản dựng thất bại, không có
+XML», và phải đi hai đường ngược nhau:
+
+| bản dựng gãy ở | ai sai | engine phải làm |
+|---|---|---|
+| biên dịch **chính tệp probe** | probe do model sinh | **sinh lại** — hiện đang đúng, không được đụng |
+| một cổng chạy **trước** pha test (định dạng, kiểm tĩnh) | hợp đồng repo đích | **dừng, nêu tên cổng**, không sinh lại |
+
+Rộng tay ở mẫu nhận dạng sẽ nuốt mất ca sinh-lại-đúng, tức đổi một lỗi chẩn đoán lấy một lỗi tệ hơn: probe
+hỏng thật mà engine bảo «lỗi môi trường» thì người vận hành đi sửa cấu hình cho một thứ không hỏng. Nên mẫu
+phải neo vào **tên plugin gãy** chứ không vào chuỗi `BUILD FAILURE` — và danh sách plugin của cổng chất
+lượng là **bảng đóng, ghi rõ**, không phải regex đoán.
+
+Sửa ở `looksLikeEnvironmentFailure`, không ở `sandbox.ts`: chỗ ấy đã là **một cửa duy nhất** cho mọi phân
+loại lỗi môi trường, và thêm cửa thứ hai là đúng cách sinh ra cửa song sinh — thứ repo này đã bắt được 10 lần.
 
 ## Cái change này KHÔNG làm
 

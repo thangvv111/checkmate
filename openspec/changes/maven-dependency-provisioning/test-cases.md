@@ -37,6 +37,16 @@
 - [ ] T1.9 [Biên]: hệ Maven **chưa có kho** ⇒ trả rỗng — không đặt `-o` khi chưa nạp gì, vì offline
       cộng kho trống cho ra lỗi «artifact absent» tức **sai tên bệnh** (đã đo, mục 0.5 của tasks).
 
+### `looksLikeEnvironmentFailure` (D6 — hai chiều, đây là cặp ca quan trọng nhất sau T1.5)
+- [ ] T1.13 [Scenario]: log mang cổng chất lượng gãy **trước pha test** ⇒ trả lỗi môi trường/hợp đồng,
+      thông điệp **nêu tên cổng**.
+- [ ] T1.14 ⛔ [Chiều ngược — chống rộng tay]: log mang **biên dịch chính tệp probe** hỏng ⇒ trả `null`,
+      tức engine VẪN sinh lại probe. Thiếu ca này thì bản vá D6 đổi một lỗi chẩn đoán lấy một lỗi tệ hơn:
+      probe hỏng thật mà báo «lỗi môi trường» ⇒ người vận hành đi sửa cấu hình cho thứ không hỏng.
+- [ ] T1.15 [Hồi quy]: bốn mẫu sẵn có của nhịp một (`EAI_AGAIN` · `EROFS` · `notsup` · không thấy bộ chạy)
+      vẫn phân loại y như cũ — bảng mới **cộng thêm**, không sửa hàng cũ.
+- [ ] T1.16 [Biên]: `BUILD FAILURE` trơ, không tên plugin nào ⇒ trả `null`. Không đoán.
+
 ### `repoStoreDir`
 - [ ] T1.10 [Scenario]: hai repo khác nhau ⇒ **hai đường kho khác nhau**.
 - [ ] T1.11 [Biên]: cùng một repo gọi hai lần ⇒ **cùng một đường** (kho sống qua nhiều lượt chấm).
@@ -108,6 +118,8 @@
       vòng mutation của nhịp hai.
 - [ ] T6.6 M6 cho `probeEnvForEcosystem` trả `MAVEN_ARGS` cả với hệ Node ⇒ T1.8/T2.8 đỏ.
 - [ ] T6.7 M7 bỏ nhánh «kho rỗng thì không đặt `-o`» ⇒ T1.9 đỏ.
+- [ ] T6.8b M8 nới mẫu D6 thành khớp mọi `BUILD FAILURE` ⇒ **T1.14 và T1.16 đỏ**. Đột biến này kiểm đúng
+      thứ khó nhất: gác không chỉ phải BẮT, nó còn phải **không bắt quá tay**.
       (Ở nhịp hai, M7 tương đương cho **0 ca đỏ** vì gác ấy chưa ai viết lưới — nên ca này viết
       trước đột biến, không phải ngược lại.)
 - [ ] T6.8 Hai vòng cho **kết quả trùng khớp**. Lệch ⇒ có ca flaky hoặc `sed` không vào được đĩa;
