@@ -131,7 +131,16 @@ describe('newAddTimeCanary — quyết định ở cửa thêm repo', () => {
     gate.run(dauVao({ runnerTimeoutS: 60 }), false);
     gate.run(dauVao(), false);
     gate.run(dauVao({ runnerTimeoutS: 0 }), false);
-    expect(thoiHan).toEqual([180, 60, 180, 1]);
+    expect(thoiHan).toEqual([180, 60, 180, 180]);
+  });
+
+  it('T2.30b [F6 · PR #94] runnerTimeoutS rác (NaN · Infinity · âm · chuỗi) ⇒ trần cửa, KHÔNG bao giờ NaN đi xuống', () => {
+    const thoiHan: number[] = [];
+    const d = depsGia((i) => { thoiHan.push(i.timeoutS); return bao('proven'); });
+    const gate = newAddTimeCanary(d);
+    for (const x of [Number.NaN, Number.POSITIVE_INFINITY, -5, '60' as unknown as number, null as unknown as number]) gate.run(dauVao({ runnerTimeoutS: x }), false);
+    expect(thoiHan).toEqual([180, 180, 180, 180, 180]);
+    for (const t of thoiHan) expect(Number.isFinite(t)).toBe(true);
   });
 
   it('T2.31 đầu vào tên file/thư mục đi thẳng tới runCanary — tầng app không tự ghép tên', () => {

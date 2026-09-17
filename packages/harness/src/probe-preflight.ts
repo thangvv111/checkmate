@@ -494,9 +494,14 @@ export function describeCanaryOutcome(
       'lượt khác. Kiểm `runner.test_cmd` trong checkmate.yml của repo đích. Đây KHÔNG phải lỗi của pull request đang chấm.'
     );
   }
-  return (
-    `Bộ chạy test của repo đích báo đạt cho một phép thử cố tình đỏ${oDau} — một bộ chạy như thế sẽ báo xanh cho mọi hồi quy, ` +
-    `nên CheckMate không thể tin bất kỳ kết quả nào từ nó. Kiểm ${duong}: cờ bỏ qua thất bại, bộ đọc kết quả sai file, ` +
-    'hoặc thư viện khẳng định bị vô hiệu. Đây KHÔNG phải lỗi của pull request đang chấm.'
-  );
+  if (kind === 'canary_not_failed') {
+    return (
+      `Bộ chạy test của repo đích báo đạt cho một phép thử cố tình đỏ${oDau} — một bộ chạy như thế sẽ báo xanh cho mọi hồi quy, ` +
+      `nên CheckMate không thể tin bất kỳ kết quả nào từ nó. Kiểm ${duong}: cờ bỏ qua thất bại, bộ đọc kết quả sai file, ` +
+      'hoặc thư viện khẳng định bị vô hiệu. Đây KHÔNG phải lỗi của pull request đang chấm.'
+    );
+  }
+  // Kiểu đã khoá bốn kết cục; nhánh này chỉ chạm tới khi có người gọi ép kiểu. Một kết cục lạ KHÔNG được mượn
+  // lời của kết cục khác (finding F1 của CheckMate trên PR #94, 17/09) — nói thẳng là lạ, vẫn fail-closed.
+  return `Mồi hợp đồng runner cho một kết cục không nhận dạng được (${String(kind)})${oDau} — lượt dừng vì không chứng minh được hợp đồng chạy probe. Đây KHÔNG phải lỗi của pull request đang chấm.`;
 }

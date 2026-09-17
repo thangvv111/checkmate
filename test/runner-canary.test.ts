@@ -230,6 +230,16 @@ describe('describeCanaryOutcome — bệnh + việc phải làm bằng tên núm
     expect(s).toContain(ctx.probePath);
     cam(s);
   });
+  it('T1.24b [F1 · PR #94] kết cục LẠ (ép kiểu) không mượn lời của xanh giả — bốn kết cục cho bốn câu khác nhau từng đôi', () => {
+    const la = describeCanaryOutcome('gi_do_la' as never, ctx);
+    expect(la).toContain('không nhận dạng được');
+    expect(la).toContain('gi_do_la');
+    expect(la).not.toContain('cố tình đỏ');
+    cam(la);
+    const bon = (['probe_not_collected', 'runner_output_missing', 'canary_not_in_output', 'canary_not_failed'] as const).map((k) => describeCanaryOutcome(k, ctx));
+    expect(new Set(bon).size).toBe(4);
+  });
+
   it('T1.25 nhánh: pr ⇒ «nhánh pull request», goc ⇒ «nhánh gốc», vắng ⇒ không nhắc nhánh', () => {
     expect(describeCanaryOutcome('probe_not_collected', { ...ctx, nhanh: 'pr' })).toContain('nhánh pull request');
     expect(describeCanaryOutcome('probe_not_collected', { ...ctx, nhanh: 'goc' })).toContain('nhánh gốc');

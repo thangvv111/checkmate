@@ -83,7 +83,12 @@ export function newAddTimeCanary(deps: AddTimeCanaryDeps): AddTimeCanary {
       }
       dangChay = true;
       try {
-        const timeoutS = Math.max(1, Math.min(input.runnerTimeoutS ?? deps.timeoutCapS, deps.timeoutCapS));
+        // `runnerTimeoutS` đến từ `readRunnerCfg` đã kẹp, nhưng tầng app phải tự đứng: NaN/Infinity/âm/không phải số
+        // ⇒ trần cửa. `Math.min(NaN, x)` là NaN và NaN đi xuống `spawnSync` là KHÔNG có thời hạn (finding F6 của
+        // CheckMate trên PR #94, 17/09).
+        const tho = input.runnerTimeoutS;
+        const hopLe = typeof tho === 'number' && Number.isFinite(tho) && tho > 0 ? tho : deps.timeoutCapS;
+        const timeoutS = Math.max(1, Math.min(hopLe, deps.timeoutCapS));
         const bao = deps.runCanary({ repo: input.repo, sha: input.sha, fileName: input.fileName, probeDir: input.probeDir, timeoutS });
         // Hết giờ đọc TRƯỚC kết cục: ở cửa này nó là «chưa kết luận», không phải bệnh.
         if (bao.timedOut) {
