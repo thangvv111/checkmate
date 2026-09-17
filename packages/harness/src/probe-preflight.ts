@@ -428,3 +428,65 @@ export function describeEnvironmentFailure(kind: PreflightIssueKind | 'moi_truon
   }
   return 'Môi trường chạy probe không dựng được (không ghi được thư mục cần ghi, hoặc không tìm thấy bộ chạy test). Đây KHÔNG phải lỗi của pull request đang chấm.';
 }
+
+// ---- Kết cục của mồi hợp đồng runner (capability `probe-environment`, change `runner-contract-selftest`) ----
+
+/** Bối cảnh để thông điệp trỏ ĐÚNG NÚM và đúng chỗ — người vận hành sửa `checkmate.yml`, không sửa probe. */
+export interface CanaryOutcomeContext {
+  /** Đường file probe engine đã ghi, tương đối trong sandbox (`src/checker_probe.test.tsx`). */
+  probePath: string;
+  probeDir: string;
+  probeExt: string;
+  /** Repo có khai `runner.test_cmd` hay đi đường vitest mặc định. */
+  hasTestCmd: boolean;
+  /** Nhánh nơi kết cục xảy ra — chỉ đường thật đặt; mồi để trống. */
+  nhanh?: 'pr' | 'goc';
+}
+
+/**
+ * Câu cho người vận hành theo kết cục mồi — bảng ĐÓNG kết cục → câu, cùng nếp `describeEnvironmentFailure`.
+ *
+ * Luật (`probe-environment › Thông điệp môi trường…`): nêu BỆNH và VIỆC PHẢI LÀM bằng **tên núm** của
+ * `checkmate.yml`, vì chỗ sửa nằm phía repo đích và đó là những cái tên duy nhất họ gõ được. MUST NOT nói
+ * «probe viết sai» hay «pull request có lỗi» — đo 17/09, câu «Probe không thu thập được sau 2 lần sinh» đã
+ * điều hướng người đọc đi sửa probe trong khi bệnh là `include` của vitest ở repo đích.
+ *
+ * Đầu ra bộ chạy (stdout/stderr) KHÔNG nối ở đây: nó là dữ liệu của repo đích (⛔C3), bên gọi che rồi nối.
+ */
+export function describeCanaryOutcome(
+  kind: 'probe_not_collected' | 'runner_output_missing' | 'canary_not_in_output' | 'canary_not_failed',
+  ctx: CanaryOutcomeContext,
+): string {
+  const oDau = ctx.nhanh === 'pr' ? ' (ở nhánh pull request)' : ctx.nhanh === 'goc' ? ' (ở nhánh gốc)' : '';
+  const duong = ctx.hasTestCmd ? '`runner.test_cmd` của checkmate.yml' : 'đường vitest mặc định (repo không khai `runner.test_cmd`)';
+  if (kind === 'probe_not_collected') {
+    return (
+      `Bộ chạy test của repo đích không nhặt file probe${oDau}: engine ghi probe vào \`${ctx.probePath}\` ` +
+      `(\`runner.probe_dir\` = \`${ctx.probeDir}\`, \`runner.probe_ext\` = \`${ctx.probeExt}\`), nhưng phạm vi thu thập ` +
+      'của bộ chạy repo đích không phủ đường ấy — 0 test được ghi nhận và không có lỗi nạp file nào. ' +
+      'Sửa ở checkmate.yml của repo đích: khai `runner.probe_dir` và `runner.probe_ext` trỏ vào chỗ bộ chạy của họ ' +
+      'thu thập (ví dụ `include` của vitest, `testMatch` của jest, `testpaths` của pytest, `<includes>` của surefire). ' +
+      'Đây KHÔNG phải lỗi của pull request đang chấm.'
+    );
+  }
+  if (kind === 'runner_output_missing') {
+    return (
+      `Bộ chạy test của repo đích không để lại file kết quả${oDau} khi chạy ${duong}. ` +
+      'Thường là template nuốt thất bại (`&&` trước bước ghi kết quả, glob không khớp, hoặc bộ chạy chết trước khi ghi). ' +
+      'Kiểm `runner.test_cmd` với hai chỗ thay `{files}` và `{out}`: lệnh phải ghi file `{out}` ngay cả khi test đỏ. ' +
+      'Đây KHÔNG phải lỗi của pull request đang chấm.'
+    );
+  }
+  if (kind === 'canary_not_in_output') {
+    return (
+      `Đầu ra của bộ chạy${oDau} có test nhưng không chứa phép thử engine vừa ghi vào \`${ctx.probePath}\`. ` +
+      'Có thể `runner.test_cmd` bỏ qua `{files}` và chạy toàn bộ bộ test của repo, hoặc `{out}` trỏ vào một file cũ của ' +
+      'lượt khác. Kiểm `runner.test_cmd` trong checkmate.yml của repo đích. Đây KHÔNG phải lỗi của pull request đang chấm.'
+    );
+  }
+  return (
+    `Bộ chạy test của repo đích báo đạt cho một phép thử cố tình đỏ${oDau} — một bộ chạy như thế sẽ báo xanh cho mọi hồi quy, ` +
+    `nên CheckMate không thể tin bất kỳ kết quả nào từ nó. Kiểm ${duong}: cờ bỏ qua thất bại, bộ đọc kết quả sai file, ` +
+    'hoặc thư viện khẳng định bị vô hiệu. Đây KHÔNG phải lỗi của pull request đang chấm.'
+  );
+}
