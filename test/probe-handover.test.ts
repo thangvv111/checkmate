@@ -341,7 +341,8 @@ describe('⛔ cửa đột biến dùng ĐÚNG tên file probe đã khai (T7)', 
     const dongTen = SKILL.split(/\r?\n/).filter((l) => /^\s*fileName:/.test(l));
     expect(dongTen.length, 'số người gọi runProbeFile đổi thì lưới này phải được đọc lại').toBe(3);
     expect(SKILL).toContain('const fileProbeMoi = probeFileNameFor(runner);');
-    expect(SKILL.split(/\r?\n/).filter((l) => /runner\.probe_file/.test(l)), 'chỉ probeFileNameFor được đọc runner.probe_file').toHaveLength(0);
+    const docProbeFile = SKILL.split(/\r?\n/).filter((l) => /runner\.probe_file/.test(l) && !/^\s*(\/\/|\*)/.test(l));
+    expect(docProbeFile, 'chỉ probeFileNameFor (runner-canary.ts) được đọc runner.probe_file — skill-code không đọc thẳng').toHaveLength(0);
     for (const d of dongTen) expect(d, `chỗ gọi runProbeFile không dùng tên đã khai: ${d.trim()}`).toContain('fileProbeMoi');
     expect(SKILL.split(/\r?\n/).filter((l) => /\.ghiProbe\(/.test(l)), 'skill-code không được tự ghi probe').toHaveLength(0);
   });
