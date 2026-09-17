@@ -10,7 +10,7 @@ import { redactMessage } from '../../shared/src/message-egress.js';
 import { refHitsNew, ruleCoverage } from './spec-units.js';
 import { classifyInsufficientBasis, hasBasis, hasNoBaseline, missingRegressionFindings, regressionFloor } from './verdict.js';
 import { DEFAULT_IMAGE, type IsolationInfo, type ProbeResult, type RunFailureReason, type VitestResult } from './sandbox.js';
-import { CANARY_BLOCKING, classifyCanaryOutcome, runCanary, runProbeFile } from './runner-canary.js';
+import { CANARY_BLOCKING, classifyCanaryOutcome, probeDirFor, probeFileNameFor, runCanary, runProbeFile } from './runner-canary.js';
 import { splitOneProbe } from './probe-split.js';
 import { rankProbe, mutationGate, buildProposal, type HandoverProposal } from './probe-handover.js';
 import { getCodeExamples, knowledgeByTrigger } from './trigger-examples.js';
@@ -59,7 +59,7 @@ type PhatEvent = (e: RunEvent) => void;
 // `ke_hoach = trần` ở 14/14 lượt — trần nói cho model biết là một đơn đặt hàng, không phải một giới hạn.
 // (Lịch sử: trần 20 + mặc định 10 do PO chốt 31/08 sau chuỗi 11 vòng của PR #12 — 6 probe/lượt chỉ khoét
 // quanh diff mới nhất, 4 lỗi có từ commit đầu bị bắt muộn 3–8 vòng.)
-const FILE_PROBE_MOI = 'checker.probe.test.ts';
+// Tên file probe mặc định sống ở `runner-canary.ts` (`DEFAULT_PROBE_FILE`) — một chỗ cho bốn người gọi.
 
 // ---------- Phân loại MÁY (spec §11-A): model không được tự giác luật này ----------
 
@@ -559,7 +559,7 @@ export async function runCodeSkill(
   const runner = readRunnerCfg(repo);
   const rao = makeFence();
   if (review) phat({ type: 'log', msg: `Tri thức nghiệp vụ per-repo từ checkmate.yml: ${review.khuon_loi?.length ?? 0} khuôn lỗi${review.severity_map ? ' + thang severity riêng' : ''}` });
-  const fileProbeMoi = runner ? (runner.probe_file ?? `checker_probe${runner.probe_ext}`) : FILE_PROBE_MOI;
+  const fileProbeMoi = probeFileNameFor(runner);
   if (runner) phat({ type: 'log', msg: `Runner cấu hình từ checkmate.yml: ${runner.framework} · lệnh test của repo · hợp đồng JUnit XML` });
 
   // ⛔ KIỂM MÔI TRƯỜNG TRƯỚC KHI TỐN MỘT LỜI GỌI MODEL NÀO. Đo 07/09: repo thiếu phụ thuộc làm lượt chấm
@@ -586,12 +586,12 @@ export async function runCodeSkill(
       runner,
       image: runner?.image,
       fileName: fileProbeMoi,
-      probeDir: runner?.probe_dir ?? 'test',
+      probeDir: probeDirFor(runner),
       parseJUnit,
       matchId: matchProbeId,
       onIsolation: (info) => { coLapThucTe = info; },
     });
-    const ctx = { probePath: bao.probePath, probeDir: runner?.probe_dir ?? 'test', probeExt: runner?.probe_ext ?? '.test.ts', hasTestCmd: Boolean(runner?.test_cmd) };
+    const ctx = { probePath: bao.probePath, probeDir: probeDirFor(runner), probeExt: runner?.probe_ext ?? '.test.ts', hasTestCmd: Boolean(runner?.test_cmd) };
     if (CANARY_BLOCKING.has(bao.outcome)) {
       const loi = describeCanaryOutcome(bao.outcome as Parameters<typeof describeCanaryOutcome>[0], ctx);
       // ⛔C3: stdout/stderr của bộ chạy repo đích là dữ liệu ngoài — che trước khi phát ra bề mặt người.
@@ -665,7 +665,7 @@ export async function runCodeSkill(
         sha,
         code: codeMoi,
         fileName: fileProbeMoi,
-        probeDir: runner?.probe_dir ?? 'test',
+        probeDir: probeDirFor(runner),
         runner,
         image: runner?.image,
         parseJUnit,
@@ -768,7 +768,7 @@ export async function runCodeSkill(
       // model không có cách nào đổi (`include` của vitest ở repo đích). Bệnh này probe không gây ra và không
       // sửa được; sinh lại là tốn một lời gọi rồi hỏng y hệt.
       if (reason === 'not_collected') {
-        const ctx = { probePath: `${runner?.probe_dir ?? 'test'}/${fileProbeMoi}`, probeDir: runner?.probe_dir ?? 'test', probeExt: runner?.probe_ext ?? '.test.ts', hasTestCmd: Boolean(runner?.test_cmd), nhanh };
+        const ctx = { probePath: `${probeDirFor(runner)}/${fileProbeMoi}`, probeDir: probeDirFor(runner), probeExt: runner?.probe_ext ?? '.test.ts', hasTestCmd: Boolean(runner?.test_cmd), nhanh };
         const loi = describeCanaryOutcome('probe_not_collected', ctx);
         // ⛔C3: đầu ra bộ chạy là dữ liệu của repo đích — che trước khi phát; KHÔNG đưa vào prompt (không có lượt sinh lại).
         const dauRa = runnerOutput ? redactMessage([runnerOutput.stderr, runnerOutput.stdout].filter(Boolean).join('\n').slice(0, 600), humanSurfaceSource(t)) : '';
@@ -1121,7 +1121,7 @@ export async function runCodeSkill(
               sha: t.baseSha,
               code: daDao,
               fileName: fileProbeMoi,
-              probeDir: runner?.probe_dir ?? 'test',
+              probeDir: probeDirFor(runner),
               runner,
               image: runner?.image,
               parseJUnit,

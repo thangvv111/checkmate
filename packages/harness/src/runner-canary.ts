@@ -15,6 +15,29 @@ import type { RunnerCfg } from './runner.js';
  */
 
 // ---------------------------------------------------------------------------------------------------
+// Tên file và thư mục probe — MỘT chỗ quyết cho đường chấm, cửa đột biến, mồi, và cửa thêm repo
+// ---------------------------------------------------------------------------------------------------
+
+/** Tên file probe của đường vitest mặc định (repo không khai runner). */
+export const DEFAULT_PROBE_FILE = 'checker.probe.test.ts';
+/** Thư mục probe mặc định. */
+export const DEFAULT_PROBE_DIR = 'test';
+
+/**
+ * Tên file probe theo hợp đồng repo đích: `runner.probe_file` (Java cần trùng tên lớp) → `checker_probe` +
+ * `runner.probe_ext` → mặc định của đường vitest. Cửa song sinh thứ mười của repo (08/09) là hai chỗ cùng
+ * quyết tên này; nay cửa thêm repo là người gọi thứ tư, nên quy tắc sống ở đây.
+ */
+export function probeFileNameFor(runner: Pick<RunnerCfg, 'probe_file' | 'probe_ext'> | null | undefined): string {
+  return runner ? (runner.probe_file ?? `checker_probe${runner.probe_ext}`) : DEFAULT_PROBE_FILE;
+}
+
+/** Thư mục probe theo hợp đồng repo đích, hoặc mặc định. */
+export function probeDirFor(runner: Pick<RunnerCfg, 'probe_dir'> | null | undefined): string {
+  return runner?.probe_dir ?? DEFAULT_PROBE_DIR;
+}
+
+// ---------------------------------------------------------------------------------------------------
 // runProbeFile — một đường cho ba người gọi
 // ---------------------------------------------------------------------------------------------------
 

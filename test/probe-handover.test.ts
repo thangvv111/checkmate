@@ -335,11 +335,13 @@ describe('⛔ cửa đột biến dùng ĐÚNG tên file probe đã khai (T7)', 
 
   it('T7.4 mã nguồn HIỆN TẠI sạch — và MỘT chỗ duy nhất quyết tên file probe', () => {
     expect(scanMutationProbeName(SKILL)).toEqual([]);
-    // Cửa song sinh đóng: chỉ `fileProbeMoi` đọc `runner.probe_file`, và mọi người gọi `runProbeFile` trong
-    // skill-code truyền nó làm `fileName`. Hai người gọi hôm nay: đường thật · cửa đột biến. Mồi ở đường chấm
-    // (change `runner-contract-selftest`) cũng phải dùng đúng tên này — thêm người gọi thì đọc lại số dưới.
+    // Cửa song sinh đóng: `fileProbeMoi = probeFileNameFor(runner)` là chỗ duy nhất đọc `runner.probe_file`,
+    // và mọi người gọi `runProbeFile`/`runCanary` trong skill-code truyền nó làm `fileName`. Ba người gọi từ
+    // 17/09: mồi (đường chấm) · đường thật · cửa đột biến. Thêm người gọi thì đọc lại số dưới.
     const dongTen = SKILL.split(/\r?\n/).filter((l) => /^\s*fileName:/.test(l));
-    expect(dongTen.length, 'số người gọi runProbeFile đổi thì lưới này phải được đọc lại').toBe(2);
+    expect(dongTen.length, 'số người gọi runProbeFile đổi thì lưới này phải được đọc lại').toBe(3);
+    expect(SKILL).toContain('const fileProbeMoi = probeFileNameFor(runner);');
+    expect(SKILL.split(/\r?\n/).filter((l) => /runner\.probe_file/.test(l)), 'chỉ probeFileNameFor được đọc runner.probe_file').toHaveLength(0);
     for (const d of dongTen) expect(d, `chỗ gọi runProbeFile không dùng tên đã khai: ${d.trim()}`).toContain('fileProbeMoi');
     expect(SKILL.split(/\r?\n/).filter((l) => /\.ghiProbe\(/.test(l)), 'skill-code không được tự ghi probe').toHaveLength(0);
   });
