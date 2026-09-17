@@ -180,7 +180,10 @@
       có dòng «probe mới»; thông điệp nêu `test/checker.probe.test.ts` + hai núm. run_id: ____
 - [ ] T7.2 admin-fe **sau khi** đội đích merge `checkmate.yml` (bản soạn 17/09, kiểm ở tasks 0.2): mồi đã chứng minh,
       lượt đi hết; ghi giây của mồi. run_id: ____
-- [ ] T7.3 **đang chạy** — run `wmu4zz1gheits` (webhook, PR #94 @ e1e5574, code mới đã deploy, model Gemini): `Runner cấu hình từ
+- [x] T7.3 ✅ 17/09 03:56–04:12 UTC, verdict **PASS** (0 finding) đã đăng lên PR #94; 20 probe ghi nhận: 3 pass cả hai · 17 nghi_van
+      (probe import module MỚI không có ở main ⇒ nhánh gốc không chạy được ⇒ không đối chứng, đúng luật C1 — engine tự ghi
+      «nhánh gốc đỏ vì tính năng chưa có»); 4 lời gọi model, cô lập `container`/podman 3.4.4. Mồi không đổi gì ở stage 4–5.
+      Chi tiết mồi: run `wmu4zz1gheits` (webhook, PR #94 @ e1e5574, code mới đã deploy, model Gemini): `Runner cấu hình từ
       checkmate.yml` t=527ms → `Mồi hợp đồng runner: đã chứng minh — 2.5s` t=3050ms → stage 3. Mồi trong container prod **2,5 giây**
       (≤ 10 giây ✓). Verdict: ____ (lượt là commit mới nên không có lượt trước cùng commit để so; ghi verdict và số probe).
       ~~`checkmate` tự chấm một PR code: mồi đã chứng minh, thêm ≤ 10 giây, verdict không đổi so với lượt trước

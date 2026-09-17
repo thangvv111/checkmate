@@ -129,7 +129,8 @@
 
 - [x] 7.1 `npx tsc --noEmit && npm test` — toàn bộ.
 - [x] 7.2 Deploy theo `DEPLOY.md`, đối chiếu số liệu.
-- [ ] 7.3 Chạy thật (⛔ KHÔNG tick trước khi chạy — ô ở `test-cases.md § 7`): (a) admin-fe **chưa** có `checkmate.yml`
+- [ ] 7.3 Chạy thật — **(a) ✅ T7.1 · (c) ✅ T7.3 đã chạy 17/09; (b) T7.2 và (d) T7.5 còn chờ** (đội admin-fe merge
+      `checkmate.yml`; PO bấm cửa thêm repo vì cần đăng nhập). (⛔ KHÔNG tick trước khi chạy — ô ở `test-cases.md § 7`): (a) admin-fe **chưa** có `checkmate.yml`
       ⇒ mồi chặn `probe_not_collected` **trước** stage 3, log ghi 0 lời gọi model; (b) admin-fe **sau khi** đội đích
       merge `checkmate.yml` (bản đã soạn và kiểm 17/09) ⇒ mồi đã chứng minh, lượt đi hết; (c) `checkmate` tự chấm ⇒
       mồi đã chứng minh, thêm ≤ 10 giây, verdict không đổi; (d) **cửa thêm repo**: gỡ admin-fe khỏi danh sách rồi
