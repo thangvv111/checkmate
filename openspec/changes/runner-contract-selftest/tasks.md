@@ -32,7 +32,7 @@
 
 ## 2. Kiểu & hợp đồng
 
-- [ ] 2.1 `sandbox.ts › VitestResult` thêm `reason?: 'output_missing' | 'not_collected'` và
+- [x] 2.1 `sandbox.ts › VitestResult` thêm `reason?: 'output_missing' | 'not_collected'` và
       `runnerOutput?: { stdout: string; stderr: string }` (mỗi chuỗi ≤ 1800 ký tự). KHÔNG đụng `treo`, `loiNap`.
 - [ ] 2.2 `runner-canary.ts` export kiểu `CanaryOutcome` (union bảy nhãn của D5) — tên tiếng Anh, khai ở bảng module.
 - [ ] 2.3 ⛔C5 — khai vào bảng module của `checkmate.yml`: hàng mới `runner-canary.js → runProbeFile · runCanary ·
@@ -45,11 +45,11 @@
 
 ## 3. Engine (packages/harness)
 
-- [ ] 3.1 `sandbox.ts` — bốn điểm trả về «0 test không treo» gắn `reason` và `runnerOutput`:
+- [x] 3.1 `sandbox.ts` — bốn điểm trả về «0 test không treo» gắn `reason` và `runnerOutput`:
       388 · 450 → `output_missing`; 417 (khi `numTotalTests === 0` và `loiNap` rỗng) · 468 (khi `tong === 0` và
       `loiNap` rỗng) → `not_collected`. Khi có `loiNap` thì KHÔNG gắn `not_collected` (thứ tự D5 hàng 3 trước 4).
       Chuỗi `loiThu` giữ nguyên cho 13 người đọc cũ.
-- [ ] 3.2 `skill-code.ts` — hoist closure `chay` (~614–626) thành `runProbeFile({ repo, sha, code, fileName, probeDir,
+- [x] 3.2 `skill-code.ts` — hoist closure `chay` (~614–626) thành `runProbeFile({ repo, sha, code, fileName, probeDir,
       runner, image, parseJUnit })` đặt ở `runner-canary.ts`; đường thật và cửa đột biến (~1050) gọi nó.
       **Commit riêng, hành vi y nguyên** — lưới cửa đột biến hiện có là hồi quy.
 - [ ] 3.3 `runner-canary.ts` — `canaryLanguage(probeExt)` bảng đóng `ts · tsx · js · mjs · py · java`;
@@ -93,7 +93,7 @@
 - [ ] 5.1 `test/runner-canary.test.ts` — bảy hàng D5, mỗi hàng: một ca XANH đúng hàng + một **mutation** (đảo thứ
       tự hàng 3↔4 · gỡ kiểm `status !== 'failed'` · gỡ `matchProbeId`) chạy **hai lần**, kết quả nhất quán, và
       **kiểm mutation đã áp** (`git diff --stat` khác 0) trước khi đọc kết quả.
-- [ ] 5.2 `test/sandbox-run-result.test.ts` — bốn điểm trả về: fixture JSON `numTotalTests: 0` + stdout giả ⇒
+- [x] 5.2 `test/sandbox-run-result.test.ts` — bốn điểm trả về: fixture JSON `numTotalTests: 0` + stdout giả ⇒
       `reason: 'not_collected'` và `runnerOutput.stdout` có nội dung; JSON có `testResults[].message` ⇒ `loiNap` có,
       `reason` VẮNG; XML rỗng ⇒ `not_collected`; không file ⇒ `output_missing`. Cặp fixture ĐỎ/XANH cho tầng 3.
 - [ ] 5.3 `test/probe-environment.test.ts` — đường thật: model giả đếm lời gọi; `reason: 'not_collected'` ở nhánh PR

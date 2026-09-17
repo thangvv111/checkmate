@@ -58,27 +58,27 @@
 
 ### `sandbox.ts` — bốn điểm trả về gắn `reason` (đếm ở `design.md › Context`)
 
-- [ ] T2.1 [417 — JSON rỗng]: fixture `vitest-out.json` với `numTotalTests: 0`, `testResults: []`, `chayTrongSandbox`
+- [x] T2.1 [417 — JSON rỗng]: fixture `vitest-out.json` với `numTotalTests: 0`, `testResults: []`, `chayTrongSandbox`
       giả trả stdout `No test files found, exiting with code 1` ⇒ `reason: 'not_collected'`, `runnerOutput.stdout` chứa
       chuỗi ấy, `loiThu` vẫn là chuỗi cũ (13 người đọc không đổi).
-- [ ] T2.2 [417 — JSON có lỗi nạp]: `testResults: [{ message: 'Cannot find module', assertionResults: [] }]` ⇒
+- [x] T2.2 [417 — JSON có lỗi nạp]: `testResults: [{ message: 'Cannot find module', assertionResults: [] }]` ⇒
       `loiNap` có 1 mục, `reason` VẮNG.
-- [ ] T2.3 [388 — vitest không ra file]: `outFile` không tồn tại ⇒ `reason: 'output_missing'`, `runnerOutput` có
+- [x] T2.3 [388 — vitest không ra file]: `outFile` không tồn tại ⇒ `reason: 'output_missing'`, `runnerOutput` có
       stderr.
-- [ ] T2.4 [468 — XML rỗng]: `parseJUnit` trả `[]` cho file tồn tại, `fileLoadError` null ⇒ `reason: 'not_collected'`,
+- [x] T2.4 [468 — XML rỗng]: `parseJUnit` trả `[]` cho file tồn tại, `fileLoadError` null ⇒ `reason: 'not_collected'`,
       `runnerOutput` có stdout.
-- [ ] T2.5 [450 — runner không ra XML]: ⇒ `reason: 'output_missing'`.
-- [ ] T2.6 [Cắt độ dài]: stdout 50 000 ký tự ⇒ `runnerOutput.stdout.length ≤ 1800`.
-- [ ] T2.7 [Đời cũ]: người đọc `VitestResult` không biết `reason` (cửa đột biến hôm nay) vẫn chạy y nguyên — chạy
+- [x] T2.5 [450 — runner không ra XML]: ⇒ `reason: 'output_missing'`.
+- [x] T2.6 [Cắt độ dài]: stdout 50 000 ký tự ⇒ `runnerOutput.stdout.length ≤ 1800`.
+- [x] T2.7 [Đời cũ]: người đọc `VitestResult` không biết `reason` (cửa đột biến hôm nay) vẫn chạy y nguyên — chạy
       `test/*handover*` `*mutation*` hiện có, không sửa.
-- [ ] T2.8 [Mutation — gỡ gắn `reason` ở 417]: T2.1 ĐỎ; ở 468: T2.4 ĐỎ. Mỗi cái hai lần, kiểm diff đã áp.
+- [x] T2.8 [Mutation — gỡ gắn `reason` ở 417]: T2.1 ĐỎ; ở 468: T2.4 ĐỎ. Mỗi cái hai lần, kiểm diff đã áp.
 
 ### `runProbeFile` — một hàm, ba người gọi
 
 - [ ] T2.9 [Happy]: ghi code vào `probeDir/fileName` trong sandbox, chạy, trả `VitestResult`, sandbox đã `huy()` —
       thư mục tạm không còn sau khi hàm trả về, KỂ CẢ khi `chayTrongSandbox` ném.
 - [ ] T2.10 [Đúng đường]: `runner` có `test_cmd` ⇒ spy `chayTheoRunner` được gọi, `chayVitest` không; ngược lại.
-- [ ] T2.11 [Hồi quy hoist]: đường thật và cửa đột biến sau hoist cho CÙNG kết quả với trước hoist trên cùng fixture
+- [x] T2.11 [Hồi quy hoist]: đường thật và cửa đột biến sau hoist cho CÙNG kết quả với trước hoist trên cùng fixture
       (ghi kết quả trước hoist vào fixture ở commit hoist, so ở commit sau).
 - [ ] T2.12 [Song song]: hai `runProbeFile` cùng repo cùng lúc ⇒ hai thư mục sandbox khác nhau, không đụng file.
 
