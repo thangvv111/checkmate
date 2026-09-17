@@ -9,7 +9,8 @@ import { describeSources } from './sources.js';
 import { redactMessage } from '../../shared/src/message-egress.js';
 import { refHitsNew, ruleCoverage } from './spec-units.js';
 import { classifyInsufficientBasis, hasBasis, hasNoBaseline, missingRegressionFindings, regressionFloor } from './verdict.js';
-import { DEFAULT_IMAGE, Sandbox, type IsolationInfo, type LoadFailure, type ProbeResult } from './sandbox.js';
+import { DEFAULT_IMAGE, type IsolationInfo, type LoadFailure, type ProbeResult } from './sandbox.js';
+import { runProbeFile } from './runner-canary.js';
 import { splitOneProbe } from './probe-split.js';
 import { rankProbe, mutationGate, buildProposal, type HandoverProposal } from './probe-handover.js';
 import { getCodeExamples, knowledgeByTrigger } from './trigger-examples.js';
@@ -611,18 +612,22 @@ export async function runCodeSkill(
   phat({ type: 'stage', stage: 4, ten: 'Chạy probe trong sandbox — nhánh PR và nhánh gốc đối chứng + cổng sanity' });
 
   const chayCaHaiNhanh = (codeMoi: string): { branchKq: ProbeResult[]; baseKq: ProbeResult[] | undefined; loiThu?: string; treoBranch?: boolean } => {
+    // MỘT file duy nhất: probe của lượt này. Không còn probe nào từ lượt trước được nạp vào — đó là toàn bộ
+    // khoản chi phí mà change `probe-handover-replaces-library` gỡ đi. Đường «ghi → chạy → đọc» là
+    // `runProbeFile`, dùng chung với cửa đột biến và mồi (`runner-contract-selftest`).
     const chay = (sha: string): { probes: ProbeResult[]; ok: boolean; loiThu: string; treo?: boolean; loiNap?: LoadFailure[] } => {
-      const sb = new Sandbox(repo, sha, runner?.image);
-      coLapThucTe = sb.coLap;
-      try {
-        // MỘT file duy nhất: probe của lượt này. Không còn probe nào từ lượt trước được nạp vào —
-        // đó là toàn bộ khoản chi phí mà change `probe-handover-replaces-library` gỡ đi.
-        const files = [sb.ghiProbe(codeMoi, fileProbeMoi, runner?.probe_dir ?? 'test')];
-        const kq = runner ? sb.chayTheoRunner(files, runner, parseJUnit) : sb.chayVitest(files);
-        return { probes: kq.probes, ok: kq.ok, loiThu: kq.loiThu, treo: kq.treo, loiNap: kq.loiNap };
-      } finally {
-        sb.huy();
-      }
+      const kq = runProbeFile({
+        repo,
+        sha,
+        code: codeMoi,
+        fileName: fileProbeMoi,
+        probeDir: runner?.probe_dir ?? 'test',
+        runner,
+        image: runner?.image,
+        parseJUnit,
+        onIsolation: (info) => { coLapThucTe = info; },
+      });
+      return { probes: kq.probes, ok: kq.ok, loiThu: kq.loiThu, treo: kq.treo, loiNap: kq.loiNap };
     };
 
     for (let vong = 0; ; vong++) {
@@ -1027,35 +1032,39 @@ export async function runCodeSkill(
       // ⛔ Cửa đột biến CHỈ cho hạng 2. Hạng 1 đã có bằng chứng bằng QUAN SÁT — nó đỏ thật, trên nhánh
       // PR, một lần — nên bắt nó chứng minh lại là tốn một lượt sandbox cho điều đã biết.
       if (xh.hang === 2) {
-        const sbM = new Sandbox(repo, t.baseSha, runner?.image);
-        let cong: ReturnType<typeof mutationGate>;
-        try {
-          cong = mutationGate({
-            code: rieng,
-            ext: extProbe,
-            chayVaHoiCoDo: (daDao) => {
-              // ⛔ Bản đột biến dùng CHÍNH tên file của probe, không tự đặt tên riêng.
-              //
-              // Trước 08/09 chỗ này ghi ra `dot_bien_<id><ext>` — tức **cửa song sinh** thứ mười của repo:
-              // hai chỗ cùng quyết «file probe tên gì», một chỗ tôn trọng `runner.probe_file`, chỗ kia
-              // không. Làn `oapi-admin-be` đo và chỉ ra hậu quả trên repo Java, nơi tên file PHẢI trùng
-              // tên class:
-              //   · class `public` ⇒ javac từ chối «should be declared in a file named …» ⇒ không XML;
-              //   · class package-private ⇒ biên dịch được, nhưng `-Dtest=dot_bien_p1` không khớp class
-              //     nào ⇒ surefire chạy 0 test ⇒ vẫn không XML.
-              // Cả hai nhánh về cùng một chỗ: `kq.probes.length === 0` ⇒ hàm này trả `false` ⇒ cửa đột
-              // biến kết luận «probe không cắn» cho MỌI probe Java, và verdict không nói ra điều đó.
-              //
-              // Dùng lại `fileProbeMoi` an toàn vì `sbM` là sandbox RIÊNG — không đụng file probe chính.
-              const fileM = sbM.ghiProbe(daDao, fileProbeMoi, runner?.probe_dir ?? 'test');
-              const kq = runner ? sbM.chayTheoRunner([fileM], runner, parseJUnit) : sbM.chayVitest([fileM]);
-              // ĐỎ = có ít nhất một probe fail. Không chạy được cũng KHÔNG tính là đỏ: nó là «không biết».
-              return kq.probes.length > 0 && kq.probes.some((r) => r.status === 'failed');
-            },
-          });
-        } finally {
-          sbM.huy();
-        }
+        const cong = mutationGate({
+          code: rieng,
+          ext: extProbe,
+          chayVaHoiCoDo: (daDao) => {
+            // ⛔ Bản đột biến dùng CHÍNH tên file của probe, không tự đặt tên riêng.
+            //
+            // Trước 08/09 chỗ này ghi ra `dot_bien_<id><ext>` — tức **cửa song sinh** thứ mười của repo:
+            // hai chỗ cùng quyết «file probe tên gì», một chỗ tôn trọng `runner.probe_file`, chỗ kia
+            // không. Làn `oapi-admin-be` đo và chỉ ra hậu quả trên repo Java, nơi tên file PHẢI trùng
+            // tên class:
+            //   · class `public` ⇒ javac từ chối «should be declared in a file named …» ⇒ không XML;
+            //   · class package-private ⇒ biên dịch được, nhưng `-Dtest=dot_bien_p1` không khớp class
+            //     nào ⇒ surefire chạy 0 test ⇒ vẫn không XML.
+            // Cả hai nhánh về cùng một chỗ: `kq.probes.length === 0` ⇒ hàm này trả `false` ⇒ cửa đột
+            // biến kết luận «probe không cắn» cho MỌI probe Java, và verdict không nói ra điều đó.
+            //
+            // Từ 17/09 chỗ này KHÔNG tự dựng sandbox nữa: `runProbeFile` là đường duy nhất «ghi → chạy →
+            // đọc», dùng chung với đường thật và mồi — cửa song sinh thứ mười không mọc lại được.
+            // Sandbox của lượt đột biến là sandbox RIÊNG, dựng và huỷ trong hàm — không đụng file probe chính.
+            const kq = runProbeFile({
+              repo,
+              sha: t.baseSha,
+              code: daDao,
+              fileName: fileProbeMoi,
+              probeDir: runner?.probe_dir ?? 'test',
+              runner,
+              image: runner?.image,
+              parseJUnit,
+            });
+            // ĐỎ = có ít nhất một probe fail. Không chạy được cũng KHÔNG tính là đỏ: nó là «không biết».
+            return kq.probes.length > 0 && kq.probes.some((r) => r.status === 'failed');
+          },
+        });
         if (!cong.qua) {
           handoverBoQua.push({ probe_id: u.probe.id, ly_do: `trượt cửa đột biến — ${cong.ly_do}` });
           phat({ type: 'log', msg: `Giao: KHÔNG đề xuất ${u.probe.id} — trượt cửa đột biến: ${cong.ly_do}` });
