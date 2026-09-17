@@ -2,14 +2,15 @@ import { createHash } from 'node:crypto';
 import { chuanMuc, normalizeOdcQualifier, normalizeOdcType, type Finding, type OdcQualifier, type OdcType, type RunEvent, type Severity, type VolumeStandard } from '../../shared/src/types.js';
 import type { ModelProvider } from './model.js';
 import { defaultStandards, effectiveProbeCap, type ResolvedStandards } from './volume-standard.js';
-import { describeEnvironmentFailure, looksLikeEnvironmentFailure, nodeVersionOfImage, preflightProbeEnvironment } from './probe-preflight.js';
+import { describeCanaryOutcome, describeEnvironmentFailure, looksLikeEnvironmentFailure, nodeVersionOfImage, preflightProbeEnvironment } from './probe-preflight.js';
 import { callCode, callJson } from './jsonx.js';
 import { humanSurfaceSource, modelSurfaceSource, readTarget, suggestModulePath, type TargetInfo } from './target.js';
 import { describeSources } from './sources.js';
 import { redactMessage } from '../../shared/src/message-egress.js';
 import { refHitsNew, ruleCoverage } from './spec-units.js';
 import { classifyInsufficientBasis, hasBasis, hasNoBaseline, missingRegressionFindings, regressionFloor } from './verdict.js';
-import { DEFAULT_IMAGE, Sandbox, type IsolationInfo, type LoadFailure, type ProbeResult } from './sandbox.js';
+import { DEFAULT_IMAGE, type IsolationInfo, type ProbeResult, type RunFailureReason, type VitestResult } from './sandbox.js';
+import { CANARY_BLOCKING, classifyCanaryOutcome, probeDirFor, probeFileNameFor, runCanary, runProbeFile } from './runner-canary.js';
 import { splitOneProbe } from './probe-split.js';
 import { rankProbe, mutationGate, buildProposal, type HandoverProposal } from './probe-handover.js';
 import { getCodeExamples, knowledgeByTrigger } from './trigger-examples.js';
@@ -58,7 +59,7 @@ type PhatEvent = (e: RunEvent) => void;
 // `ke_hoach = trần` ở 14/14 lượt — trần nói cho model biết là một đơn đặt hàng, không phải một giới hạn.
 // (Lịch sử: trần 20 + mặc định 10 do PO chốt 31/08 sau chuỗi 11 vòng của PR #12 — 6 probe/lượt chỉ khoét
 // quanh diff mới nhất, 4 lỗi có từ commit đầu bị bắt muộn 3–8 vòng.)
-const FILE_PROBE_MOI = 'checker.probe.test.ts';
+// Tên file probe mặc định sống ở `runner-canary.ts` (`DEFAULT_PROBE_FILE`) — một chỗ cho bốn người gọi.
 
 // ---------- Phân loại MÁY (spec §11-A): model không được tự giác luật này ----------
 
@@ -558,7 +559,7 @@ export async function runCodeSkill(
   const runner = readRunnerCfg(repo);
   const rao = makeFence();
   if (review) phat({ type: 'log', msg: `Tri thức nghiệp vụ per-repo từ checkmate.yml: ${review.khuon_loi?.length ?? 0} khuôn lỗi${review.severity_map ? ' + thang severity riêng' : ''}` });
-  const fileProbeMoi = runner ? (runner.probe_file ?? `checker_probe${runner.probe_ext}`) : FILE_PROBE_MOI;
+  const fileProbeMoi = probeFileNameFor(runner);
   if (runner) phat({ type: 'log', msg: `Runner cấu hình từ checkmate.yml: ${runner.framework} · lệnh test của repo · hợp đồng JUnit XML` });
 
   // ⛔ KIỂM MÔI TRƯỜNG TRƯỚC KHI TỐN MỘT LỜI GỌI MODEL NÀO. Đo 07/09: repo thiếu phụ thuộc làm lượt chấm
@@ -570,6 +571,40 @@ export async function runCodeSkill(
     const c = kiemMoiTruong.chan[0]!;
     phat({ type: 'log', msg: `⛔ DỪNG TRƯỚC KHI GỌI MODEL — ${c.thong_diep}` });
     throw new Error(`Môi trường chưa chạy được probe: ${c.thong_diep}${c.cach_sua ? ` Sửa: ${c.cach_sua}` : ''}`);
+  }
+
+  // ⛔ MỒI HỢP ĐỒNG RUNNER — hợp đồng chạy probe phải TỰ CHỨNG MINH trước lời gọi model đầu tiên
+  // (`probe-environment`, change `runner-contract-selftest`). Đo 17/09 trên admin-fe: vitest của repo không
+  // nhặt file probe (`include` không phủ `test/`), engine tiêu 894 giây và 3 lời gọi model rồi báo sai bệnh.
+  // Mồi là một phép thử cố tình đỏ, ghi ĐÚNG tên file và thư mục probe thật sẽ dùng, chạy trên nhánh GỐC
+  // qua ĐÚNG đường probe thật sẽ đi, rồi đòi thấy nó đỏ trong đầu ra. Bốn kết cục chặn → dừng ngay, 0 token.
+  // Bỏ qua (đuôi lạ · mồi không nạp) → log, đi tiếp: bỏ qua không làm gì thành PASS, gác đường thật vẫn gác.
+  {
+    const bao = runCanary({
+      repo,
+      sha: t.baseSha,
+      runner,
+      image: runner?.image,
+      fileName: fileProbeMoi,
+      probeDir: probeDirFor(runner),
+      parseJUnit,
+      matchId: matchProbeId,
+      onIsolation: (info) => { coLapThucTe = info; },
+    });
+    const ctx = { probePath: bao.probePath, probeDir: probeDirFor(runner), probeExt: runner?.probe_ext ?? '.test.ts', hasTestCmd: Boolean(runner?.test_cmd) };
+    if (CANARY_BLOCKING.has(bao.outcome)) {
+      const loi = describeCanaryOutcome(bao.outcome as Parameters<typeof describeCanaryOutcome>[0], ctx);
+      // ⛔C3: stdout/stderr của bộ chạy repo đích là dữ liệu ngoài — che trước khi phát ra bề mặt người.
+      const dauRa = bao.runnerOutput ? redactMessage([bao.runnerOutput.stderr, bao.runnerOutput.stdout].filter(Boolean).join('\n').slice(0, 600), humanSurfaceSource(t)).trim() : '';
+      phat({ type: 'log', msg: `⛔ DỪNG TRƯỚC KHI GỌI MODEL — mồi hợp đồng runner (${bao.seconds}s): ${bao.outcome}` });
+      throw new Error(`Hợp đồng chạy probe của repo đích chưa tự chứng minh được (${bao.outcome}): ${loi}${dauRa ? ` Bộ chạy nói: ${dauRa}` : ''}`);
+    }
+    if (bao.outcome === 'proven') {
+      phat({ type: 'log', msg: `Mồi hợp đồng runner: đã chứng minh — ${bao.seconds}s` });
+    } else {
+      // Bỏ qua LUÔN có log — một mồi bị bỏ qua im lặng là mất độ phủ mà không ai biết.
+      phat({ type: 'log', msg: `Mồi hợp đồng runner: bỏ qua — ${bao.outcome}: ${redactMessage(bao.note ?? 'không rõ', humanSurfaceSource(t)).slice(0, 300)} (probe thật vẫn chạy, kết cục «không thu thập được» ở đường thật vẫn gác)` });
+    }
   }
 
   phat({ type: 'stage', stage: 3, ten: 'Sinh probe đối kháng' });
@@ -610,20 +645,32 @@ export async function runCodeSkill(
 
   phat({ type: 'stage', stage: 4, ten: 'Chạy probe trong sandbox — nhánh PR và nhánh gốc đối chứng + cổng sanity' });
 
-  const chayCaHaiNhanh = (codeMoi: string): { branchKq: ProbeResult[]; baseKq: ProbeResult[] | undefined; loiThu?: string; treoBranch?: boolean } => {
-    const chay = (sha: string): { probes: ProbeResult[]; ok: boolean; loiThu: string; treo?: boolean; loiNap?: LoadFailure[] } => {
-      const sb = new Sandbox(repo, sha, runner?.image);
-      coLapThucTe = sb.coLap;
-      try {
-        // MỘT file duy nhất: probe của lượt này. Không còn probe nào từ lượt trước được nạp vào —
-        // đó là toàn bộ khoản chi phí mà change `probe-handover-replaces-library` gỡ đi.
-        const files = [sb.ghiProbe(codeMoi, fileProbeMoi, runner?.probe_dir ?? 'test')];
-        const kq = runner ? sb.chayTheoRunner(files, runner, parseJUnit) : sb.chayVitest(files);
-        return { probes: kq.probes, ok: kq.ok, loiThu: kq.loiThu, treo: kq.treo, loiNap: kq.loiNap };
-      } finally {
-        sb.huy();
-      }
-    };
+  interface KetQuaHaiNhanh {
+    branchKq: ProbeResult[];
+    baseKq: ProbeResult[] | undefined;
+    loiThu?: string;
+    treoBranch?: boolean;
+    /** Kết cục có KIỂU của nhánh hỏng (`runner-contract-selftest`): bên đọc kiểm nó TRƯỚC chuỗi `loiThu`. */
+    reason?: RunFailureReason;
+    runnerOutput?: { stdout: string; stderr: string };
+    nhanh?: 'pr' | 'goc';
+  }
+  const chayCaHaiNhanh = (codeMoi: string): KetQuaHaiNhanh => {
+    // MỘT file duy nhất: probe của lượt này. Không còn probe nào từ lượt trước được nạp vào — đó là toàn bộ
+    // khoản chi phí mà change `probe-handover-replaces-library` gỡ đi. Đường «ghi → chạy → đọc» là
+    // `runProbeFile`, dùng chung với cửa đột biến và mồi (`runner-contract-selftest`).
+    const chay = (sha: string): VitestResult =>
+      runProbeFile({
+        repo,
+        sha,
+        code: codeMoi,
+        fileName: fileProbeMoi,
+        probeDir: probeDirFor(runner),
+        runner,
+        image: runner?.image,
+        parseJUnit,
+        onIsolation: (info) => { coLapThucTe = info; },
+      });
 
     for (let vong = 0; ; vong++) {
       const br = chay(t.branchSha);
@@ -641,7 +688,17 @@ export async function runCodeSkill(
       // lượt này được viết cho đúng cây mã nguồn đang chấm, nên nó không có thời gian để MỤC. File sinh
       // mới không nạp được vẫn được xử — qua nhãn `khong_chay` của bảng phân loại, không qua cách ly.
 
+      // ⛔ «Không thu thập được» là kết cục có TÊN ở cả hai nhánh (`probe-environment › Lỗi MÔI TRƯỜNG MUST NOT
+      // làm engine sinh lại probe`, scenario «file probe không được thu thập»). Mồi đã chứng minh hợp đồng ở
+      // nhánh gốc không loại trừ pull request đổi phạm vi thu thập chỉ ở nhánh nó. Cùng hàm phân loại với
+      // mồi — một luật, một biểu thức.
+      if (classifyCanaryOutcome(br) === 'probe_not_collected') {
+        return { branchKq: [], baseKq: undefined, loiThu: br.loiThu, reason: 'not_collected', runnerOutput: br.runnerOutput, nhanh: 'pr' };
+      }
       if (!br.ok) return { branchKq: [], baseKq: undefined, loiThu: br.loiThu };
+      if (classifyCanaryOutcome(bs) === 'probe_not_collected') {
+        return { branchKq: [], baseKq: undefined, loiThu: bs.loiThu, reason: 'not_collected', runnerOutput: bs.runnerOutput, nhanh: 'goc' };
+      }
       // C1: nhánh gốc không chạy được (kể cả treo) → KHÔNG có đối chứng — baseKq=undefined, mọi fail thành nghi_van
       if (!bs.ok) {
         phat({ type: 'log', msg: `Cảnh báo: nhánh gốc KHÔNG chạy được probe (${redactMessage(bs.loiThu || 'không rõ', humanSurfaceSource(t)).slice(0, 160)}) — không có đối chứng, mọi probe fail sẽ là nghi_van thay vì hồi quy` });
@@ -674,7 +731,7 @@ export async function runCodeSkill(
   let ungVienTatCa: UngVien[] = [];
   const thongKe = { ke_hoach: keHoach.length, ghi_nhan: 0, pass: 0, hoi_quy: 0, vi_pham_luat_moi: 0, ngoai_pham_vi: 0, nghi_van: 0, cai_thien: 0, bo_qua: 0, that_lac: [] as string[], co_lap: undefined as IsolationInfo | undefined, luat_da_phu: undefined as string[] | undefined, luat_tong: undefined as number | undefined, trigger_distribution: {} as Record<string, number> };
   for (let lan = 1; lan <= 2; lan++) {
-    const { branchKq, baseKq, loiThu, treoBranch } = chayCaHaiNhanh(code);
+    const { branchKq, baseKq, loiThu, treoBranch, reason, runnerOutput, nhanh } = chayCaHaiNhanh(code);
     if (treoBranch) {
       const f = findingTreo();
       phat({ type: 'log', msg: 'C7: nhánh PR làm TREO lệnh test — kết luận thẳng finding high, không sinh lại probe' });
@@ -705,6 +762,19 @@ export async function runCodeSkill(
       };
     }
     if (loiThu !== undefined) {
+      // ⛔ «KHÔNG THU THẬP ĐƯỢC» đi TRƯỚC mọi phép so chuỗi — nó là kết cục có KIỂU từ tầng sandbox
+      // (`runner-contract-selftest`). Đo 17/09 trên admin-fe: chuỗi `loiThu` rơi về «Không thu thập được test
+      // nào», không mang mã lỗi nào nên `looksLikeEnvironmentFailure` bỏ qua, và engine sinh lại một thứ mà
+      // model không có cách nào đổi (`include` của vitest ở repo đích). Bệnh này probe không gây ra và không
+      // sửa được; sinh lại là tốn một lời gọi rồi hỏng y hệt.
+      if (reason === 'not_collected') {
+        const ctx = { probePath: `${probeDirFor(runner)}/${fileProbeMoi}`, probeDir: probeDirFor(runner), probeExt: runner?.probe_ext ?? '.test.ts', hasTestCmd: Boolean(runner?.test_cmd), nhanh };
+        const loi = describeCanaryOutcome('probe_not_collected', ctx);
+        // ⛔C3: đầu ra bộ chạy là dữ liệu của repo đích — che trước khi phát; KHÔNG đưa vào prompt (không có lượt sinh lại).
+        const dauRa = runnerOutput ? redactMessage([runnerOutput.stderr, runnerOutput.stdout].filter(Boolean).join('\n').slice(0, 600), humanSurfaceSource(t)).trim() : '';
+        phat({ type: 'log', msg: `⛔ Bộ chạy KHÔNG NHẶT file probe ở nhánh ${nhanh === 'goc' ? 'gốc' : 'pull request'} — KHÔNG sinh lại probe` });
+        throw new Error(`Bộ chạy test của repo đích không nhặt file probe (probe_not_collected): ${loi}${dauRa ? ` Bộ chạy nói: ${dauRa}` : ''}`);
+      }
       // ⛔ Lỗi MÔI TRƯỜNG không sinh lại: probe không gây ra nó và không sửa được nó. Sinh lại chỉ tốn thêm
       // một lời gọi sinh code rồi hỏng y hệt — đo 07/09, ba lượt liên tiếp cùng một bệnh.
       //
@@ -1027,35 +1097,39 @@ export async function runCodeSkill(
       // ⛔ Cửa đột biến CHỈ cho hạng 2. Hạng 1 đã có bằng chứng bằng QUAN SÁT — nó đỏ thật, trên nhánh
       // PR, một lần — nên bắt nó chứng minh lại là tốn một lượt sandbox cho điều đã biết.
       if (xh.hang === 2) {
-        const sbM = new Sandbox(repo, t.baseSha, runner?.image);
-        let cong: ReturnType<typeof mutationGate>;
-        try {
-          cong = mutationGate({
-            code: rieng,
-            ext: extProbe,
-            chayVaHoiCoDo: (daDao) => {
-              // ⛔ Bản đột biến dùng CHÍNH tên file của probe, không tự đặt tên riêng.
-              //
-              // Trước 08/09 chỗ này ghi ra `dot_bien_<id><ext>` — tức **cửa song sinh** thứ mười của repo:
-              // hai chỗ cùng quyết «file probe tên gì», một chỗ tôn trọng `runner.probe_file`, chỗ kia
-              // không. Làn `oapi-admin-be` đo và chỉ ra hậu quả trên repo Java, nơi tên file PHẢI trùng
-              // tên class:
-              //   · class `public` ⇒ javac từ chối «should be declared in a file named …» ⇒ không XML;
-              //   · class package-private ⇒ biên dịch được, nhưng `-Dtest=dot_bien_p1` không khớp class
-              //     nào ⇒ surefire chạy 0 test ⇒ vẫn không XML.
-              // Cả hai nhánh về cùng một chỗ: `kq.probes.length === 0` ⇒ hàm này trả `false` ⇒ cửa đột
-              // biến kết luận «probe không cắn» cho MỌI probe Java, và verdict không nói ra điều đó.
-              //
-              // Dùng lại `fileProbeMoi` an toàn vì `sbM` là sandbox RIÊNG — không đụng file probe chính.
-              const fileM = sbM.ghiProbe(daDao, fileProbeMoi, runner?.probe_dir ?? 'test');
-              const kq = runner ? sbM.chayTheoRunner([fileM], runner, parseJUnit) : sbM.chayVitest([fileM]);
-              // ĐỎ = có ít nhất một probe fail. Không chạy được cũng KHÔNG tính là đỏ: nó là «không biết».
-              return kq.probes.length > 0 && kq.probes.some((r) => r.status === 'failed');
-            },
-          });
-        } finally {
-          sbM.huy();
-        }
+        const cong = mutationGate({
+          code: rieng,
+          ext: extProbe,
+          chayVaHoiCoDo: (daDao) => {
+            // ⛔ Bản đột biến dùng CHÍNH tên file của probe, không tự đặt tên riêng.
+            //
+            // Trước 08/09 chỗ này ghi ra `dot_bien_<id><ext>` — tức **cửa song sinh** thứ mười của repo:
+            // hai chỗ cùng quyết «file probe tên gì», một chỗ tôn trọng `runner.probe_file`, chỗ kia
+            // không. Làn `oapi-admin-be` đo và chỉ ra hậu quả trên repo Java, nơi tên file PHẢI trùng
+            // tên class:
+            //   · class `public` ⇒ javac từ chối «should be declared in a file named …» ⇒ không XML;
+            //   · class package-private ⇒ biên dịch được, nhưng `-Dtest=dot_bien_p1` không khớp class
+            //     nào ⇒ surefire chạy 0 test ⇒ vẫn không XML.
+            // Cả hai nhánh về cùng một chỗ: `kq.probes.length === 0` ⇒ hàm này trả `false` ⇒ cửa đột
+            // biến kết luận «probe không cắn» cho MỌI probe Java, và verdict không nói ra điều đó.
+            //
+            // Từ 17/09 chỗ này KHÔNG tự dựng sandbox nữa: `runProbeFile` là đường duy nhất «ghi → chạy →
+            // đọc», dùng chung với đường thật và mồi — cửa song sinh thứ mười không mọc lại được.
+            // Sandbox của lượt đột biến là sandbox RIÊNG, dựng và huỷ trong hàm — không đụng file probe chính.
+            const kq = runProbeFile({
+              repo,
+              sha: t.baseSha,
+              code: daDao,
+              fileName: fileProbeMoi,
+              probeDir: probeDirFor(runner),
+              runner,
+              image: runner?.image,
+              parseJUnit,
+            });
+            // ĐỎ = có ít nhất một probe fail. Không chạy được cũng KHÔNG tính là đỏ: nó là «không biết».
+            return kq.probes.length > 0 && kq.probes.some((r) => r.status === 'failed');
+          },
+        });
         if (!cong.qua) {
           handoverBoQua.push({ probe_id: u.probe.id, ly_do: `trượt cửa đột biến — ${cong.ly_do}` });
           phat({ type: 'log', msg: `Giao: KHÔNG đề xuất ${u.probe.id} — trượt cửa đột biến: ${cong.ly_do}` });

@@ -277,7 +277,13 @@ describe('thư viện probe thật sự ĐÃ ĐI RỒI (T4)', () => {
   });
 
   it('T4.4 sandbox ghi ĐÚNG MỘT file probe — đây là khoản chi phí được gỡ', () => {
-    expect(SKILL).toContain('const files = [sb.ghiProbe(codeMoi');
+    // Từ 17/09 đường «ghi → chạy → đọc» sống ở `runProbeFile` (`runner-canary.ts`); đường thật gọi nó với
+    // `code: codeMoi`. Chỗ ghi thật sự chỉ còn MỘT dòng, trong hàm ấy.
+    const RUNNER_CANARY = readFileSync('packages/harness/src/runner-canary.ts', 'utf8');
+    expect(RUNNER_CANARY).toContain('const files = [sb.ghiProbe(input.code');
+    expect(RUNNER_CANARY.split(/\r?\n/).filter((l) => /\.ghiProbe\(/.test(l))).toHaveLength(1);
+    expect(SKILL).toContain('code: codeMoi,');
+    expect(SKILL.split(/\r?\n/).filter((l) => /\.ghiProbe\(/.test(l)), 'skill-code không được tự ghi probe nữa').toHaveLength(0);
   });
 });
 
@@ -296,9 +302,11 @@ export function scanMutationProbeName(nguon: string): string[] {
   const loi: string[] = [];
   const i = nguon.indexOf('chayVaHoiCoDo:');
   if (i < 0) return ['không thấy cửa đột biến — mỏ neo đã đổi, lưới đang mù'];
-  const than = nguon.slice(i, i + 1600);
-  const ghi = than.split(/\r?\n/).find((l) => /\.ghiProbe\(/.test(l));
-  if (ghi === undefined) return ['cửa đột biến không ghi probe nào — mỏ neo đã đổi, lưới đang mù'];
+  const than = nguon.slice(i, i + 1800);
+  // Từ 17/09 cửa đột biến không tự `ghiProbe` nữa — nó gọi `runProbeFile({ fileName: … })`. Tên file là
+  // giá trị của `fileName:`; lưới đọc đúng dòng ấy.
+  const ghi = than.split(/\r?\n/).find((l) => /\bfileName:/.test(l));
+  if (ghi === undefined) return ['cửa đột biến không khai fileName cho runProbeFile — mỏ neo đã đổi, lưới đang mù'];
   if (!ghi.includes('fileProbeMoi')) {
     loi.push(`bản đột biến tự đặt tên file thay vì dùng tên đã khai: ${ghi.trim().slice(0, 90)}`);
   }
@@ -309,14 +317,14 @@ describe('⛔ cửa đột biến dùng ĐÚNG tên file probe đã khai (T7)', 
   const SKILL = readFileSync('packages/harness/src/skill-code.ts', 'utf8');
 
   it('T7.1 ĐỎ: fixture tự đặt tên `dot_bien_…` — bỏ qua `runner.probe_file`', () => {
-    const gia = "chayVaHoiCoDo: (daDao) => {\n  const fileM = sbM.ghiProbe(daDao, `dot_bien_${u.probe.id}${extProbe}`, 'test');\n}";
+    const gia = "chayVaHoiCoDo: (daDao) => {\n  const kq = runProbeFile({ repo, sha, code: daDao, fileName: `dot_bien_${u.probe.id}${extProbe}`, probeDir: 'test' });\n}";
     const ra = scanMutationProbeName(gia);
     expect(ra).toHaveLength(1);
     expect(ra[0]).toContain('tự đặt tên file');
   });
 
   it('T7.2 XANH: fixture dùng `fileProbeMoi`', () => {
-    const gia = "chayVaHoiCoDo: (daDao) => {\n  const fileM = sbM.ghiProbe(daDao, fileProbeMoi, 'test');\n}";
+    const gia = "chayVaHoiCoDo: (daDao) => {\n  const kq = runProbeFile({ repo, sha, code: daDao,\n    fileName: fileProbeMoi,\n    probeDir: 'test' });\n}";
     expect(scanMutationProbeName(gia)).toEqual([]);
   });
 
@@ -327,9 +335,15 @@ describe('⛔ cửa đột biến dùng ĐÚNG tên file probe đã khai (T7)', 
 
   it('T7.4 mã nguồn HIỆN TẠI sạch — và MỘT chỗ duy nhất quyết tên file probe', () => {
     expect(scanMutationProbeName(SKILL)).toEqual([]);
-    // Cửa song sinh đóng: chỉ `fileProbeMoi` đọc `runner.probe_file`, và mọi chỗ ghi probe dùng nó.
-    const dongGhi = SKILL.split(/\r?\n/).filter((l) => /\.ghiProbe\(/.test(l));
-    expect(dongGhi.length, 'số chỗ ghi probe đổi thì lưới này phải được đọc lại').toBe(2);
-    for (const d of dongGhi) expect(d, `chỗ ghi probe không dùng tên đã khai: ${d.trim()}`).toContain('fileProbeMoi');
+    // Cửa song sinh đóng: `fileProbeMoi = probeFileNameFor(runner)` là chỗ duy nhất đọc `runner.probe_file`,
+    // và mọi người gọi `runProbeFile`/`runCanary` trong skill-code truyền nó làm `fileName`. Ba người gọi từ
+    // 17/09: mồi (đường chấm) · đường thật · cửa đột biến. Thêm người gọi thì đọc lại số dưới.
+    const dongTen = SKILL.split(/\r?\n/).filter((l) => /^\s*fileName:/.test(l));
+    expect(dongTen.length, 'số người gọi runProbeFile đổi thì lưới này phải được đọc lại').toBe(3);
+    expect(SKILL).toContain('const fileProbeMoi = probeFileNameFor(runner);');
+    const docProbeFile = SKILL.split(/\r?\n/).filter((l) => /runner\.probe_file/.test(l) && !/^\s*(\/\/|\*)/.test(l));
+    expect(docProbeFile, 'chỉ probeFileNameFor (runner-canary.ts) được đọc runner.probe_file — skill-code không đọc thẳng').toHaveLength(0);
+    for (const d of dongTen) expect(d, `chỗ gọi runProbeFile không dùng tên đã khai: ${d.trim()}`).toContain('fileProbeMoi');
+    expect(SKILL.split(/\r?\n/).filter((l) => /\.ghiProbe\(/.test(l)), 'skill-code không được tự ghi probe').toHaveLength(0);
   });
 });

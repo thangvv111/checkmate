@@ -43,11 +43,15 @@ import { providerSection } from './ui-provider.js';
 import { repoSection } from './ui-repo.js';
 // Tầng `delivery` được value-import tầng `engine` (ma trận ở test/kien-truc-tang.test.ts). Dùng ở cửa
 // thêm repo để nói NGAY rằng bản clone chưa chạy được probe.
-import { preflightProbeEnvironment, nodeVersionOfImage } from '../../../packages/harness/src/probe-preflight.js';
+import { preflightProbeEnvironment, nodeVersionOfImage, describeCanaryOutcome } from '../../../packages/harness/src/probe-preflight.js';
+import { CANARY_BLOCKING, CANARY_TIMEOUT_AT_ADD_S, DEFAULT_PROBE_FILE, probeDirFor, probeFileNameFor, runCanary } from '../../../packages/harness/src/runner-canary.js';
+import { matchProbeId } from '../../../packages/harness/src/skill-code.js';
+import { redactMessage } from '../../../packages/shared/src/message-egress.js';
+import { newAddTimeCanary } from './repo-add-canary.js';
 import { installDependencies } from '../../../packages/harness/src/dependency-install.js';
-import { readRunnerCfg } from '../../../packages/harness/src/runner.js';
+import { readRunnerCfg, parseJUnit } from '../../../packages/harness/src/runner.js';
 import { DEFAULT_IMAGE } from '../../../packages/harness/src/sandbox.js';
-import { cloneRepo, listBranches, listPrs, prState, listReposForToken, closePr, fetchAndRoute, setCommitStatus, checkRepo, getCurrentPr, mergePr, commentPr, splitOwnerRepo, returnToDev } from './github.js';
+import { cloneRepo, listBranches, listPrs, prState, listReposForToken, closePr, fetchAndRoute, setCommitStatus, checkRepo, getCurrentPr, mergePr, commentPr, splitOwnerRepo, returnToDev, localHeadSha } from './github.js';
 import { hasToken, readRepoToken, readOwnToken, writeRepoToken, deleteRepoToken } from './secret-vault.js';
 import { hasGithubAccess, hasGhCli } from './github.js';
 import { renderRuling, renderReceipt, renderAutoVerdict, countBySeverity, reconcileGate, appendGateLedgerEntry, MACHINE_ACTOR_NAME, evaluateMergeLocal, evaluateMergeAgainstPr, evaluateRejectLocal, decideAutomation, decideRerun, type IdentityCheck } from './gate.js';
@@ -719,6 +723,25 @@ app.post('/api/repo/kiem', async (req, res) => {
 });
 
 // Bước 4: clone về thư mục CheckMate quản rồi ghi vào danh sách
+/**
+ * Mồi hợp đồng runner ở cửa thêm repo — MỘT instance cho cả tiến trình (single-flight, D9). Engine được bọc
+ * ở đây để tầng app (`repo-add-canary.ts`) không phải import engine; `runner` và ảnh đọc lại từ clone mỗi lần
+ * gọi, đúng nguồn của đường chấm.
+ */
+const addTimeCanary = newAddTimeCanary({
+  runCanary: ({ repo, sha, fileName, probeDir, timeoutS }) => {
+    const runner = readRunnerCfg(repo);
+    return runCanary({ repo, sha, runner, image: runner?.image, fileName, probeDir, parseJUnit, matchId: matchProbeId, timeoutS });
+  },
+  describeOutcome: (kind, ctx) => describeCanaryOutcome(kind as Parameters<typeof describeCanaryOutcome>[0], ctx),
+  // Bề mặt người, nguồn RỖNG: tầng 3 của bộ che từ chối mọi chuỗi lạ — fail-closed, đúng cho một cửa không có
+  // diff pull request nào để đối chiếu.
+  redact: (text) => redactMessage(text, ''),
+  isBlocking: (outcome) => CANARY_BLOCKING.has(outcome as Parameters<typeof CANARY_BLOCKING.has>[0]),
+  timeoutCapS: CANARY_TIMEOUT_AT_ADD_S,
+  log: (msg) => console.log(msg),
+});
+
 app.post('/api/repo/them', async (req, res) => {
   if (MODE === 'demo') return res.status(403).json({ ok: false, loi: 'Chế độ demo không cho thêm repo.' });
   const b = req.body as { github?: string; base_branch?: string; token?: string };
@@ -748,8 +771,30 @@ app.post('/api/repo/them', async (req, res) => {
     // ⛔ Nói NGAY LÚC THÊM rằng bản clone chưa chạy được probe. Đo 07/09: repo thứ hai vào danh sách sạch
     // sẽ, rồi lượt chấm code đầu tiên đi hết ba lời gọi model mới chết ở sandbox — người vận hành không có
     // cách nào biết trước. Đăng ký KHÔNG bị chặn: repo vào danh sách hợp lệ, chấm tài liệu vẫn chạy được.
-    const kiem = preflightProbeEnvironment({ repo: dich, nodeMoiTruong: () => nodeVersionOfImage(DEFAULT_IMAGE) });
+    //
+    // Cửa môi trường đọc CÙNG `runner` với đường chấm (`skill-code.ts`): ảnh và `test_cmd` từ `checkmate.yml`
+    // của bản clone. Bản trước luôn so với `DEFAULT_IMAGE` — repo khai `runner.image` Node 24 bị cảnh báo lệch
+    // runtime OAN ngay lúc thêm (cửa song sinh, đóng ở `runner-contract-selftest` D9).
+    const runner = readRunnerCfg(dich);
+    const kiem = preflightProbeEnvironment({ repo: dich, nodeMoiTruong: () => nodeVersionOfImage(runner?.image ?? DEFAULT_IMAGE), testCmd: runner?.test_cmd });
     const canhBao = [...kiem.chan, ...kiem.canhBao].map((x) => `${x.thong_diep}${x.cach_sua ? ` — ${x.cach_sua}` : ''}`);
+    // ⛔ MỒI HỢP ĐỒNG RUNNER ở cửa thêm repo (PO chốt 17/09): hợp đồng chạy probe tự chứng minh ngay lúc người
+    // vận hành đang cầm `checkmate.yml` của repo đích trong đầu. Kết cục chặn thành CẢNH BÁO, cùng danh sách
+    // với điều kiện môi trường — đăng ký không phải verdict. Quyết định ở `repo-add-canary.ts` (tầng app).
+    canhBao.push(
+      ...addTimeCanary.run(
+        {
+          repo: dich,
+          sha: localHeadSha(dich),
+          fileName: probeFileNameFor(runner),
+          probeDir: probeDirFor(runner),
+          probeExt: runner?.probe_ext ?? DEFAULT_PROBE_FILE.replace(/^checker\.probe/, ''),
+          hasTestCmd: Boolean(runner?.test_cmd),
+          runnerTimeoutS: runner?.timeout_s,
+        },
+        kiem.chan.length > 0,
+      ),
+    );
     res.json({ ok: true, repo: moi, ...(canhBao.length > 0 ? { canh_bao_moi_truong: canhBao } : {}) });
   } catch (e) {
     // Clone hỏng thì repo KHÔNG vào danh sách — chìa vừa ghi ở trên trở thành chìa của một repo không

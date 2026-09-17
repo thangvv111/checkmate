@@ -88,7 +88,10 @@
       có repo thật, không mở theo tưởng tượng.
 - [ ] 8.4 Điều kiện (a) của `finding-cap-and-density-standard` tasks 7.2 (đọc `stop_reason`) — vẫn mở, kế
       thừa từ nhịp một tasks 8.2.
-- [ ] 8.4 **Nối bản đồ ảnh vào ĐƯỜNG CHẠY PROBE** (tách khỏi 3.5/3.6). Hôm nay bản đồ chỉ dùng lúc CÀI;
+- [ ] 8.4 **Nối bản đồ ảnh vào ĐƯỜNG CHẠY PROBE** — *17/09, run `wmu4w4g0ajy5d` (admin-fe PR #83): cùng lượt chết vì
+      `probe_dir` lệch, engine cũng cảnh báo «repo đòi Node ^24, môi trường chạy probe là Node v22.17.1». Change
+      `runner-contract-selftest` KHÔNG đóng nợ này; nó chỉ làm cửa thêm repo đọc `runner.image` thay vì luôn so với
+      ảnh mặc định (cửa song sinh). Đường tạm cho admin-fe: khai `runner.image` digest Node 24 trong `checkmate.yml`.* (tách khỏi 3.5/3.6). Hôm nay bản đồ chỉ dùng lúc CÀI;
       probe vẫn chạy ảnh mặc định. Hệ quả đo được: cây `node_modules` của `admin-fe` xây bằng Node 24 còn
       probe chạy Node 22 — **chạy được** (158/158) nhưng **không ai khai** khác biệt ấy. Là chuyện **tái
       lập**, không phải chuyện chạy được.
