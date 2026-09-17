@@ -26,6 +26,9 @@ import {
 
 const SANDBOX_SRC = readFileSync('packages/harness/src/sandbox.ts', 'utf8');
 const SKILL_SRC = readFileSync('packages/harness/src/skill-code.ts', 'utf8');
+// Từ 17/09 (`runner-contract-selftest`) đường «dựng sandbox → ghi → chạy → huỷ» sống ở `runProbeFile`, một chỗ cho
+// đường thật · cửa đột biến · mồi. Lưới quét đường ấy đọc file này.
+const CANARY_SRC = readFileSync('packages/harness/src/runner-canary.ts', 'utf8');
 const NL = String.fromCharCode(10);
 
 const spec = (p: Partial<ContainerSpec> = {}): ContainerSpec => ({
@@ -243,7 +246,13 @@ describe('ảnh chạy do repo đích khai (T3)', () => {
     // `readRunnerCfg(repo)` nhận đường dẫn bản clone; Sandbox nhận `runner?.image` từ đó. PR không đổi
     // được môi trường mà chính code của nó sẽ chạy — cùng luật đã áp cho `test_cmd` và `sources.specs`.
     expect(SKILL_SRC).toContain('readRunnerCfg(repo)');
-    expect(SKILL_SRC).toContain('new Sandbox(repo, sha, runner?.image)');
+    // Mọi người gọi trong skill-code truyền `image: runner?.image` (đọc từ đĩa clone) vào runProbeFile/runCanary,
+    // và chỗ dựng sandbox duy nhất nhận đúng tham số ấy.
+    const dongAnh = SKILL_SRC.split(/\r?\n/).filter((l) => /^\s*image: /.test(l));
+    expect(dongAnh.length, 'số người gọi runProbeFile/runCanary trong skill-code đổi thì đọc lại (mồi · đường thật · cửa đột biến)').toBe(3);
+    for (const d of dongAnh) expect(d.trim()).toBe('image: runner?.image,');
+    expect(CANARY_SRC).toContain('new Sandbox(input.repo, input.sha, input.image)');
+    expect(SKILL_SRC).not.toContain('new Sandbox(');
   });
 
   it('T3.3 — ảnh mặc định GHIM theo digest, không thẻ trôi', () => {
@@ -327,8 +336,9 @@ describe('trục nhạy cảm', () => {
 
   it('T5.1 — huỷ môi trường nằm ở nhánh dọn dẹp, chạy cả khi phần việc bên trong NÉM', () => {
     // Một container không huỷ là một tiến trình còn sống mang theo code của pull request.
-    const i = SKILL_SRC.indexOf('const sb = new Sandbox(');
-    const than = SKILL_SRC.slice(i, i + 700);
+    const i = CANARY_SRC.indexOf('const sb = new Sandbox(');
+    expect(i, 'runProbeFile phải là chỗ dựng sandbox').toBeGreaterThan(0);
+    const than = CANARY_SRC.slice(i, i + 700);
     expect(than).toContain('finally');
     expect(than).toContain('sb.huy()');
   });

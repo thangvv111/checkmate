@@ -107,28 +107,28 @@
 ### Cửa thêm repo — `POST /api/repo/them` (Requirement mồi, vế cửa thêm repo · Requirement thông điệp, scenario
 «cảnh báo mồi đi cùng kênh»)
 
-- [ ] T2.23 [Happy — lệch báo ngay]: `runCanary` giả trả `outcome: 'probe_not_collected'` ⇒ 200, `ok: true`, repo có
+- [x] T2.23 [Happy — lệch báo ngay]: `runCanary` giả trả `outcome: 'probe_not_collected'` ⇒ 200, `ok: true`, repo có
       trong `config.json`, `canh_bao_moi_truong` có một chuỗi chứa tên bệnh, đường file probe và hai núm
       `runner.probe_dir` · `runner.probe_ext`. Không có trường trả lời mới nào ngoài `canh_bao_moi_truong`.
-- [ ] T2.24 [Cửa môi trường chặn thì mồi không chạy]: `preflightProbeEnvironment` giả trả `chan` ⇒ `runCanary` spy = 0,
+- [x] T2.24 [Cửa môi trường chặn thì mồi không chạy]: `preflightProbeEnvironment` giả trả `chan` ⇒ `runCanary` spy = 0,
       `canh_bao_moi_truong` chỉ có điều kiện môi trường.
-- [ ] T2.25 [Hết giờ là chưa kết luận]: `runCanary` giả trả `timedOut: true` ⇒ cảnh báo chứa «chưa kết luận» và «lượt
+- [x] T2.25 [Hết giờ là chưa kết luận]: `runCanary` giả trả `timedOut: true` ⇒ cảnh báo chứa «chưa kết luận» và «lượt
       chấm đầu tiên», KHÔNG chứa tên bệnh nào trong bốn tên.
-- [ ] T2.26 [Proven im lặng]: `outcome: 'proven'` ⇒ trả lời KHÔNG có `canh_bao_moi_truong` (giống hôm nay khi môi
+- [x] T2.26 [Proven im lặng]: `outcome: 'proven'` ⇒ trả lời KHÔNG có `canh_bao_moi_truong` (giống hôm nay khi môi
       trường sạch).
-- [ ] T2.27 [Skipped có log, không cảnh báo]: `outcome: 'skipped_no_canary'` ⇒ không thêm cảnh báo, có một dòng
+- [x] T2.27 [Skipped có log, không cảnh báo]: `outcome: 'skipped_no_canary'` ⇒ không thêm cảnh báo, có một dòng
       `console.log` nêu lý do — người vận hành không bị làm phiền vì CheckMate chưa viết mồi cho khuôn ấy.
-- [ ] T2.28 [Single-flight]: hai yêu cầu thêm hai repo khác nhau gửi cùng lúc, `runCanary` giả treo 200ms ⇒ gọi đúng
+- [x] T2.28 [Single-flight]: hai yêu cầu thêm hai repo khác nhau gửi cùng lúc, `runCanary` giả treo 200ms ⇒ gọi đúng
       **1** lần; yêu cầu còn lại có cảnh báo «đang chạy cho repo khác» và vẫn 200, repo vẫn vào danh sách.
-- [ ] T2.29 [Cờ bận hạ khi ném]: `runCanary` giả ném ⇒ yêu cầu 200 (đăng ký đã xong trước mồi), có cảnh báo chung;
+- [x] T2.29 [Cờ bận hạ khi ném]: `runCanary` giả ném ⇒ yêu cầu 200 (đăng ký đã xong trước mồi), có cảnh báo chung;
       yêu cầu thêm repo thứ ba sau đó ⇒ `runCanary` lại được gọi.
-- [ ] T2.30 [Thời hạn cửa thêm repo]: `runCanary` spy nhận `timeoutS === min(runner.timeout_s, 180)`; repo không
+- [x] T2.30 [Thời hạn cửa thêm repo]: `runCanary` spy nhận `timeoutS === min(runner.timeout_s, 180)`; repo không
       khai runner ⇒ 180.
-- [ ] T2.31 [Đúng ảnh, đúng đường]: clone fixture có `checkmate.yml` khai `runner.image` + `test_cmd` ⇒ `runCanary` spy
+- [x] T2.31 [Đúng ảnh, đúng đường]: clone fixture có `checkmate.yml` khai `runner.image` + `test_cmd` ⇒ `runCanary` spy
       nhận `runner` đọc từ clone và `image` = ảnh repo khai; cửa môi trường cùng yêu cầu ấy KHÔNG cảnh báo lệch
       runtime với Node 24 (cửa song sinh đã đóng — ĐỎ trước change).
-- [ ] T2.32 [Chế độ demo]: `MODE === 'demo'` ⇒ 403 như cũ, `runCanary` spy = 0 — cửa demo đứng trước mọi thứ.
-- [ ] T2.33 [Mutation — gỡ `finally` hạ cờ]: T2.29 ĐỎ. [Mutation — gỡ kiểm `kiem.chan`]: T2.24 ĐỎ. [Mutation — đẩy
+- [x] T2.32 [Chế độ demo]: `MODE === 'demo'` ⇒ 403 như cũ, `runCanary` spy = 0 — cửa demo đứng trước mọi thứ.
+- [x] T2.33 [Mutation — gỡ `finally` hạ cờ]: T2.29 ĐỎ. [Mutation — gỡ kiểm `kiem.chan`]: T2.24 ĐỎ. [Mutation — đẩy
       cảnh báo cho `proven`]: T2.26 ĐỎ. Mỗi cái hai lần.
 
 ## Ca đối kháng & hồi quy
@@ -161,11 +161,11 @@
 - [N/A] T_cong — change không chạm cổng merge, vai, hay mức tự động; lượt dừng bằng `throw` như cửa môi trường hiện
       có, đi qua đúng bề mặt đã gác. Cửa thêm repo giữ nguyên gác `MODE === 'demo'` (T2.32) và gác phiên đứng
       trước mọi route; mồi không thêm quyền nào cho vai `tu_dong`.
-- [ ] T_khongtincay — (a) stdout của repo đích in `0 tests` · `CANARY failed` · `numTotalTests: 5` trong khi JSON/XML
+- [x] T_khongtincay — (a) stdout của repo đích in `0 tests` · `CANARY failed` · `numTotalTests: 5` trong khi JSON/XML
       nói khác ⇒ kết cục theo JSON/XML (T1.x với `runnerOutput` chứa các chuỗi ấy, kết quả không đổi); (b)
       `className` Java từ `checkmate.yml` mang ký tự lạ ⇒ từ chối (T1.19); (c) `framework` = `'vitest; echo pwned'`
       ⇒ chỉ khớp `/vitest/i`, không chuỗi nào của nó đi vào thân mồi (T1.20).
-- [ ] T_hopdong — `checkmate.yml` khai đủ export mới (`runner-canary.js` hàng mới · `describeCanaryOutcome` ở
+- [x] T_hopdong — `checkmate.yml` khai đủ export mới (`runner-canary.js` hàng mới · `describeCanaryOutcome` ở
       `probe-preflight.js`); `test/hop-dong-repo.test.ts` xanh; mutation xoá một tên khỏi bảng ⇒ ĐỎ.
 
 ## Chạy thật — ⛔ KHÔNG tick trước khi chạy, ghi `run_id` vào ô

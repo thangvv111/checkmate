@@ -9,7 +9,7 @@
 - [x] 0.3 Đếm bề mặt bằng máy (ghi ở `design.md › Context`): 4 điểm trả về «0 test không treo» trong hai đường chạy
       (`sandbox.ts` 388 · 417 · 450 · 468) · 2 người gọi «ghi + chạy» hôm nay (đường thật ~621 · cửa đột biến
       ~1051) · 13 chỗ đọc chuỗi `loiThu`.
-- [ ] 0.4 Đo thời gian một lượt sandbox mồi trên repo Node (checkmate tự chấm) và ghi số vào 8.1 — số Java để trống
+- [x] 0.4 Đo thời gian một lượt sandbox mồi trên repo Node (checkmate tự chấm) và ghi số vào 8.1 — số Java để trống
       có tên, không điền ước lượng.
 
 ## 1. Luật (capability)
@@ -27,7 +27,7 @@
       `runnerOutput` có nội dung stdout.
 - [x] 1.5 `target-contract` › MODIFIED «`checkmate.yml` là tuỳ chọn…» — vế `probe_dir`/`probe_ext`; khoá bởi ca
       mồi trên fixture repo có `include` không phủ `probe_dir` ⇒ `probe_not_collected` nêu đúng hai tên núm.
-- [ ] 1.6 Chú thích ở `runner.ts` cạnh `probe_dir` · `probe_ext`: hai núm khớp phạm vi thu thập, mặc định là gì, và
+- [x] 1.6 Chú thích ở `runner.ts` cạnh `probe_dir` · `probe_ext`: hai núm khớp phạm vi thu thập, mặc định là gì, và
       engine kiểm bằng mồi chứ không đoán — chỗ sống của luật phía code.
 
 ## 2. Kiểu & hợp đồng
@@ -68,24 +68,24 @@
       hỏng; nhánh `loiThu !== undefined` (~707) kiểm `reason === 'not_collected'` TRƯỚC `looksLikeEnvironmentFailure`
       ⇒ throw có tên bệnh và nhánh, KHÔNG sinh lại. Đường `looksLikeEnvironmentFailure` và sinh lại cho lỗi nạp giữ
       nguyên.
-- [ ] 3.8 Không thêm mẫu chuỗi nào vào `looksLikeEnvironmentFailure` — kiểm bằng `git diff` trước khi mở PR.
+- [x] 3.8 Không thêm mẫu chuỗi nào vào `looksLikeEnvironmentFailure` — kiểm bằng `git diff` trước khi mở PR.
 
 ## 4. Web (apps/web)
 
-- [ ] 4.1 `server.ts › /api/repo/them` (~751): đọc `runner = readRunnerCfg(dich)` MỘT lần; cửa kiểm môi trường nhận
+- [x] 4.1 `server.ts › /api/repo/them` (~751): đọc `runner = readRunnerCfg(dich)` MỘT lần; cửa kiểm môi trường nhận
       `nodeMoiTruong: () => nodeVersionOfImage(runner?.image ?? DEFAULT_IMAGE)` và `testCmd: runner?.test_cmd` —
       cùng nguồn với `skill-code.ts:566–567` (đóng cửa song sinh, D9). Hành vi cũ với repo không có `checkmate.yml`
       y nguyên.
-- [ ] 4.2 Cùng route: nếu `kiem.chan` rỗng và `addTimeCanaryBusy === false` ⇒ đặt cờ, `runCanary({ repo: dich,
+- [x] 4.2 Cùng route: nếu `kiem.chan` rỗng và `addTimeCanaryBusy === false` ⇒ đặt cờ, `runCanary({ repo: dich,
       sha: HEAD của clone (`git rev-parse HEAD` qua hàm có sẵn trong `github.ts`/`target.ts`, không spawn mới),
       runner, image, timeoutS: Math.min(runner?.timeout_s ?? 3600, CANARY_TIMEOUT_AT_ADD_S) })` trong `try/finally`
       hạ cờ; kết cục chặn ⇒ đẩy `describeCanaryOutcome(...)` (đã qua `redactMessage`) vào `canhBao`; `timedOut`
       ⇒ đẩy câu «chưa kết luận» cố định; `proven`/`skipped_*` ⇒ không thêm gì (skipped vẫn `console.log` lý do).
-- [ ] 4.3 Cùng route: `addTimeCanaryBusy === true` ⇒ không dựng sandbox, đẩy cảnh báo «mồi hợp đồng runner đang chạy
+- [x] 4.3 Cùng route: `addTimeCanaryBusy === true` ⇒ không dựng sandbox, đẩy cảnh báo «mồi hợp đồng runner đang chạy
       cho repo khác — lượt chấm đầu tiên sẽ kiểm». Đăng ký vẫn xong (`writeConfig` đã đứng trước).
 - [ ] 4.4 `ui-repo.ts` — KHÔNG sửa; xác nhận bằng mắt (T5.3) rằng cảnh báo mồi hiện trong cùng hộp với cảnh báo
       môi trường và không chuyển trang.
-- [ ] 4.5 Màn run (`ui.ts`) — không có bề mặt mới; xác nhận dòng `error` mang tên bệnh hiện như các lỗi môi trường
+- [x] 4.5 Màn run (`ui.ts`) — không có bề mặt mới; xác nhận dòng `error` mang tên bệnh hiện như các lỗi môi trường
       hiện có. Nếu phải sửa để hiện đủ, ghi ở đây và ở `test-cases.md`.
 
 ## 5. Test
@@ -105,29 +105,29 @@
       Mutation: mồi tự dựng sandbox riêng ⇒ ca đỏ.
 - [x] 5.6 ⛔C3 — stdout chứa chuỗi giả token ⇒ thông điệp lỗi mang bản che, KHÔNG mang nguyên văn; mutation gỡ
       `redactMessage` ở đường này ⇒ đỏ.
-- [ ] 5.7 `test/hop-dong-repo.test.ts` xanh sau 2.3; `test/identifier-language.test.ts` xanh (mọi định danh mới
+- [x] 5.7 `test/hop-dong-repo.test.ts` xanh sau 2.3; `test/identifier-language.test.ts` xanh (mọi định danh mới
       tiếng Anh).
-- [ ] 5.9 `test/repo-add-canary.test.ts` — cửa thêm repo với `runCanary` giả: (a) kết cục chặn ⇒ 200, `ok: true`,
+- [x] 5.9 `test/repo-add-canary.test.ts` — cửa thêm repo với `runCanary` giả: (a) kết cục chặn ⇒ 200, `ok: true`,
       `canh_bao_moi_truong` chứa tên bệnh + hai núm, repo CÓ trong config; (b) `kiem.chan` có ⇒ `runCanary` không
       được gọi (spy = 0); (c) `timedOut` ⇒ cảnh báo «chưa kết luận», không tên bệnh; (d) `proven` ⇒ trả lời KHÔNG có
       `canh_bao_moi_truong`; (e) hai yêu cầu song song ⇒ `runCanary` gọi đúng 1 lần, yêu cầu kia có cảnh báo «đang
       chạy cho repo khác»; (f) `runCanary` ném ⇒ cờ bận được hạ (yêu cầu thứ ba lại chạy mồi), đăng ký vẫn 200.
       Mutation: gỡ `finally` hạ cờ ⇒ (f) ĐỎ; gỡ kiểm `kiem.chan` ⇒ (b) ĐỎ.
-- [ ] 5.10 Cửa song sinh 4.1: repo fixture khai `runner.image` Node 24 ⇒ cửa thêm repo KHÔNG cảnh báo lệch runtime
+- [x] 5.10 Cửa song sinh 4.1: repo fixture khai `runner.image` Node 24 ⇒ cửa thêm repo KHÔNG cảnh báo lệch runtime
       (trước change: cảnh báo oan vì so với `DEFAULT_IMAGE`). Ghi làm ca ĐỎ-trước/XANH-sau.
-- [ ] 5.8 `npx tsc --noEmit` sạch + `npm test` xanh TOÀN BỘ, không riêng file vừa sửa.
+- [x] 5.8 `npx tsc --noEmit` sạch + `npm test` xanh TOÀN BỘ, không riêng file vừa sửa.
 
 ## 6. Hồ sơ change khác
 
-- [ ] 6.1 `named-debts/tasks.md` › nợ **32**: tick `[x]` kèm «✅ thành change `runner-contract-selftest`», và ghi rõ
+- [x] 6.1 `named-debts/tasks.md` › nợ **32**: tick `[x]` kèm «✅ thành change `runner-contract-selftest`», và ghi rõ
       hàng thứ tư (`probe_not_collected`) là thứ nợ gốc chưa có. Nợ **30** KHÔNG tick — ghi một dòng vì sao mồi không
       đóng nó.
-- [ ] 6.2 `dependency-install-in-container/tasks.md` › nợ 8.4 (nối bản đồ ảnh vào đường chạy probe): thêm một dòng
+- [x] 6.2 `dependency-install-in-container/tasks.md` › nợ 8.4 (nối bản đồ ảnh vào đường chạy probe): thêm một dòng
       tham chiếu — admin-fe cảnh báo Node 24 ≠ 22 trên cùng lượt 17/09, change này KHÔNG đóng nó.
 
 ## 7. Trước merge
 
-- [ ] 7.1 `npx tsc --noEmit && npm test` — toàn bộ.
+- [x] 7.1 `npx tsc --noEmit && npm test` — toàn bộ.
 - [ ] 7.2 Deploy theo `DEPLOY.md`, đối chiếu số liệu.
 - [ ] 7.3 Chạy thật (⛔ KHÔNG tick trước khi chạy — ô ở `test-cases.md § 7`): (a) admin-fe **chưa** có `checkmate.yml`
       ⇒ mồi chặn `probe_not_collected` **trước** stage 3, log ghi 0 lời gọi model; (b) admin-fe **sau khi** đội đích
@@ -147,7 +147,7 @@
 ## § Sau-merge — nợ có tên
 
 - [ ] 8.1 **Ghi nhớ kết quả mồi theo (commit nhánh gốc, ảnh chạy).** Bản này chạy mồi MỖI lượt. Số đo để quyết:
-      Node ___ giây (điền từ 0.4) · Java ___ giây (chưa đo — đo ở lượt chấm thật đầu tiên trên `admin-be` sau khi
+      Node **5,0–5,5 giây** (đo 17/09 trên máy dev Windows, không container, `checkmate` tự chấm qua đường runner khai trong `checkmate.yml`, 3 lần: 5.5 · 5.0 · 5.0 — số prod trong container điền ở T7.3) · Java ___ giây (chưa đo — đo ở lượt chấm thật đầu tiên trên `admin-be` sau khi
       đội đích sửa `test_cmd`). Ngưỡng mở: mồi > 10% thời gian lượt. Khi làm: ghi nhớ sống ở engine là thêm một chỗ
       lưu trạng thái — cân với việc để `apps/web` giữ, và phải tôn trọng ⛔C6 (sửa `checkmate.yml` bằng tay ở nhánh
       gốc phải làm mồi chạy lại ở lượt kế tiếp ⇒ khoá theo commit, không theo thời gian).

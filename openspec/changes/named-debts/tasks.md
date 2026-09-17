@@ -249,7 +249,10 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       *Hướng:* đổi phép kiểm sang thứ CHẠM đường thật (ví dụ chạy hẳn một container rỗng, hoặc `podman
       info`), và khi nó hỏng thì nói bằng câu người đọc hiểu chứ không dội log podman ra verdict.
 
-- [ ] 30. ⛔ **CheckMate KHÔNG kiểm tính TƯƠI của bằng chứng nó parse** (lộ ra 08/09 qua hai làn repo đích
+- [ ] 30. ⛔ **CheckMate KHÔNG kiểm tính TƯƠI của bằng chứng nó parse** — *17/09: change `runner-contract-selftest`
+      (nợ 32) KHÔNG đóng nợ này. Mồi chứng minh hợp đồng ra được THẤT BẠI; nó không chứng minh đầu ra là của lượt
+      này ngoài phép «không có testcase của mồi ⇒ `canary_not_in_output`». Một file `{out}` cũ mang đúng testcase
+      mồi đỏ từ lượt trước vẫn qua được mồi — tính tươi là việc riêng.* (lộ ra 08/09 qua hai làn repo đích
       độc lập, `oapi-admin-be` và `oapi-portal-be`, mỗi bên tìm một nửa). `chayTheoRunner` kiểm đúng ba
       thứ: timeout · `{out}` có tồn tại không · parse XML rồi **tin nội dung**. **Mã thoát của runner bị
       bỏ hẳn** — không đọc, không log.
@@ -339,7 +342,14 @@ Không có commit. Mỗi ô tick khi mục đó **RỜI** danh sách theo một 
       đọc «đã kiểm hết» hay «đã kiểm phần chạy được». Cùng họ với ⛔C2: không chứng minh được là sai ≠ đã
       chứng minh là đúng.
 
-- [ ] 32. ⛔ **`test_cmd` của repo đích chưa được TỰ KIỂM — hợp đồng runner hỏng im lặng, và CheckMate là
+- [x] 32. ✅ **THÀNH CHANGE `runner-contract-selftest` (17/09)** — mồi hợp đồng runner: một phép thử cố tình đỏ
+      chạy qua đúng đường probe thật, trước lời gọi model đầu tiên VÀ ở cửa thêm repo (PO chốt). Bảng kết cục
+      của nợ này có ba hàng; ca thật làm nợ được trả là **hàng thứ tư mà nợ gốc chưa có**: đầu ra CÓ, tests = 0,
+      không lỗi nạp ⇒ `probe_not_collected` — bộ chạy không nhặt file probe (`probe_dir` ngoài phạm vi thu thập).
+      Đo 17/09 trên admin-fe PR #83: 894 giây · 3 lời gọi model · 0 thông tin. Hàng «{out} có, failures = 0»
+      tách làm hai tên: `canary_not_in_output` (không testcase nào của mồi) và `canary_not_failed` (mồi có mặt mà
+      xanh — xanh giả). Nợ gốc giữ nguyên bên dưới làm hồ sơ.
+      ~~⛔ **`test_cmd` của repo đích chưa được TỰ KIỂM — hợp đồng runner hỏng im lặng, và CheckMate là
       bên duy nhất đứng đúng chỗ để bắt.** Đề xuất đến từ làn `oapi-portal-be` (08/09) sau khi cả hai bên
       cùng chốt một `test_cmd` sai rồi cùng phát hiện ra:
 

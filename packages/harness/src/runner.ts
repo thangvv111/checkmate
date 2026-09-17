@@ -14,6 +14,18 @@ export { readSourcesCfg } from '../../shared/src/spec-source.js';
 export interface RunnerCfg {
   test_cmd: string; // template, placeholder {files} và {out}
   framework: string; // hướng dẫn model viết probe: pytest | junit | vitest...
+  /**
+   * ⛔ `probe_dir` + `probe_ext` là hai núm để repo đích khớp chỗ engine GHI probe với phạm vi bộ chạy của họ
+   * THU THẬP (`include` của vitest, `testMatch` của jest, `testpaths` của pytest, `<includes>` của surefire).
+   * Mặc định `test` · `.test.txt` khi khai runner; đường vitest mặc định (không runner) ghi `test/checker.probe.test.ts`.
+   *
+   * Engine KHÔNG đọc cấu hình thu thập của repo đích để đoán hai giá trị này — mỗi bộ chạy một cú pháp, đổi
+   * theo phiên bản. Engine KIỂM bằng chạy thật: mồi hợp đồng runner (`runner-canary.ts`) ghi một phép thử cố
+   * tình đỏ vào đúng chỗ ấy trước lời gọi model đầu tiên; bộ chạy không nhặt ⇒ dừng với `probe_not_collected`
+   * và nêu đúng hai tên núm này. Đo 17/09 trên admin-fe: `include` chỉ phủ `src/**` và `kiem/**`, probe nằm ở
+   * `test/` ⇒ 894 giây, 3 lời gọi model, 0 thông tin — trước khi có mồi.
+   * Luật: `target-contract › checkmate.yml là tuỳ chọn…` (vế probe_dir/probe_ext) · `probe-environment › mồi`.
+   */
   probe_dir: string;
   probe_ext: string;
   probe_file?: string; // tên file probe đầy đủ (Java cần trùng tên class, vd CheckerProbeTest.java)
