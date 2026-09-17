@@ -178,7 +178,10 @@
       trên máy chủ. Đối chứng: ba lượt trước cùng PR mất 312 · 894 · 886 giây, 2–3 lời gọi model.
       ~~admin-fe **chưa** có `checkmate.yml`: lượt dừng `probe_not_collected` TRƯỚC stage 3; `events.jsonl` không
       có dòng «probe mới»; thông điệp nêu `test/checker.probe.test.ts` + hai núm. run_id: ____
-- [ ] T7.2 admin-fe **sau khi** đội đích merge `checkmate.yml` (bản soạn 17/09, kiểm ở tasks 0.2): mồi đã chứng minh,
+- [ ] T7.2 **chờ merge admin-fe#86** (hotfix PO chốt 17/09, làn admin-fe-b, nhánh `checkmate-yml-probe-scope`; cổng
+      `link-gate.sh` B8 rc 1 vì `checkmate.yml` chưa được miễn — PO quyết). Sau merge: bấm chấm một PR admin-fe ⇒ mồi
+      đã chứng minh, lượt đi hết; ghi giây của mồi. admin-fe KHÔNG có webhook về CheckMate — phải bấm tay hoặc chọn repo
+      cho chế độ trực. ~~admin-fe **sau khi** đội đích merge `checkmate.yml` (bản soạn 17/09, kiểm ở tasks 0.2): mồi đã chứng minh,
       lượt đi hết; ghi giây của mồi. run_id: ____
 - [x] T7.3 ✅ 17/09 03:56–04:12 UTC, verdict **PASS** (0 finding) đã đăng lên PR #94; 20 probe ghi nhận: 3 pass cả hai · 17 nghi_van
       (probe import module MỚI không có ở main ⇒ nhánh gốc không chạy được ⇒ không đối chứng, đúng luật C1 — engine tự ghi
