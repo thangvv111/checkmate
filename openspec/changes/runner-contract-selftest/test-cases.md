@@ -190,7 +190,13 @@
       change trên cùng commit. run_id: ____
 - [ ] T7.4 Một repo Java (`admin-be` sau khi đội đích sửa `test_cmd`): mồi chạy qua đường runner + JUnit, ghi giây vào
       nợ 8.1 và so với `CANARY_TIMEOUT_AT_ADD_S = 180` (Open Question thứ ba của `design.md`). run_id: ____
-- [ ] T7.5 **Cửa thêm repo trên prod**: gỡ admin-fe khỏi danh sách rồi thêm lại (clone và phụ thuộc còn nguyên) ⇒ hộp
+- [ ] T7.5 **nửa máy ✅ 17/09 04:4x UTC** — chạy đúng dây `server.ts` nối (`newAddTimeCanary` + `runCanary` + `describeCanaryOutcome`
+      + `redactMessage`, `localHeadSha`, `readRunnerCfg` từ clone) trên prod cho admin-fe, bỏ tầng HTTP: cửa môi trường 0 chặn / 1 cảnh
+      báo (Node 24≠22); mồi `probe_not_collected` sau **1,9s** (thời gian cả cửa 1 882 ms); đúng MỘT cảnh báo, câu mới «theo đường
+      vitest mặc định — repo chưa khai khối runner… đủ ba khoá test_cmd (bắt buộc…)»; log máy chủ một dòng. Script: `/tmp/t75-add-time.mts`.
+      **Nửa giao diện còn chờ PO** (cần đăng nhập): gỡ admin-fe khỏi danh sách rồi thêm lại ⇒ hộp thêm repo hiện cảnh báo ấy, không
+      chuyển trang, repo trong danh sách; ghi thời gian phản hồi HTTP.
+      ~~**Cửa thêm repo trên prod**: gỡ admin-fe khỏi danh sách rồi thêm lại (clone và phụ thuộc còn nguyên) ⇒ hộp
       thêm repo hiện cảnh báo `probe_not_collected` + hai núm ngay, không chuyển trang; repo có trong danh sách;
       ghi giây mồi và thời gian phản hồi HTTP. Sau đó thêm lại lần nữa khi đã merge `checkmate.yml` ⇒ không cảnh
       báo. Thời gian phản hồi: ____ s

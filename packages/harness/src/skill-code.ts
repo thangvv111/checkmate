@@ -595,7 +595,7 @@ export async function runCodeSkill(
     if (CANARY_BLOCKING.has(bao.outcome)) {
       const loi = describeCanaryOutcome(bao.outcome as Parameters<typeof describeCanaryOutcome>[0], ctx);
       // ⛔C3: stdout/stderr của bộ chạy repo đích là dữ liệu ngoài — che trước khi phát ra bề mặt người.
-      const dauRa = bao.runnerOutput ? redactMessage([bao.runnerOutput.stderr, bao.runnerOutput.stdout].filter(Boolean).join('\n').slice(0, 600), humanSurfaceSource(t)) : '';
+      const dauRa = bao.runnerOutput ? redactMessage([bao.runnerOutput.stderr, bao.runnerOutput.stdout].filter(Boolean).join('\n').slice(0, 600), humanSurfaceSource(t)).trim() : '';
       phat({ type: 'log', msg: `⛔ DỪNG TRƯỚC KHI GỌI MODEL — mồi hợp đồng runner (${bao.seconds}s): ${bao.outcome}` });
       throw new Error(`Hợp đồng chạy probe của repo đích chưa tự chứng minh được (${bao.outcome}): ${loi}${dauRa ? ` Bộ chạy nói: ${dauRa}` : ''}`);
     }
@@ -771,7 +771,7 @@ export async function runCodeSkill(
         const ctx = { probePath: `${probeDirFor(runner)}/${fileProbeMoi}`, probeDir: probeDirFor(runner), probeExt: runner?.probe_ext ?? '.test.ts', hasTestCmd: Boolean(runner?.test_cmd), nhanh };
         const loi = describeCanaryOutcome('probe_not_collected', ctx);
         // ⛔C3: đầu ra bộ chạy là dữ liệu của repo đích — che trước khi phát; KHÔNG đưa vào prompt (không có lượt sinh lại).
-        const dauRa = runnerOutput ? redactMessage([runnerOutput.stderr, runnerOutput.stdout].filter(Boolean).join('\n').slice(0, 600), humanSurfaceSource(t)) : '';
+        const dauRa = runnerOutput ? redactMessage([runnerOutput.stderr, runnerOutput.stdout].filter(Boolean).join('\n').slice(0, 600), humanSurfaceSource(t)).trim() : '';
         phat({ type: 'log', msg: `⛔ Bộ chạy KHÔNG NHẶT file probe ở nhánh ${nhanh === 'goc' ? 'gốc' : 'pull request'} — KHÔNG sinh lại probe` });
         throw new Error(`Bộ chạy test của repo đích không nhặt file probe (probe_not_collected): ${loi}${dauRa ? ` Bộ chạy nói: ${dauRa}` : ''}`);
       }

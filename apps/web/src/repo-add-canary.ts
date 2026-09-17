@@ -98,7 +98,7 @@ export function newAddTimeCanary(deps: AddTimeCanaryDeps): AddTimeCanary {
         if (deps.isBlocking(bao.outcome)) {
           const loi = deps.describeOutcome(bao.outcome, { probePath: bao.probePath, probeDir: input.probeDir, probeExt: input.probeExt, hasTestCmd: input.hasTestCmd });
           // ⛔C3: đầu ra bộ chạy repo đích qua bộ che trước khi ra JSON trả lời.
-          const dauRa = bao.runnerOutput ? deps.redact([bao.runnerOutput.stderr, bao.runnerOutput.stdout].filter(Boolean).join('\n').slice(0, 600)) : '';
+          const dauRa = bao.runnerOutput ? deps.redact([bao.runnerOutput.stderr, bao.runnerOutput.stdout].filter(Boolean).join('\n').slice(0, 600)).trim() : '';
           deps.log(`Mồi hợp đồng runner (thêm repo): ${bao.outcome} sau ${bao.seconds}s — ${input.repo}`);
           return [`Hợp đồng chạy probe chưa tự chứng minh được (${bao.outcome}): ${loi}${dauRa ? ` Bộ chạy nói: ${dauRa}` : ''}`];
         }
