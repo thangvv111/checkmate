@@ -26,12 +26,41 @@ export interface LoadFailure {
   ly_do: string;
 }
 
+/**
+ * Vì sao 0 test — nói bằng KIỂU, ở đúng tầng biết vì sao (`runner-contract-selftest` D1).
+ *
+ * · `output_missing`: bộ chạy không để lại file kết quả (template nuốt thất bại, glob sai, bộ chạy chết sớm).
+ * · `not_collected`: có file kết quả, nhưng không test nào và không lỗi nạp file nào — bộ chạy KHÔNG NHẶT
+ *   file probe (probe_dir/probe_ext ngoài phạm vi thu thập của repo đích). Đo 17/09 trên admin-fe: vitest
+ *   `include` chỉ phủ `src/**` và `kiem/**`, probe nằm ở `test/`.
+ *
+ * Chỉ gắn khi `ok=false` và KHÔNG quy được về file nào. Có `loiNap` thì đó là lỗi nạp, không phải hai bệnh này —
+ * thứ tự ấy là luật (D5 hàng 3 trước hàng 4): đảo lại thì probe viết sai khuôn bị đổ cho `probe_dir` repo đích.
+ */
+export type RunFailureReason = 'output_missing' | 'not_collected';
+
+/** Trần độ dài mỗi luồng đầu ra bộ chạy giữ lại trong `runnerOutput` — đủ để đọc lý do, không đủ để thành bãi rác. */
+export const RUNNER_OUTPUT_CAP = 1800;
+
+/** Cắt stdout/stderr của một lần chạy về trần. Vắng kết quả (chưa chạy lệnh nào) ⇒ hai chuỗi rỗng, không ném. */
+export function capRunnerOutput(kq: { stdout?: unknown; stderr?: unknown } | undefined): { stdout: string; stderr: string } {
+  const cat = (x: unknown): string => (typeof x === 'string' ? x : x == null ? '' : String(x)).slice(0, RUNNER_OUTPUT_CAP);
+  return { stdout: cat(kq?.stdout), stderr: cat(kq?.stderr) };
+}
+
 export interface VitestResult {
   ok: boolean;
   tongTest: number;
   probes: ProbeResult[];
   loiThu: string; // lỗi thu thập/biên dịch nếu có
   treo?: boolean; // C7: lệnh test vượt timeout (PR có thể chứa vòng lặp vô hạn)
+  /** Vì sao 0 test, bằng kiểu. Vắng khi `ok=true`, khi treo, hoặc khi đã quy được về `loiNap`. */
+  reason?: RunFailureReason;
+  /**
+   * Đầu ra của bộ chạy, CHỈ giữ khi `reason` có — lúc ấy lời văn của bộ chạy là thứ duy nhất nói vì sao.
+   * ⛔C3: đây là dữ liệu của repo đích; mọi bề mặt người phải đưa qua `redactMessage` trước khi phát.
+   */
+  runnerOutput?: { stdout: string; stderr: string };
   /**
    * File không nạp được, quy về TỪNG file. Rỗng KHÔNG có nghĩa là mọi file đều nạp được — nó cũng có
    * nghĩa là **không quy được về file nào** (bộ chạy chết trước khi ghi kết quả). Hai ca ấy khác nhau, và
@@ -385,7 +414,7 @@ export class Sandbox {
       return { ok: false, tongTest: 0, probes: [], loiThu: `TIMEOUT: lệnh test không kết thúc trong ${timeoutS}s — PR có thể chứa vòng lặp vô hạn/treo I/O`, treo: true };
     }
     if (!existsSync(outFile)) {
-      return { ok: false, tongTest: 0, probes: [], loiThu: (kq.stderr || kq.stdout || 'vitest không ra output').slice(0, 2000) };
+      return { ok: false, tongTest: 0, probes: [], loiThu: (kq.stderr || kq.stdout || 'vitest không ra output').slice(0, 2000), reason: 'output_missing', runnerOutput: capRunnerOutput(kq) };
     }
     const data = JSON.parse(readFileSync(outFile, 'utf8')) as {
       numTotalTests: number;
@@ -414,7 +443,17 @@ export class Sandbox {
       }));
     });
     const loiThu = data.numTotalTests === 0 ? (data.testResults.map((t) => t.message ?? '').join('\n') || 'Không thu thập được test nào').slice(0, 2000) : '';
-    return { ok: data.numTotalTests > 0, tongTest: data.numTotalTests, probes, loiThu, loiNap };
+    // 0 test mà KHÔNG quy được về file nào = bộ chạy không nhặt file probe. Có `loiNap` thì là lỗi nạp, không
+    // phải bệnh này — thứ tự là luật (D5). Chuỗi `loiThu` giữ nguyên cho người đọc cũ; `reason` là thứ mới.
+    const khongNhat = data.numTotalTests === 0 && loiNap.length === 0;
+    return {
+      ok: data.numTotalTests > 0,
+      tongTest: data.numTotalTests,
+      probes,
+      loiThu,
+      loiNap,
+      ...(khongNhat ? { reason: 'not_collected' as const, runnerOutput: capRunnerOutput(kq) } : {}),
+    };
   }
 
   // Runner cấu hình được (B4.5): chạy TỪNG file probe một lệnh riêng theo template của repo đích,
@@ -431,6 +470,7 @@ export class Sandbox {
     // biểu thức riêng thì sẽ lệch, và khuôn ấy đã bị bắt chín lần ở repo này.
     const loiNap: LoadFailure[] = [];
     let tong = 0;
+    let cuoi: SpawnSyncReturns<string> | undefined;
     for (const rel of testFilesRel) {
       const relSach = rel.replace(/\\/g, '/');
       const out = join(this.dir, `junit-${probes.length}-${Date.now()}.xml`);
@@ -452,6 +492,8 @@ export class Sandbox {
           tongTest: tong,
           probes,
           loiThu: `Runner không xuất JUnit XML cho ${relSach}: ${(kq.stderr || kq.stdout || 'không có output').slice(0, 1800)}`,
+          reason: 'output_missing',
+          runnerOutput: capRunnerOutput(kq),
         };
       }
       const cua = parseJUnit(readFileSync(out, 'utf8'), relSach.split('/').pop() ?? relSach);
@@ -464,13 +506,19 @@ export class Sandbox {
       }
       probes.push(...cua);
       tong += cua.length;
+      // Giữ đầu ra của lệnh CUỐI: nếu đến cuối vẫn 0 test, nó là lời văn duy nhất nói vì sao.
+      cuoi = kq;
     }
+    // Cùng luật với `chayVitest`: 0 test mà không lỗi nạp = bộ chạy không nhặt file probe. Có `loiNap` thì
+    // KHÔNG gắn — thứ tự D5 hàng 3 trước hàng 4.
+    const khongNhat = tong === 0 && loiNap.length === 0;
     return {
       ok: tong > 0,
       tongTest: tong,
       probes,
       loiThu: tong > 0 ? '' : `Không thu thập được test nào từ JUnit XML${loiNap.length ? ` — ${loiNap.length} file không nạp được` : ''}`,
       loiNap,
+      ...(khongNhat ? { reason: 'not_collected' as const, runnerOutput: capRunnerOutput(cuoi) } : {}),
     };
   }
 

@@ -52,7 +52,7 @@ runner:
       ../packages/shared/src/volume-summary.js → describeKnob · describeVolumeStandard · KNOB_SOURCE_LABEL · VOLUME_UNKNOWN
       ../packages/harness/src/sources.js     → readSources · describeSources · matchPattern · globToRegExp · skipReason · SPEC_CANDIDATES · API_DOC_CANDIDATES · TEST_SAMPLE_CANDIDATES · MAX_SOURCE_BYTES
       ../packages/shared/src/spec-source.js  → readSourcesCfg · matchPattern · globToRegExp · loiCuPhapAnToan · isProcessDocDir · SPEC_CANDIDATES · API_DOC_CANDIDATES · TEST_SAMPLE_CANDIDATES · PROCESS_DOC_DIRS · PROCESS_DOC_EXTS
-      ../packages/harness/src/sandbox.js     → fileLoadError · detectLoadFailures · Sandbox · envSandbox · buildContainerArgs · detectIsolation · safeImageName · probeEnvForEcosystem · DEFAULT_IMAGE · MEMORY_CAP · CPU_CAP · PIDS_CAP · DEPENDENCY_SCRATCH_PATHS · MAVEN_STORE_MOUNT
+      ../packages/harness/src/sandbox.js     → fileLoadError · detectLoadFailures · capRunnerOutput · RUNNER_OUTPUT_CAP · Sandbox · envSandbox · buildContainerArgs · detectIsolation · safeImageName · probeEnvForEcosystem · DEFAULT_IMAGE · MEMORY_CAP · CPU_CAP · PIDS_CAP · DEPENDENCY_SCRATCH_PATHS · MAVEN_STORE_MOUNT
       ../packages/harness/src/runner-canary.js → runProbeFile
       ../packages/harness/src/probe-split.js         → splitOneProbe · hasTestBlock · cutTestBlock · checkBalanced
       ../packages/harness/src/probe-handover.js      → rankProbe · negateAssertions · mutationGate · buildProposal · FIRED_STATES
