@@ -16,13 +16,13 @@
 
 - [x] 1.1 `probe-environment` › ADDED «Hợp đồng chạy probe SHALL tự chứng minh bằng mồi trước lời gọi model đầu
       tiên» — khoá bởi `test/runner-canary.test.ts` (bảy hàng của bảng D5, mỗi hàng một ca + một mutation).
-- [ ] 1.2 `probe-environment` › MODIFIED «Lỗi MÔI TRƯỜNG MUST NOT làm engine sinh lại probe» — thêm scenario «file
+- [x] 1.2 `probe-environment` › MODIFIED «Lỗi MÔI TRƯỜNG MUST NOT làm engine sinh lại probe» — thêm scenario «file
       probe không được thu thập» và «pull request đổi phạm vi thu thập chỉ ở nhánh của nó»; khoá bởi
       `test/probe-environment.test.ts` (đường thật: `reason === 'not_collected'` ⇒ throw, KHÔNG gọi model lần hai).
 - [x] 1.3 `probe-environment` › MODIFIED «Thông điệp môi trường SHALL gọi đúng tên bệnh…» — ba scenario mới cho
       `probe_not_collected` · `runner_output_missing` · `canary_not_failed`; khoá bởi ca `describeCanaryOutcome`
       (mỗi thông điệp chứa đúng tên núm, KHÔNG chứa chữ «probe viết sai»).
-- [ ] 1.4 `target-contract` › MODIFIED «Không ghi nhận được probe nào thì thông điệp lỗi phải mang nguyên nhân bộ chạy
+- [x] 1.4 `target-contract` › MODIFIED «Không ghi nhận được probe nào thì thông điệp lỗi phải mang nguyên nhân bộ chạy
       đã báo» — scenario «bộ chạy xuất kết quả rỗng»; khoá bởi ca sandbox: `reason: 'not_collected'` đi kèm
       `runnerOutput` có nội dung stdout.
 - [x] 1.5 `target-contract` › MODIFIED «`checkmate.yml` là tuỳ chọn…» — vế `probe_dir`/`probe_ext`; khoá bởi ca
@@ -60,11 +60,11 @@
 - [x] 3.5 `probe-preflight.ts` — `describeCanaryOutcome(kind, ctx)` bảng đóng kết cục → câu; câu nêu đường file
       probe đã ghi + tên núm (`runner.probe_dir` · `runner.probe_ext` · `runner.test_cmd`); MUST NOT chứa «probe
       viết sai» / «pull request có lỗi».
-- [ ] 3.6 `skill-code.ts` — chèn bước mồi giữa khối chặn môi trường (~569–573) và `phat({ stage: 3 })` (~575):
+- [x] 3.6 `skill-code.ts` — chèn bước mồi giữa khối chặn môi trường (~569–573) và `phat({ stage: 3 })` (~575):
       ghi mồi ở `t.baseSha`, `runProbeFile`, `classifyCanaryOutcome`; chặn ⇒ `phat({type:'log', msg:'⛔ DỪNG TRƯỚC KHI
       GỌI MODEL — …'})` + `throw`; bỏ qua ⇒ log nêu lý do; đi tiếp ⇒ log «Mồi hợp đồng runner: đã chứng minh — N.Ns».
       stdout/stderr nối vào thông điệp sau `redactMessage(…, humanSurfaceSource(t))`.
-- [ ] 3.7 `skill-code.ts` — `chayCaHaiNhanh` trả thêm `reason` · `runnerOutput` · `nhanh: 'pr' | 'goc'` của nhánh
+- [x] 3.7 `skill-code.ts` — `chayCaHaiNhanh` trả thêm `reason` · `runnerOutput` · `nhanh: 'pr' | 'goc'` của nhánh
       hỏng; nhánh `loiThu !== undefined` (~707) kiểm `reason === 'not_collected'` TRƯỚC `looksLikeEnvironmentFailure`
       ⇒ throw có tên bệnh và nhánh, KHÔNG sinh lại. Đường `looksLikeEnvironmentFailure` và sinh lại cho lỗi nạp giữ
       nguyên.
@@ -96,14 +96,14 @@
 - [x] 5.2 `test/sandbox-run-result.test.ts` — bốn điểm trả về: fixture JSON `numTotalTests: 0` + stdout giả ⇒
       `reason: 'not_collected'` và `runnerOutput.stdout` có nội dung; JSON có `testResults[].message` ⇒ `loiNap` có,
       `reason` VẮNG; XML rỗng ⇒ `not_collected`; không file ⇒ `output_missing`. Cặp fixture ĐỎ/XANH cho tầng 3.
-- [ ] 5.3 `test/probe-environment.test.ts` — đường thật: model giả đếm lời gọi; `reason: 'not_collected'` ở nhánh PR
+- [x] 5.3 `test/runner-canary-gate.test.ts` (file riêng, lái `runCodeSkill` từ đầu tới cuối — không nhét vào lưới quét nguồn `probe-environment.test.ts`) — đường thật: model giả đếm lời gọi; `reason: 'not_collected'` ở nhánh PR
       ⇒ throw, **1** lời gọi sinh code (không sinh lại); lỗi nạp ⇒ **2** lời gọi (đường cũ giữ). Mutation: gỡ nhánh
       `reason` ⇒ ca «1 lời gọi» đỏ.
 - [x] 5.4 `test/runner-canary.test.ts` — bỏ qua LUÔN có log: đuôi lạ · Java thiếu `probe_file` · mồi không nạp ⇒
       không throw, có đúng một dòng log «mồi bỏ qua vì …», model vẫn được gọi.
 - [x] 5.5 Mồi đi đúng đường: runner có `test_cmd` ⇒ `chayTheoRunner` được gọi (spy); không có ⇒ `chayVitest`.
       Mutation: mồi tự dựng sandbox riêng ⇒ ca đỏ.
-- [ ] 5.6 ⛔C3 — stdout chứa chuỗi giả token ⇒ thông điệp lỗi mang bản che, KHÔNG mang nguyên văn; mutation gỡ
+- [x] 5.6 ⛔C3 — stdout chứa chuỗi giả token ⇒ thông điệp lỗi mang bản che, KHÔNG mang nguyên văn; mutation gỡ
       `redactMessage` ở đường này ⇒ đỏ.
 - [ ] 5.7 `test/hop-dong-repo.test.ts` xanh sau 2.3; `test/identifier-language.test.ts` xanh (mọi định danh mới
       tiếng Anh).

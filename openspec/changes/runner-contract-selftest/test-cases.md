@@ -84,25 +84,25 @@
 
 ### Bước mồi trong `runCodeSkill` — vị trí và hậu quả
 
-- [ ] T2.13 [Trước model]: model giả đếm lời gọi; mồi `probe_not_collected` ⇒ throw, **0** lời gọi model, log có
+- [x] T2.13 [Trước model]: model giả đếm lời gọi; mồi `probe_not_collected` ⇒ throw, **0** lời gọi model, log có
       «⛔ DỪNG TRƯỚC KHI GỌI MODEL».
-- [ ] T2.14 [Sau cửa môi trường]: `preflightProbeEnvironment` giả trả `chan` ⇒ `runProbeFile` KHÔNG được gọi (spy = 0).
-- [ ] T2.15 [Bỏ qua luôn có log]: đuôi lạ · Java thiếu `probe_file` · `skipped_load_error` ⇒ không throw, đúng
+- [x] T2.14 [Sau cửa môi trường]: `preflightProbeEnvironment` giả trả `chan` ⇒ `runProbeFile` KHÔNG được gọi (spy = 0).
+- [x] T2.15 [Bỏ qua luôn có log]: đuôi lạ · Java thiếu `probe_file` · `skipped_load_error` ⇒ không throw, đúng
       **một** dòng log bắt đầu «Mồi hợp đồng runner: bỏ qua —», model vẫn được gọi.
-- [ ] T2.16 [Đã chứng minh có số]: ⇒ log khớp `/Mồi hợp đồng runner: đã chứng minh — \d+(\.\d)?s/`.
-- [ ] T2.17 [Chạy trên nhánh gốc]: spy `runProbeFile` nhận `sha === t.baseSha`, không phải `branchSha`.
+- [x] T2.16 [Đã chứng minh có số]: ⇒ log khớp `/Mồi hợp đồng runner: đã chứng minh — \d+(\.\d)?s/`.
+- [x] T2.17 [Chạy trên nhánh gốc]: spy `runProbeFile` nhận `sha === t.baseSha`, không phải `branchSha`.
 
 ### Gác đường thật — `probe_not_collected` không sinh lại
 
-- [ ] T2.18 [Nhánh PR đổi phạm vi thu thập]: mồi proven (nhánh gốc), `runProbeFile` giả trả `reason: 'not_collected'`
+- [x] T2.18 [Nhánh PR đổi phạm vi thu thập]: mồi proven (nhánh gốc), `runProbeFile` giả trả `reason: 'not_collected'`
       cho `branchSha` ⇒ throw có «probe_not_collected» và «nhánh pull request», **1** lời gọi sinh code.
-- [ ] T2.19 [Nhánh gốc 0 test]: `reason: 'not_collected'` cho `baseSha` sau khi PR chạy được ⇒ thông điệp nêu «nhánh
+- [x] T2.19 [Nhánh gốc 0 test]: `reason: 'not_collected'` cho `baseSha` sau khi PR chạy được ⇒ thông điệp nêu «nhánh
       gốc», không sinh lại, không PASS.
-- [ ] T2.20 [Đường cũ giữ]: `loiThu` có, `reason` vắng, `loiNap` có ⇒ sinh lại như cũ, **2** lời gọi sinh code.
-- [ ] T2.21 [Thứ tự gác]: `reason: 'not_collected'` **và** `loiThu` chứa `EAI_AGAIN` (giả) ⇒ kết cục là
+- [x] T2.20 [Đường cũ giữ]: `loiThu` có, `reason` vắng, `loiNap` có ⇒ sinh lại như cũ, **2** lời gọi sinh code.
+- [x] T2.21 [Thứ tự gác]: `reason: 'not_collected'` **và** `loiThu` chứa `EAI_AGAIN` (giả) ⇒ kết cục là
       `probe_not_collected` (kiểm `reason` trước `looksLikeEnvironmentFailure`) — không phải đường nào cũng được,
       vì thông điệp phải trỏ đúng núm.
-- [ ] T2.22 [Mutation — gỡ nhánh `reason` ở ~707]: T2.18 ĐỎ (thành 2 lời gọi). Hai lần.
+- [x] T2.22 [Mutation — gỡ nhánh `reason` ở ~707]: T2.18 ĐỎ (thành 2 lời gọi). Hai lần.
 
 ### Cửa thêm repo — `POST /api/repo/them` (Requirement mồi, vế cửa thêm repo · Requirement thông điệp, scenario
 «cảnh báo mồi đi cùng kênh»)
@@ -138,7 +138,7 @@
       về phía dừng, không về phía proven.
 - [x] T3.2 [Biên id]: probe tên `CANARY` (không hậu tố) ⇒ khớp; `CANARY2` ⇒ không; `test_CANARY_x` ⇒ khớp;
       `Suite > CANARY: x` ⇒ khớp (JUnit gộp `describe > it`).
-- [ ] T3.3 [Ca đã gãy — admin-fe PR #83, 17/09, run `wmu4u2abqap9w`]: fixture tái tạo đúng `vitest-out.json` của lượt
+- [x] T3.3 [Ca đã gãy — admin-fe PR #83, 17/09, run `wmu4u2abqap9w`]: fixture tái tạo đúng `vitest-out.json` của lượt
       ấy (`numTotalTests 0`, `testResults []`) qua đường mặc định ⇒ mồi chặn `probe_not_collected` trước stage 3;
       thông điệp chứa `test/checker.probe.test.ts` và hai tên núm. Trước change: cùng fixture ⇒ 2 lời gọi sinh code
       rồi «Probe không thu thập được sau 2 lần sinh» — ghi làm ca ĐỎ-trước/XANH-sau.
@@ -151,11 +151,11 @@
 
 ## Trục nhạy cảm
 
-- [ ] T_bimat — stdout của bộ chạy giả chứa `ghp_abc123…` và `sk-ant-…` ⇒ thông điệp lỗi (`phat error`) và
+- [x] T_bimat — stdout của bộ chạy giả chứa `ghp_abc123…` và `sk-ant-…` ⇒ thông điệp lỗi (`phat error`) và
       `events.jsonl` mang bản che qua `redactMessage(…, humanSurfaceSource(t))`, KHÔNG mang nguyên văn; hai token khác
       nhau cho hai bản che khác nhau. `runnerOutput` KHÔNG đi vào prompt nào (spy `callCode` không nhận chuỗi ấy).
       Mutation gỡ `redactMessage` ở đường mồi ⇒ ĐỎ.
-- [ ] T_failclosed — bốn kết cục chặn của mồi và `probe_not_collected` ở đường thật đều `throw`; `runCodeSkill`
+- [x] T_failclosed — bốn kết cục chặn của mồi và `probe_not_collected` ở đường thật đều `throw`; `runCodeSkill`
       không trả verdict; `decideResult` không bao giờ được gọi (spy = 0). Bỏ qua mồi (T2.15) KHÔNG tạo verdict — model
       vẫn chạy, verdict đến từ probe thật. T3.5 là ca fail-closed mạnh nhất.
 - [N/A] T_cong — change không chạm cổng merge, vai, hay mức tự động; lượt dừng bằng `throw` như cửa môi trường hiện
