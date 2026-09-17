@@ -421,6 +421,11 @@ export function refNames(so: number): { headRef: string; baseRef: string } {
   return { headRef: `refs/checkmate/pr${so}`, baseRef: `refs/checkmate/base-pr${so}` };
 }
 
+/** SHA của HEAD bản clone — cửa thêm repo chạy mồi hợp đồng runner trên đúng cây vừa clone. Qua `git()` có che token. */
+export function localHeadSha(localPath: string): string {
+  return git(localPath, ['rev-parse', 'HEAD']);
+}
+
 // Fetch PR + nhánh đích về ref local rồi ROUTER theo loại file đã đổi (specs/R13).
 export function fetchAndRoute(cfg: CauHinhCoRepo, so: number): FetchedPr {
   const lp = cfg.repo.local_path;

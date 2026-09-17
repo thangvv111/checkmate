@@ -43,6 +43,7 @@ runner:
       ../apps/web/src/session-gate.js      → evaluateSessionGate · buildSessionCookie · OPEN_PATHS
       ../apps/web/src/webhook.js           → verifyWebhookSignature · decideWebhookAction
       ../apps/web/src/probe-gate.js        → evaluatePurgeRequest
+      ../apps/web/src/repo-add-canary.js   → newAddTimeCanary · ADD_TIME_CANARY_INCONCLUSIVE · ADD_TIME_CANARY_BUSY · ADD_TIME_CANARY_FAILED
       ../apps/web/src/login-throttle.js    → clientKey · maskAccountKey · runLoginAttempt · evaluateLoginAttempt · recordFailure · clearAccount · accountPenaltyMs · evictWhenFull · shouldLog · newThrottleState · IP_FAIL_CAP · IP_WINDOW_MS · IP_BLOCK_MS · ACCOUNT_FREE_TRIES · ACCOUNT_BACKOFF_BASE_MS · ACCOUNT_BACKOFF_CAP_MS · THROTTLE_MAX_ENTRIES · LOG_MIN_INTERVAL_MS · FALLBACK_CLIENT_KEY
       ../apps/web/src/response-secret-guard.js → collectSecrets · findSecret · blockMessage · attachSecretGuard · MIN_SECRET_LENGTH
       ../packages/harness/src/runner.js      → parseJUnit · readRunnerCfg · readReviewCfg · readSourcesCfg · readStandardsCfg · diffIgnorePatterns · clampTimeout · TIMEOUT_RANGE
@@ -78,7 +79,7 @@ runner:
       ../packages/harness/src/model.js       → envForCli · costMetrics · costSummary · looksLikeModelReply · authLost · AUTH_LOST_PATTERNS · CliConfigError · checkProvider · pickProvider · ClaudeCliProvider · AnthropicApiProvider · ProviderConfigError
       ../packages/harness/src/skill-doc.js   → runDocSkill · describeCandidate · effectiveDocSeverity · docCandidateRank
       ../packages/harness/src/trigger-catalog.js → TRIGGER_CATALOG · isValidTrigger · timTrigger · tapKichHoat
-      ../apps/web/src/github.js              → repoFromPath · refNames · splitOwnerRepo · checkRepo · maskTokenInText · hasGhCli · hasGithubAccess · getCurrentPr · commentPr · mergePr · returnToDev · setCommitStatus · closePr · clearPrCache · listPrs · fetchAndRoute · classifyPr · prState · listReposForToken · cloneRepo · listBranches
+      ../apps/web/src/github.js              → repoFromPath · refNames · localHeadSha · splitOwnerRepo · checkRepo · maskTokenInText · hasGhCli · hasGithubAccess · getCurrentPr · commentPr · mergePr · returnToDev · setCommitStatus · closePr · clearPrCache · listPrs · fetchAndRoute · classifyPr · prState · listReposForToken · cloneRepo · listBranches
       ../apps/web/src/gate.js                → appendGateLedgerEntry · countBySeverity · samePerson · outsideGateDetail · safeString · reconcileGate · MACHINE_ACTOR_NAME · renderReceipt · renderAutoVerdict · renderRuling · evaluateMergeLocal · evaluateMergeAgainstPr · evaluateRejectLocal · decideAutomation · decideRerun
       ../apps/web/src/store/db.js              → openDb · closeDb
       ../apps/web/src/store/run-store.js         → saveMeta · saveEvents · appendEvent · readMeta · readEvents · listRuns · countRuns · findByPr · isPrRunning · runningCount · cleanupOrphanRuns · returnedToDev
