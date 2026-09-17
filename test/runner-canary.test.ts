@@ -195,6 +195,22 @@ describe('describeCanaryOutcome — bệnh + việc phải làm bằng tên núm
     expect(s).toContain('runner.probe_ext');
     cam(s);
   });
+  it('T1.21b probe_not_collected — repo CHƯA khai runner: nói đường mặc định, đòi đủ ba khoá kể cả test_cmd, KHÔNG in probe_ext như thể đã khai', () => {
+    const s = describeCanaryOutcome('probe_not_collected', { probePath: 'test/checker.probe.test.ts', probeDir: 'test', probeExt: '.test.ts', hasTestCmd: false });
+    expect(s).toContain('test/checker.probe.test.ts');
+    expect(s).toContain('đường vitest mặc định');
+    expect(s).toContain('chưa khai khối `runner`');
+    expect(s).toContain('`test_cmd` (bắt buộc');
+    expect(s).toContain('runner.probe_dir');
+    expect(s).toContain('runner.probe_ext');
+    expect(s).not.toContain('`runner.probe_ext` = `.test.ts`');
+    cam(s);
+    // Đối chứng: có runner thì in giá trị hai núm và KHÔNG nhắc test_cmd bắt buộc.
+    const co = describeCanaryOutcome('probe_not_collected', ctx);
+    expect(co).toContain('`runner.probe_ext` = `.test.tsx`');
+    expect(co).not.toContain('bắt buộc');
+  });
+
   it('T1.22 runner_output_missing: có test_cmd thì nêu test_cmd; đường mặc định thì nói mặc định', () => {
     expect(describeCanaryOutcome('runner_output_missing', ctx)).toContain('runner.test_cmd');
     const macDinh = describeCanaryOutcome('runner_output_missing', { ...ctx, hasTestCmd: false });

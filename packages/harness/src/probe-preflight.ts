@@ -460,12 +460,22 @@ export function describeCanaryOutcome(
   const oDau = ctx.nhanh === 'pr' ? ' (ở nhánh pull request)' : ctx.nhanh === 'goc' ? ' (ở nhánh gốc)' : '';
   const duong = ctx.hasTestCmd ? '`runner.test_cmd` của checkmate.yml' : 'đường vitest mặc định (repo không khai `runner.test_cmd`)';
   if (kind === 'probe_not_collected') {
+    // Repo KHÔNG khai runner: đừng in `runner.probe_ext = .test.ts` như thể có khối ấy — đo T7.1 17/09, câu đó
+    // làm người đọc tưởng repo đã khai. Nói thẳng đây là đường mặc định, và khối runner cần đủ ba khoá — vì
+    // `test_cmd` vắng là cả khối bị bỏ im lặng (`target-contract › checkmate.yml là tuỳ chọn…`).
+    const chuaKhai = !ctx.hasTestCmd;
+    const chiTiet = chuaKhai
+      ? `theo đường vitest mặc định — repo chưa khai khối \`runner\` trong checkmate.yml`
+      : `(\`runner.probe_dir\` = \`${ctx.probeDir}\`, \`runner.probe_ext\` = \`${ctx.probeExt}\`)`;
+    const sua = chuaKhai
+      ? 'Sửa ở checkmate.yml của repo đích: thêm khối `runner` với đủ ba khoá `test_cmd` (bắt buộc — thiếu nó cả khối bị bỏ), ' +
+        '`runner.probe_dir` và `runner.probe_ext` trỏ vào chỗ bộ chạy của họ thu thập '
+      : 'Sửa ở checkmate.yml của repo đích: khai `runner.probe_dir` và `runner.probe_ext` trỏ vào chỗ bộ chạy của họ thu thập ';
     return (
-      `Bộ chạy test của repo đích không nhặt file probe${oDau}: engine ghi probe vào \`${ctx.probePath}\` ` +
-      `(\`runner.probe_dir\` = \`${ctx.probeDir}\`, \`runner.probe_ext\` = \`${ctx.probeExt}\`), nhưng phạm vi thu thập ` +
-      'của bộ chạy repo đích không phủ đường ấy — 0 test được ghi nhận và không có lỗi nạp file nào. ' +
-      'Sửa ở checkmate.yml của repo đích: khai `runner.probe_dir` và `runner.probe_ext` trỏ vào chỗ bộ chạy của họ ' +
-      'thu thập (ví dụ `include` của vitest, `testMatch` của jest, `testpaths` của pytest, `<includes>` của surefire). ' +
+      `Bộ chạy test của repo đích không nhặt file probe${oDau}: engine ghi probe vào \`${ctx.probePath}\` ${chiTiet}, ` +
+      'nhưng phạm vi thu thập của bộ chạy repo đích không phủ đường ấy — 0 test được ghi nhận và không có lỗi nạp file nào. ' +
+      sua +
+      '(ví dụ `include` của vitest, `testMatch` của jest, `testpaths` của pytest, `<includes>` của surefire). ' +
       'Đây KHÔNG phải lỗi của pull request đang chấm.'
     );
   }
