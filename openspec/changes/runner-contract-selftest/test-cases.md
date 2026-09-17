@@ -170,7 +170,13 @@
 
 ## Chạy thật — ⛔ KHÔNG tick trước khi chạy, ghi `run_id` vào ô
 
-- [ ] T7.1 admin-fe **chưa** có `checkmate.yml`: lượt dừng `probe_not_collected` TRƯỚC stage 3; `events.jsonl` không
+- [x] T7.1 ✅ 17/09 03:54 UTC — CLI trên prod (code đã deploy), admin-fe `refs/checkmate/pr83` @ aa916fb vs base @ a3a4d22,
+      khoá model GIẢ (mồi chặn trước model nên không cần khoá thật): dừng sau **3 giây**, mồi **1,9 giây** trong container,
+      `⛔ DỪNG TRƯỚC KHI GỌI MODEL — mồi hợp đồng runner (1.9s): probe_not_collected`, **0** lời gọi model, KHÔNG có dòng
+      «probe mới». Thông điệp có `test/checker.probe.test.ts` · `runner.probe_dir` · `runner.probe_ext` · «KHÔNG phải lỗi của
+      pull request» · «Bộ chạy nói: <không nhận dạng được, 44 ký tự>»; không «probe viết sai». Sổ sự kiện: `/tmp/cm-t71/events.jsonl`
+      trên máy chủ. Đối chứng: ba lượt trước cùng PR mất 312 · 894 · 886 giây, 2–3 lời gọi model.
+      ~~admin-fe **chưa** có `checkmate.yml`: lượt dừng `probe_not_collected` TRƯỚC stage 3; `events.jsonl` không
       có dòng «probe mới»; thông điệp nêu `test/checker.probe.test.ts` + hai núm. run_id: ____
 - [ ] T7.2 admin-fe **sau khi** đội đích merge `checkmate.yml` (bản soạn 17/09, kiểm ở tasks 0.2): mồi đã chứng minh,
       lượt đi hết; ghi giây của mồi. run_id: ____

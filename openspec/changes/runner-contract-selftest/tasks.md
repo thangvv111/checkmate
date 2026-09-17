@@ -128,7 +128,7 @@
 ## 7. Trước merge
 
 - [x] 7.1 `npx tsc --noEmit && npm test` — toàn bộ.
-- [ ] 7.2 Deploy theo `DEPLOY.md`, đối chiếu số liệu.
+- [x] 7.2 Deploy theo `DEPLOY.md`, đối chiếu số liệu.
 - [ ] 7.3 Chạy thật (⛔ KHÔNG tick trước khi chạy — ô ở `test-cases.md § 7`): (a) admin-fe **chưa** có `checkmate.yml`
       ⇒ mồi chặn `probe_not_collected` **trước** stage 3, log ghi 0 lời gọi model; (b) admin-fe **sau khi** đội đích
       merge `checkmate.yml` (bản đã soạn và kiểm 17/09) ⇒ mồi đã chứng minh, lượt đi hết; (c) `checkmate` tự chấm ⇒
