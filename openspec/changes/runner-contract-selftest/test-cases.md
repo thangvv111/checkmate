@@ -2,56 +2,56 @@
 
 ### `classifyCanaryOutcome(kq, canaryId?)` — bảng D5, THỨ TỰ là luật
 
-- [ ] T1.1 [Hợp đồng đúng — mồi đỏ đi tới được đầu ra]: GIVEN `kq.probes = [{ title: 'CANARY: CheckMate runner
+- [x] T1.1 [Hợp đồng đúng — mồi đỏ đi tới được đầu ra]: GIVEN `kq.probes = [{ title: 'CANARY: CheckMate runner
       contract', status: 'failed' }]`, `tongTest 1`, không `reason`, không `loiNap` WHEN gọi với `'CANARY'` THEN
       `'proven'`.
-- [ ] T1.2 [Bộ chạy không nhặt file probe]: GIVEN `reason: 'not_collected'`, `tongTest 0`, `loiNap []` THEN
+- [x] T1.2 [Bộ chạy không nhặt file probe]: GIVEN `reason: 'not_collected'`, `tongTest 0`, `loiNap []` THEN
       `'probe_not_collected'`.
-- [ ] T1.3 [Template nuốt thất bại]: GIVEN `reason: 'output_missing'` THEN `'runner_output_missing'`.
-- [ ] T1.4 [Treo cũng là bộ chạy]: GIVEN `treo: true` THEN `'runner_output_missing'` — mồi một dòng không thể treo.
-- [ ] T1.5 [Đầu ra không phải của lượt này]: GIVEN `tongTest 3`, ba probe không probe nào `matchProbeId(…, 'CANARY')`
+- [x] T1.3 [Template nuốt thất bại]: GIVEN `reason: 'output_missing'` THEN `'runner_output_missing'`.
+- [x] T1.4 [Treo cũng là bộ chạy]: GIVEN `treo: true` THEN `'runner_output_missing'` — mồi một dòng không thể treo.
+- [x] T1.5 [Đầu ra không phải của lượt này]: GIVEN `tongTest 3`, ba probe không probe nào `matchProbeId(…, 'CANARY')`
       THEN `'canary_not_in_output'`.
-- [ ] T1.6 [Bộ chạy báo xanh cho phép thử đỏ — xanh giả bị chặn]: GIVEN probe mồi có mặt với `status: 'passed'`
+- [x] T1.6 [Bộ chạy báo xanh cho phép thử đỏ — xanh giả bị chặn]: GIVEN probe mồi có mặt với `status: 'passed'`
       THEN `'canary_not_failed'`.
-- [ ] T1.7 [Mồi không nạp được — bỏ qua, không kết luận]: GIVEN `loiNap = [{ file: 'checker_probe.test.tsx', … }]`
+- [x] T1.7 [Mồi không nạp được — bỏ qua, không kết luận]: GIVEN `loiNap = [{ file: 'checker_probe.test.tsx', … }]`
       **và** `tongTest 0` THEN `'skipped_load_error'`, KHÔNG phải `'probe_not_collected'` — hàng 3 đứng trước hàng 4.
-- [ ] T1.8 [Đường thật — chỉ hàng 4 có nghĩa]: GIVEN `canaryId` vắng WHEN `reason: 'not_collected'` THEN
+- [x] T1.8 [Đường thật — chỉ hàng 4 có nghĩa]: GIVEN `canaryId` vắng WHEN `reason: 'not_collected'` THEN
       `'probe_not_collected'`; WHEN `reason: 'output_missing'` · `treo` · probe pass THEN `null` (đường cũ chạy như cũ).
-- [ ] T1.9 [Biên — 0 test vì lỗi nạp KHÔNG phải «không thu thập được»]: GIVEN `tongTest 0`, `loiNap` có một mục,
+- [x] T1.9 [Biên — 0 test vì lỗi nạp KHÔNG phải «không thu thập được»]: GIVEN `tongTest 0`, `loiNap` có một mục,
       `reason` VẮNG (sandbox không gắn vì có lỗi nạp) THEN đường thật trả `null`, mồi trả `'skipped_load_error'`.
-- [ ] T1.10 [Mutation — đảo hàng 3↔4]: đổi thứ tự hai `if` ⇒ T1.7 và T1.9 ĐỎ. Chạy hai lần.
-- [ ] T1.11 [Mutation — gỡ kiểm `status !== 'failed'`]: ⇒ T1.6 ĐỎ. Chạy hai lần.
-- [ ] T1.12 [Mutation — thay `matchProbeId` bằng `includes('CANARY')`]: probe tên `MYCANARY2` ⇒ T1.5 phải vẫn
+- [x] T1.10 [Mutation — đảo hàng 3↔4]: đổi thứ tự hai `if` ⇒ T1.7 và T1.9 ĐỎ. Chạy hai lần.
+- [x] T1.11 [Mutation — gỡ kiểm `status !== 'failed'`]: ⇒ T1.6 ĐỎ. Chạy hai lần.
+- [x] T1.12 [Mutation — thay `matchProbeId` bằng `includes('CANARY')`]: probe tên `MYCANARY2` ⇒ T1.5 phải vẫn
       `canary_not_in_output` (ký tự sau id là chữ số) — mutation làm nó thành `proven` ⇒ ĐỎ.
 
 ### `canaryLanguage(probeExt)` — bảng đóng
 
-- [ ] T1.13 [Đuôi kép]: `.probe.test.ts` → `'ts'` · `.test.tsx` → `'tsx'` · `.py` → `'py'` · `.java` → `'java'`.
-- [ ] T1.14 [Ngoài bảng]: `.kt` · `.go` · `.cs` · `''` · `undefined` → `null`.
-- [ ] T1.15 [Cặp fixture tầng 3]: `'.test.ts'` XANH và `'.test.kt'` ĐỎ trong cùng một ca — lưới quét có cả hai chiều.
+- [x] T1.13 [Đuôi kép]: `.probe.test.ts` → `'ts'` · `.test.tsx` → `'tsx'` · `.py` → `'py'` · `.java` → `'java'`.
+- [x] T1.14 [Ngoài bảng]: `.kt` · `.go` · `.cs` · `''` · `undefined` → `null`.
+- [x] T1.15 [Cặp fixture tầng 3]: `'.test.ts'` XANH và `'.test.kt'` ĐỎ trong cùng một ca — lưới quét có cả hai chiều.
 
 ### `writeCanary(lang, opts)` — thân mồi là hằng
 
-- [ ] T1.16 [Tên test bắt đầu `CANARY` ở mọi ngôn ngữ]: với từng `lang` trong bảng, `matchProbeId(<tên test trong
+- [x] T1.16 [Tên test bắt đầu `CANARY` ở mọi ngôn ngữ]: với từng `lang` trong bảng, `matchProbeId(<tên test trong
       thân>, 'CANARY')` là `true` — kiểm bằng chính hàm nối, không bằng regex riêng.
-- [ ] T1.17 [Khuôn theo framework]: `framework: 'vitest'` và đường mặc định ⇒ thân có `from 'vitest'`;
+- [x] T1.17 [Khuôn theo framework]: `framework: 'vitest'` và đường mặc định ⇒ thân có `from 'vitest'`;
       `framework: 'jest'` ⇒ không có import; `framework: 'Jest 29'` ⇒ khớp `/jest/i` ⇒ không import.
-- [ ] T1.18 [Java cần tên lớp]: `lang 'java'` không `className` ⇒ `null`; `className 'CheckerProbeTest'` ⇒ thân có
+- [x] T1.18 [Java cần tên lớp]: `lang 'java'` không `className` ⇒ `null`; `className 'CheckerProbeTest'` ⇒ thân có
       `class CheckerProbeTest`.
-- [ ] T1.19 [⛔C4 — tên lớp rác bị từ chối]: `className 'Foo; rm -rf'` · `'../X'` · `'1Abc'` ⇒ `null`, KHÔNG nội suy.
-- [ ] T1.20 [Thân mồi không chứa gì từ repo đích]: với mọi đầu vào hợp lệ, thân ⊆ hằng + `className` đã kiểm — so
+- [x] T1.19 [⛔C4 — tên lớp rác bị từ chối]: `className 'Foo; rm -rf'` · `'../X'` · `'1Abc'` ⇒ `null`, KHÔNG nội suy.
+- [x] T1.20 [Thân mồi không chứa gì từ repo đích]: với mọi đầu vào hợp lệ, thân ⊆ hằng + `className` đã kiểm — so
       bằng snapshot đóng, không có template string nào nhận chuỗi ngoài.
 
 ### `describeCanaryOutcome(kind, ctx)` — thông điệp bằng tên núm
 
-- [ ] T1.21 [`probe_not_collected`]: thông điệp chứa đường file đã ghi (`src/checker_probe.test.tsx`), chứa
+- [x] T1.21 [`probe_not_collected`]: thông điệp chứa đường file đã ghi (`src/checker_probe.test.tsx`), chứa
       `runner.probe_dir` và `runner.probe_ext`, KHÔNG chứa «probe viết sai» / «pull request».
-- [ ] T1.22 [`runner_output_missing`]: chứa `runner.test_cmd`; với đường mặc định (không `test_cmd`) thì nói «đường
+- [x] T1.22 [`runner_output_missing`]: chứa `runner.test_cmd`; với đường mặc định (không `test_cmd`) thì nói «đường
       vitest mặc định», KHÔNG nhắc `test_cmd`.
-- [ ] T1.23 [`canary_not_failed`]: chứa «báo đạt cho một phép thử cố tình đỏ» và `runner.test_cmd`; KHÔNG chứa
+- [x] T1.23 [`canary_not_failed`]: chứa «báo đạt cho một phép thử cố tình đỏ» và `runner.test_cmd`; KHÔNG chứa
       «probe» như chủ ngữ của lỗi.
-- [ ] T1.24 [`canary_not_in_output`]: nói đầu ra không chứa phép thử vừa ghi.
-- [ ] T1.25 [Nhánh]: `ctx.nhanh = 'pr'` ⇒ thông điệp nêu «ở nhánh pull request»; `'goc'` ⇒ «ở nhánh gốc»; vắng ⇒
+- [x] T1.24 [`canary_not_in_output`]: nói đầu ra không chứa phép thử vừa ghi.
+- [x] T1.25 [Nhánh]: `ctx.nhanh = 'pr'` ⇒ thông điệp nêu «ở nhánh pull request»; `'goc'` ⇒ «ở nhánh gốc»; vắng ⇒
       không nhắc nhánh (mồi).
 
 ## Tích hợp (đĩa, SQLite, khoá)
@@ -75,12 +75,12 @@
 
 ### `runProbeFile` — một hàm, ba người gọi
 
-- [ ] T2.9 [Happy]: ghi code vào `probeDir/fileName` trong sandbox, chạy, trả `VitestResult`, sandbox đã `huy()` —
+- [x] T2.9 [Happy]: ghi code vào `probeDir/fileName` trong sandbox, chạy, trả `VitestResult`, sandbox đã `huy()` —
       thư mục tạm không còn sau khi hàm trả về, KỂ CẢ khi `chayTrongSandbox` ném.
-- [ ] T2.10 [Đúng đường]: `runner` có `test_cmd` ⇒ spy `chayTheoRunner` được gọi, `chayVitest` không; ngược lại.
+- [x] T2.10 [Đúng đường]: `runner` có `test_cmd` ⇒ spy `chayTheoRunner` được gọi, `chayVitest` không; ngược lại.
 - [x] T2.11 [Hồi quy hoist]: đường thật và cửa đột biến sau hoist cho CÙNG kết quả với trước hoist trên cùng fixture
       (ghi kết quả trước hoist vào fixture ở commit hoist, so ở commit sau).
-- [ ] T2.12 [Song song]: hai `runProbeFile` cùng repo cùng lúc ⇒ hai thư mục sandbox khác nhau, không đụng file.
+- [x] T2.12 [Song song]: hai `runProbeFile` cùng repo cùng lúc ⇒ hai thư mục sandbox khác nhau, không đụng file.
 
 ### Bước mồi trong `runCodeSkill` — vị trí và hậu quả
 
@@ -133,20 +133,20 @@
 
 ## Ca đối kháng & hồi quy
 
-- [ ] T3.1 [Khuyết ở mọi tầng]: `classifyCanaryOutcome` với `probes: undefined` · `kq: {}` · `loiNap: null` ·
+- [x] T3.1 [Khuyết ở mọi tầng]: `classifyCanaryOutcome` với `probes: undefined` · `kq: {}` · `loiNap: null` ·
       `tongTest: 'abc'` ⇒ không ném; kết cục là `null` (đường thật) hoặc `'runner_output_missing'` (mồi) — fail-closed
       về phía dừng, không về phía proven.
-- [ ] T3.2 [Biên id]: probe tên `CANARY` (không hậu tố) ⇒ khớp; `CANARY2` ⇒ không; `test_CANARY_x` ⇒ khớp;
+- [x] T3.2 [Biên id]: probe tên `CANARY` (không hậu tố) ⇒ khớp; `CANARY2` ⇒ không; `test_CANARY_x` ⇒ khớp;
       `Suite > CANARY: x` ⇒ khớp (JUnit gộp `describe > it`).
 - [ ] T3.3 [Ca đã gãy — admin-fe PR #83, 17/09, run `wmu4u2abqap9w`]: fixture tái tạo đúng `vitest-out.json` của lượt
       ấy (`numTotalTests 0`, `testResults []`) qua đường mặc định ⇒ mồi chặn `probe_not_collected` trước stage 3;
       thông điệp chứa `test/checker.probe.test.ts` và hai tên núm. Trước change: cùng fixture ⇒ 2 lời gọi sinh code
       rồi «Probe không thu thập được sau 2 lần sinh» — ghi làm ca ĐỎ-trước/XANH-sau.
-- [ ] T3.4 [Ca đã gãy — nợ 32 hàng 2, hai repo Java 08/09]: `test_cmd` với `&&` nuốt thất bại ⇒ không XML ⇒ mồi
+- [x] T3.4 [Ca đã gãy — nợ 32 hàng 2, hai repo Java 08/09]: `test_cmd` với `&&` nuốt thất bại ⇒ không XML ⇒ mồi
       `runner_output_missing` trước stage 3, thông điệp có `runner.test_cmd` và stderr.
-- [ ] T3.5 [Xanh giả]: runner giả ghi XML `tests="1" failures="0"` cho mọi đầu vào ⇒ `canary_not_failed`, throw, 0
+- [x] T3.5 [Xanh giả]: runner giả ghi XML `tests="1" failures="0"` cho mọi đầu vào ⇒ `canary_not_failed`, throw, 0
       lời gọi model. Đây là ca quan trọng nhất của change: một bộ chạy như thế sẽ báo xanh cho mọi hồi quy.
-- [ ] T3.6 [Mồi bị đổ oan cho repo đích]: mồi TS import `'vitest'` trên repo jest (giả lỗi nạp `Cannot find package
+- [x] T3.6 [Mồi bị đổ oan cho repo đích]: mồi TS import `'vitest'` trên repo jest (giả lỗi nạp `Cannot find package
       'vitest'`) ⇒ `skipped_load_error` + log, KHÔNG `probe_not_collected`, KHÔNG nhắc `probe_dir`.
 
 ## Trục nhạy cảm

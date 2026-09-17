@@ -14,18 +14,18 @@
 
 ## 1. Luật (capability)
 
-- [ ] 1.1 `probe-environment` › ADDED «Hợp đồng chạy probe SHALL tự chứng minh bằng mồi trước lời gọi model đầu
+- [x] 1.1 `probe-environment` › ADDED «Hợp đồng chạy probe SHALL tự chứng minh bằng mồi trước lời gọi model đầu
       tiên» — khoá bởi `test/runner-canary.test.ts` (bảy hàng của bảng D5, mỗi hàng một ca + một mutation).
 - [ ] 1.2 `probe-environment` › MODIFIED «Lỗi MÔI TRƯỜNG MUST NOT làm engine sinh lại probe» — thêm scenario «file
       probe không được thu thập» và «pull request đổi phạm vi thu thập chỉ ở nhánh của nó»; khoá bởi
       `test/probe-environment.test.ts` (đường thật: `reason === 'not_collected'` ⇒ throw, KHÔNG gọi model lần hai).
-- [ ] 1.3 `probe-environment` › MODIFIED «Thông điệp môi trường SHALL gọi đúng tên bệnh…» — ba scenario mới cho
+- [x] 1.3 `probe-environment` › MODIFIED «Thông điệp môi trường SHALL gọi đúng tên bệnh…» — ba scenario mới cho
       `probe_not_collected` · `runner_output_missing` · `canary_not_failed`; khoá bởi ca `describeCanaryOutcome`
       (mỗi thông điệp chứa đúng tên núm, KHÔNG chứa chữ «probe viết sai»).
 - [ ] 1.4 `target-contract` › MODIFIED «Không ghi nhận được probe nào thì thông điệp lỗi phải mang nguyên nhân bộ chạy
       đã báo» — scenario «bộ chạy xuất kết quả rỗng»; khoá bởi ca sandbox: `reason: 'not_collected'` đi kèm
       `runnerOutput` có nội dung stdout.
-- [ ] 1.5 `target-contract` › MODIFIED «`checkmate.yml` là tuỳ chọn…» — vế `probe_dir`/`probe_ext`; khoá bởi ca
+- [x] 1.5 `target-contract` › MODIFIED «`checkmate.yml` là tuỳ chọn…» — vế `probe_dir`/`probe_ext`; khoá bởi ca
       mồi trên fixture repo có `include` không phủ `probe_dir` ⇒ `probe_not_collected` nêu đúng hai tên núm.
 - [ ] 1.6 Chú thích ở `runner.ts` cạnh `probe_dir` · `probe_ext`: hai núm khớp phạm vi thu thập, mặc định là gì, và
       engine kiểm bằng mồi chứ không đoán — chỗ sống của luật phía code.
@@ -34,12 +34,12 @@
 
 - [x] 2.1 `sandbox.ts › VitestResult` thêm `reason?: 'output_missing' | 'not_collected'` và
       `runnerOutput?: { stdout: string; stderr: string }` (mỗi chuỗi ≤ 1800 ký tự). KHÔNG đụng `treo`, `loiNap`.
-- [ ] 2.2 `runner-canary.ts` export kiểu `CanaryOutcome` (union bảy nhãn của D5) — tên tiếng Anh, khai ở bảng module.
-- [ ] 2.3 ⛔C5 — khai vào bảng module của `checkmate.yml`: hàng mới `runner-canary.js → runProbeFile · runCanary ·
+- [x] 2.2 `runner-canary.ts` export kiểu `CanaryOutcome` (union bảy nhãn của D5) — tên tiếng Anh, khai ở bảng module.
+- [x] 2.3 ⛔C5 — khai vào bảng module của `checkmate.yml`: hàng mới `runner-canary.js → runProbeFile · runCanary ·
       writeCanary · canaryLanguage · classifyCanaryOutcome · CANARY_ID · CANARY_BY_LANGUAGE · CANARY_TIMEOUT_AT_ADD_S`;
       hàng `probe-preflight.js` thêm `describeCanaryOutcome`; hàng `sandbox.js` không đổi export. Chạy
       `test/hop-dong-repo.test.ts` ngay sau.
-- [ ] 2.4 `runner-canary.ts` export `runCanary(input) → CanaryReport` — gói «ghi mồi + runProbeFile + phân loại +
+- [x] 2.4 `runner-canary.ts` export `runCanary(input) → CanaryReport` — gói «ghi mồi + runProbeFile + phân loại +
       giây» thành MỘT hàm cho hai cửa gọi (đường chấm · cửa thêm repo); `CanaryReport = { outcome, seconds, message?,
       timedOut: boolean }`. Hai cửa chỉ khác ở việc làm gì với `outcome` — KHÔNG có hai đường ghi/chạy mồi.
 
@@ -52,12 +52,12 @@
 - [x] 3.2 `skill-code.ts` — hoist closure `chay` (~614–626) thành `runProbeFile({ repo, sha, code, fileName, probeDir,
       runner, image, parseJUnit })` đặt ở `runner-canary.ts`; đường thật và cửa đột biến (~1050) gọi nó.
       **Commit riêng, hành vi y nguyên** — lưới cửa đột biến hiện có là hồi quy.
-- [ ] 3.3 `runner-canary.ts` — `canaryLanguage(probeExt)` bảng đóng `ts · tsx · js · mjs · py · java`;
+- [x] 3.3 `runner-canary.ts` — `canaryLanguage(probeExt)` bảng đóng `ts · tsx · js · mjs · py · java`;
       `writeCanary(lang, { framework?, className? })` trả hằng theo ngôn ngữ, tên test bắt đầu `CANARY`; Java kiểm
       `className` bằng `/^[A-Za-z_][A-Za-z0-9_]*$/` (⛔C4), vắng thì trả `null`.
-- [ ] 3.4 `runner-canary.ts` — `classifyCanaryOutcome(kq, canaryId?)` theo đúng THỨ TỰ bảng D5; `canaryId`
+- [x] 3.4 `runner-canary.ts` — `classifyCanaryOutcome(kq, canaryId?)` theo đúng THỨ TỰ bảng D5; `canaryId`
       vắng ⇒ chỉ hàng 4 có nghĩa, còn lại `null`.
-- [ ] 3.5 `probe-preflight.ts` — `describeCanaryOutcome(kind, ctx)` bảng đóng kết cục → câu; câu nêu đường file
+- [x] 3.5 `probe-preflight.ts` — `describeCanaryOutcome(kind, ctx)` bảng đóng kết cục → câu; câu nêu đường file
       probe đã ghi + tên núm (`runner.probe_dir` · `runner.probe_ext` · `runner.test_cmd`); MUST NOT chứa «probe
       viết sai» / «pull request có lỗi».
 - [ ] 3.6 `skill-code.ts` — chèn bước mồi giữa khối chặn môi trường (~569–573) và `phat({ stage: 3 })` (~575):
@@ -90,7 +90,7 @@
 
 ## 5. Test
 
-- [ ] 5.1 `test/runner-canary.test.ts` — bảy hàng D5, mỗi hàng: một ca XANH đúng hàng + một **mutation** (đảo thứ
+- [x] 5.1 `test/runner-canary.test.ts` — bảy hàng D5, mỗi hàng: một ca XANH đúng hàng + một **mutation** (đảo thứ
       tự hàng 3↔4 · gỡ kiểm `status !== 'failed'` · gỡ `matchProbeId`) chạy **hai lần**, kết quả nhất quán, và
       **kiểm mutation đã áp** (`git diff --stat` khác 0) trước khi đọc kết quả.
 - [x] 5.2 `test/sandbox-run-result.test.ts` — bốn điểm trả về: fixture JSON `numTotalTests: 0` + stdout giả ⇒
@@ -99,9 +99,9 @@
 - [ ] 5.3 `test/probe-environment.test.ts` — đường thật: model giả đếm lời gọi; `reason: 'not_collected'` ở nhánh PR
       ⇒ throw, **1** lời gọi sinh code (không sinh lại); lỗi nạp ⇒ **2** lời gọi (đường cũ giữ). Mutation: gỡ nhánh
       `reason` ⇒ ca «1 lời gọi» đỏ.
-- [ ] 5.4 `test/runner-canary.test.ts` — bỏ qua LUÔN có log: đuôi lạ · Java thiếu `probe_file` · mồi không nạp ⇒
+- [x] 5.4 `test/runner-canary.test.ts` — bỏ qua LUÔN có log: đuôi lạ · Java thiếu `probe_file` · mồi không nạp ⇒
       không throw, có đúng một dòng log «mồi bỏ qua vì …», model vẫn được gọi.
-- [ ] 5.5 Mồi đi đúng đường: runner có `test_cmd` ⇒ `chayTheoRunner` được gọi (spy); không có ⇒ `chayVitest`.
+- [x] 5.5 Mồi đi đúng đường: runner có `test_cmd` ⇒ `chayTheoRunner` được gọi (spy); không có ⇒ `chayVitest`.
       Mutation: mồi tự dựng sandbox riêng ⇒ ca đỏ.
 - [ ] 5.6 ⛔C3 — stdout chứa chuỗi giả token ⇒ thông điệp lỗi mang bản che, KHÔNG mang nguyên văn; mutation gỡ
       `redactMessage` ở đường này ⇒ đỏ.
