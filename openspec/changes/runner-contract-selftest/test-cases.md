@@ -180,7 +180,10 @@
       có dòng «probe mới»; thông điệp nêu `test/checker.probe.test.ts` + hai núm. run_id: ____
 - [ ] T7.2 admin-fe **sau khi** đội đích merge `checkmate.yml` (bản soạn 17/09, kiểm ở tasks 0.2): mồi đã chứng minh,
       lượt đi hết; ghi giây của mồi. run_id: ____
-- [ ] T7.3 `checkmate` tự chấm một PR code: mồi đã chứng minh, thêm ≤ 10 giây, verdict không đổi so với lượt trước
+- [ ] T7.3 **đang chạy** — run `wmu4zz1gheits` (webhook, PR #94 @ e1e5574, code mới đã deploy, model Gemini): `Runner cấu hình từ
+      checkmate.yml` t=527ms → `Mồi hợp đồng runner: đã chứng minh — 2.5s` t=3050ms → stage 3. Mồi trong container prod **2,5 giây**
+      (≤ 10 giây ✓). Verdict: ____ (lượt là commit mới nên không có lượt trước cùng commit để so; ghi verdict và số probe).
+      ~~`checkmate` tự chấm một PR code: mồi đã chứng minh, thêm ≤ 10 giây, verdict không đổi so với lượt trước
       change trên cùng commit. run_id: ____
 - [ ] T7.4 Một repo Java (`admin-be` sau khi đội đích sửa `test_cmd`): mồi chạy qua đường runner + JUnit, ghi giây vào
       nợ 8.1 và so với `CANARY_TIMEOUT_AT_ADD_S = 180` (Open Question thứ ba của `design.md`). run_id: ____
